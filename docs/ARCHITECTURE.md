@@ -218,28 +218,28 @@ Main user roles:
 
 ```text
 guest
-user
-owner
-agent
-agency
-landlord
-property_manager
-moderator
-admin
+USER
+OWNER
+AGENT
+AGENCY
+LANDLORD
+PROPERTY_MANAGER
+MODERATOR
+ADMIN
 ```
 
 Role meaning:
 
 ```text
 guest               Can search and view listings
-user                Can save listings, create saved searches, chat, send requests
-owner               Can create and manage own listings
-agent               Can create and manage listings professionally
-agency              Can manage agency profile and agency listings
-landlord            Can publish rental listings
-property_manager    Can manage rental listings
-moderator           Can review listings and complaints
-admin               Full system management
+USER                Can save listings, create saved searches, chat, send requests
+OWNER               Can create and manage own listings
+AGENT               Can create and manage listings professionally
+AGENCY              Can manage agency profile and agency listings
+LANDLORD            Can publish rental listings
+PROPERTY_MANAGER    Can manage rental listings
+MODERATOR           Can review listings and complaints
+ADMIN               Full system management
 ```
 
 Role model rules:
@@ -248,11 +248,11 @@ Role model rules:
 A user may hold multiple roles (many-to-many via user_roles).
 guest is NOT stored in user_roles — it is the implicit state of an
   unauthenticated request (no token). Do not persist a guest role row.
-agency as a ROLE means "agency administrator" (manages the agency
+AGENCY as a ROLE means "agency administrator" (manages the agency
   profile and the agency members/listings). It is distinct from the
   `agencies` ENTITY (the organization itself) and `agency_members`
   (the membership join). A user is linked to an agency via agency_members
-  and additionally carries the agent and/or agency role.
+  and additionally carries the AGENT and/or AGENCY role.
 Authorization is enforced by an RBAC guard backed by a documented
   permission matrix (role -> allowed actions), not by ad-hoc checks.
 ```
@@ -610,7 +610,7 @@ Translation flow rules (binding):
    that get REJECTED, and avoids publishing machine text that bypassed
    moderation.
 2. The original (author) language version always exists with
-   isAutoTranslated = false and source = 'user'.
+   isAutoTranslated = false and source = 'USER'.
 3. Generated translations carry isAutoTranslated = true and inherit the
    moderation status of the parent listing — they are never independently
    publishable.
@@ -920,11 +920,11 @@ MVP includes full internal chat.
 Users can message listing creators:
 
 ```text
-owner
-agent
-agency
-landlord
-property_manager
+OWNER
+AGENT
+AGENCY
+LANDLORD
+PROPERTY_MANAGER
 ```
 
 Chat must be connected to a listing.
@@ -942,7 +942,7 @@ ChatThread:
 id
 listingId
 initiatorId        # user who started the thread (buyer / renter / inquirer)
-ownerId            # listing creator (owner / agent / agency / landlord / PM)
+ownerId            # listing creator (OWNER / AGENT / AGENCY / LANDLORD / PM)
 lastMessageAt
 createdAt
 updatedAt
@@ -1155,7 +1155,7 @@ audit_logs is a generic security audit table (see §24). Suggested fields:
 ```text
 id
 actorId            # nullable for system/anonymous events
-action             # e.g. login, role_change, listing_status_change, delete_listing
+action             # e.g. LOGIN, ROLE_CHANGE, LISTING_STATUS_CHANGE, DELETE_LISTING
 entityType
 entityId
 ip
@@ -1485,7 +1485,7 @@ ADR-010  Notification transport
 
 ADR-011  Roles model clarity
          Decision: multi-role via user_roles; guest is implicit (no row);
-         "agency" role = agency admin, distinct from agencies entity /
+         "AGENCY" role = agency admin, distinct from agencies entity /
          agency_members; RBAC guard backed by a permission matrix. (§7)
          Why: remove ambiguity between role and organization.
 

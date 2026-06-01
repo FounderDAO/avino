@@ -98,7 +98,7 @@ complaint_status       NEW | IN_REVIEW | RESOLVED | REJECTED
 
 ```text
 Role codes (seeded into `roles`, NOT a Postgres enum — see §4):
-user | owner | agent | agency | landlord | property_manager | moderator | admin
+USER | OWNER | AGENT | AGENCY | LANDLORD | PROPERTY_MANAGER | MODERATOR | ADMIN
 
 `guest` is NOT a role value and is NOT stored anywhere (ADR-011). It is the
 implicit state of an unauthenticated request.
@@ -231,7 +231,7 @@ agency_members
 - id                  uuid PK
 - agency_id           uuid FK -> agencies(id) ON DELETE CASCADE
 - user_id             uuid FK -> users(id) ON DELETE CASCADE
-- member_role         varchar(40) NOT NULL default 'agent'  (agent|admin)
+- member_role         varchar(40) NOT NULL default 'AGENT'  (AGENT|ADMIN)
 - created_at          timestamptz NOT NULL
 Constraints:
 - UNIQUE (agency_id, user_id)
@@ -580,8 +580,8 @@ audit_logs
 - id                  uuid PK
 - actor_id            uuid FK -> users(id) ON DELETE SET NULL NULL  (null = system)
 - action              varchar(80) NOT NULL    (free-form, extensible; e.g.
-                        login, role_change, listing_status_change,
-                        listing_promotion_change, delete_listing, admin_user_update)
+                        LOGIN, ROLE_CHANGE, LISTING_STATUS_CHANGE,
+                        LISTING_PROMOTION_CHANGE, DELETE_LISTING, ADMIN_USER_UPDATE)
 - entity_type         varchar(60) NULL
 - entity_id           uuid NULL
 - ip                  varchar(64) NULL
