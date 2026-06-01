@@ -245,6 +245,109 @@ ci
 build
 ```
 
+## Task tracking, DONE.md and ADR rules
+
+Claude must maintain project tracking files after every task.
+
+### 1. TASKS.md rule
+
+docs/TASKS.md contains only active or future work.
+
+Allowed statuses in TASKS.md:
+
+text TODO IN_PROGRESS REVIEW BLOCKED 
+
+Completed tasks must not stay in TASKS.md.
+
+When a task is completed and PR is merged, Claude must move it from:
+
+text docs/TASKS.md 
+
+to:
+
+text docs/DONE.md 
+
+### 2. DONE.md rule
+
+docs/DONE.md is the human-readable history of completed work.
+
+Every completed task must be added to DONE.md.
+
+DONE entry format:
+
+markdown ## YYYY-MM-DD  ### TASK-XXX — Task title  Status: DONE  Branch: <branch-name>  PR: <PR link or PR number>  Files changed: - <file-1> - <file-2>  Summary: - What was implemented - Why it was needed - Important notes  Commit messages: - <commit message 1> - <commit message 2>  Related ADR: - docs/adr/ADR-XXXX-short-title.md 
+
+If PR link is not available yet, write:
+
+text PR: pending 
+
+### 3. ADR rule
+
+ADR means Architecture Decision Record.
+
+Claude must create or update ADR records for completed tasks that introduce or confirm an important technical, architectural or business decision.
+
+ADR files must be stored in:
+
+text docs/adr/ 
+
+ADR filename format:
+
+text ADR-0001-short-title.md ADR-0002-short-title.md ADR-0003-short-title.md 
+
+Examples:
+
+text docs/adr/ADR-0001-use-nestjs-nextjs-postgis.md docs/adr/ADR-0002-api-versioning-v1.md docs/adr/ADR-0003-vip-top-promotion-model.md 
+
+### 4. ADR format
+
+Each ADR must use this format:
+
+markdown # ADR-XXXX — Title  ## Status  Accepted  ## Date  YYYY-MM-DD  ## Context  Describe the problem, requirement, or reason for the decision.  ## Decision  Describe the decision that was made.  ## Consequences  Positive: - ...  Negative / trade-offs: - ...  ## Related files  - ...  ## Related task  - TASK-XXX 
+
+### 5. When new ADR is required
+
+Create a new ADR when the task introduces or confirms decisions such as:
+
+text Choosing NestJS / Next.js / PostgreSQL / PostGIS stack Using API versioning /api/v1 Using Prisma with PostGIS raw SQL migrations Using RTK Query for frontend API layer Using VIP/TOP promotion model Using manual VIP/TOP activation before online payments Using polling chat before WebSocket Using Eskiz.uz for SMS Using Google/Yandex Translate API for MVP translation 
+
+### 6. When existing ADR can be updated
+
+Claude may update an existing ADR instead of creating a new one when the task is only extending an already accepted decision.
+
+Examples:
+
+text Adding endpoint under existing API v1 strategy Adding DB index already defined in DB_SCHEMA.md Adding DTO validation under existing API rules Adding new frontend API slice under RTK Query rule Fixing documentation formatting 
+
+### 7. Completion response format
+
+For every task, Claude must include this section in the response:
+
+text G) After merge actions: - Move TASK-XXX from docs/TASKS.md to docs/DONE.md - Create/update ADR: docs/adr/ADR-XXXX-short-title.md 
+
+Full required response format becomes:
+
+text A) Нужно заливать в GitHub: ДА/НЕТ  B) Branch name: ...  C) Files changed: ...  D) Patch: ...  E) Git steps: ...  F) Pre-merge checklist: ...  G) After merge actions: ... 
+
+### 8. Do not mark DONE before merge
+
+Claude must not mark a task as DONE until the PR is merged.
+
+Task status meaning:
+
+text TODO         Task not started IN_PROGRESS Branch is being worked on REVIEW       PR is open and waiting for review DONE         PR is merged BLOCKED      Task cannot continue because dependency or decision is missing 
+
+Only merged tasks can be moved to DONE.md.
+
+### 9. DONE.md does not replace GitHub history
+
+DONE.md is only a project log.
+
+It does not replace:
+
+text git commits Pull Requests ADR files 
+
+Claude must still provide git commands, commit messages, PR title, PR description and pre-merge checklist for every task.
 ## 8. Текущая задача format
 
 Когда Team Lead даёт задачу, Claude должен использовать такой шаблон:
@@ -282,7 +385,7 @@ F) Pre-merge checklist:
 Avino — портал недвижимости для Узбекистана.
 
 Основные роли:
-- guest
+- GUEST
 - USER
 - OWNER
 - AGENT
