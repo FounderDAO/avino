@@ -117,7 +117,7 @@ Body:
   "token_type": "Bearer",
   "expires_in": 900,
   "user": { "id": "u1", "phone": "+998901234567", "email": null,
-            "default_language": "RU", "status": "ACTIVE", "roles": ["user"],
+            "default_language": "RU", "status": "ACTIVE", "roles": ["USER"],
             "is_phone_verified": true }
 }
 ```
@@ -151,7 +151,7 @@ Body: `{ "refresh_token": "eyJ..." }` → 204 No Content.
   "id": "u1", "phone": "+998901234567", "email": null,
   "status": "ACTIVE", "default_language": "RU",
   "is_phone_verified": true, "is_email_verified": false,
-  "roles": ["user", "agent"],
+  "roles": ["USER", "AGENT"],
   "profile": { "first_name": "Ali", "last_name": "Valiev",
                "display_name": "Ali V.", "avatar_url": null,
                "contact_phone": "+998901234567", "preferred_language": "RU" }
@@ -280,37 +280,37 @@ Soft-delete собственного аккаунта (ADR-013): `status → DEL
 ## 6. Roles & admin user management
 
 RBAC — guard на базе матрицы прав (role → действия), ADR-011. `guest` нигде не
-хранится. Роли: `user | owner | agent | agency | landlord | property_manager |
-moderator | admin` (`DB_SCHEMA` §3).
+хранится. Роли: `USER | OWNER | AGENT | AGENCY | LANDLORD | PROPERTY_MANAGER |
+MODERATOR | ADMIN` (`DB_SCHEMA` §3).
 
 ### GET /api/v1/admin/users
-Список пользователей. Auth: **admin**. Query: `status`, `role`, `q` (поиск по
+Список пользователей. Auth: **ADMIN**. Query: `status`, `role`, `q` (поиск по
 контакту/имени), `page`, `limit`.
 
 200 → пагинированный список пользователей (с `roles`, `status`).
 
 ### GET /api/v1/admin/users/:id
-Карточка пользователя. Auth: **admin**.
+Карточка пользователя. Auth: **ADMIN**.
 
 ### PATCH /api/v1/admin/users/:id
-Сменить `status` (`ACTIVE | BLOCKED | DELETED`). Auth: **admin**. Действие пишется
-в `audit_logs` (`admin_user_update`, ADR-004).
+Сменить `status` (`ACTIVE | BLOCKED | DELETED`). Auth: **ADMIN**. Действие пишется
+в `audit_logs` (`ADMIN_USER_UPDATE`, ADR-004).
 ```json
 { "status": "BLOCKED", "reason": "spam" }
 ```
 
 ### POST /api/v1/admin/users/:id/roles
-Назначить роль. Auth: **admin**. `audit_logs(role_change)`.
+Назначить роль. Auth: **ADMIN**. `audit_logs(ROLE_CHANGE)`.
 ```json
-{ "role": "agent" }
+{ "role": "AGENT" }
 ```
 201 → обновлённый список ролей. Errors: `409 ROLE_ALREADY_GRANTED`.
 
 ### DELETE /api/v1/admin/users/:id/roles/:role
-Снять роль. Auth: **admin**. → `204`. `audit_logs(role_change)`.
+Снять роль. Auth: **ADMIN**. → `204`. `audit_logs(ROLE_CHANGE)`.
 
 ### GET /api/v1/roles
-Справочник ролей (seeded dictionary, без `guest`). Auth: **admin/moderator**.
+Справочник ролей (seeded dictionary, без `guest`). Auth: **ADMIN/MODERATOR**.
 
 ---
 
@@ -324,8 +324,8 @@ moderator | admin` (`DB_SCHEMA` §3).
 | SOLD | RENTED`.
 
 ### POST /api/v1/listings
-Создать листинг (статус `NEW`). Auth: `user`-уровень с правом создания
-(`owner | agent | agency | landlord | property_manager`).
+Создать листинг (статус `NEW`). Auth: `USER`-уровень с правом создания
+(`OWNER | AGENT | AGENCY | LANDLORD | PROPERTY_MANAGER`).
 
 Body:
 ```json
@@ -356,7 +356,7 @@ Body:
 Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`.
 
 ### GET /api/v1/listings/:id
-Детали листинга. Auth: **public** для `ACTIVE`; владелец/agency/moderator/admin
+Детали листинга. Auth: **public** для `ACTIVE`; владелец/AGENCY/MODERATOR/ADMIN
 видят и непубличные статусы. Перевод — по `Accept-Language`/`?lang` с фолбэком на
 `original_language` (ADR-012).
 
@@ -384,7 +384,7 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`.
 Errors: `404 NOT_FOUND`.
 
 ### PATCH /api/v1/listings/:id
-Обновить собственный листинг. Auth: **владелец / agency-admin / agent с правом**.
+Обновить собственный листинг. Auth: **владелец / agency-admin / AGENT с правом**.
 Редактирование текста после `ACTIVE` ре-генерирует затронутые переводы
 (`translate_listing`) и может вернуть листинг в модерацию (ADR-005).
 ```json
@@ -393,10 +393,10 @@ Errors: `404 NOT_FOUND`.
 200 → обновлённый листинг. Errors: `403 FORBIDDEN`, `404 NOT_FOUND`, `422 INVALID_STATUS_TRANSITION`.
 
 ### GET /api/v1/listings/:id/translations
-Все переводы листинга (uz/ru/en). Auth: **владелец/moderator/admin**.
+Все переводы листинга (uz/ru/en). Auth: **владелец/MODERATOR/ADMIN**.
 
 ### DELETE /api/v1/listings/:id
-Soft-delete (`status → DELETED`). Auth: **владелец / moderator / admin**. Строка
+Soft-delete (`status → DELETED`). Auth: **владелец / MODERATOR / ADMIN**. Строка
 сохраняется; исключается из всех read-path (поиск, избранное, чат). → `204`.
 
 ### GET /api/v1/listings/mine
@@ -640,7 +640,7 @@ Query: `cursor`, `limit`. Сортировка по `last_message_at DESC`.
 ```
 
 ### POST /api/v1/chat/threads
-Создать/получить тред с создателем листинга. Auth: **Bearer (user)**.
+Создать/получить тред с создателем листинга. Auth: **Bearer (USER)**.
 `owner_id` выводится из листинга; `initiator_id` = текущий пользователь.
 ```json
 { "listing_id": "l9", "body": "Здравствуйте, ещё актуально?" }
@@ -654,7 +654,7 @@ Errors: `403 FORBIDDEN` (guest / сам себе), `404 NOT_FOUND`,
 `422 LISTING_NOT_AVAILABLE` (листинг DELETED/непубличен).
 
 ### GET /api/v1/chat/threads/:id/messages
-Сообщения треда. Auth: **участник треда (initiator/owner) или moderator/admin
+Сообщения треда. Auth: **участник треда (initiator/owner) или MODERATOR/ADMIN
 для complaint-flow**. Query: `cursor`, `limit` (по `created_at`).
 200:
 ```json
@@ -738,15 +738,15 @@ NOT_REQUIRED`, активация вручную админом.
 ```
 
 ### GET /api/v1/admin/listings/:id/promotions
-История промо листинга (ledger). Auth: **admin**.
+История промо листинга (ledger). Auth: **ADMIN**.
 200 → список `listing_promotions` (с `type`, `status`, `period_days`, `starts_at`,
 `expires_at`, `payment_status`).
 
 ### POST /api/v1/admin/listings/:id/promotions
-Активировать VIP/TOP вручную (`activate_vip`/`activate_top`). Auth: **admin**.
+Активировать VIP/TOP вручную (`activate_vip`/`activate_top`). Auth: **ADMIN**.
 Идемпотентно по `Idempotency-Key`/`payment_reference` (§24 п.4). Закрывает
 предыдущую активную промо, обновляет cache на `listings` атомарно. Пишет
-`promotion_logs` + `audit_logs(listing_promotion_change)`.
+`promotion_logs` + `audit_logs(LISTING_PROMOTION_CHANGE)`.
 ```json
 { "type": "VIP", "period_days": 30 }
 ```
@@ -760,7 +760,7 @@ Errors: `422 INVALID_PERIOD` (не 7/14/30), `409 ACTIVE_PROMOTION_EXISTS`
 (если не разрешён auto-supersede), `404 NOT_FOUND`.
 
 ### PATCH /api/v1/admin/listing-promotions/:id/cancel
-Отменить промо (`status → CANCELLED`, cache → `NORMAL`). Auth: **admin**.
+Отменить промо (`status → CANCELLED`, cache → `NORMAL`). Auth: **ADMIN**.
 `promotion_logs(CANCEL_PROMOTION)`.
 ```json
 { "reason": "по запросу владельца" }
@@ -768,7 +768,7 @@ Errors: `422 INVALID_PERIOD` (не 7/14/30), `409 ACTIVE_PROMOTION_EXISTS`
 200 → обновлённая промо.
 
 ### PATCH /api/v1/admin/listing-promotions/:id/extend
-Продлить (`expires_at` += период). Auth: **admin**.
+Продлить (`expires_at` += период). Auth: **ADMIN**.
 `promotion_logs(EXTEND_PROMOTION)`.
 ```json
 { "period_days": 14 }
@@ -785,8 +785,8 @@ Errors: `422 INVALID_PERIOD` (не 7/14/30), `409 ACTIVE_PROMOTION_EXISTS`
 ## 16. Moderation & admin
 
 Все листинги проходят moderation queue. Каждое действие логируется
-(`moderation_logs` + `audit_logs(listing_status_change)`). Auth: **moderator /
-admin**.
+(`moderation_logs` + `audit_logs(LISTING_STATUS_CHANGE)`). Auth: **MODERATOR /
+ADMIN**.
 
 ### GET /api/v1/admin/listings
 Очередь модерации и админ-список. Query: `status` (например `NEW`),
@@ -797,7 +797,7 @@ GET /api/v1/admin/listings?status=NEW
 200 → пагинированный список листингов (любые статусы, с `owner_id`, `created_at`).
 
 ### PATCH /api/v1/admin/listings/:id/status
-Сменить статус (модерация). Auth: **moderator / admin**. Действие — одно из
+Сменить статус (модерация). Auth: **MODERATOR / ADMIN**. Действие — одно из
 `moderation_action`: `APPROVE | SEND_TO_DRAFT | REJECT | DELETE`. Маппинг на
 `listing_status`: `ACTIVE | DRAFT | REJECTED | DELETED`. `APPROVE` → `ACTIVE`
 запускает авто-перевод (`translate_listing`, ADR-005) и `published_at`.
@@ -816,33 +816,33 @@ GET /api/v1/admin/listings?status=NEW
 Errors: `403 FORBIDDEN`, `422 INVALID_STATUS_TRANSITION`, `404 NOT_FOUND`.
 
 ### GET /api/v1/admin/listings/:id/moderation-logs
-История модерации листинга. Auth: **moderator / admin**.
+История модерации листинга. Auth: **MODERATOR / ADMIN**.
 200 → список `moderation_logs` (`action`, `old_status`, `new_status`,
 `moderator_id`, `reason`, `created_at`).
 
 ### Complaints
 
 #### POST /api/v1/complaints
-Пожаловаться на листинг. Auth: **Bearer (user)**.
+Пожаловаться на листинг. Auth: **Bearer (USER)**.
 ```json
 { "listing_id": "l9", "reason": "fake", "details": "Фото не соответствуют" }
 ```
 201 → `{ "id": "cmp1", "status": "NEW" }`.
 
 #### GET /api/v1/admin/complaints
-Список жалоб. Auth: **moderator / admin**. Query: `status`
+Список жалоб. Auth: **MODERATOR / ADMIN**. Query: `status`
 (`NEW|IN_REVIEW|RESOLVED|REJECTED`), `listing_id`, `page`, `limit`.
 
 #### PATCH /api/v1/admin/complaints/:id
-Обработать жалобу (`status`, `handled_by`, `handled_at`). Auth: **moderator /
-admin**.
+Обработать жалобу (`status`, `handled_by`, `handled_at`). Auth: **MODERATOR /
+ADMIN**.
 ```json
 { "status": "RESOLVED" }
 ```
 200 → обновлённая жалоба.
 
 ### GET /api/v1/admin/audit-logs
-Просмотр аудит-лога безопасности (`audit_logs`, ADR-004). Auth: **admin**.
+Просмотр аудит-лога безопасности (`audit_logs`, ADR-004). Auth: **ADMIN**.
 Query: `action`, `actor_id`, `entity_type`, `entity_id`, `page`, `limit`.
 
 ---
