@@ -37,4 +37,31 @@ Related ADR:
 
 ---
 
-_No completed tasks recorded yet. The first entry (initial DONE.md + ADR records) is added here after its PR is merged._
+## 2026-06-02
+
+### TASK-DOCS-INIT — Initial project tracking documents (DONE.md + ADR)
+
+Status: DONE
+Branch: docs/initial-done-and-adr
+PR: #12
+
+Files changed:
+- docs/DONE.md
+- docs/adr/ADR-0001-project-stack.md
+- docs/adr/ADR-0002-api-versioning-v1.md
+- docs/adr/ADR-0003-postgis-prisma.md
+- docs/adr/ADR-0004-vip-top-promotion-model.md
+
+Summary:
+- Initialized DONE.md as the human-readable log of merged work, with the entry format.
+- Added 4 ADR records: project stack, API versioning v1, PostGIS via Prisma, VIP/TOP promotion model.
+- Records existing decisions before coding starts — restates ARCHITECTURE.md §28, no architecture changed.
+
+Commit messages:
+- docs(adr): add initial architecture decisions
+
+Related ADR:
+- docs/adr/ADR-0001-project-stack.md
+- docs/adr/ADR-0002-api-versioning-v1.md
+- docs/adr/ADR-0003-postgis-prisma.md
+- docs/adr/ADR-0004-vip-top-promotion-model.md
