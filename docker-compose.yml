@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: avino-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-avino}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-avino}
+      POSTGRES_DB: ${POSTGRES_DB:-avino}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - avino-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-avino} -d ${POSTGRES_DB:-avino}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: avino-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - avino-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  avino-postgres-data:
+  avino-redis-data:
