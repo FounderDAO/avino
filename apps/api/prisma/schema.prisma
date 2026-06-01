@@ -1,0 +1,14 @@
+// Базовая Prisma-схема Avino.
+// Геоданные — через PostGIS (CLAUDE.md §12): postgisExtensions + расширение geography.
+// Модели предметной области (User, Listing, Chat, ...) добавляются в отдельных задачах.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
