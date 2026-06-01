@@ -1,550 +1,559 @@
-# PRD.md — Avino
+# ROADMAP.md — Avino
 
-## 1. Product overview
+## 1. Purpose
 
-Avino — портал недвижимости для Узбекистана.
+This roadmap defines the implementation plan for Avino MVP.
 
-Цель продукта — создать удобную платформу, где пользователи могут искать недвижимость для покупки или аренды, а собственники, агенты, агентства, арендодатели и property managers могут публиковать и управлять своими объявлениями.
+It must be used together with:
 
-Avino включает:
+text CLAUDE.md ARCHITECTURE.md DB_SCHEMA.md API.md PRD.md 
 
-- web platform;
-- backend API;
-- admin/moderation panel;
-- mobile-compatible API для Flutter-приложения;
-- внутренний чат;
-- поиск по карте;
-- сохранённые поиски;
-- уведомления;
-- автоперевод объявлений;
-- VIP/TOP продвижение объявлений.
+Main rule:
 
-Основной домен:
+text Each logical improvement = separate branch + 1–3 commits + Pull Request. No direct push to main. 
 
-text www.avino.uz 
+## 2. Project goal
 
-Support email:
+Avino MVP must deliver:
 
-text Support@avino.uz 
+text Web platform NestJS backend API PostgreSQL + PostGIS database Admin/moderation tools Listings with translations Search and map search Internal chat Favorites Saved searches Email/in-app notifications VIP/TOP promotion architecture Manual admin VIP/TOP activation Mobile-compatible API 
 
-## 2. Product goals
+Mobile app implementation is handled separately, but backend API must be ready for Flutter.
 
-Основные цели Avino:
+## 3. MVP principles
 
-text 1. Создать национальный портал недвижимости для Узбекистана. 2. Дать пользователям быстрый поиск жилья по фильтрам и карте. 3. Дать собственникам и агентам удобный кабинет для публикации объявлений. 4. Обеспечить качество объявлений через обязательную модерацию. 5. Поддержать 3 языка: Uzbek, Russian, English. 6. Автоматически переводить объявления на другие языки. 7. Реализовать внутренний чат между пользователем и создателем объявления. 8. Заложить монетизацию через VIP/TOP продвижение. 9. Подготовить стабильный API для будущего Flutter mobile app. 
+### 3.1 Build small
 
-## 3. Product scope
+Do not build the whole platform in one large PR.
 
-## 3.1 In scope for MVP
+Each stage must produce working, reviewable progress.
 
-MVP включает:
+### 3.2 Backend first
 
-text Web app Backend API Admin/moderation panel Authentication by SMS and email Eskiz.uz SMS integration User roles and profiles Listings CRUD Listing moderation Listing translations Auto translation via Google/Yandex Translate API Search and filters PostGIS geo search Yandex Maps integration Favorites Saved searches Email alerts In-app notifications Internal chat S3-compatible image uploads VIP/TOP promotion architecture Manual admin activation of VIP/TOP promotions Promotion expiration background job Mobile-compatible API API versioning /api/v1 
+Backend contracts must be stable before frontend and mobile depend on them.
 
-## 3.2 Out of scope for MVP
+### 3.3 API versioning from day one
 
-MVP не включает:
+All API routes must use:
 
-text Online payment integration Agency subscriptions Tenant screening Mortgage calculator Property valuation Video uploads Trusted agency auto-publish AI/LLM translation upgrade Custom polygon search Mobile app implementation 
+text /api/v1/... 
 
-Important:
+Unversioned API routes are forbidden.
 
-text Mobile app will be developed separately by another developer. Backend must remain compatible with Flutter mobile client. 
+### 3.4 PostGIS from day one
 
-## 4. Target users
+Geo search must be designed with PostGIS from the beginning.
 
-## 4.1 Guest
+Do not fake geo search with plain latitude/longitude filters only.
 
-Unauthenticated visitor.
+### 3.5 Manual monetization first
 
-Can:
+VIP/TOP promotion logic must exist in MVP.
 
-text View public listings Use search and filters View map Open listing detail page See public agent/owner contact options where allowed 
+Online payment integration is not required in MVP.
 
-Cannot:
+MVP promotion flow:
 
-text Create listing Save favorites Save searches Use chat Receive notifications 
+text Admin manually activates VIP/TOP Promotion expires automatically Expired promotion is treated as NORMAL 
 
-## 4.2 User
+## 4. Milestones overview
 
-Authenticated user looking for property.
+text M0 — Documentation and architecture M1 — Monorepo and infrastructure setup M2 — Backend foundation M3 — Database and Prisma foundation M4 — Auth and users M5 — Listings and moderation M6 — Media uploads M7 — Translation system M8 — Search, filters and PostGIS M9 — Favorites and saved searches M10 — Notifications M11 — Internal chat M12 — VIP/TOP promotions M13 — Admin panel M14 — Web frontend M15 — Mobile API guide M16 — QA, hardening and deployment M17 — Phase 1.5 preparation 
 
-Can:
+## 5. M0 — Documentation and architecture
 
-text Search listings Save favorites Create saved searches Receive email alerts Start chat with listing creator View chat history View notification history Manage profile 
+Goal:
 
-## 4.3 Owner
+text Create complete planning foundation before coding. 
 
-Property owner.
+Required docs:
 
-Can:
+text docs/CLAUDE.md docs/ARCHITECTURE.md docs/DB_SCHEMA.md docs/API.md docs/PRD.md docs/ROADMAP.md docs/TASKS.md docs/ENV.md docs/SECURITY.md docs/MOBILE_API_GUIDE.md 
 
-text Create own listings Edit own listings Upload photos Submit listings for moderation Manage listing status where allowed Receive leads/messages Activate VIP/TOP promotion through admin/manual process 
+Acceptance criteria:
 
-## 4.4 Agent
+text Architecture is approved DB schema is approved API v1 contract is approved MVP scope is clear Claude rules are clear 
 
-Real-estate agent.
+Suggested branches:
 
-Can:
+text docs/architecture docs/db-schema docs/api-contract docs/prd docs/roadmap 
 
-text Create and manage listings Receive messages from users View basic listing statistics Work with agency if linked 
+## 6. M1 — Monorepo and infrastructure setup
 
-## 4.5 Agency
+Goal:
 
-Agency account / agency administrator.
+text Create base project structure for backend, frontend, shared packages and docs. 
 
-Can:
+Tasks:
 
-text Manage agency profile Manage agency members Manage agency listings Receive leads/messages View basic statistics 
+text Create monorepo structure Create apps/api Create apps/web Create packages/shared Create packages/config Create docs folder Create root package.json Create .gitignore Create README.md Create .env.example Create docker-compose.yml 
 
-## 4.6 Landlord
+Recommended structure:
 
-Rental property owner.
+text avino/ ├── apps/ │   ├── api/ │   └── web/ ├── packages/ │   ├── shared/ │   └── config/ ├── docs/ ├── docker-compose.yml ├── .env.example ├── README.md └── package.json 
 
-Can:
+Acceptance criteria:
 
-text Publish rental listings Communicate with potential tenants Receive rental-related requests 
+text Project installs successfully Docker compose starts PostgreSQL and Redis apps/api placeholder exists apps/web placeholder exists No secrets committed 
 
-Tenant screening is Phase 2.
+Suggested branch:
 
-## 4.7 Property manager
+text chore/monorepo-setup 
 
-Rental manager.
+Suggested commit messages:
 
-Can:
+text chore(repo): initialize monorepo structure chore(env): add docker compose and env example docs(readme): add initial project overview 
 
-text Manage rental listings Communicate with potential tenants Coordinate rental inquiries 
+## 7. M2 — Backend foundation
 
-Advanced rental application and tenant screening are Phase 2.
+Goal:
 
-## 4.8 Moderator
+text Create NestJS backend foundation with versioned API and common infrastructure. 
 
-Can:
+Tasks:
 
-text Review NEW listings Approve listings Send listings to DRAFT Reject listings Delete listings Review complaints Add moderation reason 
+text Initialize NestJS app Add global prefix api Enable URI versioning Add config module Add validation pipe Add global exception filter Add response format standard Add request logging Add health endpoint Add CORS config 
 
-## 4.9 Admin
+Required API:
 
-Can:
+text GET /api/v1/health 
 
-text Manage users Manage roles Manage agencies Manage listings Manage moderation queue Manage VIP/TOP promotions Manage dictionaries View audit logs View notification logs Configure system settings 
+Acceptance criteria:
 
-## 5. Languages and localization
+text All routes are versioned No unversioned API routes exist Validation works globally Health endpoint returns OK 
 
-Avino supports 3 languages:
+Suggested branch:
 
-text uz ru en 
+text feat/api-foundation 
 
-Default language detection:
+Suggested commit messages:
 
-text browser language for web device language for mobile 
+text feat(api): initialize NestJS backend feat(api): add versioned API foundation feat(health): add health endpoint 
 
-User can manually switch language.
+## 8. M3 — Database and Prisma foundation
 
-All public UI must support 3 languages.
+Goal:
 
-Listing text fields must support translations:
+text Add PostgreSQL, Prisma, PostGIS and initial schema foundation. 
 
-text title description address_note features_text 
+Tasks:
 
-User creates a listing in one language. The system automatically translates it into the other two languages.
+text Install Prisma Configure DATABASE_URL Create initial Prisma schema Add PostgreSQL extensions migration Add PostGIS migration Add pg_trgm migration Add base enums Add users, roles and auth-related tables Add listings core tables Add indexes Add seed script for roles 
 
-Translation provider for MVP:
+Required extensions:
 
-text Google Translate API or Yandex Translate API 
+sql CREATE EXTENSION IF NOT EXISTS pgcrypto; CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS pg_trgm; 
 
-AI/LLM translation quality upgrade is not part of MVP.
+Acceptance criteria:
 
-## 6. Authentication requirements
+text Prisma migration runs successfully PostGIS extension is enabled Roles are seeded DB schema follows DB_SCHEMA.md 
 
-Avino supports two login methods:
+Suggested branch:
 
-text SMS OTP Email OTP 
+text feat/database-foundation 
 
-SMS provider:
+Suggested commit messages:
 
-text Eskiz.uz 
+text feat(db): add Prisma and PostgreSQL schema foundation feat(db): add PostGIS and pg_trgm extensions feat(db): seed user roles 
 
-Auth flow:
+## 9. M4 — Auth and users
 
-text 1. User enters phone or email. 2. Backend sends OTP. 3. User enters OTP. 4. Backend verifies OTP. 5. Backend creates user if needed. 6. Backend returns access token and refresh token. 
+Goal:
 
-Required auth features:
+text Implement authentication by SMS/email OTP. 
 
-text Request OTP Verify OTP Refresh token Logout Profile creation/update Role-based access control Admin role management 
+Tasks:
 
-Security requirements:
+text Create AuthModule Create UsersModule Create RolesModule Implement request OTP endpoint Implement verify OTP endpoint Implement access token Implement refresh token rotation Implement logout Implement profile endpoint Implement role guards Implement admin role management foundation Add OTP rate limiting Add audit logs for login 
 
-text OTP is stored hashed Refresh token is stored hashed Refresh token rotation is required OTP rate limiting is required Login audit logs are required 
+Required API:
 
-## 7. Listing requirements
+text POST /api/v1/auth/request-otp POST /api/v1/auth/verify-otp POST /api/v1/auth/refresh POST /api/v1/auth/logout GET /api/v1/me PATCH /api/v1/me 
 
-## 7.1 Listing types
+Acceptance criteria:
 
-Transaction types:
+text User can login by phone OTP User can login by email OTP Refresh token rotation works OTP is hashed Refresh token is hashed Role guard works 
 
-text sale rent 
+Suggested branch:
 
-Property types:
+text feat/auth-otp 
 
-text apartment house new_building land commercial 
+Suggested commit messages:
 
-## 7.2 Listing fields
+text feat(auth): add OTP request flow feat(auth): add OTP verification and tokens feat(users): add profile endpoint 
 
-Listing must support:
+## 10. M5 — Listings and moderation
 
-text Transaction type Property type Price Currency Area Rooms Floor Total floors Year built City District Address Latitude Longitude Map location Photos Title Description Features Owner/agent/agency link Status Promotion status Created date Published date 
+Goal:
 
-## 7.3 Listing statuses
+text Implement listings CRUD and moderation queue. 
 
-Supported statuses:
+Tasks:
 
-text NEW ACTIVE DRAFT REJECTED DELETED ARCHIVED SOLD RENTED 
+text Create ListingsModule Create ListingModerationModule Create listing DTOs Create listing create endpoint Create listing update endpoint Create listing detail endpoint Create owner listing list endpoint Create admin moderation list endpoint Create admin status update endpoint Add moderation logs Ensure only ACTIVE listings are public 
 
-MVP UI may show:
+Required API:
 
-text NEW ACTIVE DRAFT DELETED 
+text POST /api/v1/listings GET /api/v1/listings/:id PATCH /api/v1/listings/:id GET /api/v1/me/listings GET /api/v1/admin/listings PATCH /api/v1/admin/listings/:id/status 
 
-## 7.4 Listing moderation flow
+Acceptance criteria:
 
-Required flow:
+text Authenticated owner/agent can create listing New listing status is NEW Admin can approve listing to ACTIVE Only ACTIVE listings are public Moderation log is created 
 
-text User creates listing Listing status becomes NEW Moderator/admin reviews listing Moderator/admin changes status to ACTIVE / DRAFT / REJECTED / DELETED 
+Suggested branch:
 
-Rules:
+text feat/listings-moderation 
 
-text All listings go through moderation queue. Only ACTIVE listings are public. DELETED listings are soft-deleted. Auto-publish for trusted agencies is not part of MVP. 
+Suggested commit messages:
 
-## 8. Listing media requirements
+text feat(listings): add listing CRUD foundation feat(moderation): add listing moderation workflow feat(admin): add moderation queue endpoints 
 
-Users can upload listing photos.
+## 11. M6 — Media uploads
 
-MVP media types:
+Goal:
 
-text image/jpeg image/png image/webp 
+text Implement listing photo upload to S3-compatible storage. 
 
-Storage:
+Tasks:
 
-text S3-compatible storage 
+text Create UploadsModule Create ListingMediaModule Configure S3 client Validate MIME type Validate file size Strip EXIF metadata Upload original image Generate thumbnail if possible Save listing_media records Support sort_order 
 
-Rules:
+Required API:
 
-text Do not store files on application server filesystem. Validate file size and MIME type. Strip EXIF metadata, especially GPS metadata. Generate thumbnail if possible. Sort photos by sort_order. Video upload is Phase 2. 
+text POST /api/v1/listings/:id/media GET /api/v1/listings/:id/media PATCH /api/v1/listings/:id/media/sort DELETE /api/v1/listings/:id/media/:mediaId 
 
-## 9. Search requirements
+Acceptance criteria:
 
-Search must support:
+text Photos are stored in S3 Only allowed MIME types accepted EXIF stripping is documented or implemented Listing media records are saved Owner cannot upload media to another user's listing 
 
-text City District Address Transaction type Property type Price range Currency Area range Rooms Floor Total floors Year built Features Promotion type Map bounds Radius search Near me search Sorting Pagination 
+Suggested branch:
 
-Sorting options:
+text feat/listing-media 
 
-text promotion_priority_desc price_asc price_desc date_desc area_asc area_desc 
+Suggested commit messages:
+
+text feat(uploads): add S3 upload service feat(media): add listing photo upload feat(media): add media sorting endpoints 
+
+## 12. M7 — Translation system
+
+Goal:
+
+text Support Uzbek, Russian and English listing translations. 
+
+Tasks:
+
+text Create TranslationModule Create listing_translations model/service Store original listing language Create translation job Integrate Google/Yandex Translate API abstraction Translate title and description Save auto-translated rows Add retry logic for failed translation jobs 
+
+Required behavior:
+
+text User creates listing in one language System stores original translation row System queues translation job System creates missing translations 
+
+Acceptance criteria:
+
+text Listing can have uz/ru/en translations Original text is marked as user source Auto translations are marked is_auto_translated Translation provider can be changed by env 
+
+Suggested branch:
+
+text feat/listing-translations 
+
+Suggested commit messages:
+
+text feat(translations): add listing translation schema feat(translations): add translation queue feat(translations): add provider abstraction 
+
+## 13. M8 — Search, filters and PostGIS
+
+Goal:
+
+text Implement public listing search with filters, promotion sorting and geo search. 
+
+Tasks:
+
+text Create SearchModule Implement filter DTO Implement pagination Implement sorting Implement promotion priority sorting Implement city/district filters Implement price range filter Implement property type filter Implement transaction type filter Implement map bounds search Implement radius search Implement near me search Use PostGIS for geo queries 
+
+Required API:
+
+text GET /api/v1/search/listings GET /api/v1/search/map GET /api/v1/search/nearby 
 
 Default sorting:
 
-text VIP first TOP second NORMAL third newest first inside each group id desc as final tiebreaker 
+text VIP first TOP second NORMAL third created_at desc id desc 
 
-Public search returns only:
+Acceptance criteria:
 
-text status = ACTIVE 
+text Only ACTIVE listings returned Expired VIP/TOP treated as NORMAL Radius search uses PostGIS Map bounds search works Search pagination is stable 
 
-## 10. Map requirements
+Suggested branch:
 
-Map provider:
+text feat/search-postgis 
 
-text Yandex Maps 
+Suggested commit messages:
 
-Required map features:
+text feat(search): add listing filter search feat(search): add PostGIS radius search feat(search): add promotion priority sorting 
 
-text Show listing markers Show listing preview on marker click Search by visible map area Search by radius Near me search Select listing location during creation Marker clustering support 
+## 14. M9 — Favorites and saved searches
 
-Custom drawn polygon search is Phase 2.
+Goal:
 
-Geo search must use:
+text Allow users to save listings and search filters. 
 
-text PostgreSQL + PostGIS 
+Tasks:
 
-## 11. Favorites requirements
+text Create FavoritesModule Create SavedSearchesModule Add favorite/unfavorite endpoints Add saved search CRUD Store filters_json with schemaVersion Prevent duplicate favorites Prepare saved search matcher 
 
-Authenticated users can add listings to favorites.
+Required API:
 
-Rules:
+text POST /api/v1/favorites/:listingId DELETE /api/v1/favorites/:listingId GET /api/v1/favorites POST /api/v1/saved-searches GET /api/v1/saved-searches PATCH /api/v1/saved-searches/:id DELETE /api/v1/saved-searches/:id 
 
-text Guest cannot create favorites. User cannot add same listing twice. Deleted/non-public listings should not appear in active favorites list. 
+Acceptance criteria:
 
-## 12. Saved searches requirements
+text Guest cannot save favorite Duplicate favorite is prevented Saved search stores versioned filters_json User can enable/disable saved search 
 
-Authenticated users can save search filters.
+Suggested branch:
 
-Saved search includes:
+text feat/favorites-saved-searches 
 
-text Name Filters JSON Active/inactive status Last checked date 
+Suggested commit messages:
 
-When a new ACTIVE listing matches a saved search, the system sends notification.
+text feat(favorites): add favorite listings feat(saved-searches): add saved search CRUD feat(saved-searches): add versioned filters storage 
 
-MVP required notification:
+## 15. M10 — Notifications
 
-text Email alert 
+Goal:
 
-Future:
+text Implement in-app and email notification foundation. 
 
-text Push notification In-app alert improvements 
+Tasks:
 
-Saved search filters must be versioned:
+text Create NotificationsModule Create EmailModule Create notification records Create notification delivery records Add BullMQ email queue Add saved search alert job Add chat notification job Add moderation status notification Add promotion status notification 
 
-json {   "schemaVersion": 1,   "filters": {} } 
+Required API:
 
-## 13. Notifications requirements
+text GET /api/v1/notifications PATCH /api/v1/notifications/:id/read PATCH /api/v1/notifications/read-all 
 
-Notification types:
+Acceptance criteria:
 
-text saved_search_new_listing favorite_price_drop new_chat_message listing_moderation_status_changed new_lead promotion_activated promotion_expired 
+text Notification records are created Email jobs are queued Saved search new listing can trigger email Chat message can trigger notification Promotion expiration can trigger notification 
 
-Notification channels:
+Suggested branch:
 
-text email push in_app 
+text feat/notifications 
 
-MVP requirement:
+Suggested commit messages:
 
-text Email + in-app notification support Push token registry prepared for mobile 
+text feat(notifications): add notification records feat(email): add email queue foundation feat(notifications): add saved search alert job 
 
-Notifications must be sent through background jobs, not directly inside request handlers.
+## 16. M11 — Internal chat
 
-Queue:
+Goal:
 
-text Redis + BullMQ 
+text Implement internal chat between user and listing owner/agent. 
 
-## 14. Internal chat requirements
+Tasks:
 
-MVP includes internal chat.
+text Create ChatModule Create chat_threads Create chat_messages Create thread list endpoint Create start thread endpoint Create message send endpoint Create message read endpoint Prevent duplicate thread Validate sender belongs to thread Queue notification for new message 
 
-Users can send messages to listing creator:
+Required API:
 
-text owner agent agency landlord property_manager 
-
-Chat is linked to listing.
-
-Thread model:
-
-text One thread per listing + initiator + owner 
+text POST /api/v1/chat/threads GET /api/v1/chat/threads GET /api/v1/chat/threads/:id POST /api/v1/chat/threads/:id/messages PATCH /api/v1/chat/threads/:id/read 
 
 Rules:
 
-text Guest cannot use chat. Deleted listing cannot start new chat. User cannot create duplicate thread for same listing and owner. New message creates notification job. MVP can use polling. WebSocket can be added later without changing DB contract. 
+text Use initiator_id and owner_id Do not use buyer_id and seller_id Guest cannot use chat Thread is linked to listing One thread per listing + initiator + owner 
 
-Chat field names:
+Acceptance criteria:
 
-text initiator_id owner_id 
+text User can start chat with listing owner Duplicate thread is prevented Messages are saved New message creates notification job Polling-based MVP works 
 
-Do not use:
+Suggested branch:
 
-text buyer_id seller_id 
+text feat/internal-chat 
+
+Suggested commit messages:
+
+text feat(chat): add chat threads feat(chat): add chat messages feat(chat): add chat notifications 
+
+## 17. M12 — VIP/TOP promotions
+
+Goal:
+
+text Implement manual VIP/TOP listing promotion management. 
+
+Tasks:
+
+text Create ListingPromotionModule Create promotion plan endpoint Create admin activate VIP/TOP endpoint Create admin cancel promotion endpoint Create admin extend promotion endpoint Update listings promotion read cache Add one active promotion per listing constraint Add promotion logs Add promotion expiration job Add promotion sorting integration with search 
+
+Required API:
+
+text GET /api/v1/promotions/plans GET /api/v1/admin/listings/:id/promotions POST /api/v1/admin/listings/:id/promotions PATCH /api/v1/admin/listing-promotions/:id/cancel PATCH /api/v1/admin/listing-promotions/:id/extend 
+
+Rules:
+
+text Promotion types: NORMAL, TOP, VIP Priority: VIP > TOP > NORMAL Periods: 7, 14, 30 days Only one ACTIVE promotion per listing Expired promotion is treated as NORMAL Online payment is not required in MVP 
+
+Acceptance criteria:
+
+text Admin can activate VIP/TOP Admin can cancel promotion Admin can extend promotion Promotion logs are created Expired promotion job exists Search ranks VIP above TOP above NORMAL 
+
+Suggested branch:
+
+text feat/listing-promotions 
+
+Suggested commit messages:
+
+text feat(promotions): add listing promotion model feat(promotions): add admin promotion management feat(search): rank promoted listings first 
+
+## 18. M13 — Admin panel
+
+Goal:
+
+text Create admin/moderation UI. 
+
+Tasks:
+
+text Create admin layout Create admin auth guard Create user management page Create listing moderation page Create listing detail moderation view Create promotion management UI Create complaints page Create notification logs page Create audit logs page 
+
+Acceptance criteria:
+
+text Admin can review listings Admin can update listing status Admin can manually activate VIP/TOP Admin can cancel/extend promotion Admin can view users and logs 
+
+Suggested branch:
+
+text feat/admin-panel 
+
+Suggested commit messages:
+
+text feat(admin): add admin layout feat(admin): add listing moderation UI feat(admin): add promotion management UI 
+
+## 19. M14 — Web frontend
+
+Goal:
+
+text Build user-facing Next.js frontend. 
+
+Tasks:
+
+text Create app layout Add i18n foundation Add language detection Add RTK Query base API Add homepage Add search page Add listing detail page Add map search UI Add listing create/edit flow Add auth flow Add favorites page Add saved searches page Add chat page Add notifications page Add owner/agent dashboard 
+
+Required frontend rule:
+
+text Use RTK Query for API access. Do not use random fetch or axios inside components. 
+
+Acceptance criteria:
+
+text User can browse listings User can search by filters User can view listing details User can create listing User can chat User can save favorites/searches Language switcher works 
+
+Suggested branch examples:
+
+text feat/web-foundation feat/web-search feat/web-listing-detail feat/web-listing-create feat/web-chat 
+
+Suggested commit messages:
+
+text feat(web): add app layout and i18n feat(web): add listing search page feat(web): add listing detail page 
+
+## 20. M15 — Mobile API guide
+
+Goal:
+
+text Create documentation for Flutter developer. 
+
+Tasks:
+
+text Create docs/MOBILE_API_GUIDE.md Document auth flow Document listing search flow Document map search flow Document listing detail response Document favorites flow Document saved search flow Document chat flow Document notifications flow Document uploads flow Document promotion display fields 
+
+Acceptance criteria:
+
+text Flutter developer can implement mobile app from API guide All endpoints use /api/v1 Auth and refresh flow are clear Chat and notifications are clear 
+
+Suggested branch:
+
+text docs/mobile-api-guide 
+
+Suggested commit messages:
+
+text docs(mobile): add API guide for Flutter app docs(mobile): document auth and listing flows docs(mobile): document chat and notification flows 
+
+## 21. M16 — QA, hardening and deployment
+
+Goal:
+
+text Prepare MVP for production launch. 
+
+Tasks:
+
+text Add production env validation Add rate limiting Add CORS production config Add logging Add error monitoring placeholder Add backup plan Add migration runbook Add deployment guide Test SMS provider Test email provider Test S3 upload Test Yandex Maps integration Test PostGIS search performance Test promotion expiration Test saved search alerts 
+
+Acceptance criteria:
+
+text Production env is documented Deployment guide exists Critical flows tested No secrets in git Health check works Basic logs exist 
+
+Suggested branch:
+
+text chore/production-readiness 
+
+Suggested commit messages:
+
+text chore(env): add production env validation docs(deploy): add deployment runbook test(mvp): add manual QA checklist 
+
+## 22. M17 — Phase 1.5 preparation
+
+Goal:
+
+text Prepare next monetization and growth stage after MVP. 
+
+Potential Phase 1.5 features:
+
+text Online payment integration Payment transaction ledger Click/Payme/Uzum integration Automatic VIP/TOP activation after payment Agency subscriptions Trusted agency auto-publish Push notifications WebSocket chat Advanced analytics 
+
+Not required for MVP.
+
+## 23. Suggested implementation order
+
+Recommended order:
+
+text 1. M0 Documentation 2. M1 Monorepo setup 3. M2 Backend foundation 4. M3 Database foundation 5. M4 Auth and users 6. M5 Listings and moderation 7. M6 Media uploads 8. M7 Translations 9. M8 Search and PostGIS 10. M12 Promotions 11. M9 Favorites and saved searches 12. M10 Notifications 13. M11 Chat 14. M13 Admin panel 15. M14 Web frontend 16. M15 Mobile API guide 17. M16 QA and deployment 
 
 Reason:
 
-text Listings can be sale or rent, so initiator/owner is more accurate. 
+text Promotions should be implemented before final search/frontend because sorting depends on VIP/TOP priority. 
 
-## 15. VIP/TOP promotion requirements
+## 24. Definition of done per PR
 
-Avino must support promoted listings.
+Every PR must satisfy:
 
-Promotion types:
+text Feature is scoped to one logical improvement Branch name follows CLAUDE.md 1–3 commits maximum where possible No unrelated files changed API routes are versioned DTO validation exists where needed Errors follow API.md format Security impact considered Docs updated if API/schema changes Manual checklist completed 
 
-text NORMAL TOP VIP 
+## 25. Claude task format
 
-Priority:
+Each task sent to Claude should use:
 
-text VIP > TOP > NORMAL 
+text Текущая задача: - <specific task description> 
 
-Promotion periods:
+Claude must respond with:
 
-text 7 days 14 days 30 days 
+text A) Нужно заливать в GitHub: ДА/НЕТ  B) Branch name: ...  C) Files changed: ...  D) Patch: ...  E) Git steps: ...  F) Pre-merge checklist: ... 
 
-MVP implementation:
+## 26. First coding task recommendation
 
-text Admin can manually activate VIP/TOP for a listing. Admin can cancel promotion. Admin can extend promotion. Promotion expires automatically through background job. Online payment is not required in MVP. 
+After docs are approved, first coding task should be:
 
-Sorting rule:
+text Текущая задача: - Initialize Avino monorepo structure with apps/api, apps/web, packages/shared, packages/config, docs, root package.json, .gitignore, README.md, .env.example and docker-compose.yml. Do not implement business logic yet. 
 
-text ACTIVE listings with active VIP promotion first ACTIVE listings with active TOP promotion second ACTIVE listings with NORMAL promotion third 
+Expected branch:
 
-If promotion expires, listing must be treated as NORMAL.
+text chore/monorepo-setup 
 
-Important:
+Expected commit messages:
 
-text listing_promotions is the source of truth. listings.promotion_* fields are read cache. Only one ACTIVE promotion per listing is allowed. 
+text chore(repo): initialize monorepo structure chore(env): add docker compose and env example docs(readme): add initial project overview 
 
-Online payment integration is Phase 1.5 after provider confirmation.
+## 27. Roadmap status tracking
 
-## 16. Admin panel requirements
+Use this status format:
 
-Admin panel must support:
+text TODO IN_PROGRESS REVIEW DONE BLOCKED 
 
-text User management Role management Agency management Listing moderation Listing status update Manual VIP/TOP promotion management Promotion logs Complaints management Notification logs Audit logs Basic dictionaries 
+Recommended tracking table:
 
-Moderation actions:
+text Milestone | Status | Branch | PR | Notes M0        | DONE   | docs/* | -  | Architecture and schema docs M1        | TODO   | -      | -  | Monorepo setup M2        | TODO   | -      | -  | Backend foundation 
 
-text approve send_to_draft reject delete 
-
-Promotion actions:
-
-text activate_vip activate_top cancel_promotion extend_promotion 
-
-All sensitive admin actions must be logged.
-
-## 17. Agency and landlord requirements
-
-Agency features:
-
-text Create agency profile Manage agency contacts Manage agency logo Manage agency members Link listings to agency 
-
-Agent features:
-
-text Create listing Manage own listings Receive messages View basic listing activity 
-
-Landlord/property manager features:
-
-text Create rental listings Manage rental listings Communicate with interested users 
-
-Not MVP:
-
-text Tenant screening Document verification Rental application scoring 
-
-## 18. API requirements
-
-Backend API must use versioning:
-
-text /api/v1/<resource> 
-
-Examples:
-
-text POST /api/v1/auth/request-otp POST /api/v1/auth/verify-otp GET /api/v1/listings POST /api/v1/listings GET /api/v1/listings/:id GET /api/v1/search GET /api/v1/chat/threads GET /api/v1/promotions/plans POST /api/v1/admin/listings/:id/promotions 
-
-Rules:
-
-text Only v1 is implemented in MVP. Do not create v2 until a real breaking change. Unversioned API routes are forbidden. Web and mobile must call only versioned routes. 
-
-## 19. Frontend requirements
-
-Frontend stack:
-
-text Next.js TypeScript RTK Query 
-
-Frontend API rules:
-
-text Use RTK Query for API access. Do not use random fetch or axios inside components. Centralize API layer in store/api. 
-
-Required frontend areas:
-
-text Home page Search page Map search Listing detail page Create listing flow User profile Favorites Saved searches Chat Notifications Agent/owner dashboard Admin/moderation panel VIP/TOP admin management Language switcher 
-
-## 20. Mobile API requirements
-
-Mobile app is developed separately in Flutter.
-
-Backend must provide stable API for:
-
-text Auth Profile Listings Search Map Favorites Saved searches Chat Notifications Uploads Promotions 
-
-Mobile-specific features:
-
-text GPS / near me search Push token registration Real-time or polling chat Saved listings Saved searches Notifications 
-
-Mobile app implementation is not part of backend/web MVP, but API compatibility is required.
-
-## 21. Background jobs
-
-Use:
-
-text Redis + BullMQ 
-
-Required queues:
-
-text translation_queue email_queue notification_queue saved_search_queue media_processing_queue promotion_queue 
-
-Required jobs:
-
-text translate_listing send_email send_saved_search_alert send_chat_notification process_uploaded_image expire_listing_promotions notify_promotion_status 
-
-## 22. Security requirements
-
-Security requirements:
-
-text JWT access tokens Refresh token rotation OTP rate limiting Role-based access control Input validation File upload validation CORS configuration Admin audit logs Environment secrets outside git 
-
-Sensitive actions to audit:
-
-text login role_change listing_status_change listing_promotion_change delete_listing admin_user_update refresh_token_reuse 
-
-## 23. Analytics requirements
-
-MVP basic analytics:
-
-text Listing views count Listing favorite count Listing chat leads count Admin dashboard basic counts 
-
-Advanced analytics is Phase 2.
-
-## 24. SEO requirements
-
-Web platform should be SEO-friendly.
-
-Required:
-
-text Server-rendered listing pages where possible Readable listing URLs Meta title and description OpenGraph tags Sitemap support later Robots.txt Language-aware URLs or metadata 
-
-Suggested URL examples:
-
-text /listings/:id /ru/listings/:id /uz/listings/:id /en/listings/:id 
-
-Final URL structure can be decided during frontend implementation.
-
-## 25. Non-functional requirements
-
-Performance:
-
-text Search should be fast with indexes. Geo search should use PostGIS indexes. Image uploads should not block main request longer than necessary. Notifications must run in background jobs. 
-
-Scalability:
-
-text Backend must support web and mobile clients. API contracts must remain stable. Database indexes must support search and map use cases. 
-
-Reliability:
-
-text Promotion expiration must not depend only on background job. Expired promotion must be treated as NORMAL in SQL. Notifications should retry on failure. 
-
-Maintainability:
-
-text Follow CLAUDE.md rules. Each feature should be separate branch and PR. No direct push to main. No large unrelated PRs. 
-
-## 26. MVP acceptance criteria
-
-MVP is acceptable when:
-
-text User can register/login by SMS or email. User can search active listings. User can search by filters and map. User can open listing detail. Owner/agent can create listing. Listing goes to NEW status. Admin can approve listing to ACTIVE. Only ACTIVE listings are public. Listing supports 3 language text records. Auto translation job exists. User can upload listing photos to S3. User can save favorites. User can create saved search. Saved search can trigger email notification. User can start chat with listing owner. Admin can manually activate VIP/TOP promotion. VIP listings appear above TOP and NORMAL. Expired promotion is treated as NORMAL. API routes use /api/v1. Frontend uses RTK Query. Basic audit logs exist. 
-
-## 27. MVP risks
-
-Main risks:
-
-text Scope is large for first launch. Internal chat can increase implementation time. Auto translation adds external API dependency. Yandex Maps API limits/costs must be checked. Eskiz.uz SMS delivery must be tested early. PostGIS + Prisma requires raw SQL migrations. VIP/TOP sorting must be implemented carefully. 
-
-Risk control:
-
-text Build backend in small modules. Do not mix unrelated features in one PR. Use manual VIP/TOP activation first. Use polling chat first, WebSocket later. Keep API v1 stable. 
-
-## 28. Development process
-
-Claude must follow:
-
-text CLAUDE.md ARCHITECTURE.md DB_SCHEMA.md PRD.md ROADMAP.md API.md TASKS.md 
-
-Every logical improvement must be:
-
-text separate branch 1–3 commits Pull Request pre-merge checklist 
-
-No direct push to main.
-
-Claude response must always include:
-
-text A) Нужно заливать в GitHub: ДА/НЕТ B) Branch name C) Files changed D) Patch E) Git steps F) Pre-merge checklist 
+This table can be maintained manually in docs/TASKS.md.
