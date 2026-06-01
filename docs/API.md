@@ -85,7 +85,7 @@ Flow: `request → verify (выдаёт access+refresh) → refresh → logout`.
 
 ### POST /api/v1/auth/otp/request
 
-Запросить OTP. Auth: **public (guest)**.
+Запросить OTP. Auth: **public (GUEST)**.
 
 Body:
 ```json
@@ -279,7 +279,7 @@ Soft-delete собственного аккаунта (ADR-013): `status → DEL
 
 ## 6. Roles & admin user management
 
-RBAC — guard на базе матрицы прав (role → действия), ADR-011. `guest` нигде не
+RBAC — guard на базе матрицы прав (role → действия), ADR-011. `GUEST` нигде не
 хранится. Роли: `USER | OWNER | AGENT | AGENCY | LANDLORD | PROPERTY_MANAGER |
 MODERATOR | ADMIN` (`DB_SCHEMA` §3).
 
@@ -310,7 +310,7 @@ MODERATOR | ADMIN` (`DB_SCHEMA` §3).
 Снять роль. Auth: **ADMIN**. → `204`. `audit_logs(ROLE_CHANGE)`.
 
 ### GET /api/v1/roles
-Справочник ролей (seeded dictionary, без `guest`). Auth: **ADMIN/MODERATOR**.
+Справочник ролей (seeded dictionary, без `GUEST`). Auth: **ADMIN/MODERATOR**.
 
 ---
 
@@ -561,7 +561,7 @@ Errors: `400 VALIDATION_ERROR`.
 
 ## 11. Favorites
 
-Только авторизованные. `guest` не может (ADR/`DB_SCHEMA` §9). Дубликат запрещён
+Только авторизованные. `GUEST` не может (ADR/`DB_SCHEMA` §9). Дубликат запрещён
 (`UNIQUE (user_id, listing_id)`). `DELETED` листинги не отдаются в списке.
 
 ### GET /api/v1/favorites
@@ -622,7 +622,7 @@ Errors: `409 ALREADY_FAVORITED`, `404 NOT_FOUND`.
 
 Внутренний чат привязан к листингу. Поля — **`initiator_id` / `owner_id`**
 (НЕ buyer/seller; листинги бывают SALE и RENT — ADR-003). Тред уникален по
-`(listing_id, initiator_id, owner_id)`. `guest` не пишет; новый тред на `DELETED`
+`(listing_id, initiator_id, owner_id)`. `GUEST` не пишет; новый тред на `DELETED`
 листинге запрещён. MVP — polling.
 
 ### GET /api/v1/chat/threads
@@ -650,7 +650,7 @@ Query: `cursor`, `limit`. Сортировка по `last_message_at DESC`.
 { "id": "t1", "listing_id": "l9", "initiator_id": "u2", "owner_id": "u1",
   "created_at": "..." }
 ```
-Errors: `403 FORBIDDEN` (guest / сам себе), `404 NOT_FOUND`,
+Errors: `403 FORBIDDEN` (GUEST / сам себе), `404 NOT_FOUND`,
 `422 LISTING_NOT_AVAILABLE` (листинг DELETED/непубличен).
 
 ### GET /api/v1/chat/threads/:id/messages

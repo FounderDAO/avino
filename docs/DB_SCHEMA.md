@@ -100,7 +100,7 @@ complaint_status       NEW | IN_REVIEW | RESOLVED | REJECTED
 Role codes (seeded into `roles`, NOT a Postgres enum — see §4):
 USER | OWNER | AGENT | AGENCY | LANDLORD | PROPERTY_MANAGER | MODERATOR | ADMIN
 
-`guest` is NOT a role value and is NOT stored anywhere (ADR-011). It is the
+`GUEST` is NOT a role value and is NOT stored anywhere (ADR-011). It is the
 implicit state of an unauthenticated request.
 
 audit_logs.action is a free-form varchar (extensible), not an enum, so new
@@ -158,7 +158,7 @@ roles  (seeded dictionary)
 - code                varchar(40) UNIQUE NOT NULL   (one of the role codes, §3)
 - description         text NULL
 Notes:
-- Fixed seed set; `guest` is intentionally absent.
+- Fixed seed set; `GUEST` is intentionally absent.
 ```
 
 ```text
@@ -469,7 +469,7 @@ Constraints:
 Indexes:
 - (user_id), (listing_id)
 Rules:
-- guest cannot create favorites.
+- GUEST cannot create favorites.
 - DELETED listings must not appear in the active favorites list (filtered on read).
 ```
 
@@ -514,7 +514,7 @@ Constraints:
 Indexes:
 - (listing_id), (initiator_id), (owner_id), (last_message_at)
 Rules:
-- guest cannot start a thread or send messages.
+- GUEST cannot start a thread or send messages.
 - A new thread is not allowed on a DELETED listing.
 ```
 
@@ -746,7 +746,7 @@ Behavioural rules enforced by the data layer
 - Promotion activation / payment callbacks are idempotent via
   payment_reference / an idempotency key (no double activation or double charge).
 - Security-sensitive actions are written to audit_logs (ADR-004).
-- guest is never persisted (ADR-011).
+- GUEST is never persisted (ADR-011).
 - A user account is soft-deleted (ACTIVE -> DELETED, deleted_at set); the row is
   retained for referential history. phone/email uniqueness applies only among
   non-DELETED accounts, so the same contact can register a NEW account (new id)

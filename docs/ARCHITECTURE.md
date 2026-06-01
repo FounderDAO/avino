@@ -217,7 +217,7 @@ Required auth features:
 Main user roles:
 
 ```text
-guest
+GUEST
 USER
 OWNER
 AGENT
@@ -231,7 +231,7 @@ ADMIN
 Role meaning:
 
 ```text
-guest               Can search and view listings
+GUEST               Can search and view listings
 USER                Can save listings, create saved searches, chat, send requests
 OWNER               Can create and manage own listings
 AGENT               Can create and manage listings professionally
@@ -246,8 +246,8 @@ Role model rules:
 
 ```text
 A user may hold multiple roles (many-to-many via user_roles).
-guest is NOT stored in user_roles — it is the implicit state of an
-  unauthenticated request (no token). Do not persist a guest role row.
+GUEST is NOT stored in user_roles — it is the implicit state of an
+  unauthenticated request (no token). Do not persist a GUEST role row.
 AGENCY as a ROLE means "agency administrator" (manages the agency
   profile and the agency members/listings). It is distinct from the
   `agencies` ENTITY (the organization itself) and `agency_members`
@@ -807,7 +807,7 @@ createdAt
 Rules:
 
 ```text
-guest cannot save favorites
+GUEST cannot save favorites
 user cannot duplicate same listing in favorites
 deleted listings should not appear in active favorites list
 ```
@@ -976,7 +976,7 @@ WebSocket can be added when needed.
 Chat rules:
 
 ```text
-guest cannot send messages
+GUEST cannot send messages
 user cannot create duplicate thread for same listing and owner
 deleted listing should not allow new chat thread
 moderator/admin can access chat only if needed for complaint/support flow
@@ -1484,7 +1484,7 @@ ADR-010  Notification transport
          Why: push provider was unspecified; keep API client-neutral.
 
 ADR-011  Roles model clarity
-         Decision: multi-role via user_roles; guest is implicit (no row);
+         Decision: multi-role via user_roles; GUEST is implicit (no row);
          "AGENCY" role = agency admin, distinct from agencies entity /
          agency_members; RBAC guard backed by a permission matrix. (§7)
          Why: remove ambiguity between role and organization.
