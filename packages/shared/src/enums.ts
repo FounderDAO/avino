@@ -45,3 +45,23 @@ export const MVP_LISTING_STATUSES: ListingStatus[] = [
   ListingStatus.DRAFT,
   ListingStatus.DELETED,
 ];
+
+/** Типы недвижимости. */
+export enum PropertyType {
+  APARTMENT = 'APARTMENT',
+  HOUSE = 'HOUSE',
+  COMMERCIAL = 'COMMERCIAL',
+  LAND = 'LAND',
+}
+
+/** Типы сделок. */
+export enum DealType {
+  SALE = 'SALE',
+  RENT = 'RENT',
+}
+
+/** Валюты. */
+export enum CURRENCY {
+  UZS = 'UZS',
+  USD = 'USD',
+}
