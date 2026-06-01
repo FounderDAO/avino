@@ -10,6 +10,7 @@
     "test": "echo \"no tests yet\" && exit 0"
   },
   "devDependencies": {
+    "@avino/config": "workspace:*",
     "typescript": "^5.5.4"
   }
 }

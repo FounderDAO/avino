@@ -116,8 +116,13 @@ importers:
         specifier: ^5.5.4
         version: 5.9.3
 
+  packages/config: {}
+
   packages/shared:
     devDependencies:
+      '@avino/config':
+        specifier: workspace:*
+        version: link:../config
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
