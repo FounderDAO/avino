@@ -337,7 +337,7 @@ moderation action is logged.
 moderation_logs
 - id                  uuid PK
 - listing_id          uuid FK -> listings(id) ON DELETE CASCADE
-- moderator_id        uuid FK -> users(id) ON DELETE SET NULL
+- moderator_id        uuid FK -> users(id) ON DELETE SET NULL NULL
 - action              moderation_action NOT NULL  (APPROVE|SEND_TO_DRAFT|REJECT|DELETE)
 - old_status          listing_status NULL
 - new_status          listing_status NULL
@@ -351,7 +351,7 @@ Indexes:
 complaints
 - id                  uuid PK
 - listing_id          uuid FK -> listings(id) ON DELETE CASCADE NULL
-- reporter_id         uuid FK -> users(id) ON DELETE SET NULL NULL
+- reporter_id         uuid FK -> users(id) ON DELETE SET NULL
 - reason              varchar(120) NOT NULL
 - details             text NULL
 - status              complaint_status NOT NULL default 'NEW'
@@ -371,7 +371,7 @@ Binding rules — ADR-006 / ARCHITECTURE §10.
 listing_promotions   (SOURCE OF TRUTH / ledger)
 - id                  uuid PK
 - listing_id          uuid FK -> listings(id) ON DELETE CASCADE
-- user_id             uuid FK -> users(id) ON DELETE SET NULL   (who requested it)
+- user_id             uuid FK -> users(id) ON DELETE SET NULL NULL   (who requested it)
 - type                promotion_type NOT NULL     (TOP | VIP; NORMAL means "no promo")
 - status              promotion_status NOT NULL default 'PENDING_PAYMENT'
 - period_days         smallint NOT NULL           (7 | 14 | 30)
@@ -509,7 +509,7 @@ Rules:
 chat_messages
 - id                  uuid PK
 - thread_id           uuid FK -> chat_threads(id) ON DELETE CASCADE
-- sender_id           uuid FK -> users(id) ON DELETE SET NULL
+- sender_id           uuid FK -> users(id) ON DELETE SET NULL NULL
 - body                text NOT NULL
 - is_read             boolean NOT NULL default false
 - created_at          timestamptz NOT NULL
