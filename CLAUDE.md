@@ -283,14 +283,14 @@ Avino — портал недвижимости для Узбекистана.
 
 Основные роли:
 - guest
-- user
-- owner
-- agent
-- agency
-- landlord
-- property_manager
-- moderator
-- admin
+- USER
+- OWNER
+- AGENT
+- AGENCY
+- LANDLORD
+- PROPERTY_MANAGER
+- MODERATOR
+- ADMIN
 
 Языки:
 - Uzbek
