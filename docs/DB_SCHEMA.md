@@ -75,6 +75,7 @@ Soft delete
 transaction_type       SALE | RENT
 property_type          APARTMENT | HOUSE | NEW_BUILDING | LAND | COMMERCIAL
 listing_status         NEW | ACTIVE | DRAFT | REJECTED | DELETED | ARCHIVED | SOLD | RENTED
+user_status            ACTIVE | BLOCKED | DELETED         (ACTIVE -> DELETED is soft-delete)
 language               UZ | RU | EN
 currency               UZS | USD
 promotion_type         NORMAL | TOP | VIP                 (priority VIP > TOP > NORMAL)
@@ -111,18 +112,30 @@ auditable actions do not require a migration (ADR-004).
 ```text
 users
 - id                  uuid PK
-- phone               varchar(20)  UNIQUE NULL   (E.164; required for SMS login)
-- email               varchar(255) UNIQUE NULL   (required for email login)
+- phone               varchar(20)  NULL   (E.164; required for SMS login)
+- email               varchar(255) NULL   (required for email login)
 - is_phone_verified   boolean NOT NULL default false
 - is_email_verified   boolean NOT NULL default false
-- status              varchar(20) NOT NULL default 'active'  (active|blocked)
+- status              user_status NOT NULL default 'ACTIVE'  (ACTIVE|BLOCKED|DELETED)
 - default_language    language NOT NULL default 'RU'
 - last_login_at       timestamptz NULL
+- deleted_at          timestamptz NULL   (set when status -> DELETED)
 - created_at          timestamptz NOT NULL
 - updated_at          timestamptz NOT NULL
 Notes:
 - At least one of (phone, email) must be present (CHECK, see §15).
 - No password column in MVP — auth is OTP-based (SMS/email), ARCHITECTURE §6.
+- Uniqueness of phone/email is enforced by PARTIAL UNIQUE indexes scoped to
+  non-deleted accounts (status <> 'DELETED'), NOT a plain UNIQUE column. A
+  soft-deleted account therefore does not block re-registration with the same
+  phone/email, while the original contact value is PRESERVED on the deleted row
+  for history/audit (Variant A — ADR-013). Prisma cannot express partial unique
+  indexes, so phone/email are NOT @unique in the Prisma model; the indexes are
+  created via raw SQL migration (same pattern as the GIST index — see §14).
+- Soft delete: ACTIVE -> DELETED sets deleted_at; the row is retained so
+  listings, chat threads and logs keep referential history. A new registration
+  with the same contact creates a NEW user (new id). BLOCKED is NOT DELETED, so
+  a blocked account still reserves its phone/email.
 ```
 
 ```text
@@ -676,11 +689,28 @@ model Listing {
    (already present in apps/api/prisma/schema.prisma init).
 ```
 
+Partial unique indexes (ADR-013):
+
+```text
+Prisma cannot express filtered/partial unique indexes. The uniqueness of
+users.phone / users.email AMONG NON-DELETED accounts is created via a raw SQL
+migration; phone/email are NOT marked @unique in the Prisma model:
+  CREATE UNIQUE INDEX uniq_users_phone_active
+    ON users (phone) WHERE status <> 'DELETED' AND phone IS NOT NULL;
+  CREATE UNIQUE INDEX uniq_users_email_active
+    ON users (email) WHERE status <> 'DELETED' AND email IS NOT NULL;
+This lets a soft-deleted account free its contact for re-registration while
+keeping the original value on the deleted row.
+```
+
 ## 15. Required business constraints
 
 ```text
 Uniqueness
-- users.email UNIQUE (nullable), users.phone UNIQUE (nullable)
+- users.phone PARTIAL UNIQUE WHERE status <> 'DELETED' AND phone IS NOT NULL
+- users.email PARTIAL UNIQUE WHERE status <> 'DELETED' AND email IS NOT NULL
+    -> contact is unique among non-deleted accounts only; freed on soft-delete
+       so it can be reused for re-registration (ADR-013, raw SQL — see §14).
 - user_roles (user_id, role_id) UNIQUE
 - agency_members (agency_id, user_id) UNIQUE
 - agencies.slug UNIQUE
@@ -694,6 +724,7 @@ Uniqueness
 
 Check constraints
 - users: phone IS NOT NULL OR email IS NOT NULL
+- users: (status = 'DELETED') = (deleted_at IS NOT NULL)   (deleted_at set iff DELETED)
 - listings: price >= 0; area IS NULL OR area >= 0
 - listing_promotions: period_days IN (7,14,30)
 - listing_promotions: expires_at IS NULL OR starts_at IS NULL OR expires_at > starts_at
@@ -716,6 +747,11 @@ Behavioural rules enforced by the data layer
   payment_reference / an idempotency key (no double activation or double charge).
 - Security-sensitive actions are written to audit_logs (ADR-004).
 - guest is never persisted (ADR-011).
+- A user account is soft-deleted (ACTIVE -> DELETED, deleted_at set); the row is
+  retained for referential history. phone/email uniqueness applies only among
+  non-DELETED accounts, so the same contact can register a NEW account (new id)
+  without conflict, while the original value is kept on the deleted row
+  (Variant A — ADR-013).
 ```
 
 ## 16. MVP table checklist

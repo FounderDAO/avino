@@ -1494,6 +1494,18 @@ ADR-012  Text search
          language with fallback to original; MVP uses ILIKE/pg_trgm; FTS or
          search engine can be added without API change. (§12)
          Why: multilingual listings need language-aware search.
+
+ADR-013  User account soft-delete & contact reuse
+         Decision: users.status is an enum (ACTIVE | BLOCKED | DELETED) with a
+         deleted_at column; ACTIVE -> DELETED is a soft-delete (row retained so
+         listings/chat/logs keep referential history). phone/email uniqueness is
+         enforced by PARTIAL UNIQUE indexes scoped to non-deleted accounts
+         (status <> 'DELETED'), created via raw SQL migration — so a soft-deleted
+         account does NOT block re-registration with the same phone/email, while
+         the original contact value is preserved on the deleted row. BLOCKED is
+         not DELETED and still reserves its contact. (DB_SCHEMA §3/§4/§14/§15)
+         Why: let users delete and later re-register without UNIQUE conflicts,
+         without mutating the stored contact value (Variant A — keep value).
 ```
 
 
