@@ -13,6 +13,46 @@ datasource db {
   extensions = [pgcrypto, postgis, pg_trgm]
 }
 
+// Базовые enum'ы предметной области (TASK-032, см. DB_SCHEMA.md §3, API.md).
+// Значения enum — часть v1-контракта: добавление значения non-breaking,
+// переименование/удаление — breaking (требует v2). Значения совпадают с
+// shared/src/enums.ts и с JSON-контрактом API (UPPERCASE).
+// Роли (Role) НЕ являются Postgres enum — это сидируемый справочник `roles`
+// (DB_SCHEMA.md §4, ADR-0008/ADR-011), поэтому здесь enum Role отсутствует.
+
+/// Статусы объявления. Moderation flow: NEW → ACTIVE | DRAFT | REJECTED | DELETED.
+enum ListingStatus {
+  NEW
+  ACTIVE
+  DRAFT
+  REJECTED
+  DELETED
+  ARCHIVED
+  SOLD
+  RENTED
+}
+
+/// Типы продвижения объявления. Приоритет: VIP > TOP > NORMAL (ADR-0004).
+enum PromotionType {
+  NORMAL
+  TOP
+  VIP
+}
+
+/// Валюты. FX-конвертации в MVP нет (DB_SCHEMA.md §2).
+enum Currency {
+  UZS
+  USD
+}
+
+/// Языки интерфейса и объявлений. В API значения UPPERCASE; lowercase uz|ru|en —
+/// только конвенция заголовка Accept-Language/?lang (API.md, ADR-0008).
+enum Language {
+  UZ
+  RU
+  EN
+}
+
 // Временная placeholder-модель (TASK-030): Prisma не генерирует клиент без
 // хотя бы одной модели. Нужна только для bootstrap generate на этапе foundation.
 // TODO: удалить при добавлении первой предметной модели (TASK-033 — users).
