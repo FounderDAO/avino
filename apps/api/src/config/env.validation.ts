@@ -1,0 +1,154 @@
+import { plainToInstance } from 'class-transformer';
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  validateSync,
+} from 'class-validator';
+
+/**
+ * Валидация переменных окружения (CLAUDE.md §3, TASK-022).
+ *
+ * Цель — fail-fast: если обязательные переменные отсутствуют или невалидны,
+ * приложение не должно стартовать. Опциональные интеграции (S3, Yandex Maps,
+ * Eskiz, Translate, SMTP) могут быть пустыми на старте проекта — их ключи
+ * подставляются по мере подключения сервисов, поэтому они помечены как
+ * optional и здесь не требуются.
+ */
+
+export enum NodeEnv {
+  Development = 'development',
+  Production = 'production',
+  Test = 'test',
+}
+
+export enum TranslateProvider {
+  Yandex = 'yandex',
+  Google = 'google',
+}
+
+export class EnvironmentVariables {
+  // ── Node ──
+  @IsEnum(NodeEnv)
+  @IsOptional()
+  NODE_ENV: NodeEnv = NodeEnv.Development;
+
+  // ── API ──
+  @IsInt()
+  @Min(0)
+  @Max(65535)
+  @IsOptional()
+  API_PORT: number = 4000;
+
+  // ── PostgreSQL + PostGIS (обязательно) ──
+  @IsString()
+  @IsNotEmpty()
+  DATABASE_URL!: string;
+
+  // ── Redis (обязательно) ──
+  @IsString()
+  @IsNotEmpty()
+  REDIS_URL!: string;
+
+  // ── S3-compatible storage (опционально на старте) ──
+  @IsString()
+  @IsOptional()
+  S3_ENDPOINT?: string;
+
+  @IsString()
+  @IsOptional()
+  S3_REGION?: string;
+
+  @IsString()
+  @IsOptional()
+  S3_BUCKET?: string;
+
+  @IsString()
+  @IsOptional()
+  S3_ACCESS_KEY_ID?: string;
+
+  @IsString()
+  @IsOptional()
+  S3_SECRET_ACCESS_KEY?: string;
+
+  // ── Yandex Maps (опционально на старте) ──
+  @IsString()
+  @IsOptional()
+  YANDEX_MAPS_API_KEY?: string;
+
+  // ── Eskiz.uz / SMS (опционально на старте) ──
+  @IsString()
+  @IsOptional()
+  ESKIZ_EMAIL?: string;
+
+  @IsString()
+  @IsOptional()
+  ESKIZ_PASSWORD?: string;
+
+  @IsString()
+  @IsOptional()
+  ESKIZ_BASE_URL?: string;
+
+  // ── Translation (опционально на старте) ──
+  @IsEnum(TranslateProvider)
+  @IsOptional()
+  TRANSLATE_PROVIDER?: TranslateProvider;
+
+  @IsString()
+  @IsOptional()
+  TRANSLATE_API_KEY?: string;
+
+  // ── SMTP / email (опционально на старте) ──
+  @IsString()
+  @IsOptional()
+  SMTP_HOST?: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(65535)
+  @IsOptional()
+  SMTP_PORT?: number;
+
+  @IsString()
+  @IsOptional()
+  SMTP_USER?: string;
+
+  @IsString()
+  @IsOptional()
+  SMTP_PASSWORD?: string;
+
+  @IsString()
+  @IsOptional()
+  SMTP_FROM?: string;
+}
+
+/**
+ * Используется как `validate` callback в ConfigModule.forRoot.
+ * Конвертирует строковые env-значения в нужные типы (enableImplicitConversion)
+ * и бросает понятную ошибку при невалидной конфигурации.
+ */
+export function validateEnv(
+  config: Record<string, unknown>,
+): EnvironmentVariables {
+  const validated = plainToInstance(EnvironmentVariables, config, {
+    enableImplicitConversion: true,
+  });
+
+  const errors = validateSync(validated, {
+    skipMissingProperties: false,
+    whitelist: false,
+  });
+
+  if (errors.length > 0) {
+    const details = errors
+      .map((e) => Object.values(e.constraints ?? {}).join(', '))
+      .join('; ');
+    throw new Error(`Invalid environment configuration: ${details}`);
+  }
+
+  return validated;
+}

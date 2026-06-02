@@ -410,60 +410,6 @@ TASK-001
 
 ## 6. M2 — Backend foundation
 
-### TASK-022 — Add config and validation foundation
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/api-config-validation
-```
-
-Scope:
-
-```text
-Add configuration loading and global validation.
-```
-
-Files expected:
-
-```text
-apps/api/src/config/
-apps/api/src/main.ts
-apps/api/src/common/
-.env.example
-```
-
-Acceptance criteria:
-
-```text
-Config module is available globally
-ValidationPipe is enabled globally
-Whitelist validation is enabled
-Transform validation is enabled
-.env.example contains required groups
-```
-
-Suggested commits:
-
-```text
-feat(config): add environment configuration
-feat(api): add global validation pipe
-```
-
-Dependencies:
-
-```text
-TASK-021
-```
-
----
-
 ### TASK-023 — Add response and error format
 
 Status:

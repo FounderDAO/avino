@@ -194,3 +194,40 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0002-api-versioning-v1.md (updated: linked implementation files and TASK-021)
+
+### TASK-022 — Add config and validation foundation
+
+Status: DONE
+Branch: feat/api-config-validation
+PR: pending
+
+Files changed:
+- apps/api/src/config/config.module.ts
+- apps/api/src/config/configuration.ts
+- apps/api/src/config/env.validation.ts
+- apps/api/src/config/index.ts
+- apps/api/src/common/validation/validation.options.ts
+- apps/api/src/app.module.ts
+- apps/api/src/main.ts
+- apps/api/package.json
+- .env.example
+- docs/adr/ADR-0006-config-and-validation.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added a global config foundation under `apps/api/src/config/`: `AppConfigModule` wraps `ConfigModule.forRoot` (`isGlobal`, `cache`, `envFilePath: ['../../.env', '.env']`), replacing the inline `ConfigModule.forRoot` previously in `app.module.ts`.
+- Env validation (`env.validation.ts`) via `class-validator` + `class-transformer` runs on boot (fail-fast): `DATABASE_URL` and `REDIS_URL` are required; S3/Yandex/Eskiz/Translate/SMTP groups are optional until wired in. Numeric vars carry explicit type annotations so `enableImplicitConversion` parses string env values correctly.
+- Typed namespaced config (`configuration.ts`) via `registerAs` (`app`, `database`, `redis`, `s3`, `maps`, `sms`, `translate`, `mail`), loaded through `ConfigModule`'s `load`; `main.ts` now reads the port via `ConfigService.get('app.port')`.
+- Global `ValidationPipe` enabled in `main.ts` with options centralized in `common/validation/validation.options.ts`: `whitelist`, `forbidNonWhitelisted`, `transform`, `transformOptions.enableImplicitConversion`.
+- `.env.example` annotated to mark required vs optional groups, matching the validation contract.
+- Added runtime deps `class-validator@^0.14.1` and `class-transformer@^0.5.1` to `@avino/api`.
+- Verified: `pnpm --filter @avino/api build` passes; app boots reading port from config, `GET /api/v1/health` → `{status:"ok",service:"avino-api"}`, unversioned `GET /health` → 404; fail-fast confirmed — missing `DATABASE_URL`/`REDIS_URL` or out-of-range `API_PORT` aborts startup with a clear error.
+- Note: `pnpm --filter @avino/api lint` still fails repo-wide because no ESLint config exists yet (pre-existing gap from TASK-021, not introduced here).
+
+Commit messages:
+- feat(config): add environment configuration and validation
+- feat(api): add global validation pipe
+
+Related ADR:
+- docs/adr/ADR-0006-config-and-validation.md
