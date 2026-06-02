@@ -473,7 +473,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/db-listing-translations-media
-PR: pending
+PR: #32
 
 Files changed:
 - apps/api/prisma/schema.prisma
