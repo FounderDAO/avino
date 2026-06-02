@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 
-@Controller('health')
+// Explicit version per CLAUDE.md §14 → GET /api/v1/health
+@Controller({ path: 'health', version: '1' })
 export class HealthController {
   @Get()
   check() {
