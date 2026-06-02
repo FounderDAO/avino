@@ -417,7 +417,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/db-auth-schema
-PR: pending
+PR: #30
 
 Files changed:
 - apps/api/prisma/schema.prisma
