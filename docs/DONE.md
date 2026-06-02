@@ -299,3 +299,32 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0003-postgis-prisma.md
+
+## 2026-06-03
+
+### TASK-031 — Add PostgreSQL extensions migration
+
+Status: DONE
+Branch: feat/db-extensions
+PR: pending
+
+Files changed:
+- apps/api/prisma/migrations/20260603120000_enable_extensions/migration.sql
+- apps/api/prisma/migrations/migration_lock.toml
+- apps/api/prisma/schema.prisma
+- docs/adr/ADR-0003-postgis-prisma.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the baseline raw SQL migration that enables the three PostgreSQL extensions the schema depends on: `pgcrypto` (gen_random_uuid() for every `id uuid` PK — DB_SCHEMA §2), `postgis` (geography(Point,4326) + GIST geo search — ADR-0003) and `pg_trgm` (GIN trigram ILIKE text search — ARCHITECTURE §12). Each uses `CREATE EXTENSION IF NOT EXISTS`, so the migration is idempotent and safe to re-run.
+- This is the first migration directory in the project; it ships with `migration_lock.toml` (`provider = "postgresql"`). It must run before any table migration so the uuid/geo/trgm primitives exist when domain tables land (TASK-032+).
+- Declared all three extensions in `schema.prisma` `datasource db.extensions = [pgcrypto, postgis, pg_trgm]` (postgresqlExtensions preview feature) so the declarative schema matches the migration and Prisma reports no drift. Previously only `postgis` was declared.
+- Applied with `prisma migrate deploy` rather than `prisma migrate dev`, because the schema still carries the temporary `HealthCheck` placeholder (TASK-030) which must not leak into the first table migration (removed in TASK-033).
+- Verified against the project's `postgis/postgis:16-3.4` container: migration applied cleanly (`_prisma_migrations` shows 1 finished migration); `SELECT extname FROM pg_extension` returns pgcrypto, postgis, pg_trgm; smoke test confirms `gen_random_uuid()`, `postgis_version()` and the `%` trigram operator all work; `prisma validate` passes and `prisma generate` succeeds.
+
+Commit messages:
+- feat(db): add PostgreSQL extensions
+
+Related ADR:
+- docs/adr/ADR-0003-postgis-prisma.md

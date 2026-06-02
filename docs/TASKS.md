@@ -412,55 +412,6 @@ TASK-001
 
 ## 7. M3 — Database and Prisma foundation
 
-### TASK-031 — Add PostgreSQL extensions migration
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/db-extensions
-```
-
-Scope:
-
-```text
-Add raw SQL migration for required PostgreSQL extensions.
-```
-
-Files expected:
-
-```text
-apps/api/prisma/migrations/
-```
-
-Acceptance criteria:
-
-```text
-pgcrypto extension is enabled
-postgis extension is enabled
-pg_trgm extension is enabled
-Migration runs successfully
-```
-
-Suggested commits:
-
-```text
-feat(db): add PostgreSQL extensions
-```
-
-Dependencies:
-
-```text
-TASK-030
-```
-
----
-
 ### TASK-032 — Add core enums to Prisma
 
 Status:
