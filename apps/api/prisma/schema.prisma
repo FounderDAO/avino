@@ -39,6 +39,24 @@ enum PromotionType {
   VIP
 }
 
+/// Тип сделки по объявлению (DB_SCHEMA.md §3). Создаётся как Postgres enum
+/// этой миграцией — listings первой ссылается на него (TASK-035).
+enum TransactionType {
+  SALE
+  RENT
+}
+
+/// Тип недвижимости (DB_SCHEMA.md §3). Значения совпадают с контрактом §3;
+/// NEW_BUILDING присутствует в БД-контракте (расхождение с packages/shared
+/// фиксируется отдельной задачей — см. DONE.md TASK-035).
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  NEW_BUILDING
+  LAND
+  COMMERCIAL
+}
+
 /// Валюты. FX-конвертации в MVP нет (DB_SCHEMA.md §2).
 enum Currency {
   UZS
@@ -100,6 +118,7 @@ model User {
   grantedRoles  UserRole[]     @relation("UserRoleGranter")
   otpCodes      OtpCode[]
   refreshTokens RefreshToken[]
+  listings      Listing[]
 
   @@map("users")
 }
@@ -201,4 +220,68 @@ model RefreshToken {
   @@index([tokenHash])
   @@index([familyId])
   @@map("refresh_tokens")
+}
+
+/// Объявление о недвижимости (DB_SCHEMA.md §6). Нетранслируемые структурные
+/// поля живут здесь; переводимый текст — в listing_translations (TASK-036).
+///
+/// Гео (ADR-0003, DB_SCHEMA §14): latitude/longitude — редактируемый источник
+/// координат (Decimal). location — производная `geography(Point,4326)`, которую
+/// Prisma не умеет читать/писать (Unsupported); она синхронизируется триггером
+/// БД из lat/lng, а GIST-индекс по ней создаётся raw SQL миграцией.
+///
+/// promotion_* — денормализованный READ CACHE активной строки listing_promotions
+/// (источник истины — TASK-037, ADR-0004). Здесь это просто кэш для сортировки.
+///
+/// owner_id → users ON DELETE RESTRICT: аккаунт-владелец не удаляется физически
+/// (soft-delete, ADR-013), поэтому объявления сохраняют ссылку на создателя.
+/// agency_id / city_id / district_id — это FK по DB_SCHEMA §6, но таблицы
+/// agencies/cities/districts ещё не созданы. Колонки заводятся как UUID-скаляры
+/// с индексами; реальные FK-ограничения и relation-поля добавятся, когда
+/// появятся целевые таблицы (отдельные задачи).
+model Listing {
+  id                 String                                 @id @default(uuid()) @db.Uuid
+  ownerId            String                                 @map("owner_id") @db.Uuid
+  agencyId           String?                                @map("agency_id") @db.Uuid
+  transactionType    TransactionType                        @map("transaction_type")
+  propertyType       PropertyType                           @map("property_type")
+  status             ListingStatus                          @default(NEW)
+  originalLanguage   Language                               @map("original_language")
+  price              Decimal                                @db.Decimal(14, 2)
+  currency           Currency
+  area               Decimal?                               @db.Decimal(10, 2)
+  rooms              Int?                                   @db.SmallInt
+  floor              Int?                                   @db.SmallInt
+  totalFloors        Int?                                   @map("total_floors") @db.SmallInt
+  yearBuilt          Int?                                   @map("year_built") @db.SmallInt
+  address            String?                                @db.VarChar(500)
+  cityId             String?                                @map("city_id") @db.Uuid
+  districtId         String?                                @map("district_id") @db.Uuid
+  latitude           Decimal?                               @db.Decimal(9, 6)
+  longitude          Decimal?                               @db.Decimal(9, 6)
+  // PostGIS не имеет нативного типа в Prisma — derived, см. шапку модели/ADR-0003.
+  location           Unsupported("geography(Point, 4326)")?
+  promotionType      PromotionType                          @default(NORMAL) @map("promotion_type")
+  promotionStartedAt DateTime?                              @map("promotion_started_at") @db.Timestamptz(6)
+  promotionExpiresAt DateTime?                              @map("promotion_expires_at") @db.Timestamptz(6)
+  publishedAt        DateTime?                              @map("published_at") @db.Timestamptz(6)
+  createdAt          DateTime                               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+
+  @@index([status])
+  @@index([propertyType])
+  @@index([transactionType])
+  @@index([price])
+  @@index([cityId])
+  @@index([districtId])
+  @@index([ownerId])
+  @@index([agencyId])
+  @@index([promotionType])
+  @@index([promotionExpiresAt])
+  // Композитный индекс дефолтной выдачи поиска (DB_SCHEMA §6):
+  // status → promotion_type → created_at desc → id desc.
+  @@index([status, promotionType, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("listings")
 }
