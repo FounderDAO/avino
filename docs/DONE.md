@@ -333,7 +333,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/db-core-enums
-PR: pending
+PR: #28
 
 Files changed:
 - apps/api/prisma/schema.prisma
