@@ -266,3 +266,36 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0007-api-error-envelope.md
+
+---
+
+### TASK-030 — Add Prisma foundation
+
+Status: DONE
+Branch: feat/prisma-foundation
+PR: #26
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/src/prisma/prisma.module.ts
+- apps/api/src/prisma/prisma.service.ts
+- apps/api/src/prisma/index.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0003-postgis-prisma.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the Prisma runtime foundation for `apps/api` so future feature modules (users, listings, chat) can inject a database client. `@prisma/client` / `prisma` were already in `package.json` and `schema.prisma` already declared the `postgresqlExtensions` preview feature + `postgis` extension (ADR-0003); this task adds the NestJS integration layer.
+- `apps/api/src/prisma/prisma.service.ts` extends `PrismaClient` and owns the connection lifecycle: `onModuleInit` calls `$connect` (fail-fast on startup), `onModuleDestroy` calls `$disconnect`. Logs connect/disconnect via Nest `Logger`.
+- `apps/api/src/prisma/prisma.module.ts` is `@Global()` and exports `PrismaService`, mirroring the global `AppConfigModule` (ADR-0006) so it is injectable everywhere without re-import. `index.ts` is a barrel matching the `config/` convention.
+- `app.module.ts` imports `PrismaModule` (after `AppConfigModule`, before `HealthModule`).
+- `schema.prisma` gained a temporary `HealthCheck` placeholder model. Prisma refuses to generate a client with zero models, and the foundation must be generatable before any domain model exists (acceptance criterion "Prisma client can be generated"). The placeholder is commented for removal in TASK-033 (first real model — users). Decision confirmed by Team Lead per CLAUDE.md §2/§13.
+- `DATABASE_URL` is already documented in `.env.example` (`postgresql://avino:avino@localhost:5432/avino?schema=public`) — no change needed there.
+- Verified: `pnpm prisma generate` → "Prisma Client generated"; `pnpm build` (`nest build`) passes; `npx eslint` on the new files exits clean.
+
+Commit messages:
+- feat(db): add Prisma foundation
+
+Related ADR:
+- docs/adr/ADR-0003-postgis-prisma.md

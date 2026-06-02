@@ -42,6 +42,22 @@ PostGIS is integrated with Prisma as follows:
 only from the map-picked point — never from photo EXIF (which is stripped on
 upload).
 
+### Runtime foundation (TASK-030)
+
+The Prisma client is exposed to NestJS via a single global module:
+
+6. `apps/api/src/prisma/prisma.service.ts` extends `PrismaClient` and manages
+   the connection lifecycle through `onModuleInit` (`$connect`, fail-fast on
+   startup) and `onModuleDestroy` (`$disconnect`).
+7. `apps/api/src/prisma/prisma.module.ts` is `@Global()` and exports
+   `PrismaService`, mirroring the global `AppConfigModule` (ADR-0006) so feature
+   modules inject it without re-importing.
+8. `schema.prisma` carries a temporary `HealthCheck` placeholder model: Prisma
+   refuses to generate a client with zero models, and the foundation must be
+   generatable before any domain model exists. It is marked for removal when the
+   first real model lands (TASK-033 — users). Decision confirmed by Team Lead
+   (CLAUDE.md §2/§13).
+
 ## Consequences
 
 Positive:
@@ -59,13 +75,21 @@ Negative / trade-offs:
 - The GIST index and the lat/lng → `location` sync are manual responsibilities;
   forgetting either breaks geo correctness or performance.
 - Schema diffs involving `Unsupported(...)` need attention during migrations.
+- The temporary `HealthCheck` placeholder model exists only to bootstrap client
+  generation; it must be removed in TASK-033 to avoid leaking into the first
+  real migration.
 
 ## Related files
 
 - docs/ARCHITECTURE.md (§8, §12, §22)
 - docs/DB_SCHEMA.md
 - docs/adr/ADR-0001-project-stack.md
+- docs/adr/ADR-0006-config-and-validation.md
+- apps/api/src/prisma/prisma.module.ts
+- apps/api/src/prisma/prisma.service.ts
+- apps/api/prisma/schema.prisma
 
 ## Related task
 
 - TASK-DOCS-INIT (initial project tracking documents)
+- TASK-030 (Prisma runtime foundation: PrismaModule/PrismaService)

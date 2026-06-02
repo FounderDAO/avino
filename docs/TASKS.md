@@ -412,58 +412,6 @@ TASK-001
 
 ## 7. M3 — Database and Prisma foundation
 
-### TASK-030 — Add Prisma foundation
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/prisma-foundation
-```
-
-Scope:
-
-```text
-Install and configure Prisma for apps/api.
-```
-
-Files expected:
-
-```text
-apps/api/prisma/schema.prisma
-apps/api/src/prisma/prisma.module.ts
-apps/api/src/prisma/prisma.service.ts
-.env.example
-```
-
-Acceptance criteria:
-
-```text
-Prisma client can be generated
-Prisma module is available
-DATABASE_URL is documented
-No application models implemented yet beyond foundation if possible
-```
-
-Suggested commits:
-
-```text
-feat(db): add Prisma foundation
-```
-
-Dependencies:
-
-```text
-TASK-022
-```
-
----
-
 ### TASK-031 — Add PostgreSQL extensions migration
 
 Status:
