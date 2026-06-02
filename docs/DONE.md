@@ -238,7 +238,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/api-error-format
-PR: pending
+PR: #25
 
 Files changed:
 - apps/api/src/common/dto/error-response.dto.ts
