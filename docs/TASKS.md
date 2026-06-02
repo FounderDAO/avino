@@ -410,58 +410,6 @@ TASK-001
 
 ## 6. M2 — Backend foundation
 
-### TASK-020 — Initialize NestJS API app
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/api-foundation
-```
-
-Scope:
-
-```text
-Initialize NestJS backend app inside apps/api.
-```
-
-Files expected:
-
-```text
-apps/api/package.json
-apps/api/src/main.ts
-apps/api/src/app.module.ts
-apps/api/src/app.controller.ts
-apps/api/src/app.service.ts
-```
-
-Acceptance criteria:
-
-```text
-NestJS app starts successfully
-App uses TypeScript
-No business modules added yet
-```
-
-Suggested commits:
-
-```text
-feat(api): initialize NestJS application
-```
-
-Dependencies:
-
-```text
-TASK-010
-```
-
----
-
 ### TASK-021 — Add API versioning and global prefix
 
 Status:

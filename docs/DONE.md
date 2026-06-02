@@ -141,3 +141,29 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0004-vip-top-promotion-model.md (updated: linked shared enum/constants and TASK-012)
+
+### TASK-020 — Initialize NestJS API app
+
+Status: DONE
+Branch: feat/api-foundation
+PR: #21
+
+Files changed:
+- apps/api/src/app.controller.ts
+- apps/api/src/app.service.ts
+- apps/api/src/app.module.ts
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- The bootable NestJS app (apps/api/package.json, src/main.ts, src/app.module.ts, nest-cli.json, tsconfig.json) already existed in main — it was added by the TASK-010 monorepo scaffold (commit 9d0ca01). The app already starts, uses TypeScript, and has no business modules, satisfying all three acceptance criteria.
+- The only gap versus TASK-020's expected files was the standard root controller/service: added src/app.controller.ts (`@Controller()` → GET /api/v1) and src/app.service.ts (returns service/status/apiVersion), and registered both in app.module.ts (AppController in controllers, AppService in providers).
+- Verified: `pnpm --filter @avino/api build` passes; the app starts and `GET /api/v1` returns `{service:"avino-api",status:"ok",apiVersion:"v1"}`, `GET /api/v1/health` returns ok, and unversioned `GET /health` returns 404.
+- No new ADR required — the NestJS stack decision is already recorded in ADR-0001 (project stack). Versioning groundwork present in main.ts predates this task and is finalized under TASK-021.
+- Note: `pnpm lint` fails repo-wide because no ESLint config exists yet (pre-existing gap, not introduced here); deferred to a dedicated tooling task.
+
+Commit messages:
+- feat(api): add root AppController and AppService
+
+Related ADR:
+- docs/adr/ADR-0001-project-stack.md
