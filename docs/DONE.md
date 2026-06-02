@@ -468,3 +468,32 @@ Commit messages:
 Related ADR:
 - docs/adr/ADR-0003-postgis-prisma.md
 - docs/adr/ADR-0008-core-domain-enums.md
+
+### TASK-036 — Add listing translations and media schema
+
+Status: DONE
+Branch: feat/db-listing-translations-media
+PR: pending
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260603160000_add_listing_translations/migration.sql
+- apps/api/prisma/migrations/20260603160500_add_listing_media/migration.sql
+- docs/adr/ADR-0008-core-domain-enums.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the `ListingTranslation` model (`listing_translations`) and `ListingMedia` model (`listing_media`) — the translatable text and media split off the `listings` core table (TASK-035, DB_SCHEMA §6). All translatable text (`title`/`description`/`address_note`/`features_text`) now lives in `listing_translations`, one row per language; the author row is `source=USER`, `is_auto_translated=false` on the listing's `original_language`, while machine rows (`GOOGLE`/`YANDEX`) are generated after the listing becomes ACTIVE and inherit its visibility (ADR-005). `UNIQUE(listing_id, language)` enforces one translation per language.
+- Introduced two new Postgres enums under the ADR-0008 rules — `TranslationSource` (USER | GOOGLE | YANDEX) and `MediaType` (IMAGE) — created by this migration as the first models to reference them. `MediaType` intentionally carries only `IMAGE` in MVP; `VIDEO` is Phase 2 and adding it later is a non-breaking enum addition (DB_SCHEMA §3).
+- `listing_media` stores S3 URLs + processed-file metadata only (no files on the app FS); `(listing_id, sort_order)` index drives gallery ordering. `width`/`height`/`size_bytes` are the image metadata; `mime_type VARCHAR(100)` records the validated content-type (allowed MVP types image/jpeg, image/png, image/webp — DB_SCHEMA §6). EXIF/GPS is stripped on processing and listing coordinates come only from the map, never from photo EXIF (ADR-008).
+- Both tables FK → `listings(id)` `ON DELETE CASCADE`: listings are soft-deleted via `status` (ADR-013), so a row is physically removed only in admin/cleanup flows, and when it is its translations and media go with it.
+- Decision flagged for Team Lead: DB_SCHEMA §6 names the allowed MVP MIME types but did not enumerate a `mime_type` column on `listing_media`. It was added here to satisfy the TASK-036 "MIME metadata fields exist" acceptance criterion and to give the upload pipeline a place to persist the checked content-type. The optional `pg_trgm` GIN index on translation `title`/`description` (DB_SCHEMA §6, ARCHITECTURE §12) is deferred to the text-search task — it is explicitly optional and not needed by the schema itself.
+- Verified against the project's `postgis:16-3.4` container: `prisma validate` and `prisma format` clean, `prisma generate` clean, `prettier --check` clean on schema + migration; `prisma migrate reset` applied all six migrations in order (incl. `20260603160000_add_listing_translations` and `20260603160500_add_listing_media`) and `prisma migrate status` → "up to date". DB introspection confirms both tables with exact column types, the unique index `(listing_id, language)`, the `(listing_id, sort_order)` index and both CASCADE FKs. Smoke test: inserted an author (USER/RU) + auto (GOOGLE/EN) translation and a media row; a duplicate `(listing_id, RU)` was rejected by the unique constraint; deleting the parent listing cascaded both children to zero rows.
+
+Commit messages:
+- feat(db): add listing translations schema
+- feat(db): add listing media schema
+
+Related ADR:
+- docs/adr/ADR-0008-core-domain-enums.md

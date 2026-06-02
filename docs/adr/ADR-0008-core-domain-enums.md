@@ -61,6 +61,21 @@ authoritative §3 contract; aligning the shared TS enums (add `NEW_BUILDING`,
 rename `DealType` → `TransactionType`) is a separate task so a frontend-contract
 change is not mixed into a DB migration PR (CLAUDE.md §2/§5).
 
+### Translation & media enums (TASK-036)
+
+The listing translations/media schema adds two more Postgres enums under the
+same rules: `TranslationSource` (USER | GOOGLE | YANDEX) and `MediaType`
+(IMAGE). Values mirror DB_SCHEMA §3. They are created by the
+`listing_translations` / `listing_media` migration (first models to reference
+them).
+
+`MediaType` intentionally carries a single value `IMAGE` in MVP — `VIDEO` is
+Phase 2 (DB_SCHEMA §3). Adding `VIDEO` later is a non-breaking enum addition,
+so no v2 is implied. `TranslationSource` distinguishes the author row (`USER`,
+on the listing's `original_language`) from machine translations (`GOOGLE` /
+`YANDEX`); the concrete translation provider (Google vs Yandex) is a runtime
+decision deferred to the translation-integration task, not fixed by this enum.
+
 ## Consequences
 
 Positive:
@@ -92,3 +107,4 @@ Negative / trade-offs:
 
 - TASK-032
 - TASK-035 (adds TransactionType / PropertyType enums; flags shared divergence)
+- TASK-036 (adds TranslationSource / MediaType enums)

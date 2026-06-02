@@ -92,6 +92,21 @@ enum OtpPurpose {
   LOGIN
 }
 
+/// Источник перевода объявления (DB_SCHEMA.md §3, ADR-005). USER — авторский
+/// оригинал на original_language (is_auto_translated=false); GOOGLE/YANDEX —
+/// машинный автоперевод, генерируемый после перехода объявления в ACTIVE.
+enum TranslationSource {
+  USER
+  GOOGLE
+  YANDEX
+}
+
+/// Тип медиа объявления (DB_SCHEMA.md §3). В MVP только IMAGE; VIDEO — Phase 2,
+/// поэтому здесь намеренно одно значение (добавление VIDEO — non-breaking).
+enum MediaType {
+  IMAGE
+}
+
 // users — ядро identity (DB_SCHEMA.md §4).
 // Пароля нет: авторизация по OTP (ARCHITECTURE §6, TASK-034).
 // phone/email НАМЕРЕННО не @unique: уникальность ограничена не-DELETED
@@ -268,7 +283,9 @@ model Listing {
   createdAt          DateTime                               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime                               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  owner        User                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  translations ListingTranslation[]
+  media        ListingMedia[]
 
   @@index([status])
   @@index([propertyType])
@@ -284,4 +301,59 @@ model Listing {
   // status → promotion_type → created_at desc → id desc.
   @@index([status, promotionType, createdAt(sort: Desc), id(sort: Desc)])
   @@map("listings")
+}
+
+/// Переводы объявления (DB_SCHEMA.md §6, ADR-005). Весь переводимый текст
+/// (title/description/address_note/features_text) живёт здесь, а не в listings.
+/// Авторская строка на original_language — source=USER, is_auto_translated=false;
+/// машинные строки (GOOGLE/YANDEX) генерируются после ACTIVE и наследуют
+/// видимость/статус объявления — самостоятельно не публикуются.
+/// UNIQUE(listing_id, language): один перевод на язык. ON DELETE CASCADE —
+/// переводы не переживают удаление объявления (listings — soft-delete по status,
+/// физическое удаление строки забирает и переводы).
+model ListingTranslation {
+  id               String            @id @default(uuid()) @db.Uuid
+  listingId        String            @map("listing_id") @db.Uuid
+  language         Language
+  title            String            @db.VarChar(255)
+  description      String?
+  addressNote      String?           @map("address_note")
+  featuresText     String?           @map("features_text")
+  source           TranslationSource
+  isAutoTranslated Boolean           @default(false) @map("is_auto_translated")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, language])
+  @@index([listingId])
+  @@map("listing_translations")
+}
+
+/// Медиа объявления (DB_SCHEMA.md §6, ADR-008). Файлы лежат в S3-совместимом
+/// хранилище — в БД только URL и метаданные. sort_order задаёт порядок показа
+/// в галерее (индекс (listing_id, sort_order)). mime_type фиксирует
+/// провалидированный content-type загруженного файла (разрешённые в MVP:
+/// image/jpeg, image/png, image/webp — DB_SCHEMA §6); width/height/size_bytes —
+/// метаданные обработанного изображения. EXIF/GPS вырезается при обработке;
+/// координаты объявления берутся только с карты, никогда из EXIF фото.
+/// ON DELETE CASCADE — медиа не переживает физическое удаление объявления.
+model ListingMedia {
+  id           String    @id @default(uuid()) @db.Uuid
+  listingId    String    @map("listing_id") @db.Uuid
+  url          String
+  thumbnailUrl String?   @map("thumbnail_url")
+  sortOrder    Int       @default(0) @map("sort_order") @db.SmallInt
+  type         MediaType @default(IMAGE)
+  mimeType     String?   @map("mime_type") @db.VarChar(100)
+  width        Int?
+  height       Int?
+  sizeBytes    Int?      @map("size_bytes")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, sortOrder])
+  @@map("listing_media")
 }
