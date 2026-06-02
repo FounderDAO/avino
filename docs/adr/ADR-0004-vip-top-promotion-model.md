@@ -88,7 +88,11 @@ Negative / trade-offs:
 - docs/DB_SCHEMA.md
 - docs/API.md
 - docs/adr/ADR-0001-project-stack.md
+- packages/shared/src/enums.ts (`PromotionType` — NORMAL | TOP | VIP)
+- packages/shared/src/constants.ts (`PROMOTION_TYPES`, `PAID_PROMOTION_TYPES`, `DEFAULT_PROMOTION_TYPE`)
 
 ## Related task
 
 - TASK-DOCS-INIT (initial project tracking documents)
+- TASK-012 (shared constants package — added `PromotionType` enum and promotion
+  constants; aligned the enum with this ADR by including `NORMAL`)

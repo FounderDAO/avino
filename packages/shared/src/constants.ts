@@ -72,5 +72,18 @@ export const DEAL_TYPES = [DealType.SALE, DealType.RENT] as const;
 /** Все валюты. */
 export const SUPPORTED_CURRENCIES = [CURRENCY.UZS, CURRENCY.USD] as const;
 
-/** Типы платного продвижения (VIP/TOP). */
-export const PROMOTION_TYPES = [PromotionType.VIP, PromotionType.TOP] as const;
+/** Типы продвижения в порядке приоритета: VIP > TOP > NORMAL (см. ADR-0004). */
+export const PROMOTION_TYPES = [
+  PromotionType.VIP,
+  PromotionType.TOP,
+  PromotionType.NORMAL,
+] as const;
+
+/** Платные типы продвижения (без NORMAL) — для прайсинга и ручной активации. */
+export const PAID_PROMOTION_TYPES = [
+  PromotionType.VIP,
+  PromotionType.TOP,
+] as const;
+
+/** Тип продвижения по умолчанию. */
+export const DEFAULT_PROMOTION_TYPE = PromotionType.NORMAL;
