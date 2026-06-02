@@ -497,3 +497,29 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0008-core-domain-enums.md
+
+### TASK-037 — Add promotions schema
+
+Status: DONE
+Branch: feat/db-promotions
+PR: #33
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260603170000_add_promotions/migration.sql
+- docs/adr/ADR-0004-vip-top-promotion-model.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the `ListingPromotion` model (`listing_promotions`) — the promotion **ledger / source of truth** (DB_SCHEMA §8, ADR-0004) — and the `PromotionLog` model (`promotion_logs`) for admin-action audit. The denormalized `listings.promotion_*` columns (TASK-035) remain a READ CACHE of the active row; the ledger is authoritative. `listing_promotions.type` stores only the paid tier (TOP | VIP); `NORMAL` means "no promo" and is never written to the ledger.
+- Introduced three new Postgres enums under the ADR-0008 rules — `PromotionStatus` (PENDING_PAYMENT | ACTIVE | EXPIRED | CANCELLED | REFUNDED), `PaymentStatus` (NOT_REQUIRED | PENDING | PAID | FAILED | REFUNDED) and `PromotionAdminAction` (ACTIVATE_VIP | ACTIVATE_TOP | CANCEL_PROMOTION | EXTEND_PROMOTION). The existing `PromotionType`/`Currency` enums (TASK-032) are reused, not re-created.
+- Three integrity rules Prisma cannot express are added as raw SQL (DB_SCHEMA §8/§15): `PARTIAL UNIQUE (listing_id) WHERE status='ACTIVE'` → at most one active promotion per listing (ADR-0004); `PARTIAL UNIQUE (payment_reference) WHERE payment_reference IS NOT NULL` → idempotency key for future payment callbacks; and CHECK constraints `period_days IN (7,14,30)` plus `expires_at > starts_at` (window ordering).
+- MVP is payment-free: `payment_status` defaults to `NOT_REQUIRED` and `payment_provider` is a stub, so admins activate VIP/TOP manually; the payment fields exist now for forward-compatibility (Phase 1.5, ADR-0004). FK behaviour per §8: `listing_promotions.listing_id` CASCADE / `user_id` SET NULL; `promotion_logs.listing_id` CASCADE / `listing_promotion_id` SET NULL / `admin_id` SET NULL — audit rows survive deletion of the promotion row or the admin.
+- Verified against the project's `postgis:16-3.4` container: `prisma validate` and `prisma format` clean, `prisma generate` clean, repo-wide `prettier --check .` clean; `prisma migrate deploy` applied `20260603170000_add_promotions` and `migrate status` → up to date. DB introspection confirms both tables, both partial-unique indexes, both CHECK constraints and all five FKs with the correct ON DELETE actions. Smoke test: a first ACTIVE promo inserts, a second ACTIVE on the same listing is rejected by the partial unique index, an EXPIRED row alongside an ACTIVE one is allowed, `period_days=10` is rejected by the CHECK, deleting an ACTIVE promo nulls `promotion_logs.listing_promotion_id` while keeping the listing reference, and deleting the listing cascades both promotions and logs to zero.
+
+Commit messages:
+- feat(db): add listing promotions schema
+
+Related ADR:
+- docs/adr/ADR-0004-vip-top-promotion-model.md

@@ -90,9 +90,16 @@ Negative / trade-offs:
 - docs/adr/ADR-0001-project-stack.md
 - packages/shared/src/enums.ts (`PromotionType` — NORMAL | TOP | VIP)
 - packages/shared/src/constants.ts (`PROMOTION_TYPES`, `PAID_PROMOTION_TYPES`, `DEFAULT_PROMOTION_TYPE`)
+- apps/api/prisma/schema.prisma (`ListingPromotion`, `PromotionLog`, enums
+  `PromotionStatus` / `PaymentStatus` / `PromotionAdminAction` — TASK-037)
+- apps/api/prisma/migrations/20260603170000_add_promotions/migration.sql
+  (ledger tables + partial-unique active/idempotency indexes + CHECKs — TASK-037)
 
 ## Related task
 
 - TASK-DOCS-INIT (initial project tracking documents)
 - TASK-012 (shared constants package — added `PromotionType` enum and promotion
   constants; aligned the enum with this ADR by including `NORMAL`)
+- TASK-037 (implemented the ledger: `listing_promotions` source of truth +
+  `promotion_logs` audit, with the at-most-one-ACTIVE partial unique index and
+  the `period_days IN (7,14,30)` / window-ordering CHECK constraints)

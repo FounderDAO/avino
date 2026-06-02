@@ -107,6 +107,41 @@ enum MediaType {
   IMAGE
 }
 
+/// Статус строки продвижения в ledger'е listing_promotions (DB_SCHEMA.md §3/§8,
+/// ADR-0004). PENDING_PAYMENT — создана, ждёт оплаты/ручной активации; ACTIVE —
+/// действует (ровно одна на объявление, partial unique); EXPIRED — срок вышел;
+/// CANCELLED — снята админом; REFUNDED — возврат (Phase 1.5+, когда появятся
+/// онлайн-платежи). Статус ≠ payment_status: в MVP активация ручная и оплата
+/// NOT_REQUIRED.
+enum PromotionStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  REFUNDED
+}
+
+/// Статус оплаты продвижения (DB_SCHEMA.md §3/§8, ADR-0004). В MVP онлайн-оплаты
+/// нет — админ активирует VIP/TOP вручную со статусом NOT_REQUIRED. Остальные
+/// значения заведены заранее для forward-совместимости с платёжным провайдером
+/// (Phase 1.5); добавление значения — non-breaking (ADR-0008).
+enum PaymentStatus {
+  NOT_REQUIRED
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+/// Действия администратора над продвижением, фиксируемые в promotion_logs
+/// (DB_SCHEMA.md §3/§8, ADR-0004). Аудит ручных операций VIP/TOP.
+enum PromotionAdminAction {
+  ACTIVATE_VIP
+  ACTIVATE_TOP
+  CANCEL_PROMOTION
+  EXTEND_PROMOTION
+}
+
 // users — ядро identity (DB_SCHEMA.md §4).
 // Пароля нет: авторизация по OTP (ARCHITECTURE §6, TASK-034).
 // phone/email НАМЕРЕННО не @unique: уникальность ограничена не-DELETED
@@ -128,12 +163,17 @@ model User {
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  profile       UserProfile?
-  roles         UserRole[]     @relation("UserRoleHolder")
-  grantedRoles  UserRole[]     @relation("UserRoleGranter")
-  otpCodes      OtpCode[]
-  refreshTokens RefreshToken[]
-  listings      Listing[]
+  profile              UserProfile?
+  roles                UserRole[]         @relation("UserRoleHolder")
+  grantedRoles         UserRole[]         @relation("UserRoleGranter")
+  otpCodes             OtpCode[]
+  refreshTokens        RefreshToken[]
+  listings             Listing[]
+  // Продвижения, запрошенные пользователем (FK SET NULL — переживают удаление
+  // запросившего; промо-строка живёт со своим объявлением).
+  promotionsRequested  ListingPromotion[] @relation("PromotionRequester")
+  // Действия над продвижениями, совершённые этим пользователем как админом.
+  promotionLogsAsAdmin PromotionLog[]     @relation("PromotionLogAdmin")
 
   @@map("users")
 }
@@ -283,9 +323,11 @@ model Listing {
   createdAt          DateTime                               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime                               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  owner        User                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  translations ListingTranslation[]
-  media        ListingMedia[]
+  owner         User                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  translations  ListingTranslation[]
+  media         ListingMedia[]
+  promotions    ListingPromotion[]
+  promotionLogs PromotionLog[]
 
   @@index([status])
   @@index([propertyType])
@@ -356,4 +398,77 @@ model ListingMedia {
 
   @@index([listingId, sortOrder])
   @@map("listing_media")
+}
+
+/// Продвижение объявления — SOURCE OF TRUTH / ledger (DB_SCHEMA.md §8, ADR-0004).
+/// Денормализованные listings.promotion_* — это лишь READ CACHE активной строки;
+/// источник истины здесь. type хранит только платный тариф (TOP | VIP); NORMAL
+/// означает «без промо» и в ledger не пишется. period_days ∈ {7,14,30}
+/// (CHECK добавляется raw SQL — Prisma этого не умеет, DB_SCHEMA §15).
+///
+/// Не более ОДНОГО ACTIVE-продвижения на объявление: PARTIAL UNIQUE (listing_id)
+/// WHERE status='ACTIVE' (raw SQL — §8/§15). payment_reference — ключ
+/// идемпотентности для будущих платёжных колбэков: PARTIAL UNIQUE WHERE NOT NULL.
+/// В MVP активация ручная (payment_status=NOT_REQUIRED, payment_provider —
+/// заглушка); платёжные поля заведены заранее для forward-совместимости (ADR-0004).
+///
+/// listing_id → listings ON DELETE CASCADE (промо не переживает физическое
+/// удаление объявления). user_id → users ON DELETE SET NULL, nullable —
+/// продвижение остаётся в истории, даже если запросивший аккаунт удалён.
+model ListingPromotion {
+  id               String          @id @default(uuid()) @db.Uuid
+  listingId        String          @map("listing_id") @db.Uuid
+  userId           String?         @map("user_id") @db.Uuid
+  type             PromotionType
+  status           PromotionStatus @default(PENDING_PAYMENT)
+  periodDays       Int             @map("period_days") @db.SmallInt
+  startsAt         DateTime?       @map("starts_at") @db.Timestamptz(6)
+  expiresAt        DateTime?       @map("expires_at") @db.Timestamptz(6)
+  price            Decimal?        @db.Decimal(14, 2)
+  currency         Currency?
+  paymentStatus    PaymentStatus   @default(NOT_REQUIRED) @map("payment_status")
+  paymentProvider  String?         @map("payment_provider") @db.VarChar(40)
+  paymentReference String?         @map("payment_reference") @db.VarChar(120)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  listing Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user    User?          @relation("PromotionRequester", fields: [userId], references: [id], onDelete: SetNull)
+  logs    PromotionLog[]
+
+  @@index([listingId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("listing_promotions")
+}
+
+/// Аудит админских действий над продвижением (DB_SCHEMA.md §8). Отдельный
+/// доменный журнал в дополнение к audit_logs (TASK-038). Хранит дельту
+/// type/expires_at до и после действия и причину.
+///
+/// listing_promotion_id → listing_promotions ON DELETE SET NULL, nullable:
+/// запись аудита переживает удаление самой промо-строки. listing_id → listings
+/// ON DELETE CASCADE. admin_id → users ON DELETE SET NULL, nullable — лог
+/// сохраняется, даже если аккаунт админа удалён.
+model PromotionLog {
+  id                 String               @id @default(uuid()) @db.Uuid
+  listingPromotionId String?              @map("listing_promotion_id") @db.Uuid
+  listingId          String               @map("listing_id") @db.Uuid
+  adminId            String?              @map("admin_id") @db.Uuid
+  action             PromotionAdminAction
+  oldType            PromotionType?       @map("old_type")
+  newType            PromotionType?       @map("new_type")
+  oldExpiresAt       DateTime?            @map("old_expires_at") @db.Timestamptz(6)
+  newExpiresAt       DateTime?            @map("new_expires_at") @db.Timestamptz(6)
+  reason             String?
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  listingPromotion ListingPromotion? @relation(fields: [listingPromotionId], references: [id], onDelete: SetNull)
+  listing          Listing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  admin            User?             @relation("PromotionLogAdmin", fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([listingId])
+  @@index([listingPromotionId])
+  @@index([adminId])
+  @@map("promotion_logs")
 }

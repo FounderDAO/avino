@@ -412,58 +412,6 @@ TASK-001
 
 ## 7. M3 — Database and Prisma foundation
 
-### TASK-037 — Add promotions schema
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/db-promotions
-```
-
-Scope:
-
-```text
-Add listing_promotions and promotion_logs models.
-```
-
-Files expected:
-
-```text
-apps/api/prisma/schema.prisma
-apps/api/prisma/migrations/
-```
-
-Acceptance criteria:
-
-```text
-listing_promotions model exists
-promotion_logs model exists
-Only one ACTIVE promotion per listing is enforced by partial unique index
-Payment status fields exist for future compatibility
-Manual activation is supported by NOT_REQUIRED payment status
-```
-
-Suggested commits:
-
-```text
-feat(db): add listing promotions schema
-feat(db): add active promotion constraint
-```
-
-Dependencies:
-
-```text
-TASK-035
-```
-
----
-
 ### TASK-038 — Add engagement schema
 
 Status:
