@@ -199,7 +199,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/api-config-validation
-PR: pending
+PR: #23
 
 Files changed:
 - apps/api/src/config/config.module.ts
