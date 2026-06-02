@@ -76,6 +76,28 @@ migration that runs before any table migration:
     `HealthCheck` placeholder (point 8) which must not leak into the first
     table migration (TASK-033).
 
+### Listings realization (TASK-035)
+
+The `listings` table is the first model to actually use the strategy above:
+
+12. `location` is synced from `latitude`/`longitude` by a **`BEFORE INSERT/UPDATE
+    OF latitude, longitude` trigger** (`listings_sync_location_trg` →
+    `listings_sync_location()`), created via raw SQL. This resolves the
+    trigger-vs-in-transaction-update choice point (3) in favour of the trigger,
+    so `location` can never drift from its source even on a write that forgets
+    to set it. NULL coordinates produce a NULL `location`.
+13. The `GIST` index is created as `idx_listings_location`. Because Prisma cannot
+    represent a GIST index on an `Unsupported` column, `prisma migrate diff`
+    reports a phantom "removed index on (location)"; this is expected and benign
+    — migrations are hand-authored and applied with `migrate deploy`, which never
+    drops the raw-SQL index, and `prisma migrate status` reports the DB in sync.
+14. `agency_id` / `city_id` / `district_id` are documented as FKs in DB_SCHEMA §6,
+    but their target tables (`agencies`/`cities`/`districts`) do not exist yet.
+    They are created as indexed `UUID` columns **without** a FK constraint or
+    Prisma relation; the constraints and relation fields are added when those
+    tables land in their own tasks. `owner_id` → `users` is enforced now with
+    `ON DELETE RESTRICT` (accounts are soft-deleted — ADR-013).
+
 ## Consequences
 
 Positive:
@@ -107,6 +129,7 @@ Negative / trade-offs:
 - apps/api/src/prisma/prisma.service.ts
 - apps/api/prisma/schema.prisma
 - apps/api/prisma/migrations/20260603120000_enable_extensions/migration.sql
+- apps/api/prisma/migrations/20260603150000_add_listings/migration.sql
 - apps/api/prisma/migrations/migration_lock.toml
 
 ## Related task
@@ -114,3 +137,4 @@ Negative / trade-offs:
 - TASK-DOCS-INIT (initial project tracking documents)
 - TASK-030 (Prisma runtime foundation: PrismaModule/PrismaService)
 - TASK-031 (baseline extensions migration: pgcrypto, postgis, pg_trgm)
+- TASK-035 (listings schema: location sync trigger + GIST index realization)

@@ -438,3 +438,33 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0010-auth-token-schema.md
+
+### TASK-035 — Add listings schema with PostGIS
+
+Status: DONE
+Branch: feat/db-listings-postgis
+PR: #31
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260603150000_add_listings/migration.sql
+- docs/adr/ADR-0003-postgis-prisma.md
+- docs/adr/ADR-0008-core-domain-enums.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the `Listing` model (`listings`) — the listing core schema (DB_SCHEMA §6). Non-translatable structured fields live here; translatable text (TASK-036), promotions ledger (TASK-037) and engagement (TASK-038) follow in later M3 tasks. Two new Postgres enums `TransactionType` (SALE | RENT) and `PropertyType` (APARTMENT | HOUSE | NEW_BUILDING | LAND | COMMERCIAL) are introduced here — `listings` is the first model to reference them; the core enums (TASK-032) are not re-created.
+- Geo (ADR-0003, DB_SCHEMA §14): `latitude`/`longitude` are editable `Decimal(9,6)` source columns; `location` is `Unsupported("geography(Point, 4326)")` — derived, not written through Prisma. A `BEFORE INSERT/UPDATE OF latitude, longitude` trigger (`listings_sync_location_trg` → `listings_sync_location()`) keeps `location` in sync in the same write so it cannot drift; NULL coords yield NULL location. The `GIST` index `idx_listings_location` is created via raw SQL (Prisma migrate does not emit GIST on `Unsupported` columns). This realizes the trigger option ADR-0003 left open.
+- Promotion read-cache fields (`promotion_type` default NORMAL, `promotion_started_at`, `promotion_expires_at`) are a denormalized cache for sort/filter; the source of truth is `listing_promotions` (TASK-037, ADR-0004). `status` defaults to NEW (moderation entry state). `owner_id` → `users` is `ON DELETE RESTRICT` (accounts are soft-deleted — ADR-013 — so a listing always keeps a valid creator). Indexes match §6, including the composite default-search index `(status, promotion_type, created_at DESC, id DESC)`. CHECK constraints `price >= 0` and `area IS NULL OR area >= 0` (DB_SCHEMA §15).
+- `agency_id` / `city_id` / `district_id` are FK columns per §6, but the `agencies`/`cities`/`districts` tables do not exist yet. They are created as indexed UUID columns WITHOUT a FK constraint or Prisma relation; the constraints and relation fields will be added when those target tables land in their own tasks. Documented in the model header and ADR-0003.
+- Decision flagged for Team Lead: `PropertyType` here follows DB_SCHEMA §3 (5 values incl. `NEW_BUILDING`), but `packages/shared/src/enums.ts` currently has 4 values (no `NEW_BUILDING`) and names the deal enum `DealType` rather than `TransactionType`. The Prisma/DB layer follows the authoritative §3 contract; reconciling the shared TS enums (add `NEW_BUILDING`, align `DealType` → `TransactionType` naming) is left to a separate task to avoid mixing a frontend-contract change into this DB PR (CLAUDE.md §2/§5).
+- Verified against the project's `postgis/postgis:16-3.4` container: `prisma validate`, `prisma format` and `prisma generate` clean; `prettier --check` clean on the schema; `prisma migrate deploy` applied `20260603150000_add_listings`; `prisma migrate status` → "up to date". DB introspection confirms all 26 columns with correct types, all 11 btree indexes + the GIST index + the FK + both CHECK constraints + the sync trigger. Smoke test: inserting a listing with lat/lng auto-populated `location` (SRID 4326, exact coords), `ST_DWithin` radius search returned the row, and a negative `price` insert was rejected by the CHECK constraint.
+
+Commit messages:
+- feat(db): add listings schema
+- feat(db): add PostGIS listing location index
+
+Related ADR:
+- docs/adr/ADR-0003-postgis-prisma.md
+- docs/adr/ADR-0008-core-domain-enums.md
