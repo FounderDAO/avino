@@ -408,61 +408,6 @@ TASK-000
 TASK-001
 ```
 
-## 5. M1 — Monorepo setup
-
-### TASK-012 — Add shared constants package
-
-Status:
-
-```text
-IN_PROGRESS
-```
-
-Branch:
-
-```text
-chore/shared-constants
-```
-
-Scope:
-
-```text
-Create shared constants and enums package for backend and frontend.
-```
-
-Files expected:
-
-```text
-packages/shared/package.json
-packages/shared/src/index.ts
-packages/shared/src/enums.ts
-packages/shared/src/constants.ts
-```
-
-Acceptance criteria:
-
-```text
-Shared package exports enum-like constants
-Includes listing statuses
-Includes promotion types
-Includes language codes
-Includes currency codes
-Includes role codes
-No backend logic included
-```
-
-Suggested commits:
-
-```text
-chore(shared): add common constants and enums
-```
-
-Dependencies:
-
-```text
-TASK-010
-```
-
 ## 6. M2 — Backend foundation
 
 ### TASK-020 — Initialize NestJS API app

@@ -115,3 +115,29 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0005-docker-infrastructure.md
+
+### TASK-012 — Add shared constants package
+
+Status: DONE
+Branch: chore/shared-constants (feature), chore/finalize-task-012 (DONE/ADR)
+PR: #18 (feature), #19 (DONE/ADR finalization)
+
+Files changed:
+- packages/shared/src/enums.ts
+- packages/shared/src/constants.ts
+- packages/shared/src/index.ts
+- docs/adr/ADR-0004-vip-top-promotion-model.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added `PromotionType` enum and a new `constants.ts` module to the shared package (`@avino/shared`) so backend (apps/api) and frontend (apps/web) consume one source of enum-like codes: roles, languages, listing statuses, property/deal types, currencies, and promotion types.
+- `enums.ts` now holds only enum definitions; derived collections (`USER_ROLES`, `SUPPORTED_LANGUAGES`, `LISTING_STATUSES`, `MVP_LISTING_STATUSES`, `PROPERTY_TYPES`, `DEAL_TYPES`, `SUPPORTED_CURRENCIES`, `PROMOTION_TYPES`, `PAID_PROMOTION_TYPES`) and defaults (`DEFAULT_LANGUAGE`, `DEFAULT_CURRENCY`, `DEFAULT_PROMOTION_TYPE`) live in `constants.ts`.
+- Aligned `PromotionType` with ADR-0004 by including `NORMAL` (priority VIP > TOP > NORMAL); the merged feature PR initially shipped only VIP/TOP. No backend logic — data only.
+
+Commit messages:
+- chore(shared): add common constants and enums
+- chore(shared): align PromotionType with ADR-0004 (add NORMAL)
+
+Related ADR:
+- docs/adr/ADR-0004-vip-top-promotion-model.md (updated: linked shared enum/constants and TASK-012)
