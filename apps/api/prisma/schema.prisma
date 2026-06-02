@@ -53,10 +53,91 @@ enum Language {
   EN
 }
 
-// Временная placeholder-модель (TASK-030): Prisma не генерирует клиент без
-// хотя бы одной модели. Нужна только для bootstrap generate на этапе foundation.
-// TODO: удалить при добавлении первой предметной модели (TASK-033 — users).
-model HealthCheck {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
+/// Статусы пользователя (DB_SCHEMA.md §3). ACTIVE → DELETED — это soft-delete.
+/// BLOCKED — это НЕ DELETED, поэтому заблокированный аккаунт продолжает
+/// резервировать свой phone/email.
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  DELETED
+}
+
+// users — ядро identity (DB_SCHEMA.md §4).
+// Пароля нет: авторизация по OTP (ARCHITECTURE §6, TASK-034).
+// phone/email НАМЕРЕННО не @unique: уникальность ограничена не-DELETED
+// аккаунтами через PARTIAL UNIQUE индексы в raw SQL (Variant A — ADR-013,
+// DB_SCHEMA.md §14), чтобы soft-deleted аккаунт освобождал контакт для
+// повторной регистрации, сохраняя значение на удалённой строке.
+// CHECK-ограничения (phone OR email; deleted_at iff DELETED) тоже добавляются
+// raw SQL — Prisma не умеет выразить ни то, ни другое (DB_SCHEMA.md §15).
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  phone           String?    @db.VarChar(20)
+  email           String?    @db.VarChar(255)
+  isPhoneVerified Boolean    @default(false) @map("is_phone_verified")
+  isEmailVerified Boolean    @default(false) @map("is_email_verified")
+  status          UserStatus @default(ACTIVE)
+  defaultLanguage Language   @default(RU) @map("default_language")
+  lastLoginAt     DateTime?  @map("last_login_at") @db.Timestamptz(6)
+  deletedAt       DateTime?  @map("deleted_at") @db.Timestamptz(6)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profile      UserProfile?
+  roles        UserRole[]   @relation("UserRoleHolder")
+  grantedRoles UserRole[]   @relation("UserRoleGranter")
+
+  @@map("users")
+}
+
+// user_profiles — 1:1 с users (DB_SCHEMA.md §4).
+model UserProfile {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @unique @map("user_id") @db.Uuid
+  firstName         String?   @map("first_name") @db.VarChar(100)
+  lastName          String?   @map("last_name") @db.VarChar(100)
+  displayName       String?   @map("display_name") @db.VarChar(150)
+  avatarUrl         String?   @map("avatar_url")
+  contactPhone      String?   @map("contact_phone") @db.VarChar(20)
+  preferredLanguage Language? @map("preferred_language")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+// roles — сидируемый справочник (DB_SCHEMA.md §4). `code` — один из кодов из §3
+// (USER|OWNER|AGENT|AGENCY|LANDLORD|PROPERTY_MANAGER|MODERATOR|ADMIN). GUEST
+// намеренно отсутствует — это неявное состояние неаутентифицированного запроса
+// (ADR-0008/ADR-011). Роли расширяются без миграции — поэтому таблица, а не enum.
+model Role {
+  id          String  @id @default(uuid()) @db.Uuid
+  code        String  @unique @db.VarChar(40)
+  description String?
+
+  users UserRole[]
+
+  @@map("roles")
+}
+
+// user_roles — many-to-many user<->role (пользователь может иметь несколько
+// ролей, ADR-011). granted_by — админ, назначивший роль (nullable; SET NULL,
+// чтобы назначение пережило удаление назначавшего).
+model UserRole {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  grantedBy String?  @map("granted_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user          User  @relation("UserRoleHolder", fields: [userId], references: [id], onDelete: Cascade)
+  role          Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  grantedByUser User? @relation("UserRoleGranter", fields: [grantedBy], references: [id], onDelete: SetNull)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
 }
