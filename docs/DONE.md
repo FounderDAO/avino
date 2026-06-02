@@ -306,7 +306,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/db-users-roles
-PR: pending
+PR: #29
 
 Files changed:
 - apps/api/prisma/schema.prisma
