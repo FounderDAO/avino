@@ -146,7 +146,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/api-foundation
-PR: pending
+PR: #21
 
 Files changed:
 - apps/api/src/app.controller.ts
