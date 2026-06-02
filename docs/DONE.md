@@ -93,3 +93,25 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0001-project-stack.md (monorepo / pnpm / stack decision; mechanical structure completion, no new ADR required per TASKS.md Rule 4)
+
+### TASK-011 — Add Docker infrastructure
+
+Status: DONE
+Branch: chore/docker-infrastructure
+PR: #16
+
+Files changed:
+- docs/adr/ADR-0005-docker-infrastructure.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- All physical deliverables of TASK-011 (docker-compose.yml with postgis/postgis:16-3.4 and redis:7-alpine, .env.example with DATABASE_URL and REDIS_URL, README.md `pnpm infra:up` startup command, and the infra:up/infra:down scripts in package.json) already existed in main — they were added by the TASK-010 monorepo scaffold (commit 9d0ca01). All five acceptance criteria were therefore already met.
+- The only outstanding gap was the missing decision record: added docs/adr/ADR-0005-docker-infrastructure.md formalizing the local Docker infrastructure (PostgreSQL/PostGIS + Redis, healthchecks, named volumes, env-driven ports/credentials, local-dev scope).
+- No code or compose/env changes were made — the infrastructure was already present and verified against each acceptance criterion.
+
+Commit messages:
+- docs(adr): record local Docker infrastructure decision (TASK-011)
+
+Related ADR:
+- docs/adr/ADR-0005-docker-infrastructure.md

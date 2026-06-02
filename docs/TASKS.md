@@ -410,59 +410,6 @@ TASK-001
 
 ## 5. M1 — Monorepo setup
 
-### TASK-011 — Add Docker infrastructure
-
-Status:
-
-```text
-REVIEW
-```
-
-Branch:
-
-```text
-chore/docker-infrastructure
-```
-
-Scope:
-
-```text
-Add local Docker Compose services for PostgreSQL with PostGIS and Redis.
-```
-
-Files expected:
-
-```text
-docker-compose.yml
-.env.example
-README.md
-```
-
-Acceptance criteria:
-
-```text
-PostgreSQL with PostGIS image is configured
-Redis service is configured
-DATABASE_URL example exists
-REDIS_URL example exists
-README includes local startup command
-```
-
-Suggested commits:
-
-```text
-chore(docker): add postgres and redis services
-docs(readme): add local infrastructure instructions
-```
-
-Dependencies:
-
-```text
-TASK-010
-```
-
----
-
 ### TASK-012 — Add shared constants package
 
 Status:
