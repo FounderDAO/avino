@@ -12,3 +12,11 @@ datasource db {
   url        = env("DATABASE_URL")
   extensions = [postgis]
 }
+
+// Временная placeholder-модель (TASK-030): Prisma не генерирует клиент без
+// хотя бы одной модели. Нужна только для bootstrap generate на этапе foundation.
+// TODO: удалить при добавлении первой предметной модели (TASK-033 — users).
+model HealthCheck {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+}
