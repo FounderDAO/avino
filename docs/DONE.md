@@ -412,3 +412,29 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0008-core-domain-enums.md
+
+### TASK-034 — Add auth schema
+
+Status: DONE
+Branch: feat/db-auth-schema
+PR: #30
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260603140000_add_auth_tokens/migration.sql
+- docs/adr/ADR-0010-auth-token-schema.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the auth token storage for OTP-based login (DB_SCHEMA §4): models `OtpCode` (`otp_codes`) and `RefreshToken` (`refresh_tokens`) in `apps/api/prisma/schema.prisma`, plus two new Postgres enums `OtpChannel` (SMS | EMAIL) and `OtpPurpose` (LOGIN). `users` has no password column — auth is OTP → access/refresh session (ARCHITECTURE §6, ADR-0009).
+- Secrets are stored HASHED, never plaintext: `otp_codes.code_hash` and `refresh_tokens.token_hash` are `VARCHAR(255)` and there is no `code`/`token` column at all, so a DB dump cannot be replayed to log in. `attempts SMALLINT` supports lockout after N failed verifications; rate limiting (per destination, per IP) lives in the service layer.
+- Refresh tokens rotate on use and are grouped by `family_id`; reuse of an already-rotated token is meant to revoke the whole family (reuse detection), with the mechanism in the service layer and the storage + `family_id` index provided here. `otp_codes.user_id` is nullable (a code can be issued pre-signup, since OTP login doubles as registration); `refresh_tokens.user_id` is NOT NULL. Both FKs are `ON DELETE CASCADE`.
+- Lookup indexes per DB_SCHEMA §4: `otp_codes` on `(destination, purpose)` and `(expires_at)`; `refresh_tokens` on `(user_id)`, `(token_hash)` and `(family_id)`. All timestamps use `@db.Timestamptz(6)` (UTC), consistent with ADR-0009.
+- Migration `20260603140000_add_auth_tokens` creates the two enum types (first migration to reference them), both tables, indexes and FKs; it does not re-create the core enums (owned by the users/roles migration). Verified against the project's `postgis/postgis` container: `prisma validate` and `prisma format` clean, `prisma generate` succeeds, `prisma migrate deploy` applied the migration, and `\d otp_codes` / `\d refresh_tokens` confirm all columns (code_hash/token_hash present, no plaintext column), the five lookup indexes, the cascade FKs, and the `OtpChannel`/`OtpPurpose` enum values.
+
+Commit messages:
+- feat(db): add auth token schema
+
+Related ADR:
+- docs/adr/ADR-0010-auth-token-schema.md
