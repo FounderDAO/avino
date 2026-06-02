@@ -412,60 +412,6 @@ TASK-001
 
 ## 7. M3 — Database and Prisma foundation
 
-### TASK-033 — Add users and roles schema
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/db-users-roles
-```
-
-Scope:
-
-```text
-Add users, profiles, roles and user_roles models.
-```
-
-Files expected:
-
-```text
-apps/api/prisma/schema.prisma
-apps/api/prisma/migrations/
-apps/api/prisma/seed.ts
-```
-
-Acceptance criteria:
-
-```text
-users model exists
-user_profiles model exists
-roles model exists
-user_roles model exists
-Role seed creates required roles
-Unique constraints exist for phone/email and user-role
-```
-
-Suggested commits:
-
-```text
-feat(db): add users and roles schema
-feat(db): seed default roles
-```
-
-Dependencies:
-
-```text
-TASK-032
-```
-
----
-
 ### TASK-034 — Add auth schema
 
 Status:

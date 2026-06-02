@@ -302,6 +302,63 @@ Related ADR:
 
 ## 2026-06-03
 
+### TASK-033 — Add users and roles schema
+
+Status: DONE
+Branch: feat/db-users-roles
+PR: pending
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260603130000_add_users_and_roles/migration.sql
+- apps/api/prisma/seed.ts
+- apps/api/package.json
+- docs/adr/ADR-0009-users-roles-schema.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the core identity schema (DB_SCHEMA §4) as the first table migration:
+  `users`, `user_profiles` (1:1, `user_id` UNIQUE, ON DELETE CASCADE), `roles`
+  (seeded dictionary, `code` UNIQUE) and `user_roles` (M:N, `@@unique([userId,
+  roleId])`, indexes on `userId`/`roleId`). Removed the temporary `HealthCheck`
+  placeholder model (TASK-030).
+- `phone`/`email` are intentionally NOT `@unique` in Prisma: uniqueness is scoped
+  to non-DELETED accounts via PARTIAL UNIQUE indexes (`uniq_users_phone_active`,
+  `uniq_users_email_active`) appended as raw SQL — the same pattern as the future
+  PostGIS GIST index (ADR-0003/ADR-0009, Variant A). This lets a soft-deleted
+  account free its contact for re-registration while preserving the value on the
+  deleted row.
+- Two CHECK constraints added as raw SQL (Prisma cannot express them):
+  `users_contact_present_check` (phone OR email present) and
+  `users_deleted_at_consistency_check` (`deleted_at` set iff status = DELETED).
+- All timestamps use `@db.Timestamptz(6)` to honour DB_SCHEMA §2 (timestamptz in
+  UTC), departing from Prisma's default `timestamp(3)`.
+- The migration does NOT re-create the pgcrypto/postgis/pg_trgm extensions
+  (owned by the baseline migration TASK-031) but, as the first table migration,
+  it creates all declared enum types (incl. not-yet-used ListingStatus,
+  PromotionType, Currency) so schema and migration history stay in sync.
+- `prisma/seed.ts` (idempotent `upsert` by `code`) seeds the 8 roles from
+  DB_SCHEMA §3 (USER, OWNER, AGENT, AGENCY, LANDLORD, PROPERTY_MANAGER,
+  MODERATOR, ADMIN); GUEST is intentionally not seeded (ADR-0008). Role codes are
+  sourced from `@avino/shared` `UserRole` to avoid drift. Seed wired via
+  `prisma.seed` in `apps/api/package.json`.
+- Verified against the project's `postgis/postgis:16-3.4` container: `prisma
+  validate` passes; `prisma migrate deploy` applies both migrations cleanly;
+  drift check shows no table/enum/constraint drift (only the known
+  postgresqlExtensions-preview false-positive re-emitting CREATE EXTENSION);
+  `prisma db seed` seeds 8 roles; `nest build` passes; `prettier --check` clean.
+  Constraint smoke test confirmed: missing-contact INSERT rejected, duplicate
+  ACTIVE phone rejected, soft-delete then re-register with the same phone
+  succeeds, and DELETED-without-`deleted_at` rejected.
+
+Commit messages:
+- feat(db): add users and roles schema
+- feat(db): seed default roles
+
+Related ADR:
+- docs/adr/ADR-0009-users-roles-schema.md
+
 ### TASK-031 — Add PostgreSQL extensions migration
 
 Status: DONE
