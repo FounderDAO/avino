@@ -468,7 +468,7 @@ TASK-010
 Status:
 
 ```text
-TODO
+IN_PROGRESS
 ```
 
 Branch:

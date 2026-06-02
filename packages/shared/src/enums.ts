@@ -1,5 +1,6 @@
 // Единый источник enum'ов проекта Avino (см. CLAUDE.md §9).
 // Используется и backend (apps/api), и frontend (apps/web).
+// Только enum-определения; производные коллекции и значения по умолчанию — в constants.ts.
 
 /** Роли пользователей. */
 export enum UserRole {
@@ -21,8 +22,6 @@ export enum Language {
   EN = 'en',
 }
 
-export const DEFAULT_LANGUAGE = Language.RU;
-
 /**
  * Статусы объявления.
  * Moderation flow: NEW → ACTIVE | DRAFT | REJECTED | DELETED.
@@ -37,14 +36,6 @@ export enum ListingStatus {
   SOLD = 'SOLD',
   RENTED = 'RENTED',
 }
-
-/** Статусы, которые MVP UI показывает на первом этапе. */
-export const MVP_LISTING_STATUSES: ListingStatus[] = [
-  ListingStatus.NEW,
-  ListingStatus.ACTIVE,
-  ListingStatus.DRAFT,
-  ListingStatus.DELETED,
-];
 
 /** Типы недвижимости. */
 export enum PropertyType {
@@ -64,4 +55,13 @@ export enum DealType {
 export enum CURRENCY {
   UZS = 'UZS',
   USD = 'USD',
+}
+
+/**
+ * Типы платного продвижения объявления (VIP/TOP модель).
+ * Активация в MVP выполняется вручную модератором до подключения онлайн-оплаты.
+ */
+export enum PromotionType {
+  VIP = 'VIP',
+  TOP = 'TOP',
 }
