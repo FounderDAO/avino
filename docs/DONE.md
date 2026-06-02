@@ -443,7 +443,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/db-listings-postgis
-PR: pending
+PR: #31
 
 Files changed:
 - apps/api/prisma/schema.prisma
