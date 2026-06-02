@@ -172,7 +172,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/api-versioning
-PR: pending
+PR: #22
 
 Files changed:
 - apps/api/src/health/health.controller.ts (moved from apps/api/src/health.controller.ts)
