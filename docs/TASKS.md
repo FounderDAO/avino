@@ -412,58 +412,6 @@ TASK-001
 
 ## 7. M3 — Database and Prisma foundation
 
-### TASK-036 — Add listing translations and media schema
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/db-listing-translations-media
-```
-
-Scope:
-
-```text
-Add listing translations and media models.
-```
-
-Files expected:
-
-```text
-apps/api/prisma/schema.prisma
-apps/api/prisma/migrations/
-```
-
-Acceptance criteria:
-
-```text
-listing_translations model exists
-unique listing_id + language exists
-listing_media model exists
-sort_order exists
-MIME metadata fields exist
-```
-
-Suggested commits:
-
-```text
-feat(db): add listing translations schema
-feat(db): add listing media schema
-```
-
-Dependencies:
-
-```text
-TASK-035
-```
-
----
-
 ### TASK-037 — Add promotions schema
 
 Status:
