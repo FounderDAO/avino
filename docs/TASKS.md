@@ -410,68 +410,6 @@ TASK-001
 
 ## 5. M1 — Monorepo setup
 
-### TASK-010 — Initialize monorepo structure
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-chore/monorepo-setup
-```
-
-Scope:
-
-```text
-Create the base Avino monorepo structure.
-Do not implement business logic.
-```
-
-Files expected:
-
-```text
-package.json
-pnpm-workspace.yaml
-.gitignore
-README.md
-.env.example
-docker-compose.yml
-apps/api/
-apps/web/
-packages/shared/
-packages/config/
-docs/
-```
-
-Acceptance criteria:
-
-```text
-Repository has apps/api and apps/web folders
-Repository has packages/shared and packages/config
-Root package.json exists
-pnpm workspace is configured
-No secrets committed
-```
-
-Suggested commits:
-
-```text
-chore(repo): initialize monorepo structure
-chore(env): add docker compose and env example
-```
-
-Dependencies:
-
-```text
-TASK-002
-```
-
----
-
 ### TASK-011 — Add Docker infrastructure
 
 Status:

@@ -65,3 +65,31 @@ Related ADR:
 - docs/adr/ADR-0002-api-versioning-v1.md
 - docs/adr/ADR-0003-postgis-prisma.md
 - docs/adr/ADR-0004-vip-top-promotion-model.md
+
+### TASK-010 — Initialize monorepo structure
+
+Status: DONE
+Branch: chore/monorepo-setup
+PR: #14
+
+Files changed:
+- packages/config/package.json
+- packages/config/tsconfig.base.json
+- packages/config/prettier-preset.cjs
+- packages/config/README.md
+- packages/shared/package.json
+- packages/shared/tsconfig.json
+- pnpm-lock.yaml
+
+Summary:
+- Completed the M1 monorepo structure. The scaffold (apps/api, apps/web, packages/shared, root package.json, pnpm-workspace.yaml, docker-compose.yml, .env.example, .gitignore, README.md, docs/) already existed; the only acceptance-criteria gap was the missing packages/config package.
+- Added @avino/config: a business-logic-free shared configuration package with a base tsconfig (tsconfig.base.json) and a Prettier preset (prettier-preset.cjs).
+- Wired packages/shared to extend @avino/config/tsconfig.base.json and added @avino/config as a workspace:* devDependency, removing duplicated compiler options and proving the config package is consumed within the pnpm workspace.
+- Verified: pnpm install links @avino/config; pnpm --filter @avino/shared build passes; prettier --check on new files passes. Note: apps/api lint failure (missing ESLint config) is pre-existing from the scaffold and out of scope.
+
+Commit messages:
+- chore(repo): add packages/config shared configuration package
+- chore(shared): extend @avino/config base tsconfig
+
+Related ADR:
+- docs/adr/ADR-0001-project-stack.md (monorepo / pnpm / stack decision; mechanical structure completion, no new ADR required per TASKS.md Rule 4)
