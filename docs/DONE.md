@@ -167,3 +167,30 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0001-project-stack.md
+
+### TASK-021 — Add API versioning and global prefix
+
+Status: DONE
+Branch: feat/api-versioning
+PR: pending
+
+Files changed:
+- apps/api/src/health/health.controller.ts (moved from apps/api/src/health.controller.ts)
+- apps/api/src/health/health.module.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0002-api-versioning-v1.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Global `api` prefix and URI-based versioning (`defaultVersion: '1'`) already existed in `main.ts` from the TASK-010 scaffold (commit 9d0ca01), so two of the four acceptance criteria were already met. `main.ts` was left unchanged.
+- Refactored the placeholder root `health.controller.ts` into a proper `health/` module: moved the controller into `apps/api/src/health/health.controller.ts` (via `git mv`, preserving history) and added `apps/api/src/health/health.module.ts`, matching the task's expected file layout.
+- Made the version explicit on the health controller (`@Controller({ path: 'health', version: '1' })`) per CLAUDE.md §14, and registered `HealthModule` in `app.module.ts` (removed the direct `HealthController` registration).
+- Verified: `pnpm --filter @avino/api build` passes; `GET /api/v1/health` → `{status:"ok",service:"avino-api"}`; `GET /api/v1` → ok; both routes log `version: 1`; unversioned `GET /health` and `GET /api/health` return 404 — no unversioned routes exist.
+- No new ADR — ADR-0002 already records the versioning decision; updated it to link the implementation files and TASK-021.
+
+Commit messages:
+- feat(health): move health endpoint into versioned HealthModule
+
+Related ADR:
+- docs/adr/ADR-0002-api-versioning-v1.md (updated: linked implementation files and TASK-021)

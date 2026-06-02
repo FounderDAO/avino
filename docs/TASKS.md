@@ -410,58 +410,6 @@ TASK-001
 
 ## 6. M2 — Backend foundation
 
-### TASK-021 — Add API versioning and global prefix
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/api-versioning
-```
-
-Scope:
-
-```text
-Enable global API prefix and URI-based versioning.
-```
-
-Files expected:
-
-```text
-apps/api/src/main.ts
-apps/api/src/health/health.controller.ts
-apps/api/src/health/health.module.ts
-```
-
-Acceptance criteria:
-
-```text
-Global prefix is api
-Versioning type is URI
-Health route is /api/v1/health
-No unversioned routes exist
-```
-
-Suggested commits:
-
-```text
-feat(api): enable v1 API versioning
-feat(health): add versioned health endpoint
-```
-
-Dependencies:
-
-```text
-TASK-020
-```
-
----
-
 ### TASK-022 — Add config and validation foundation
 
 Status:

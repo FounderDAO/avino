@@ -83,7 +83,11 @@ Negative / trade-offs:
 - docs/ARCHITECTURE.md (§5, §21)
 - docs/API.md
 - docs/adr/ADR-0001-project-stack.md
+- apps/api/src/main.ts (global prefix + URI versioning)
+- apps/api/src/health/health.controller.ts (`@Controller({ path: 'health', version: '1' })`)
+- apps/api/src/health/health.module.ts
 
 ## Related task
 
 - TASK-DOCS-INIT (initial project tracking documents)
+- TASK-021 (Add API versioning and global prefix — implementation)
