@@ -306,7 +306,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/db-extensions
-PR: pending
+PR: #27
 
 Files changed:
 - apps/api/prisma/migrations/20260603120000_enable_extensions/migration.sql
@@ -328,3 +328,30 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0003-postgis-prisma.md
+
+### TASK-032 — Add core enums to Prisma
+
+Status: DONE
+Branch: feat/db-core-enums
+PR: #28
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- packages/shared/src/enums.ts
+- packages/shared/src/constants.ts
+- docs/adr/ADR-0008-core-domain-enums.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the four core Postgres enums to `apps/api/prisma/schema.prisma` as Prisma `enum` blocks: `ListingStatus` (NEW | ACTIVE | DRAFT | REJECTED | DELETED | ARCHIVED | SOLD | RENTED), `PromotionType` (NORMAL | TOP | VIP), `Currency` (UZS | USD) and `Language` (UZ | RU | EN). Values mirror DB_SCHEMA §3 exactly and are part of the v1 contract (adding a value is non-breaking; rename/remove requires v2 — ADR-0002).
+- `Role` is intentionally NOT a Postgres enum: roles are a seeded `roles` dictionary with a many-to-many `user_roles` join (DB_SCHEMA §4), so they extend without a migration. Documented in the schema header and ADR-0008. `GUEST` is the implicit unauthenticated state (not stored, not a role code — ADR-011).
+- Fixed lower/upper-case conflicts in `packages/shared/src/enums.ts` so shared enums match the API.md JSON contract: `Language` values `'uz'|'ru'|'en'` → `'UZ'|'RU'|'EN'` (lowercase `uz|ru|en` remains only the `Accept-Language`/`?lang` convention, mapped to the enum); `UserRole` values lowercased → UPPERCASE (`"roles": ["USER"]`). Renamed enum `CURRENCY` → `Currency` for PascalCase consistency and updated all `constants.ts` references.
+- Verified: `prisma validate` passes (schema valid against the project schema); `tsc --noEmit` on `packages/shared` passes; `prettier --check` clean on all changed TS/Prisma files. No external consumers of the renamed/recased symbols exist outside `constants.ts`. Postgres enum types are declared now and will be created by migration when the first model references them (listings — TASK-035).
+
+Commit messages:
+- feat(db): add core enums
+- feat(shared): align shared enums with database
+
+Related ADR:
+- docs/adr/ADR-0008-core-domain-enums.md

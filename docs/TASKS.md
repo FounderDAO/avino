@@ -412,61 +412,6 @@ TASK-001
 
 ## 7. M3 — Database and Prisma foundation
 
-### TASK-032 — Add core enums to Prisma
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/db-core-enums
-```
-
-Scope:
-
-```text
-Add core enums according to DB_SCHEMA.md and API.md.
-```
-
-Files expected:
-
-```text
-apps/api/prisma/schema.prisma
-packages/shared/src/enums.ts
-```
-
-Acceptance criteria:
-
-```text
-ListingStatus enum exists
-PromotionType enum exists
-Currency enum exists
-Language enum exists
-Role enum exists
-Enums are consistent with API.md
-No conflicting lower/upper-case enum values
-```
-
-Suggested commits:
-
-```text
-feat(db): add core enums
-feat(shared): align shared enums with database
-```
-
-Dependencies:
-
-```text
-TASK-030
-TASK-012
-```
-
----
-
 ### TASK-033 — Add users and roles schema
 
 Status:

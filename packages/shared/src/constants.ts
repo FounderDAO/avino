@@ -3,7 +3,7 @@
 // Никакой бизнес-логики здесь быть не должно.
 
 import {
-  CURRENCY,
+  Currency,
   DealType,
   Language,
   ListingStatus,
@@ -16,7 +16,7 @@ import {
 export const DEFAULT_LANGUAGE = Language.RU;
 
 /** Валюта по умолчанию. */
-export const DEFAULT_CURRENCY = CURRENCY.UZS;
+export const DEFAULT_CURRENCY = Currency.UZS;
 
 /** Все роли пользователей. */
 export const USER_ROLES = [
@@ -70,7 +70,7 @@ export const PROPERTY_TYPES = [
 export const DEAL_TYPES = [DealType.SALE, DealType.RENT] as const;
 
 /** Все валюты. */
-export const SUPPORTED_CURRENCIES = [CURRENCY.UZS, CURRENCY.USD] as const;
+export const SUPPORTED_CURRENCIES = [Currency.UZS, Currency.USD] as const;
 
 /** Типы продвижения в порядке приоритета: VIP > TOP > NORMAL (см. ADR-0004). */
 export const PROMOTION_TYPES = [
