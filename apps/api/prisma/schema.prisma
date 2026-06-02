@@ -10,7 +10,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [postgis]
+  extensions = [pgcrypto, postgis, pg_trgm]
 }
 
 // Временная placeholder-модель (TASK-030): Prisma не генерирует клиент без

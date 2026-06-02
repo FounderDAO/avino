@@ -58,6 +58,24 @@ The Prisma client is exposed to NestJS via a single global module:
    first real model lands (TASK-033 — users). Decision confirmed by Team Lead
    (CLAUDE.md §2/§13).
 
+### Baseline extensions migration (TASK-031)
+
+The required PostgreSQL extensions are enabled by a single hand-authored raw SQL
+migration that runs before any table migration:
+
+9. `apps/api/prisma/migrations/20260603120000_enable_extensions/migration.sql`
+   issues `CREATE EXTENSION IF NOT EXISTS` for **pgcrypto** (`gen_random_uuid()`
+   default for every `id uuid` PK — DB_SCHEMA §2), **postgis** (geography +
+   GIST geo search — this ADR), and **pg_trgm** (GIN trigram ILIKE text search —
+   ARCHITECTURE §12). `IF NOT EXISTS` makes it idempotent.
+10. The three extensions are also declared in the `datasource db.extensions`
+    array of `schema.prisma` (`postgresqlExtensions` preview feature) so the
+    declarative schema matches the migration and Prisma does not report drift.
+11. The migration is applied with `prisma migrate deploy`; `prisma migrate dev`
+    is not used to author it, because the schema still carries the temporary
+    `HealthCheck` placeholder (point 8) which must not leak into the first
+    table migration (TASK-033).
+
 ## Consequences
 
 Positive:
@@ -88,8 +106,11 @@ Negative / trade-offs:
 - apps/api/src/prisma/prisma.module.ts
 - apps/api/src/prisma/prisma.service.ts
 - apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260603120000_enable_extensions/migration.sql
+- apps/api/prisma/migrations/migration_lock.toml
 
 ## Related task
 
 - TASK-DOCS-INIT (initial project tracking documents)
 - TASK-030 (Prisma runtime foundation: PrismaModule/PrismaService)
+- TASK-031 (baseline extensions migration: pgcrypto, postgis, pg_trgm)
