@@ -410,57 +410,6 @@ TASK-001
 
 ## 6. M2 — Backend foundation
 
-### TASK-023 — Add response and error format
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/api-error-format
-```
-
-Scope:
-
-```text
-Add standard API error and response handling based on API.md.
-```
-
-Files expected:
-
-```text
-apps/api/src/common/filters/
-apps/api/src/common/interceptors/
-apps/api/src/common/dto/
-apps/api/src/main.ts
-```
-
-Acceptance criteria:
-
-```text
-Global exception filter exists
-Validation errors use standard shape
-Unhandled errors do not leak internals
-Response format is documented or implemented consistently
-```
-
-Suggested commits:
-
-```text
-feat(api): add standard error handling
-feat(api): add response formatting foundation
-```
-
-Dependencies:
-
-```text
-TASK-022
-```
-
 ## 7. M3 — Database and Prisma foundation
 
 ### TASK-030 — Add Prisma foundation
