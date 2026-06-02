@@ -2,24 +2,35 @@
 // Используется и backend (apps/api), и frontend (apps/web).
 // Только enum-определения; производные коллекции и значения по умолчанию — в constants.ts.
 
-/** Роли пользователей. */
+/**
+ * Роли пользователей. Значения UPPERCASE — совпадают с кодами в справочнике
+ * `roles` (DB_SCHEMA.md §3/§4) и с JSON-контрактом API (`"roles": ["USER"]`).
+ * GUEST — неявное состояние неаутентифицированного запроса: НЕ хранится в БД и
+ * не является кодом роли (ADR-0008/ADR-011); оставлен здесь как логический
+ * сентинел для authorization-кода.
+ */
 export enum UserRole {
-  GUEST = 'guest',
-  USER = 'user',
-  OWNER = 'owner',
-  AGENT = 'agent',
-  AGENCY = 'agency',
-  LANDLORD = 'landlord',
-  PROPERTY_MANAGER = 'property_manager',
-  MODERATOR = 'moderator',
-  ADMIN = 'admin',
+  GUEST = 'GUEST',
+  USER = 'USER',
+  OWNER = 'OWNER',
+  AGENT = 'AGENT',
+  AGENCY = 'AGENCY',
+  LANDLORD = 'LANDLORD',
+  PROPERTY_MANAGER = 'PROPERTY_MANAGER',
+  MODERATOR = 'MODERATOR',
+  ADMIN = 'ADMIN',
 }
 
-/** Поддерживаемые языки интерфейса и объявлений. */
+/**
+ * Поддерживаемые языки интерфейса и объявлений.
+ * Значения UPPERCASE — совпадают с enum `language` в БД и JSON-контрактом API
+ * (`"default_language": "RU"`). Lowercase uz|ru|en — только конвенция заголовка
+ * Accept-Language/`?lang`, маппится на этот enum (API.md, ADR-0008).
+ */
 export enum Language {
-  UZ = 'uz',
-  RU = 'ru',
-  EN = 'en',
+  UZ = 'UZ',
+  RU = 'RU',
+  EN = 'EN',
 }
 
 /**
@@ -51,8 +62,8 @@ export enum DealType {
   RENT = 'RENT',
 }
 
-/** Валюты. */
-export enum CURRENCY {
+/** Валюты. FX-конвертации в MVP нет (DB_SCHEMA.md §2). */
+export enum Currency {
   UZS = 'UZS',
   USD = 'USD',
 }
