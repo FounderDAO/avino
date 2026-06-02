@@ -273,7 +273,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/prisma-foundation
-PR: pending
+PR: #26
 
 Files changed:
 - apps/api/prisma/schema.prisma
