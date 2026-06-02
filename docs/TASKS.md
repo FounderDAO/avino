@@ -412,57 +412,6 @@ TASK-001
 
 ## 7. M3 — Database and Prisma foundation
 
-### TASK-034 — Add auth schema
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/db-auth-schema
-```
-
-Scope:
-
-```text
-Add OTP and refresh token database models.
-```
-
-Files expected:
-
-```text
-apps/api/prisma/schema.prisma
-apps/api/prisma/migrations/
-```
-
-Acceptance criteria:
-
-```text
-otp_codes model exists
-refresh_tokens model exists
-OTP stores code_hash, not code
-Refresh token stores token_hash, not token
-Indexes are added for lookup fields
-```
-
-Suggested commits:
-
-```text
-feat(db): add auth token schema
-```
-
-Dependencies:
-
-```text
-TASK-033
-```
-
----
-
 ### TASK-035 — Add listings schema with PostGIS
 
 Status:
