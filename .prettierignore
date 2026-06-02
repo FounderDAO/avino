@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+coverage/
+.next/
+
+# Generated lockfile
+pnpm-lock.yaml
+
+# Hand-authored Markdown (prose with manual wrapping — not Prettier-managed)
+**/*.md
+
+# Hand-maintained infra/config YAML
+docker-compose.yml
+pnpm-workspace.yaml
