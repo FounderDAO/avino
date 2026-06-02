@@ -46,6 +46,21 @@ Accepted
    зеркалирует значения БД; backend использует и Prisma-enum, и shared-enum с
    идентичными значениями.
 
+### Listing enums (TASK-035)
+
+The listing core schema adds two more Postgres enums under the same rules:
+`TransactionType` (SALE | RENT) and `PropertyType` (APARTMENT | HOUSE |
+NEW_BUILDING | LAND | COMMERCIAL). Values mirror DB_SCHEMA §3 exactly and are
+created by the `listings` migration (first model to reference them).
+
+Known divergence to reconcile (flagged for Team Lead, not changed in the
+DB-only TASK-035 PR): `packages/shared/src/enums.ts` currently has
+`PropertyType` with only 4 values (no `NEW_BUILDING`) and names the deal enum
+`DealType` instead of `TransactionType`. The Prisma/DB layer follows the
+authoritative §3 contract; aligning the shared TS enums (add `NEW_BUILDING`,
+rename `DealType` → `TransactionType`) is a separate task so a frontend-contract
+change is not mixed into a DB migration PR (CLAUDE.md §2/§5).
+
 ## Consequences
 
 Positive:
@@ -76,3 +91,4 @@ Negative / trade-offs:
 ## Related task
 
 - TASK-032
+- TASK-035 (adds TransactionType / PropertyType enums; flags shared divergence)

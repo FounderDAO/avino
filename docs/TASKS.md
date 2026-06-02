@@ -412,61 +412,6 @@ TASK-001
 
 ## 7. M3 — Database and Prisma foundation
 
-### TASK-035 — Add listings schema with PostGIS
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/db-listings-postgis
-```
-
-Scope:
-
-```text
-Add listing core schema with PostGIS location support.
-```
-
-Files expected:
-
-```text
-apps/api/prisma/schema.prisma
-apps/api/prisma/migrations/
-```
-
-Acceptance criteria:
-
-```text
-listings model exists
-latitude and longitude use Decimal
-location uses Unsupported(\"geography(Point, 4326)\")
-GIST index exists through raw SQL
-Listing statuses are supported
-Promotion read cache fields exist
-```
-
-Suggested commits:
-
-```text
-feat(db): add listings schema
-feat(db): add PostGIS listing location index
-```
-
-Dependencies:
-
-```text
-TASK-031
-TASK-032
-TASK-033
-```
-
----
-
 ### TASK-036 — Add listing translations and media schema
 
 Status:
