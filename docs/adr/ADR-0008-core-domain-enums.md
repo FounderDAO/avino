@@ -76,6 +76,26 @@ on the listing's `original_language`) from machine translations (`GOOGLE` /
 `YANDEX`); the concrete translation provider (Google vs Yandex) is a runtime
 decision deferred to the translation-integration task, not fixed by this enum.
 
+### Notification & device enums (TASK-038)
+
+The engagement schema adds four more Postgres enums under the same rules:
+`NotificationType` (SAVED_SEARCH_NEW_LISTING | FAVORITE_PRICE_DROP |
+NEW_CHAT_MESSAGE | LISTING_MODERATION_STATUS_CHANGED | NEW_LEAD |
+PROMOTION_ACTIVATED | PROMOTION_EXPIRED), `NotificationChannel` (EMAIL | PUSH |
+IN_APP), `NotificationStatus` (PENDING | SENT | FAILED | READ) and
+`DevicePlatform` (ANDROID | IOS | WEB). Values mirror DB_SCHEMA §3 exactly and
+are created by the chat/notifications migration — `notifications` /
+`notification_devices` are the first models to reference them.
+
+`NotificationType` is intentionally extensible: new domain events are added as
+non-breaking enum additions, never renamed (which would be breaking, requiring
+v2 — ADR-0002). `NotificationChannel` carries `PUSH` now even though MVP
+delivers `EMAIL` + `IN_APP` reliably — the value exists so the contract is
+stable when the Flutter app wires up FCM/APNs against `notification_devices`
+(`DevicePlatform`). By contrast, `audit_logs.action` stays a free-form
+`VARCHAR(80)`, NOT an enum, so new auditable actions need no migration
+(ADR-0004, DB_SCHEMA §12).
+
 ## Consequences
 
 Positive:
@@ -108,3 +128,4 @@ Negative / trade-offs:
 - TASK-032
 - TASK-035 (adds TransactionType / PropertyType enums; flags shared divergence)
 - TASK-036 (adds TranslationSource / MediaType enums)
+- TASK-038 (adds NotificationType / NotificationChannel / NotificationStatus / DevicePlatform enums)

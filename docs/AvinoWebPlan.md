@@ -1,656 +1,442 @@
 # 🏗️ AVINO WEB — Plan
-### Next.js · TypeScript · Tailwind CSS · на паттернах Zillow
+
+### Next.js · TypeScript · Tailwind CSS · RTK Query · Yandex Maps
+
+> **Дизайн-референс — Zillow** (UX-паттерны: карта+список, карточки объектов,
+> фильтры, страница объекта, флоу поиска). Вёрстка и компоненты — собственные,
+> **без копирования бренда, логотипа, шрифтов, фото и текстов Zillow**.
+> Палитра отстраивается под бренд Avino.
+>
+> ⚠️ **Источник истины — `docs/CLAUDE.md`, `docs/API.md`, `docs/DB_SCHEMA.md`,
+> `docs/ROADMAP.md` (milestone M14).** Если этот файл им противоречит — правила
+> выше приоритетнее. Прошлая редакция плана (Zustand/TanStack/Mapbox/NextAuth/
+> web-Prisma/Cloudinary) была черновиком и **отменена** — см. §0.
 
 ---
 
-## СТЕК
+## 0. Архитектурные решения (отмена черновика)
+
+`apps/web` — это **только клиент**. Он не имеет своей БД и не делает auth сам —
+он ходит в NestJS-бэкенд `apps/api` по REST `/api/v1`. Тот же API использует
+будущее Flutter-приложение.
+
+```
+apps/api (NestJS + Prisma + PostGIS + Redis + BullMQ + S3)
+        │  REST /api/v1   (контракт в docs/API.md)
+        ├──────────────► apps/web   (Next.js, RTK Query)   ← этот план
+        └──────────────► Flutter mobile (позже)
+```
+
+| Тема | Черновик (ОТМЕНЁН) | Действующее решение | Основание |
+|---|---|---|---|
+| Данные/API | Zustand + TanStack Query | **RTK Query**, слой `store/api/*`, никаких `fetch`/`axios` в компонентах | CLAUDE.md §3,§4 |
+| Карты | Mapbox GL | **Yandex Maps JS API** | CLAUDE.md §12 |
+| Auth | NextAuth (Google/Email) | **OTP через backend** (`/api/v1/auth/otp/*`), SMS Eskiz | CLAUDE.md §3, API.md §3 |
+| БД во web | свой Prisma + `app/api/*` route handlers | web **не имеет** БД и Prisma | ARCHITECTURE.md |
+| Файлы | Cloudinary | **S3** через backend (presign/confirm) | API.md §8 |
+| Модель Listing | US-поля (zip, state, zestimate) | реальная схема Avino (UZS/USD, регионы UZ, PostGIS, TOP/VIP) | DB_SCHEMA.md |
+| Локали | en | **uz / ru / en** + автоопределение | CLAUDE.md §9 |
+
+---
+
+## 1. Стек
 
 | Слой | Технология |
 |---|---|
 | Framework | Next.js 14+ (App Router) |
 | Язык | TypeScript |
-| Стили | Tailwind CSS + CSS Variables |
-| Компоненты | shadcn/ui + кастомные Avino |
-| Состояние | Zustand (UI) + TanStack Query (данные) |
-| Карта | Mapbox GL JS |
+| Стили | Tailwind CSS + CSS-переменные (дизайн-токены) |
+| Компоненты | собственные Avino UI + (опц.) headless-примитивы (Radix) |
+| Глобальное состояние | Redux Toolkit |
+| Серверные данные / API | **RTK Query** (`store/api/*`) |
+| UI-состояние (фильтры, карта, модалки) | RTK slices (`store/slices/*`) |
+| Карта | **Yandex Maps JS API** |
 | Формы | React Hook Form + Zod |
-| Auth | NextAuth.js (Google + Email) |
-| База данных | PostgreSQL + Prisma ORM |
-| Файлы | Cloudinary |
-| Деплой | Vercel |
+| Auth | OTP backend (`/api/v1/auth/*`), access+refresh токены |
+| i18n | uz / ru / en (next-intl или собственный `t(key, lang)`) |
+| Деплой | согласовать (Vercel / VPS) — решение Team Lead |
+
+Зависимости уже в `apps/web/package.json`: `next`, `react`, `@reduxjs/toolkit`,
+`react-redux`, `@avino/shared`. Доустановить по ходу: `react-hook-form`, `zod`,
+`@hookform/resolvers`, Yandex Maps loader, i18n-библиотека, `clsx`,
+`tailwind-merge`, `lucide-react`, `tailwindcss` + `postcss` + `autoprefixer`.
 
 ---
 
-## СТАРТ ПРОЕКТА
+## 2. Структура файлов (`apps/web`)
 
-\`\`\`bash
-npx create-next-app@latest avino-web \
-  --typescript \
-  --tailwind \
-  --eslint \
-  --app \
-  --src-dir \
-  --import-alias "@/*"
-
-cd avino-web
-npx shadcn@latest init
-
-npm install zustand @tanstack/react-query
-npm install react-hook-form zod @hookform/resolvers
-npm install next-auth @auth/prisma-adapter
-npm install @prisma/client prisma
-npm install mapbox-gl @types/mapbox-gl
-npm install lucide-react
-npm install clsx tailwind-merge
-npm install cloudinary
-\`\`\`
-
----
-
-## СТРУКТУРА ФАЙЛОВ
-
-\`\`\`
-avino-web/
+```
+apps/web/
 ├── src/
 │   ├── app/
+│   │   ├── layout.tsx                  ← Root layout (Providers, Header, Footer)
 │   │   ├── page.tsx                    ← Главная
-│   │   ├── layout.tsx                  ← Root layout
-│   │   ├── buy/
-│   │   │   └── page.tsx                ← Выдача покупки (SRP)
-│   │   ├── rent/
-│   │   │   └── page.tsx                ← Выдача аренды
-│   │   ├── homedetails/
-│   │   │   └── [id]/
-│   │   │       └── page.tsx            ← Детальная карточка
-│   │   ├── agents/
-│   │   │   ├── page.tsx                ← Поиск агентов
-│   │   │   └── [id]/
-│   │   │       └── page.tsx            ← Профиль агента
-│   │   ├── mortgage/
-│   │   │   └── page.tsx                ← Ипотечный калькулятор
-│   │   ├── account/
-│   │   │   ├── favorites/page.tsx
-│   │   │   ├── saved-searches/page.tsx
-│   │   │   └── inbox/page.tsx
-│   │   └── api/
-│   │       ├── listings/route.ts
-│   │       ├── agents/route.ts
-│   │       └── auth/[...nextauth]/route.ts
+│   │   ├── sale/page.tsx               ← Выдача «Купить» (split map+list)
+│   │   ├── rent/page.tsx               ← Выдача «Аренда»
+│   │   ├── listing/
+│   │   │   ├── [id]/page.tsx           ← Детальная карточка
+│   │   │   ├── new/page.tsx            ← Создание объявления
+│   │   │   └── [id]/edit/page.tsx      ← Редактирование
+│   │   └── account/
+│   │       ├── listings/page.tsx       ← Мои объявления (owner/agent)
+│   │       ├── favorites/page.tsx
+│   │       ├── saved-searches/page.tsx
+│   │       ├── inbox/page.tsx          ← Чат
+│   │       └── notifications/page.tsx
 │   │
 │   ├── components/
-│   │   ├── layout/
-│   │   │   ├── Header.tsx
-│   │   │   ├── Footer.tsx
-│   │   │   └── Sidebar.tsx
-│   │   ├── ui/                         ← shadcn/ui + кастомные
-│   │   │   ├── Button.tsx
-│   │   │   ├── Badge.tsx
-│   │   │   ├── Card.tsx
-│   │   │   ├── Input.tsx
-│   │   │   └── Chip.tsx
-│   │   ├── search/
-│   │   │   ├── SearchBar.tsx
-│   │   │   ├── FilterBar.tsx
-│   │   │   ├── FilterChip.tsx
-│   │   │   └── SortDropdown.tsx
-│   │   ├── map/
-│   │   │   ├── MapView.tsx
-│   │   │   ├── PricePin.tsx
-│   │   │   └── BoundaryDraw.tsx
-│   │   ├── property/
-│   │   │   ├── PropertyCard.tsx        ← variant: hero | srp
-│   │   │   ├── PropertyCarousel.tsx
-│   │   │   ├── PhotoGallery.tsx
-│   │   │   ├── PriceBlock.tsx
-│   │   │   ├── ContactSidebar.tsx
-│   │   │   ├── FactsGrid.tsx
-│   │   │   ├── BadgeOverlay.tsx
-│   │   │   ├── StatusBadge.tsx
-│   │   │   ├── PriceCutBadge.tsx
-│   │   │   └── EstPaymentStrip.tsx
-│   │   └── agent/
-│   │       ├── AgentCard.tsx
-│   │       └── AgentSearch.tsx
-│   │
-│   ├── lib/
-│   │   ├── utils.ts                    ← clsx + tailwind-merge
-│   │   ├── prisma.ts
-│   │   ├── auth.ts
-│   │   └── mapbox.ts
-│   │
-│   ├── hooks/
-│   │   ├── useListings.ts
-│   │   ├── useFilters.ts
-│   │   └── useMap.ts
+│   │   ├── layout/                     ← Header, Footer, LanguageSwitcher
+│   │   ├── ui/                         ← Button, Badge, Card, Input, Chip, Modal
+│   │   ├── search/                     ← SearchBar, FilterBar, FilterChip, SortDropdown
+│   │   ├── map/                        ← YandexMap, PricePin, ClusterLayer, BoundsControl
+│   │   ├── property/                   ← PropertyCard, PhotoGallery, PriceBlock,
+│   │   │                                 ContactSidebar, FactsGrid, PromotionBadge
+│   │   ├── auth/                       ← OtpRequestForm, OtpVerifyForm, AuthGuard
+│   │   └── chat/                       ← ThreadList, MessageList, MessageInput
 │   │
 │   ├── store/
-│   │   ├── filterStore.ts              ← Zustand
-│   │   └── mapStore.ts
+│   │   ├── index.ts                    ← configureStore
+│   │   ├── api/
+│   │   │   ├── baseApi.ts              ← fetchBaseQuery + auth header + refresh
+│   │   │   ├── authApi.ts
+│   │   │   ├── usersApi.ts
+│   │   │   ├── listingsApi.ts
+│   │   │   ├── searchApi.ts
+│   │   │   ├── mediaApi.ts
+│   │   │   ├── favoritesApi.ts
+│   │   │   ├── savedSearchesApi.ts
+│   │   │   ├── chatApi.ts
+│   │   │   ├── notificationsApi.ts
+│   │   │   └── adminApi.ts
+│   │   └── slices/
+│   │       ├── filterSlice.ts          ← состояние фильтров выдачи
+│   │       ├── mapSlice.ts             ← bounds, центр, зум, выбранный пин
+│   │       └── authSlice.ts            ← токены, текущий пользователь
 │   │
-│   ├── types/
-│   │   ├── listing.ts
-│   │   ├── agent.ts
-│   │   └── filter.ts
-│   │
+│   ├── features/                       ← фичевые композиции (по CLAUDE.md §4)
+│   ├── lib/                            ← utils, yandexMaps loader, i18n
+│   ├── i18n/                           ← uz.json, ru.json, en.json
 │   └── styles/
-│       ├── globals.css                 ← CSS Variables + Tailwind
-│       └── tokens.css                  ← Дизайн-токены
+│       ├── globals.css                 ← Tailwind + CSS-переменные
+│       └── tokens.css                  ← дизайн-токены
 │
-├── prisma/
-│   └── schema.prisma
 ├── public/
+├── tailwind.config.ts
 └── .env.local
-\`\`\`
+```
 
 ---
 
-## ДИЗАЙН-СИСТЕМА (CSS ТОКЕНЫ)
+## 3. Дизайн-система (CSS-токены)
 
-> Файл: src/styles/tokens.css
+> Файл: `src/styles/tokens.css`. Базис Zillow-подобный; **бренд-цвета Avino
+> подбираются отдельно**, чтобы не было визуального клона.
 
-\`\`\`css
+```css
 :root {
-  /* ── Brand ─────────────────────────────── */
+  /* ── Brand (placeholder — отстроить под Avino) ── */
   --color-primary:          #0041D9;
   --color-action:           #006AFF;
   --color-primary-light:    #65B4FF;
-  --color-teal:             #004550;
-  --color-mint:             #9FF17B;
-  --color-dark-green:       #136F65;
 
-  /* ── Text ──────────────────────────────── */
+  /* ── Text ── */
   --color-text-primary:     #2A2A33;
   --color-text-dark:        #11111A;
   --color-text-secondary:   #596B82;
   --color-text-tertiary:    #D1D1D5;
   --color-text-link:        #0D4599;
 
-  /* ── Backgrounds ───────────────────────── */
+  /* ── Backgrounds ── */
   --color-bg-white:         #FFFFFF;
   --color-bg-gray:          #F7F7F7;
   --color-bg-gray-subtle:   #F1F1F4;
-  --color-bg-cream:         #FAF9F5;
   --color-bg-filter-active: #F2FAFF;
-  --color-bg-payment:       #E0F2FF;
-  --color-bg-light-blue:    #E2F0FF;
 
-  /* ── Status ────────────────────────────── */
+  /* ── Status / Promotion ── */
   --color-error:            #A3000B;
-  --color-price-cut-bg:     #FFE3E2;
-  --color-team-badge-bg:    #FFF8E1;
-  --color-team-badge-text:  #8A5700;
+  --color-vip:              #8A5700;   /* VIP бейдж */
+  --color-vip-bg:           #FFF8E1;
+  --color-top:              #0041D9;   /* TOP бейдж */
 
-  /* ── Borders ───────────────────────────── */
+  /* ── Borders ── */
   --color-border:           #D1D1D5;
-  --color-border-subtle:    #A7A6AB;
   --color-border-active:    #006AFF;
   --color-separator:        #EEEEF0;
 
-  /* ── Border Radius ─────────────────────── */
-  --radius-chip:            4px;
-  --radius-card:            4px;
-  --radius-card-hero:       12px;
+  /* ── Radius ── */
+  --radius-card:            8px;
   --radius-button:          12px;
-  --radius-button-compact:  4px;
-  --radius-sidebar:         11px;
   --radius-pill:            999px;
-  --radius-tag:             12px;
 
-  /* ── Shadows ───────────────────────────── */
-  --shadow-card:      0px 2px 4px rgba(0,0,0,0.30);
-  --shadow-card-hero: 0px 4px 15px rgba(0,0,0,0.15);
-  --shadow-map-pin:   0px 2px 2px rgba(0,0,0,0.25);
+  /* ── Spacing (base 8px) ── */
+  --space-4: 4px;  --space-8: 8px;  --space-12: 12px; --space-16: 16px;
+  --space-24: 24px; --space-32: 32px; --space-48: 48px;
 
-  /* ── Spacing (base: 8px) ───────────────── */
-  --space-2:   2px;
-  --space-4:   4px;
-  --space-8:   8px;
-  --space-12:  12px;
-  --space-16:  16px;
-  --space-20:  20px;
-  --space-24:  24px;
-  --space-32:  32px;
-  --space-48:  48px;
+  /* ── Typography ── */
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --text-hero: 60px; --text-h1: 44px; --text-h2: 32px; --text-h3: 24px;
+  --text-h4: 20px; --text-body: 16px; --text-small: 14px; --text-caption: 12px;
 
-  /* ── Typography ────────────────────────── */
-  --font-ui:        'Inter', 'Adjusted Arial', sans-serif;
-  --font-display:   'Nunito', 'Inter', sans-serif;
-
-  --text-hero:      60px;
-  --text-h1:        44px;
-  --text-h2:        32px;
-  --text-h3:        24px;
-  --text-h4:        20px;
-  --text-h5:        16px;
-  --text-body:      16px;
-  --text-small:     14px;
-  --text-caption:   12px;
-  --text-micro:     10px;
-
-  /* ── Component Dimensions ──────────────── */
-  --header-height:        80px;
-  --sidebar-width:        77px;
-  --filter-bar-height:    36px;
-  --btn-primary-height:   56px;
-  --btn-action-height:    60px;
-  --btn-secondary-height: 44px;
-  --search-input-height:  72px;
-  --card-srp-width:       351px;
-  --card-hero-width:      345px;
-  --contact-sidebar-width: 311px;
+  /* ── Component dims ── */
+  --header-height: 72px;
+  --filter-bar-height: 56px;
+  --search-input-height: 64px;
+  --contact-sidebar-width: 320px;
 }
-\`\`\`
+```
+
+`tailwind.config.ts` маппит эти токены в `theme.extend` (colors / fontSize /
+borderRadius / boxShadow / spacing). Деталь — на этапе TASK-140.
 
 ---
 
-## ТИПОГРАФИКА — TAILWIND CONFIG
+## 4. Доменные типы (из реальной схемы)
 
-> Файл: tailwind.config.ts
+> Источник — `apps/api/prisma/schema.prisma` + `API.md`. Общие типы держим в
+> `packages/shared`, чтобы web и (позже) mobile-SDK переиспользовали контракт.
 
-\`\`\`ts
-import type { Config } from 'tailwindcss'
+```ts
+export type Language = 'UZ' | 'RU' | 'EN'
+export type Currency = 'UZS' | 'USD'
+export type TransactionType = 'SALE' | 'RENT'
+export type PropertyType = 'APARTMENT' | 'HOUSE' | 'NEW_BUILDING' | 'LAND' | 'COMMERCIAL'
+export type ListingStatus = 'NEW' | 'ACTIVE' | 'DRAFT' | 'REJECTED' | 'DELETED' | 'ARCHIVED' | 'SOLD' | 'RENTED'
+export type PromotionType = 'NORMAL' | 'TOP' | 'VIP'
 
-const config: Config = {
-  content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
-  theme: {
-    extend: {
-      colors: {
-        primary:    '#0041D9',
-        action:     '#006AFF',
-        teal:       '#004550',
-        mint:       '#9FF17B',
-        'dark-green': '#136F65',
-        text: {
-          primary:   '#2A2A33',
-          dark:      '#11111A',
-          secondary: '#596B82',
-          tertiary:  '#D1D1D5',
-          link:      '#0D4599',
-        },
-        bg: {
-          white:    '#FFFFFF',
-          gray:     '#F7F7F7',
-          subtle:   '#F1F1F4',
-          cream:    '#FAF9F5',
-          filter:   '#F2FAFF',
-          payment:  '#E0F2FF',
-        },
-        border: {
-          DEFAULT: '#D1D1D5',
-          subtle:  '#A7A6AB',
-          active:  '#006AFF',
-          sep:     '#EEEEF0',
-        },
-        error:    '#A3000B',
-        'price-cut': '#FFE3E2',
-      },
-      fontFamily: {
-        ui:      ['Inter', 'sans-serif'],
-        display: ['Nunito', 'sans-serif'],
-      },
-      fontSize: {
-        'hero': ['60px', { lineHeight: '72px', fontWeight: '700' }],
-        'h1':   ['44px', { lineHeight: '52px', fontWeight: '700' }],
-        'h2':   ['32px', { lineHeight: '40px', fontWeight: '700' }],
-        'h3':   ['24px', { lineHeight: '32px', fontWeight: '700' }],
-        'h4':   ['20px', { lineHeight: '28px', fontWeight: '700' }],
-        'price-lg': ['32px', { lineHeight: '40px', fontWeight: '700' }],
-        'price-card': ['20px', { lineHeight: '24px', fontWeight: '700' }],
-      },
-      borderRadius: {
-        'chip':    '4px',
-        'card':    '4px',
-        'hero':    '12px',
-        'button':  '12px',
-        'sidebar': '11px',
-        'pill':    '999px',
-        'tag':     '12px',
-      },
-      boxShadow: {
-        'card':      '0px 2px 4px rgba(0,0,0,0.30)',
-        'card-hero': '0px 4px 15px rgba(0,0,0,0.15)',
-        'map-pin':   '0px 2px 2px rgba(0,0,0,0.25)',
-      },
-      height: {
-        'header':     '80px',
-        'filter-bar': '36px',
-        'btn-lg':     '56px',
-        'btn-action': '60px',
-        'btn-md':     '44px',
-        'search':     '72px',
-      },
-      width: {
-        'sidebar':  '77px',
-        'card-srp': '351px',
-        'card-hero': '345px',
-        'contact':  '311px',
-      },
-    },
-  },
-  plugins: [],
+export interface ListingMedia {
+  id: string
+  url: string
+  thumbnailUrl?: string
+  sortOrder: number
+  width?: number
+  height?: number
 }
 
-export default config
-\`\`\`
+export interface ListingTranslation {
+  language: Language
+  title: string
+  description?: string
+  addressNote?: string
+  featuresText?: string
+}
 
----
-
-## ТИПЫ (TypeScript)
-
-> Файл: src/types/listing.ts
-
-\`\`\`ts
 export interface Listing {
   id: string
-  price: number
-  address: {
-    street: string
-    city: string
-    state: string
-    zip: string
-    lat: number
-    lng: number
-  }
-  beds: number
-  baths: number
-  sqft: number
-  propertyType: 'house' | 'condo' | 'townhouse' | 'land' | 'apartment'
-  status: 'active' | 'pending' | 'sold'
-  photos: string[]
-  description: string
-  features: {
-    interior?: Record<string, string[]>
-    property?: Record<string, string[]>
-    financial?: Record<string, string>
-  }
-  agent: {
-    id: string
-    name: string
-    company: string
-    phone?: string
-    photo?: string
-  }
-  listedAt: Date
-  daysOnMarket: number
-  views?: number
-  saves?: number
-  estimatedPayment?: number
-  priceHistory?: { date: Date; price: number }[]
-  zestimate?: number
-  pricePerSqft?: number
-  lotSize?: number
+  ownerId: string
+  agencyId?: string
+  transactionType: TransactionType
+  propertyType: PropertyType
+  status: ListingStatus
+  originalLanguage: Language
+  price: string            // Decimal → string, НЕ number (деньги)
+  currency: Currency
+  area?: string
+  rooms?: number
+  floor?: number
+  totalFloors?: number
   yearBuilt?: number
-  hoa?: number
+  address?: string
+  cityId?: string
+  districtId?: string
+  latitude?: number
+  longitude?: number
+  promotionType: PromotionType
+  promotionExpiresAt?: string
+  publishedAt?: string
+  createdAt: string
+  // join'ы (зависит от endpoint):
+  translations?: ListingTranslation[]
+  media?: ListingMedia[]
 }
 
 export interface ListingFilters {
-  type: 'buy' | 'rent'
+  transactionType: TransactionType
+  propertyType?: PropertyType[]
   priceMin?: number
   priceMax?: number
-  bedsMin?: number
-  bathsMin?: number
-  propertyTypes?: string[]
-  sqftMin?: number
-  sqftMax?: number
-  yearBuiltMin?: number
-  hasGarage?: boolean
-  hasPool?: boolean
-  sortBy: 'relevance' | 'price_asc' | 'price_desc' | 'newest' | 'sqft'
+  currency?: Currency
+  roomsMin?: number
+  areaMin?: number
+  areaMax?: number
+  cityId?: string
+  districtId?: string
+  sort?: 'relevance' | 'price_asc' | 'price_desc' | 'newest'
 }
-\`\`\`
+```
+
+> **Финансы — `Decimal` → строка** на фронте (см. stack-preferences: деньги не
+> `Float`). Форматирование UZS/USD — через `Intl.NumberFormat`.
 
 ---
 
-## СТРАНИЦЫ И КОМПОНЕНТЫ — ДЕТАЛИ
+## 5. Привязка страниц к API (RTK Query)
 
-### 1. Главная (/)
+Все запросы — через RTK Query. Каждый эндпоинт из `API.md` имеет свой slice.
 
-**Layout:**
-\`\`\`
-Header (80px)
-  └─ Logo | Nav: Buy/Rent/Sell/Mortgage/Agents | Auth
-Hero Section
-  └─ bg-image | H1 (60px/700) | SearchBar (72px h)
-PropertyCarousel
-  └─ H2 "Homes For You" | prev/next | cards (345px)
-CTATriptych
-  └─ 3 cols: Buy/Rent/Sell + CTA button each
-Footer
-\`\`\`
+| Страница / фича | Endpoint(ы) `API.md` | Slice |
+|---|---|---|
+| Главная (карусель) | `GET /api/v1/search` (TOP/VIP в приоритете) | `searchApi` |
+| `/sale`, `/rent` (список) | `GET /api/v1/search` (фильтры, пагинация, сорт) | `searchApi` |
+| Карта в выдаче | `GET /api/v1/search/bounds`, `/clusters`, `/near-me`, `/radius` | `searchApi` |
+| `/listing/[id]` | `GET /api/v1/listings/:id`, `/:id/translations` | `listingsApi` |
+| Создание/редакт. | `POST/PATCH /api/v1/listings`, `DELETE /:id` | `listingsApi` |
+| Загрузка медиа | `POST /:id/media/presign` → S3 → `/:id/media/confirm`, `/reorder`, `DELETE /:mediaId` | `mediaApi` |
+| Мои объявления | `GET /api/v1/listings/mine` | `listingsApi` |
+| Auth (OTP) | `POST /auth/otp/request`, `/otp/verify`, `/refresh`, `/logout`, `GET /auth/me` | `authApi` |
+| Профиль | `GET/PATCH /api/v1/users/me`, `/me/profile` | `usersApi` |
+| Избранное | `GET/POST /favorites`, `DELETE /favorites/:listingId` | `favoritesApi` |
+| Сохр. поиски | `GET/POST /saved-searches`, `PATCH/DELETE /:id` | `savedSearchesApi` |
+| Чат | `GET/POST /chat/threads`, `GET/POST /:id/messages`, `POST /:id/read` | `chatApi` |
+| Уведомления | `GET /notifications`, `POST /:id/read`, `/read-all`, devices | `notificationsApi` |
+| Промо (display) | поля `promotionType`/`promotionExpiresAt` в listing | — |
 
-**Компоненты:**
-- `<Header>` — height 80px, bg white, shadow on scroll
-- `<SearchBar>` — input 72px + submit btn, radius 12px
-- `<PropertyCarousel>` — snap scroll, 345px cards
-- `<PropertyCard variant="hero">` — radius 12px, shadow-hero
-- `<BadgeOverlay>` — pill rgba(0,0,0,0.6)
-- `<CTATriptych>` — 3 col grid
+**`baseApi.ts`**: `fetchBaseQuery` с `baseUrl = NEXT_PUBLIC_API_URL + '/api/v1'`,
+`prepareHeaders` добавляет `Authorization: Bearer <access>` и `Accept-Language`
+(текущая локаль); обёртка делает silent refresh через `/auth/refresh` при 401.
 
----
-
-### 2. Выдача — SRP (/buy, /rent)
-
-**Layout:**
-\`\`\`
-Header
-FilterBar (36px)
-  └─ SearchInput | ForSale▾ | Price▾ | Beds▾ | Type▾ | Filters▾ | SaveSearch
-SplitView (flex row-reverse)
-  ├─ MapPanel (534px → 40%)
-  │    └─ GoogleMap/Mapbox + PricePins + BoundaryBtn + Controls
-  └─ ListPanel (750px → 60%, overflow-y scroll)
-       ├─ H1 "Real Estate..." | Count | SortBtn
-       └─ Grid 2-col PropertyCards (351px)
-\`\`\`
-
-**Компоненты:**
-- `<FilterBar>` — height 36px, flex, border-bottom
-- `<FilterChip>` — active: bg #F2FAFF + border 2px #006AFF
-- `<SaveSearchBtn>` — bg #006AFF, h 36px, radius 4px
-- `<MapView>` — Mapbox GL
-- `<PricePin>` — bg #A3000B, pill, shadow-map-pin
-- `<PropertyCard variant="srp">` — 351×281px, radius 4px
+**Чат и уведомления в MVP — polling** (RTK Query `pollingInterval`), WebSocket
+позже без смены контракта (CLAUDE.md §10).
 
 ---
 
-### 3. Детальная (/homedetails/[id])
+## 6. Карта страниц Zillow → Avino
 
-**Layout:**
-\`\`\`
-Header (Back to search + Save/Share/Hide/More)
-PhotoGallery (grid 4-col, gap 8px, h 445px)
-  └─ "See all X photos" btn
-PriceSection
-  ├─ LEFT: StatusBadge | PriceCutBadge | Price (32px) | Stats | Address | EstPayment
-  └─ RIGHT: ContactSidebar (311px, border, radius 11px)
-       ├─ RequestTourBtn (h 60px, #006AFF)
-       └─ ContactAgentBtn (h 44px, outline)
-StatsRow (days on Zillow | views | saves)
-OverviewGrid (3-col tiles: icon + label)
-FactsAccordion (Interior | Property | Financial)
-MortgageCalculator
-NearbyListings
-\`\`\`
+| Zillow | Avino | Примечание |
+|---|---|---|
+| `/` главная | `/` hero + поиск + карусель | TOP/VIP вверху |
+| `/buy` | `/sale` | `transactionType=SALE` |
+| `/rent` | `/rent` | `transactionType=RENT` |
+| `/homedetails/[id]` | `/listing/[id]` | галерея + факты + контакты |
+| Sell / создание | `/listing/new` | модерация: статус `NEW` → ACTIVE/DRAFT/REJECTED |
+| account: saved/favorites/inbox | `/account/*` | favorites, saved-searches, inbox, notifications |
+| `/agents` (каталог агентов) | — | **вне MVP**: публичного endpoint нет в API.md (Phase 1.5) |
+| `/mortgage` (калькулятор) | — | **опционально**: client-only калькулятор, без API |
+
+> Недостающие у Avino, но желаемые «как на Zillow» элементы (каталог агентов,
+> ипотечный калькулятор, ценовая история/оценка) фиксируются как **Phase 1.5**
+> и требуют новых backend-endpoint'ов → отдельное согласование с Team Lead.
 
 ---
 
-### 4. Агенты (/agents)
+## 7. Ключевые страницы — состав
 
-**Layout:**
-\`\`\`
-Hero (bg-image) + H1 (60px/700/white)
-SearchCard (white card, Location|Name tabs + input)
-H3 + subtext
-AgentCards Grid (2-col, 612px cards)
-\`\`\`
+### Главная (`/`)
+Header → Hero (H1 + SearchBar) → карусель «Рекомендуем» (TOP/VIP) →
+блок «Купить / Снять / Разместить» → Footer.
 
-**Стили agent card:**
-- bg white, border 1px #D1D1D5, radius 4px
-- box-shadow: shadow-card
-- padding 24px
-- photo: 160×160px square
+### Выдача (`/sale`, `/rent`)
+Header → FilterBar (поиск, тип сделки, цена, комнаты, тип недвижимости,
+ещё фильтры, «Сохранить поиск») → split-view: список `PropertyCard` (60%) +
+`YandexMap` с пинами/кластерами (40%). Синхронизация bounds карты ↔ выдача.
 
----
+### Детальная (`/listing/[id]`)
+Header (назад, избранное, поделиться) → `PhotoGallery` → слева: цена,
+`PromotionBadge`, характеристики, адрес; справа `ContactSidebar` (написать —
+создаёт `chat/thread`) → факты (Interior/Property/Financial) → похожие рядом.
 
-## PRISMA SCHEMA
+### Создание (`/listing/new`)
+Многошаговая форма (RHF + Zod): тип сделки/недвижимости → параметры → цена →
+адрес + точка на **Yandex-карте** (координаты только с карты, не из EXIF) →
+загрузка фото (presign→S3→confirm, reorder) → язык оригинала. Сабмит → `NEW`
+(в очередь модерации). Автоперевод на остальные языки — на стороне backend.
 
-> Файл: prisma/schema.prisma
-
-\`\`\`prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-generator client {
-  provider = "prisma-client-js"
-}
-
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  image         String?
-  favorites     Favorite[]
-  savedSearches SavedSearch[]
-  createdAt     DateTime  @default(now())
-}
-
-model Listing {
-  id            String    @id @default(cuid())
-  price         Int
-  street        String
-  city          String
-  state         String
-  zip           String
-  lat           Float
-  lng           Float
-  beds          Int
-  baths         Float
-  sqft          Int
-  propertyType  String
-  status        String    @default("active")
-  photos        String[]
-  description   String?
-  agentId       String
-  agent         Agent     @relation(fields: [agentId], references: [id])
-  listedAt      DateTime  @default(now())
-  favorites     Favorite[]
-}
-
-model Agent {
-  id       String    @id @default(cuid())
-  name     String
-  company  String
-  phone    String?
-  photo    String?
-  listings Listing[]
-  rating   Float?
-  reviews  Int?
-}
-
-model Favorite {
-  id        String   @id @default(cuid())
-  userId    String
-  listingId String
-  user      User     @relation(fields: [userId], references: [id])
-  listing   Listing  @relation(fields: [listingId], references: [id])
-  createdAt DateTime @default(now())
-
-  @@unique([userId, listingId])
-}
-
-model SavedSearch {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  name      String
-  filters   Json
-  createdAt DateTime @default(now())
-}
-\`\`\`
+### Account
+favorites / saved-searches / inbox (чат, polling) / notifications / my listings
+(owner/agent dashboard со статусами и промо).
 
 ---
 
-## ENV VARIABLES
+## 8. i18n (uz / ru / en)
 
-> Файл: .env.local
-
-\`\`\`env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/avino"
-
-# Auth
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-secret-here"
-GOOGLE_CLIENT_ID=""
-GOOGLE_CLIENT_SECRET=""
-
-# Map
-NEXT_PUBLIC_MAPBOX_TOKEN=""
-
-# Media
-CLOUDINARY_CLOUD_NAME=""
-CLOUDINARY_API_KEY=""
-CLOUDINARY_API_SECRET=""
-\`\`\`
+- Дефолт-язык: по `navigator.language` / `Accept-Language`, переключение вручную
+  (CLAUDE.md §9), выбор персистится (cookie/localStorage).
+- Все user-facing строки — через `t(key, lang)`, без хардкода (stack-preferences).
+- Каждый запрос к API шлёт `Accept-Language`; контент объявления берётся из
+  `translations[lang]` с фолбэком на `originalLanguage`.
 
 ---
 
-## ТАЙМЛАЙН
+## 9. Env (`apps/web/.env.local`)
 
-| Неделя | Задачи |
-|--------|--------|
-| 1 | Дизайн-система + tokens.css + tailwind.config + Header + Footer |
-| 2 | Главная страница (Hero + SearchBar + Carousel + CTA) |
-| 3 | Выдача SRP (FilterBar + MapView + PropertyCard) |
-| 4 | Детальная карточка (Gallery + PriceBlock + ContactSidebar) |
-| 5 | Auth (NextAuth) + Избранное + Сохранённые поиски |
-| 6 | Агенты + Профиль агента + Ипотечный калькулятор |
-| 7 | SEO (metadata, sitemap, JSON-LD) + Деплой на Vercel |
+```env
+NEXT_PUBLIC_API_URL="http://localhost:3001"   # базовый URL NestJS API
+NEXT_PUBLIC_YANDEX_MAPS_API_KEY=""            # Yandex Maps JS API
+```
+
+> Никаких секретов БД/S3/SMS во web — это всё на backend. Во web только
+> публичный URL API и публичный ключ карт.
 
 ---
 
-## SEO CHECKLIST
+## 10. Разбивка на задачи (уже заведены в TASKS.md)
 
-- [ ] generateMetadata() на каждой странице
-- [ ] JSON-LD Schema (RealEstateListing)
-- [ ] sitemap.xml (auto-generated)
-- [ ] robots.txt
-- [ ] Open Graph images
-- [ ] Canonical URLs
-- [ ] generateStaticParams для популярных городов
+> Эти задачи **уже существуют** в `docs/TASKS.md` (M14 web foundation +
+> M15 web user features + M16 web admin). Здесь — их связь со страницами/API.
+> Порядок: каждая = ветка + 1–3 коммита + PR, без прямого пуша в main.
+
+**M14 — Web foundation**
+
+| TASK | Ветка | Содержание | Зависит |
+|---|---|---|---|
+| **140** | `feat/web-foundation` | Скаффолд Next.js App Router + Tailwind + токены, базовый layout | TASK-010 |
+| **141** | `feat/web-rtk-query` | Redux store + RTK Query `baseApi` (`baseUrl=/api/v1`), Provider | TASK-140 |
+| **142** | `feat/web-i18n` | i18n uz/ru/en, автоопределение, `LanguageSwitcher`, персист | TASK-140 |
+
+**M15 — Web user features**
+
+| TASK | Ветка | Содержание | Зависит |
+|---|---|---|---|
+| **150** | `feat/web-auth` | OTP-флоу (`authApi`): request/verify, токены, auth-state | 141, 042 |
+| **151** | `feat/web-listing-search` | `/sale` `/rent`: `FilterBar`, `PropertyCard`, сорт (promotion-priority), пагинация (`searchApi`) | 141, 080, 081 |
+| **152** | `feat/web-map-search` | `YandexMap`: маркеры, bounds-поиск (`/api/v1/search/map`), превью по клику | 151, 083 |
+| **153** | `feat/web-listing-detail` | `/listing/[id]`: галерея, переводы по языку, `PromotionBadge`, чат-CTA | 141, 051 |
+| **154** | `feat/web-listing-create` | Создание: форма + точка на карте → статус `NEW` + сообщение о модерации | 050, 142 |
+| **155** | `feat/web-favorites-saved-searches` | Избранное + сохранённые поиски (`favoritesApi`, `savedSearchesApi`) | 090, 091, 151 |
+| **156** | `feat/web-chat` | Inbox: треды + сообщения (polling), только для авторизованных (`chatApi`) | 110, 111, 141 |
+
+**M16 — Web admin** (TASK-160 layout, 161 модерация листингов, 162 промо) — отдельно.
+
+**Зависимости от backend:** web-задачи требуют соответствующих backend-задач
+(в скобках). Где endpoint ещё не готов — страница строится по контракту `API.md`,
+интеграция включается по готовности backend.
+
+### Добавленные задачи (бывшие пробелы)
+
+«Как на Zillow» элементы, которых не было в исходном списке, заведены в TASKS.md:
+
+| TASK | Ветка | Содержание | Зависит |
+|---|---|---|---|
+| **157** | `feat/web-homepage` | Главная: Hero + `SearchBar` + карусель TOP/VIP (`searchApi`) | 142, 151 |
+| **158** | `feat/web-notifications` | `/account/notifications`: список + read/read-all, polling | 100, 141 |
+| **159** | `feat/web-dashboard` | `/account/listings`: owner/agent dashboard (`GET /listings/mine`) | 052, 150 |
+| **183** | `feat/web-seo` | `generateMetadata`, JSON-LD `RealEstateListing`, sitemap, robots, hreflang | 151, 153 |
+
+**Вне MVP (Phase 1.5, требует новых backend-endpoint + согласования):** каталог
+агентов (`/agents`), ипотечный калькулятор, ценовая история/оценка.
 
 ---
 
-## БЫСТРЫЙ СТАРТ
+## 11. Критерии приёмки M14 (из ROADMAP §19)
 
-\`\`\`bash
-# 1. Создать проект
-npx create-next-app@latest avino-web --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
-cd avino-web
-
-# 2. Установить зависимости
-npm install zustand @tanstack/react-query @tanstack/react-query-devtools
-npm install react-hook-form zod @hookform/resolvers
-npm install next-auth @auth/prisma-adapter
-npm install @prisma/client prisma
-npm install mapbox-gl @types/mapbox-gl react-map-gl
-npm install lucide-react
-npm install clsx tailwind-merge
-npm install cloudinary
-npm install @next/font
-
-# 3. Инициализировать shadcn
-npx shadcn@latest init
-
-# 4. Инициализировать Prisma
-npx prisma init
-
-# 5. Запустить dev сервер
-npm run dev
-\`\`\`
+- [ ] Пользователь просматривает объявления
+- [ ] Поиск по фильтрам работает
+- [ ] Детальная карточка открывается
+- [ ] Создание объявления работает (→ модерация `NEW`)
+- [ ] Чат работает
+- [ ] Избранное и сохранённые поиски работают
+- [ ] Переключатель языка (uz/ru/en) работает
+- [ ] Весь API-доступ — через RTK Query, без `fetch`/`axios` в компонентах
 
 ---
 
-*Создано на основе анализа дизайна Zillow — паттерны UI/UX, без копирования контента и бренда.*
+## 12. SEO-checklist
+
+- [ ] `generateMetadata()` на каждой странице (с учётом локали)
+- [ ] JSON-LD `RealEstateListing` на детальной
+- [ ] `sitemap.xml` (авто) + `robots.txt`
+- [ ] Open Graph изображения, canonical, hreflang (uz/ru/en)
+
+---
+
+*План согласован с docs/CLAUDE.md, docs/API.md, docs/DB_SCHEMA.md, docs/ROADMAP.md
+(M14). Zillow используется как референс UI/UX, без копирования бренда и контента.*
