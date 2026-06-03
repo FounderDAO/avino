@@ -523,3 +523,33 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0004-vip-top-promotion-model.md
+
+### TASK-038 — Add engagement schema
+
+Status: DONE
+Branch: feat/db-engagement-schema
+PR: pending
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260603180000_add_favorites_saved_searches/migration.sql
+- apps/api/prisma/migrations/20260603180500_add_chat_notifications/migration.sql
+- apps/api/prisma/migrations/20260603181000_add_audit_logs/migration.sql
+- docs/adr/ADR-0008-core-domain-enums.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the engagement / messaging layer of the MVP schema (DB_SCHEMA §9–§12): `Favorite` (`favorites`), `SavedSearch` (`saved_searches`), `ChatThread` (`chat_threads`), `ChatMessage` (`chat_messages`), `Notification` (`notifications`), `NotificationDevice` (`notification_devices`) and `AuditLog` (`audit_logs`). Split into three migrations matching the three suggested commits: favorites+saved_searches, chat+notifications, audit_logs.
+- Chat binds a listing to its two participants via `initiator_id` / `owner_id` — deliberately NOT buyer/seller, because a listing can be SALE or RENT (ADR-0003, DB_SCHEMA §10). `UNIQUE(listing_id, initiator_id, owner_id)` = one thread per pair+listing; `chat_messages.sender_id` is `ON DELETE SET NULL` so a message survives in the thread history when the sender's account is removed (MVP uses API polling; WebSocket can be added later with no schema change).
+- Introduced four new Postgres enums under the ADR-0008 rules — `NotificationType` (7 values), `NotificationChannel` (EMAIL | PUSH | IN_APP), `NotificationStatus` (PENDING | SENT | FAILED | READ) and `DevicePlatform` (ANDROID | IOS | WEB) — created in the chat+notifications migration as the first models to reference them. `notifications` are produced as BullMQ jobs (never sent synchronously); `notification_devices` is a push-token registry stub for the future Flutter app with `UNIQUE(push_token)`. `saved_searches.filters_json` is versioned jsonb (`{ schemaVersion, filters }`, ADR-0009). `audit_logs.action` is a free-form `VARCHAR(80)` (not an enum) so new auditable actions need no migration (ADR-0004); `actor_id` is `ON DELETE SET NULL` (null = system).
+- Unique constraints match DB_SCHEMA §15: `favorites (user_id, listing_id)`, `chat_threads (listing_id, initiator_id, owner_id)`, `notification_devices (push_token)`. No partial/CHECK constraints are required for this task, so all migrations are pure Prisma-expressible DDL (no raw SQL).
+- Verified against the project's `postgis:16-3.4` container: `prisma validate` clean, `prisma format` clean, `prisma generate` clean; `prisma migrate reset` replayed all 10 migrations in order and `migrate diff` (DB built from migrations vs schema) reports no difference other than the known raw-SQL PostGIS GIST index on `listings.location` (ADR-0003, not modelled by Prisma — pre-existing, unrelated). Smoke test on the live DB confirmed: duplicate `favorites (user, listing)` rejected; duplicate `chat_threads (listing, initiator, owner)` rejected; duplicate `notification_devices.push_token` rejected; deleting a non-participant message sender nulled `chat_messages.sender_id` while keeping the message; deleting an actor nulled `audit_logs.actor_id`; deleting a user cascaded their favorites/saved_searches/notifications to zero; deleting a listing cascaded its chat_threads and chat_messages to zero; a versioned `filters_json` inserted and round-tripped as jsonb.
+
+Commit messages:
+- feat(db): add favorites and saved searches schema
+- feat(db): add chat and notifications schema
+- feat(db): add audit logs schema
+
+Related ADR:
+- docs/adr/ADR-0008-core-domain-enums.md

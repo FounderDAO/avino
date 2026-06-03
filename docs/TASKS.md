@@ -412,60 +412,6 @@ TASK-001
 
 ## 7. M3 — Database and Prisma foundation
 
-### TASK-038 — Add engagement schema
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/db-engagement-schema
-```
-
-Scope:
-
-```text
-Add favorites, saved searches, chat, notifications and audit schema.
-```
-
-Files expected:
-
-```text
-apps/api/prisma/schema.prisma
-apps/api/prisma/migrations/
-```
-
-Acceptance criteria:
-
-```text
-favorites model exists
-saved_searches model exists
-chat_threads model exists with initiator_id and owner_id
-chat_messages model exists
-notifications model exists
-audit_logs model exists
-Unique constraints match DB_SCHEMA.md
-```
-
-Suggested commits:
-
-```text
-feat(db): add favorites and saved searches schema
-feat(db): add chat and notifications schema
-feat(db): add audit logs schema
-```
-
-Dependencies:
-
-```text
-TASK-035
-TASK-033
-```
-
 ## 8. M4 — Auth and users
 
 ### TASK-040 — Add UsersModule
@@ -2556,6 +2502,161 @@ TASK-111
 TASK-141
 ```
 
+---
+
+### TASK-157 — Add web homepage
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+feat/web-homepage
+```
+
+Scope:
+
+```text
+Implement public homepage (hero + featured listings).
+```
+
+Files expected:
+
+```text
+apps/web/src/app/page.tsx
+apps/web/src/features/home/
+```
+
+Acceptance criteria:
+
+```text
+Hero with SearchBar
+Featured carousel shows TOP/VIP listings first via searchApi
+Links to /sale and /rent
+Content is localized (uz/ru/en)
+```
+
+Suggested commits:
+
+```text
+feat(web): add homepage
+```
+
+Dependencies:
+
+```text
+TASK-142
+TASK-151
+```
+
+---
+
+### TASK-158 — Add web notifications UI
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+feat/web-notifications
+```
+
+Scope:
+
+```text
+Implement notifications page and read actions.
+```
+
+Files expected:
+
+```text
+apps/web/src/features/notifications/
+apps/web/src/store/api/notificationsApi.ts
+```
+
+Acceptance criteria:
+
+```text
+User can view notifications list
+User can mark notification read and read-all
+Unread indicator works
+Polling refresh works
+Only authenticated users access notifications
+```
+
+Suggested commits:
+
+```text
+feat(web): add notifications UI
+```
+
+Dependencies:
+
+```text
+TASK-100
+TASK-141
+```
+
+---
+
+### TASK-159 — Add web owner/agent dashboard
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+feat/web-dashboard
+```
+
+Scope:
+
+```text
+Implement owner/agent dashboard for own listings.
+```
+
+Files expected:
+
+```text
+apps/web/src/app/account/listings/page.tsx
+apps/web/src/features/dashboard/
+```
+
+Acceptance criteria:
+
+```text
+Lists own listings via GET /api/v1/listings/mine
+Shows listing status and promotion type
+Links to edit listing
+Promotion CTA is displayed
+Only authenticated owner/agent access dashboard
+```
+
+Suggested commits:
+
+```text
+feat(web): add owner/agent dashboard
+```
+
+Dependencies:
+
+```text
+TASK-052
+TASK-150
+```
+
 ## 20. M16 — Web admin features
 
 ### TASK-160 — Add admin layout
@@ -2924,6 +3025,59 @@ TASK-011
 TASK-030
 ```
 
+---
+
+### TASK-183 — Add web SEO
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+feat/web-seo
+```
+
+Scope:
+
+```text
+Add SEO foundation for web (metadata, JSON-LD, sitemap, robots, hreflang).
+```
+
+Files expected:
+
+```text
+apps/web/src/app/sitemap.ts
+apps/web/src/app/robots.ts
+apps/web/src/features/listings/
+```
+
+Acceptance criteria:
+
+```text
+generateMetadata exists per page and is locale-aware
+JSON-LD RealEstateListing rendered on listing detail
+sitemap.xml and robots.txt are generated
+hreflang for uz/ru/en is set
+Open Graph images are set
+```
+
+Suggested commits:
+
+```text
+feat(web): add SEO metadata and sitemap
+```
+
+Dependencies:
+
+```text
+TASK-151
+TASK-153
+```
+
 ## 23. Priority execution order
 
 Claude should execute in this order:
@@ -2944,9 +3098,9 @@ TASK-100 TASK-101 TASK-102
 TASK-110 TASK-111
 TASK-130 TASK-131
 TASK-140 TASK-141 TASK-142
-TASK-150 TASK-151 TASK-152 TASK-153 TASK-154 TASK-155 TASK-156
+TASK-150 TASK-151 TASK-152 TASK-153 TASK-154 TASK-155 TASK-156 TASK-157 TASK-158 TASK-159
 TASK-160 TASK-161 TASK-162
-TASK-170 TASK-180 TASK-181 TASK-182
+TASK-170 TASK-180 TASK-181 TASK-182 TASK-183
 ```
 
 ## 24. First task prompt for Claude
