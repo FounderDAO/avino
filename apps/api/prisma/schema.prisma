@@ -142,6 +142,45 @@ enum PromotionAdminAction {
   EXTEND_PROMOTION
 }
 
+/// Тип уведомления (DB_SCHEMA.md §3/§11, TASK-038). Доменное событие, по которому
+/// порождается notification. Добавление нового типа — non-breaking (ADR-0008).
+enum NotificationType {
+  SAVED_SEARCH_NEW_LISTING
+  FAVORITE_PRICE_DROP
+  NEW_CHAT_MESSAGE
+  LISTING_MODERATION_STATUS_CHANGED
+  NEW_LEAD
+  PROMOTION_ACTIVATED
+  PROMOTION_EXPIRED
+}
+
+/// Канал доставки уведомления (DB_SCHEMA.md §3/§11). В MVP надёжно доставляются
+/// EMAIL + IN_APP; PUSH — заглушка под Flutter-приложение (notification_devices).
+enum NotificationChannel {
+  EMAIL
+  PUSH
+  IN_APP
+}
+
+/// Статус доставки уведомления (DB_SCHEMA.md §3/§11). PENDING — поставлено в
+/// очередь BullMQ; SENT — отправлено каналом; FAILED — доставка не удалась;
+/// READ — прочитано пользователем (для IN_APP).
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+/// Платформа устройства для push-токенов (DB_SCHEMA.md §3/§11, ADR-0010). PUSH-
+/// транспорт (FCM/APNs) подключается при интеграции Flutter-приложения; таблица
+/// существует заранее, чтобы контракт был стабилен.
+enum DevicePlatform {
+  ANDROID
+  IOS
+  WEB
+}
+
 // users — ядро identity (DB_SCHEMA.md §4).
 // Пароля нет: авторизация по OTP (ARCHITECTURE §6, TASK-034).
 // phone/email НАМЕРЕННО не @unique: уникальность ограничена не-DELETED
@@ -164,16 +203,28 @@ model User {
   updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   profile              UserProfile?
-  roles                UserRole[]         @relation("UserRoleHolder")
-  grantedRoles         UserRole[]         @relation("UserRoleGranter")
+  roles                UserRole[]           @relation("UserRoleHolder")
+  grantedRoles         UserRole[]           @relation("UserRoleGranter")
   otpCodes             OtpCode[]
   refreshTokens        RefreshToken[]
   listings             Listing[]
   // Продвижения, запрошенные пользователем (FK SET NULL — переживают удаление
   // запросившего; промо-строка живёт со своим объявлением).
-  promotionsRequested  ListingPromotion[] @relation("PromotionRequester")
+  promotionsRequested  ListingPromotion[]   @relation("PromotionRequester")
   // Действия над продвижениями, совершённые этим пользователем как админом.
-  promotionLogsAsAdmin PromotionLog[]     @relation("PromotionLogAdmin")
+  promotionLogsAsAdmin PromotionLog[]       @relation("PromotionLogAdmin")
+  // Вовлечённость (TASK-038).
+  favorites            Favorite[]
+  savedSearches        SavedSearch[]
+  // Чат-треды: как инициатор (написал создателю) и как владелец объявления.
+  chatThreadsInitiated ChatThread[]         @relation("ChatInitiator")
+  chatThreadsOwned     ChatThread[]         @relation("ChatOwner")
+  // Сообщения, отправленные пользователем (FK SET NULL — переживают удаление).
+  chatMessages         ChatMessage[]
+  notifications        Notification[]
+  notificationDevices  NotificationDevice[]
+  // Записи аудита, где этот пользователь — actor (FK SET NULL; null = system).
+  auditLogs            AuditLog[]
 
   @@map("users")
 }
@@ -328,6 +379,8 @@ model Listing {
   media         ListingMedia[]
   promotions    ListingPromotion[]
   promotionLogs PromotionLog[]
+  favorites     Favorite[]
+  chatThreads   ChatThread[]
 
   @@index([status])
   @@index([propertyType])
@@ -471,4 +524,168 @@ model PromotionLog {
   @@index([listingPromotionId])
   @@index([adminId])
   @@map("promotion_logs")
+}
+
+/// Избранное (DB_SCHEMA.md §9, TASK-038). Один пользователь — одна строка на
+/// объявление: UNIQUE(user_id, listing_id) запрещает дубли. GUEST не может
+/// добавлять в избранное (неявное состояние, не персистится — ADR-0011).
+/// DELETED-объявления отфильтровываются на чтении, а не удаляются отсюда.
+/// Обе стороны ON DELETE CASCADE — строка не переживает удаление ни пользователя,
+/// ни объявления.
+model Favorite {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([userId])
+  @@index([listingId])
+  @@map("favorites")
+}
+
+/// Сохранённый поиск (DB_SCHEMA.md §9, ADR-0009). filters_json ВЕРСИОНИРОВАН:
+/// { "schemaVersion": <int>, "filters": { ... } } — матчер толерантен к старым
+/// версиям (forward-миграция), чтобы сохранённые поиски не ломались при эволюции
+/// параметров поиска. MVP: polling-матчер по last_checked_at эмитит
+/// дедуплицированные алерты по объявлениям, ставшим ACTIVE с прошлой проверки.
+/// ON DELETE CASCADE — поиск принадлежит пользователю.
+model SavedSearch {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  name          String    @db.VarChar(150)
+  filtersJson   Json      @map("filters_json")
+  isActive      Boolean   @default(true) @map("is_active")
+  lastCheckedAt DateTime? @map("last_checked_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("saved_searches")
+}
+
+/// Чат-тред между инициатором и владельцем объявления (DB_SCHEMA.md §10,
+/// ADR-0003). Имена полей — initiator_id / owner_id, НЕ buyer/seller: объявление
+/// может быть SALE или RENT. UNIQUE(listing_id, initiator_id, owner_id) — один
+/// тред на пару+объявление. GUEST не может начать тред; новый тред не создаётся
+/// на DELETED-объявлении (правило на уровне сервиса). last_message_at —
+/// денормализованный курсор для сортировки списка тредов. Все FK ON DELETE
+/// CASCADE.
+model ChatThread {
+  id            String    @id @default(uuid()) @db.Uuid
+  listingId     String    @map("listing_id") @db.Uuid
+  initiatorId   String    @map("initiator_id") @db.Uuid
+  ownerId       String    @map("owner_id") @db.Uuid
+  lastMessageAt DateTime? @map("last_message_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  listing   Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  initiator User          @relation("ChatInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  owner     User          @relation("ChatOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@unique([listingId, initiatorId, ownerId])
+  @@index([listingId])
+  @@index([initiatorId])
+  @@index([ownerId])
+  @@index([lastMessageAt])
+  @@map("chat_threads")
+}
+
+/// Сообщение чата (DB_SCHEMA.md §10). MVP использует API-polling; WebSocket
+/// добавляется позже без изменения схемы. thread_id ON DELETE CASCADE; sender_id
+/// ON DELETE SET NULL (nullable) — сообщение сохраняется в истории треда, даже
+/// если аккаунт отправителя физически удалён. is_read — флаг прочтения адресатом.
+model ChatMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  threadId  String   @map("thread_id") @db.Uuid
+  senderId  String?  @map("sender_id") @db.Uuid
+  body      String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User?      @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([threadId, createdAt])
+  @@map("chat_messages")
+}
+
+/// Уведомление пользователю (DB_SCHEMA.md §11). Все уведомления порождаются как
+/// BullMQ-джобы — никогда не отправляются синхронно внутри обработчика запроса.
+/// data_json хранит ссылки на сущности (listing_id, thread_id и т.п.). status
+/// дефолтит в PENDING (поставлено в очередь). ON DELETE CASCADE — уведомление
+/// принадлежит пользователю.
+model Notification {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String              @map("user_id") @db.Uuid
+  type      NotificationType
+  channel   NotificationChannel
+  status    NotificationStatus  @default(PENDING)
+  title     String?             @db.VarChar(255)
+  body      String?
+  dataJson  Json?               @map("data_json")
+  readAt    DateTime?           @map("read_at") @db.Timestamptz(6)
+  sentAt    DateTime?           @map("sent_at") @db.Timestamptz(6)
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, status])
+  @@index([type])
+  @@map("notifications")
+}
+
+/// Реестр push-токенов (DB_SCHEMA.md §11, ADR-0010). Заглушка под MVP: PUSH-
+/// транспорт (FCM Android / APNs iOS) подключается при интеграции Flutter-
+/// приложения; таблица существует заранее, чтобы контракт был стабилен.
+/// UNIQUE(push_token) — один токен на устройство глобально. ON DELETE CASCADE.
+model NotificationDevice {
+  id         String         @id @default(uuid()) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  platform   DevicePlatform
+  pushToken  String         @map("push_token") @db.VarChar(512)
+  isActive   Boolean        @default(true) @map("is_active")
+  lastSeenAt DateTime?      @map("last_seen_at") @db.Timestamptz(6)
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pushToken])
+  @@index([userId])
+  @@map("notification_devices")
+}
+
+/// Общий журнал аудита для security-чувствительных действий (DB_SCHEMA.md §12,
+/// ADR-0004) — в дополнение к доменным логам (moderation_logs, promotion_logs).
+/// action — free-form varchar (расширяемый, НЕ enum), поэтому новые
+/// аудируемые действия не требуют миграции (LOGIN, ROLE_CHANGE,
+/// LISTING_STATUS_CHANGE, ...). actor_id ON DELETE SET NULL, nullable
+/// (null = система) — запись аудита переживает удаление актора.
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String   @db.VarChar(80)
+  entityType String?  @map("entity_type") @db.VarChar(60)
+  entityId   String?  @map("entity_id") @db.Uuid
+  ip         String?  @db.VarChar(64)
+  userAgent  String?  @map("user_agent")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
