@@ -61,6 +61,19 @@ export const translateConfig = registerAs('translate', () => ({
   ),
 }));
 
+// Фоновое истечение промо VIP/TOP (TASK-123, ENV.md). expiryCron — расписание
+// repeatable-джобы (по умолчанию каждую минуту); concurrency воркера и размер
+// батча sweep'а ограничивают нагрузку на БД. Поиск и так time-guard'ит истёкшую
+// промо в SQL (ADR-0004 §4), джоба лишь приводит ledger/read-cache в покой.
+export const promotionConfig = registerAs('promotion', () => ({
+  expiryCron: process.env.PROMOTION_EXPIRY_CRON ?? '* * * * *',
+  expiryConcurrency: parseInt(
+    process.env.PROMOTION_EXPIRY_CONCURRENCY ?? '1',
+    10,
+  ),
+  expiryBatchSize: parseInt(process.env.PROMOTION_EXPIRY_BATCH_SIZE ?? '100', 10),
+}));
+
 export const mailConfig = registerAs('mail', () => ({
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT ?? '587', 10),
@@ -102,6 +115,7 @@ export const configurations = [
   mapsConfig,
   smsConfig,
   translateConfig,
+  promotionConfig,
   mailConfig,
   otpConfig,
   rateLimitConfig,
