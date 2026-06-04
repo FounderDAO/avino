@@ -438,58 +438,7 @@ _TASK-070, TASK-071 completed — see docs/DONE.md._
 
 ## 12. M8 — Search and PostGIS
 
-_TASK-080 completed — see docs/DONE.md._
-
-### TASK-081 — Add promotion-aware sorting
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/search-promotion-sorting
-```
-
-Scope:
-
-```text
-Add VIP/TOP/NORMAL default sorting to public search.
-```
-
-Files expected:
-
-```text
-apps/api/src/search/
-```
-
-Acceptance criteria:
-
-```text
-VIP appears before TOP
-TOP appears before NORMAL
-Expired promotions are treated as NORMAL
-created_at desc and id desc are final tie breakers
-Sorting is stable
-```
-
-Suggested commits:
-
-```text
-feat(search): add promotion priority sorting
-```
-
-Dependencies:
-
-```text
-TASK-080
-TASK-037
-```
-
----
+_TASK-080, TASK-081 completed — see docs/DONE.md._
 
 ### TASK-082 — Add PostGIS radius and near-me search
 

@@ -54,10 +54,36 @@ export interface CursorPaginatedResponse<T> {
   meta: { limit: number; total: number; next_cursor: string | null };
 }
 
-/** Позиция keyset-курсора: `(created_at, id)` последнего элемента страницы. */
+/**
+ * Позиция keyset-курсора: `(tier_rank, created_at, id)` последнего элемента
+ * страницы. `tier_rank` — time-guarded числовой ранг промо-тира (2/1/0),
+ * первичный ключ сортировки (TASK-081, ADR-0004).
+ */
 interface SearchCursor {
+  rank: number;
   createdAt: string;
   id: string;
+}
+
+/**
+ * Time-guarded числовой ранг промо-тира для `ORDER BY`/keyset: активный `VIP`=2,
+ * активный `TOP`=1, иначе (истёкшая/отсутствующая промо или `NORMAL`)=0. Гард
+ * `promotion_expires_at > now()` живёт в SQL — истёкшая промо ранжируется как
+ * `NORMAL` независимо от expire-job (ADR-0004 §2/§4). Совпадает с
+ * {@link SearchService.effectiveTier}, который формирует `effective_tier` карточки.
+ */
+const TIER_RANK_SQL = Prisma.sql`
+  CASE
+    WHEN promotion_type = 'VIP' AND promotion_expires_at > now() THEN 2
+    WHEN promotion_type = 'TOP' AND promotion_expires_at > now() THEN 1
+    ELSE 0
+  END`;
+
+/** Строка страницы из raw-запроса ранжирования (только ключи сортировки). */
+interface RankedRow {
+  id: string;
+  created_at: Date;
+  tier_rank: number;
 }
 
 const SEARCH_SELECT = {
@@ -92,11 +118,15 @@ type SearchRow = Prisma.ListingGetPayload<{ select: typeof SEARCH_SELECT }>;
  * SearchService — публичный поиск объявлений (TASK-080, API.md §9).
  *
  * Возвращает ТОЛЬКО `status = ACTIVE` (`DELETED` и прочие непубличные статусы
- * исключены, DB_SCHEMA §15). В рамках TASK-080 — базовые фильтры и keyset-
- * пагинация с детерминированным хвостом `created_at DESC, id DESC`. Promotion-
- * приоритетная сортировка (`effective_promotion_tier DESC`) добавляется TASK-081,
- * гео-фильтры (PostGIS) — TASK-082; до этого `effective_tier` уже отдаётся в
- * ответе (time-guarded), чтобы форма карточки не менялась между задачами.
+ * исключены, DB_SCHEMA §15). Сортировка — promotion-приоритетная (TASK-081,
+ * ADR-0004): `effective_tier DESC, created_at DESC, id DESC`, где `effective_tier`
+ * — time-guarded ранг промо ({@link TIER_RANK_SQL}). Гео-фильтры (PostGIS) —
+ * TASK-082.
+ *
+ * Ранжирование, keyset-пагинация и `total` считаются raw-SQL (Prisma `orderBy`
+ * не выражает CASE с гардом по времени, ADR-0004 §2/§4); далее страница
+ * гидратируется через Prisma по `id` с восстановлением порядка. Это держит
+ * фильтры в одном SQL-билдере и сохраняет relation-load/маппинг карточки §9.
  *
  * Выбор языка перевода делегируется {@link TranslationsService} (TASK-070).
  */
@@ -107,59 +137,63 @@ export class SearchService {
     private readonly translations: TranslationsService,
   ) {}
 
-  /** `GET /api/v1/search` — поиск ACTIVE-листингов по базовым фильтрам. */
+  /** `GET /api/v1/search` — promotion-приоритетный поиск ACTIVE-листингов. */
   async search(
     query: SearchListingsQueryDto,
     langParam?: string,
     acceptLanguage?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
-    const filters = this.buildFilters(query);
     const cursor = this.decodeCursor(query.cursor);
+    const filterSql = this.buildWhereSql(query);
+    const pageWhere = cursor
+      ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor)}`
+      : filterSql;
 
-    const where: Prisma.ListingWhereInput = {
-      ...filters,
-      // ACTIVE — единственный публичный статус (API.md §9). Курсорное условие
-      // «строго после позиции» при ORDER BY (createdAt DESC, id DESC).
-      ...(cursor
-        ? {
-            OR: [
-              { createdAt: { lt: new Date(cursor.createdAt) } },
-              {
-                createdAt: new Date(cursor.createdAt),
-                id: { lt: cursor.id },
-              },
-            ],
-          }
-        : {}),
-    };
-
-    const [rows, total] = await Promise.all([
-      this.prisma.listing.findMany({
-        where,
-        select: SEARCH_SELECT,
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        // +1 элемент — индикатор наличия следующей страницы (есть ли next_cursor).
-        take: limit + 1,
-      }),
-      this.prisma.listing.count({ where: filters }),
+    // Ранжирование + keyset + total в raw-SQL: ORDER BY по time-guarded тиру
+    // (effective_tier DESC, created_at DESC, id DESC), +1 строка — индикатор
+    // следующей страницы. total — отдельный count по тем же фильтрам (без курсора).
+    const [ranked, countRows] = await Promise.all([
+      this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
+        SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank
+        FROM listings
+        WHERE ${pageWhere}
+        ORDER BY ${TIER_RANK_SQL} DESC, created_at DESC, id DESC
+        LIMIT ${limit + 1}
+      `),
+      this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
+        SELECT count(*)::int AS count FROM listings WHERE ${filterSql}
+      `),
     ]);
 
-    const hasMore = rows.length > limit;
-    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const total = countRows[0]?.count ?? 0;
+    const hasMore = ranked.length > limit;
+    const pageRows = hasMore ? ranked.slice(0, limit) : ranked;
     const last = pageRows[pageRows.length - 1];
 
+    // Гидратация relation-карточки по id + восстановление порядка ранжирования
+    // (findMany не гарантирует порядок `IN (...)`).
+    const hydrated = pageRows.length
+      ? await this.prisma.listing.findMany({
+          where: { id: { in: pageRows.map((row) => row.id) } },
+          select: SEARCH_SELECT,
+        })
+      : [];
+    const byId = new Map(hydrated.map((row) => [row.id, row]));
+
     return {
-      data: pageRows.map((row) =>
-        this.toSearchItem(row, langParam, acceptLanguage),
-      ),
+      data: pageRows
+        .map((row) => byId.get(row.id))
+        .filter((row): row is SearchRow => row !== undefined)
+        .map((row) => this.toSearchItem(row, langParam, acceptLanguage)),
       meta: {
         limit,
         total,
         next_cursor:
           hasMore && last
             ? this.encodeCursor({
-                createdAt: last.createdAt.toISOString(),
+                rank: Number(last.tier_rank),
+                createdAt: last.created_at.toISOString(),
                 id: last.id,
               })
             : null,
@@ -168,28 +202,43 @@ export class SearchService {
   }
 
   /**
-   * Базовые фильтры (TASK-080) + обязательный `status = ACTIVE`. Диапазон цены
-   * применяется в пределах одной валюты (`currency`); FX-конвертации нет (§9).
+   * `WHERE`-фрагмент: обязательный `status = ACTIVE` + базовые фильтры (TASK-080).
+   * Параметры биндятся через `Prisma.sql` (защита от инъекций). Enum-колонки
+   * сравниваются через `::text` (не зависит от имени PG-типа); диапазон цены —
+   * в пределах одной валюты (`currency`), FX-конвертации нет (API.md §9).
    */
-  private buildFilters(query: SearchListingsQueryDto): Prisma.ListingWhereInput {
-    const where: Prisma.ListingWhereInput = { status: ListingStatus.ACTIVE };
+  private buildWhereSql(query: SearchListingsQueryDto): Prisma.Sql {
+    const conds: Prisma.Sql[] = [Prisma.sql`status = 'ACTIVE'`];
 
     if (query.transaction_type !== undefined)
-      where.transactionType = query.transaction_type;
+      conds.push(Prisma.sql`transaction_type::text = ${query.transaction_type}`);
     if (query.property_type !== undefined)
-      where.propertyType = query.property_type;
-    if (query.currency !== undefined) where.currency = query.currency;
-    if (query.city_id !== undefined) where.cityId = query.city_id;
-    if (query.district_id !== undefined) where.districtId = query.district_id;
+      conds.push(Prisma.sql`property_type::text = ${query.property_type}`);
+    if (query.currency !== undefined)
+      conds.push(Prisma.sql`currency::text = ${query.currency}`);
+    if (query.city_id !== undefined)
+      conds.push(Prisma.sql`city_id = ${query.city_id}::uuid`);
+    if (query.district_id !== undefined)
+      conds.push(Prisma.sql`district_id = ${query.district_id}::uuid`);
+    if (query.price_min !== undefined)
+      conds.push(Prisma.sql`price >= ${query.price_min}::numeric`);
+    if (query.price_max !== undefined)
+      conds.push(Prisma.sql`price <= ${query.price_max}::numeric`);
 
-    if (query.price_min !== undefined || query.price_max !== undefined) {
-      where.price = {
-        ...(query.price_min !== undefined ? { gte: query.price_min } : {}),
-        ...(query.price_max !== undefined ? { lte: query.price_max } : {}),
-      };
-    }
+    return Prisma.join(conds, ' AND ');
+  }
 
-    return where;
+  /**
+   * Keyset-условие «строго после позиции» по `(tier_rank, created_at, id)`:
+   * `rank < c.rank OR (rank = c.rank AND created_at < c.createdAt)
+   *  OR (rank = c.rank AND created_at = c.createdAt AND id < c.id)`.
+   */
+  private cursorConditionSql(cursor: SearchCursor): Prisma.Sql {
+    return Prisma.sql`(
+      ${TIER_RANK_SQL} < ${cursor.rank}
+      OR (${TIER_RANK_SQL} = ${cursor.rank} AND created_at < ${cursor.createdAt}::timestamptz)
+      OR (${TIER_RANK_SQL} = ${cursor.rank} AND created_at = ${cursor.createdAt}::timestamptz AND id < ${cursor.id}::uuid)
+    )`;
   }
 
   /** Карточка листинга в snake_case для результатов поиска (API.md §9). */
@@ -270,13 +319,15 @@ export class SearchService {
       const json = Buffer.from(raw, 'base64url').toString('utf8');
       const parsed = JSON.parse(json) as Partial<SearchCursor>;
       if (
+        typeof parsed.rank !== 'number' ||
+        !Number.isFinite(parsed.rank) ||
         typeof parsed.createdAt !== 'string' ||
         typeof parsed.id !== 'string' ||
         Number.isNaN(new Date(parsed.createdAt).getTime())
       ) {
         throw new Error('malformed cursor');
       }
-      return { createdAt: parsed.createdAt, id: parsed.id };
+      return { rank: parsed.rank, createdAt: parsed.createdAt, id: parsed.id };
     } catch {
       throw new BadRequestException({
         code: ApiErrorCode.VALIDATION_ERROR,
