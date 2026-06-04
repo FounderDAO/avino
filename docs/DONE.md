@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/admin-promotion-activation
-PR: pending
+PR: #60
 
 Files changed:
 - apps/api/src/promotions/admin-promotions.service.ts
