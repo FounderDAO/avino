@@ -424,61 +424,9 @@ _All M4 tasks completed — see docs/DONE.md (TASK-040–044)._
 
 ## 9. M5 — Listings and moderation
 
-_TASK-050, TASK-051, TASK-052 completed — see docs/DONE.md._
+_TASK-050, TASK-051, TASK-052, TASK-053 completed — see docs/DONE.md._
 
 ---
-
-### TASK-053 — Add listing moderation workflow
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/listing-moderation
-```
-
-Scope:
-
-```text
-Implement admin/moderator listing moderation endpoints.
-```
-
-Files expected:
-
-```text
-apps/api/src/admin/
-apps/api/src/listings/
-apps/api/src/moderation/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/admin/listings?status=NEW works
-PATCH /api/v1/admin/listings/:id/status works
-Only admin/moderator can moderate
-Moderation log is created
-Status change notification job is queued
-```
-
-Suggested commits:
-
-```text
-feat(moderation): add listing moderation queue
-feat(moderation): add listing status updates
-```
-
-Dependencies:
-
-```text
-TASK-050
-TASK-044
-```
 
 ## 10. M6 — Media uploads
 
