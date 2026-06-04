@@ -39,6 +39,37 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-100 — Add notification records module
+
+Status: DONE
+Branch: feat/notifications-records
+PR: pending
+
+Files changed:
+- apps/api/src/notifications/notifications.controller.ts
+- apps/api/src/notifications/notifications.service.ts
+- apps/api/src/notifications/notifications.service.spec.ts
+- apps/api/src/notifications/dto/list-notifications.dto.ts
+- apps/api/src/notifications/notifications.module.ts
+- apps/api/src/notifications/index.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0036-notifications-read-endpoints.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Implemented the read side of notifications (TASK-100, API.md §14) on top of the existing producer (`NotificationsService.queuePromotionExpired`, TASK-123): in-app feed `GET /api/v1/notifications` plus mark-read actions. Registered `NotificationsModule` in `AppModule` (previously only imported by `PromotionsModule` as a provider) and added `RolesModule` for Bearer auth.
+- `GET /api/v1/notifications` — keyset feed (`created_at DESC, id DESC`, opaque base64url cursor, mirrors `/favorites`), optional `status`/`type` filters, `meta: { limit, total, unread, next_cursor }`. `unread` is the global badge `count(user_id, read_at IS NULL)`, independent of filters; a corrupted cursor → `400 VALIDATION_ERROR`.
+- Mark-read uses **POST** per `API.md §14` (the TASK-100 card says `PATCH`, but `API.md` is authoritative for route wording — same precedent as ADR-0012): `POST /api/v1/notifications/:id/read` and `POST /api/v1/notifications/read-all`, both → `204`. Read sets `read_at = now`, `status → READ`; single-mark is scoped by `(id, user_id)` so other users' notifications return `404` and don't leak existence; mark-all touches only `read_at IS NULL`. Both idempotent.
+- Device registration (`POST/DELETE /notifications/devices`, push-stub ADR-010) is out of scope for TASK-100 (not in its acceptance criteria); deferred to a focused follow-up to keep the PR single-purpose (CLAUDE.md §5).
+- Verified: `nest build` clean, `eslint` clean, full unit suite 230/230 green (9 in `notifications.service.spec.ts` covering producer + feed order/total/unread/next_cursor + status/type filters + corrupted cursor 400 + single/all mark-read incl. 404 on foreign). No migration, no new enum.
+
+Commit messages:
+- feat(notifications): add notification read endpoints and feed
+
+Related ADR:
+- docs/adr/ADR-0036-notifications-read-endpoints.md
+
 ### TASK-123 — Add promotion expiration job
 
 Status: DONE

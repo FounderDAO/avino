@@ -450,55 +450,7 @@ _TASK-090, TASK-091 completed — see docs/DONE.md._
 
 ## 14. M10 — Notifications
 
-### TASK-100 — Add notification records module
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/notifications-records
-```
-
-Scope:
-
-```text
-Implement notification storage and read endpoints.
-```
-
-Files expected:
-
-```text
-apps/api/src/notifications/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/notifications works
-PATCH /api/v1/notifications/:id/read works
-PATCH /api/v1/notifications/read-all works
-User can only read own notifications
-```
-
-Suggested commits:
-
-```text
-feat(notifications): add notification records
-```
-
-Dependencies:
-
-```text
-TASK-038
-TASK-044
-```
-
----
+_TASK-100 completed — see docs/DONE.md._
 
 ### TASK-101 — Add email queue
 
