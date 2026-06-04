@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/saved-searches
-PR: pending
+PR: #58
 
 Files changed:
 - apps/api/src/saved-searches/saved-searches.controller.ts
