@@ -562,7 +562,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/listings-crud
-PR: pending
+PR: #40
 
 Files changed:
 - apps/api/src/listings/listings.module.ts
