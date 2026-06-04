@@ -1,5 +1,6 @@
 import { Controller, Get, Headers, Query } from '@nestjs/common';
 import {
+  BoundsSearchQueryDto,
   NearMeSearchQueryDto,
   RadiusSearchQueryDto,
 } from './dto/geo-search.dto';
@@ -43,6 +44,20 @@ export class SearchController {
     @Headers('accept-language') acceptLanguage?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     return this.searchService.searchRadius(query, lang, acceptLanguage);
+  }
+
+  /**
+   * `GET /api/v1/search/bounds` — ACTIVE-листинги внутри видимой области карты
+   * (`ST_MakeEnvelope`/`ST_Within` по `sw_*`/`ne_*` углам). Promotion-приоритетный
+   * порядок (keyset), как у `/search`; `distance_m` нет. Маркеры для карты. API.md §10.
+   */
+  @Get('bounds')
+  searchBounds(
+    @Query() query: BoundsSearchQueryDto,
+    @Query('lang') lang?: string,
+    @Headers('accept-language') acceptLanguage?: string,
+  ): Promise<CursorPaginatedResponse<SearchListItem>> {
+    return this.searchService.searchBounds(query, lang, acceptLanguage);
   }
 
   /**

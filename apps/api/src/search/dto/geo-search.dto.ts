@@ -56,3 +56,50 @@ export class RadiusSearchQueryDto extends GeoSearchQueryDto {
  * (наследуется из §9, default 20 / max 100); keyset-курсор не применяется.
  */
 export class NearMeSearchQueryDto extends GeoSearchQueryDto {}
+
+/**
+ * Query-параметры `GET /api/v1/search/bounds` (TASK-083, API.md §10).
+ *
+ * Поиск ACTIVE-листингов внутри видимой области карты (bbox `ST_MakeEnvelope` +
+ * точный `ST_Within`). `sw_*` — юго-западный угол, `ne_*` — северо-восточный
+ * (WGS84). Валидация диапазона обязательна (CLAUDE.md §12): широта −90..90,
+ * долгота −180..180; невалидные/отсутствующие → `400 VALIDATION_ERROR`. Порядок —
+ * promotion-приоритетный (keyset), как у `/search`; `distance_m` не возвращается
+ * (центральной точки у bbox нет). Наследует базовые фильтры §9.
+ *
+ * Не поддерживает bbox через антимеридиан (`sw_lng > ne_lng`) — для рынка
+ * Узбекистана не требуется; вырожденный/перевёрнутый bbox даёт пустую выдачу.
+ */
+export class BoundsSearchQueryDto extends SearchListingsQueryDto {
+  /** Широта юго-западного угла (WGS84), −90..90. */
+  @Type(() => Number)
+  @IsNumber()
+  @IsLatitude()
+  @Min(-90)
+  @Max(90)
+  sw_lat!: number;
+
+  /** Долгота юго-западного угла (WGS84), −180..180. */
+  @Type(() => Number)
+  @IsNumber()
+  @IsLongitude()
+  @Min(-180)
+  @Max(180)
+  sw_lng!: number;
+
+  /** Широта северо-восточного угла (WGS84), −90..90. */
+  @Type(() => Number)
+  @IsNumber()
+  @IsLatitude()
+  @Min(-90)
+  @Max(90)
+  ne_lat!: number;
+
+  /** Долгота северо-восточного угла (WGS84), −180..180. */
+  @Type(() => Number)
+  @IsNumber()
+  @IsLongitude()
+  @Min(-180)
+  @Max(180)
+  ne_lng!: number;
+}

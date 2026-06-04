@@ -39,6 +39,38 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-083 — Add map bounds search
+
+Status: DONE
+Branch: feat/search-map-bounds
+PR: pending
+
+Files changed:
+- apps/api/src/search/dto/geo-search.dto.ts
+- apps/api/src/search/search.controller.ts
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/search.service.spec.ts
+- apps/api/src/search/search.service.geo.int-spec.ts
+- docs/adr/ADR-0029-search-map-bounds.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added a public map-bounds endpoint on top of the existing PostGIS schema (no new migrations — `location` trigger + GIST index `idx_listings_location` already exist from TASK-035, ADR-0003): `GET /api/v1/search/bounds`. Returns ACTIVE listings inside the visible map rectangle (`ST_MakeEnvelope` + exact `ST_Within`), with the same promotion-priority ordering + keyset as `/search` and `/search/radius`. No `distance_m` (a bbox has no center point); the field stays optional and absent (non-breaking).
+- The bbox predicate uses `location && <envelope>::geography` (GIST-indexed bbox prefilter) followed by `ST_Within(location::geometry, <envelope>)` (exact). The envelope is `ST_MakeEnvelope(sw_lng, sw_lat, ne_lng, ne_lat, 4326)` (longitude first, matching `pointSql`/the sync trigger). NULL-`location` rows are excluded.
+- Route and params follow docs/API.md (`/search/bounds`, `sw_lat/sw_lng/ne_lat/ne_lng`), which is authoritative over the task-card wording (`/search/map`, `north/south/east/west`). Promotion fields (`promotion_type`, `promotion_expires_at`, `effective_tier`) are already part of the §9 card, so map markers get VIP/TOP data for the marker UI.
+- Coordinate validation per acceptance criteria: `BoundsSearchQueryDto` requires `sw_lat`/`ne_lat` (−90..90) and `sw_lng`/`ne_lng` (−180..180); invalid/missing → `400 VALIDATION_ERROR`. Reused the ranking pipeline (`buildWhereSql`/`hydrateCards`/`buildKeysetEnvelope`); only a small `envelopeSql` helper was added.
+
+Important notes:
+- Antimeridian-crossing bboxes (`sw_lng > ne_lng`) are not supported (not needed for Uzbekistan); an inverted/degenerate bbox yields an empty result, not an error.
+- Verified: `pnpm test` 20 suites / 169 tests (was 166, +3 unit tests for bounds SQL shape, no-`distance_m`, keyset). `pnpm test:int` 2 suites / 7 tests on live PostGIS — `search.service.geo.int-spec.ts` now seeds listings at known coordinates and asserts bbox inclusion/exclusion (incl. NULL-geo) and a stable bounds keyset. `nest build` (tsc) and ESLint clean.
+
+Commit messages:
+- feat(search): add map bounds search
+
+Related ADR:
+- docs/adr/ADR-0029-search-map-bounds.md
+
 ### TASK-082 — Add PostGIS radius and near-me search
 
 Status: DONE
