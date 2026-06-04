@@ -407,6 +407,35 @@ export class SearchService {
   }
 
   /**
+   * Гидратация карточек §9 по списку id с сохранением порядка входных id
+   * (`findMany` не гарантирует порядок `IN (...)`). Публичный reuse-хук для
+   * модулей, которые сами решают порядок/набор листингов и хотят ту же карточку,
+   * что и `/search` (TASK-090 «карточки как в /search», API.md §11). `distance_m`
+   * не проставляется (точки запроса нет); отсутствующий id молча отбрасывается.
+   */
+  async cardsByIds(
+    ids: string[],
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<SearchListItem[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const hydrated = await this.prisma.listing.findMany({
+      where: { id: { in: ids } },
+      select: SEARCH_SELECT,
+    });
+    const byId = new Map<string, SearchRow>(
+      hydrated.map((row) => [row.id, row]),
+    );
+
+    return ids
+      .map((id) => byId.get(id))
+      .filter((row): row is SearchRow => row !== undefined)
+      .map((row) => this.toSearchItem(row, langParam, acceptLanguage));
+  }
+
+  /**
    * `WHERE`-фрагмент: обязательный `status = ACTIVE` + базовые фильтры (TASK-080).
    * Параметры биндятся через `Prisma.sql` (защита от инъекций). Enum-колонки
    * сравниваются через `::text` (не зависит от имени PG-типа); диапазон цены —

@@ -39,6 +39,45 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-090 — Add favorites module
+
+Status: DONE
+Branch: feat/favorites
+PR: #57
+
+Files changed:
+- apps/api/src/favorites/favorites.controller.ts
+- apps/api/src/favorites/favorites.service.ts
+- apps/api/src/favorites/favorites.module.ts
+- apps/api/src/favorites/favorites.service.spec.ts
+- apps/api/src/favorites/dto/create-favorite.dto.ts
+- apps/api/src/favorites/dto/list-favorites.dto.ts
+- apps/api/src/favorites/index.ts
+- apps/api/src/search/search.service.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0030-favorites-module.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the favorites module on top of the existing schema (no new migrations — the `Favorite` model / `favorites` table with `UNIQUE (user_id, listing_id)` already exist from migration `20260603180000_add_favorites_saved_searches`, DB_SCHEMA §9): `GET /api/v1/favorites`, `POST /api/v1/favorites`, `DELETE /api/v1/favorites/:listingId`. The whole controller is under `JwtAuthGuard`, so a guest without a Bearer token gets `401` (API.md §11) — "guest cannot use favorites".
+- Routes follow docs/API.md (`POST /favorites` with body `{ listing_id }`, `DELETE /favorites/:listingId`), which is authoritative over the task-card wording (`POST/DELETE /favorites/:listingId`). `POST` validates the listing exists and is not `DELETED` (else `404`), then `create`s; duplicates are prevented atomically by catching the `P2002` unique-index violation → `409 ALREADY_FAVORITED` (no TOCTOU pre-check). `DELETE` removes by `(user_id, listing_id)` via `deleteMany` (cannot delete someone else's favorite); nothing to remove → `404`.
+- `GET /favorites` lists by favorite recency (`created_at DESC, id DESC`, newest first) with its own opaque keyset cursor (`{ created_at, id }`), not the tier-aware `/search` cursor. `DELETED` listings are excluded by a relation filter at the DB level so `limit + 1` keyset and `total` stay correct. A corrupted cursor → `400 VALIDATION_ERROR`.
+- The list returns the same §9 card as `/search` (API.md §11: "карточки как в /search") via a new public `SearchService.cardsByIds(ids, lang, acceptLanguage)` that hydrates listings by id (same `SEARCH_SELECT` — translations + cover media), preserves input order, and maps through the existing private `toSearchItem`. This reuses the translation language selection (TASK-070) and card shape without duplicating them; `SEARCH_SELECT`/`toSearchItem` stay encapsulated in `SearchService`.
+
+Important notes:
+- Favorites list ordering is by add-time only (a personal list, not a promotion showcase); no promotion prioritization in MVP.
+- Coverage is unit tests (Prisma/SearchService mocked), as with `listing-media`; no live-PostgreSQL integration spec was added for favorites.
+- Verified: `jest` 21 suites / 179 tests green (+13 for favorites add/remove/list, cursor, DELETED relation filter); `tsc --noEmit` and ESLint clean.
+
+Commit messages:
+- feat(favorites): add favorite listings module
+- feat(search): expose cardsByIds for card reuse
+- docs(adr): add ADR-0030 favorites module
+
+Related ADR:
+- docs/adr/ADR-0030-favorites-module.md
+
 ### TASK-083 — Add map bounds search
 
 Status: DONE

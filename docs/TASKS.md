@@ -444,58 +444,6 @@ _TASK-080, TASK-081, TASK-082, TASK-083 completed — see docs/DONE.md._
 
 ## 13. M9 — Favorites and saved searches
 
-### TASK-090 — Add favorites module
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/favorites
-```
-
-Scope:
-
-```text
-Implement favorite listings.
-```
-
-Files expected:
-
-```text
-apps/api/src/favorites/
-```
-
-Acceptance criteria:
-
-```text
-POST /api/v1/favorites/:listingId works
-DELETE /api/v1/favorites/:listingId works
-GET /api/v1/favorites works
-Guest cannot use favorites
-Duplicate favorites are prevented
-```
-
-Suggested commits:
-
-```text
-feat(favorites): add favorite listings
-```
-
-Dependencies:
-
-```text
-TASK-038
-TASK-044
-TASK-051
-```
-
----
-
 ### TASK-091 — Add saved searches module
 
 Status:
