@@ -17,6 +17,7 @@ import {
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
+import { TranslationsService } from '../translations';
 import { ListingsService } from './listings.service';
 
 /**
@@ -64,7 +65,9 @@ describe('ListingsService', () => {
         update: jest.fn(),
       },
     };
-    service = new ListingsService(prisma);
+    // Реальный TranslationsService (логика переводов делегирована ему, TASK-070);
+    // его resolveLanguage/buildOriginalTranslationInput чисты, prisma не вызывают.
+    service = new ListingsService(prisma, new TranslationsService(prisma));
   });
 
   async function expectCode(promise: Promise<unknown>, code: ApiErrorCode) {
