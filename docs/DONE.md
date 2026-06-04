@@ -558,6 +558,44 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-070 — Add listing translation service
+
+Status: DONE
+Branch: feat/listing-translation-service
+PR: pending
+
+Files changed:
+- apps/api/src/translations/translations.service.ts
+- apps/api/src/translations/translations.service.spec.ts
+- apps/api/src/translations/translations.controller.ts
+- apps/api/src/translations/translations.module.ts
+- apps/api/src/translations/index.ts
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/listings.service.spec.ts
+- apps/api/src/listings/listings.module.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0024-listing-translation-service.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added a dedicated `TranslationsModule`/`TranslationsService` (M7) as the single source of listing-translation logic, on top of the existing `ListingTranslation` model. It encapsulates three operations: `buildOriginalTranslationInput` (author row on `original_language`, source=USER, `is_auto_translated=false`), `resolveLanguage` (response language pick: `?lang` → `Accept-Language` → fallback to `original_language` → first available, ADR-005/012), and `listByListing` (all translations for a listing).
+- Implemented `GET /api/v1/listings/:id/translations` (API.md §7): Bearer + an ownership gate (listing owner **or** MODERATOR/ADMIN). Missing/DELETED listing → 404 (excluded from all read-paths, no existence leak); authenticated stranger → 403. The response is a management view — it includes `source` and `is_auto_translated` so the owner/moderation can tell author text from machine translation: `{ listing_id, original_language, translations: [{ language, source, is_auto_translated, title, description, address_note, features_text }] }`, sorted by `language`.
+- Refactored `ListingsService` to delegate author-row construction and language resolution to `TranslationsService`, removing the duplicated private `resolveLanguage`/`normalizeLanguage`/`parseAcceptLanguage` helpers. The `GET /api/v1/listings/:id` contract is unchanged; language/fallback behaviour stays verified through the delegate in the existing `ListingsService` tests.
+
+Important notes:
+- Acceptance criteria satisfied: original-language row is created (on listing create), translations are retrievable by language (resolveLanguage + the translations endpoint), listing response supports language selection (`?lang`/`Accept-Language`), and the missing-translation fallback is defined (→ `original_language` → first available).
+- Auto-translation to the remaining languages (`translation_queue`, Google/Yandex provider, re-generation after ACTIVE) is intentionally out of scope — that is TASK-071; this task is the synchronous storage/retrieval layer only. Until TASK-071 lands, only the author row on `original_language` exists.
+- 14 new unit tests (TranslationsService: buildOriginalTranslationInput, resolveLanguage matrix, listByListing gates/mapping); full apps/api suite green (15 suites, 135 tests). `nest build` clean; ESLint clean.
+
+Commit messages:
+- feat(translations): add listing translation service
+- refactor(listings): delegate translation logic to TranslationsService
+- docs(adr): record listing translation service decision (ADR-0024)
+
+Related ADR:
+- docs/adr/ADR-0024-listing-translation-service.md
+
 ### TASK-061 — Add listing media endpoints
 
 Status: DONE
