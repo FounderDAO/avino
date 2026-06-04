@@ -419,7 +419,16 @@ TASK-001
 Status:
 
 ```text
-TODO
+BLOCKED
+```
+
+Blocked by:
+
+```text
+Требуется аутентификация: GET/PATCH /users/me работают только для
+authenticated user, но Auth-модуль (OTP + access-токены + @CurrentUser)
+ещё не реализован. Декоратор @CurrentUser — deliverable TASK-043.
+Разблокировать после TASK-041 → TASK-042 → TASK-043.
 ```
 
 Branch:
@@ -444,8 +453,9 @@ apps/api/src/profiles/
 Acceptance criteria:
 
 ```text
-GET /api/v1/me works for authenticated user
-PATCH /api/v1/me updates profile
+GET /api/v1/users/me works for authenticated user (контракт API.md §5)
+PATCH /api/v1/users/me updates base user fields
+PATCH /api/v1/users/me/profile updates profile
 User profile is created if missing
 ```
 
@@ -460,60 +470,7 @@ Dependencies:
 ```text
 TASK-033
 TASK-021
-```
-
----
-
-### TASK-041 — Add AuthModule OTP request
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/auth-request-otp
-```
-
-Scope:
-
-```text
-Implement OTP request by phone/email.
-```
-
-Files expected:
-
-```text
-apps/api/src/auth/
-apps/api/src/sms/
-apps/api/src/email/
-```
-
-Acceptance criteria:
-
-```text
-POST /api/v1/auth/request-otp exists
-Phone OTP request works with Eskiz abstraction
-Email OTP request works with email abstraction
-OTP is stored hashed
-OTP request is rate-limited
-```
-
-Suggested commits:
-
-```text
-feat(auth): add OTP request endpoint
-feat(auth): add OTP hashing and rate limit
-```
-
-Dependencies:
-
-```text
-TASK-034
-TASK-023
+TASK-043 (@CurrentUser / auth guard) — реальный блокер
 ```
 
 ---

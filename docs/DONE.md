@@ -553,3 +553,57 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0008-core-domain-enums.md
+
+---
+
+## 2026-06-04
+
+### TASK-041 — Add AuthModule OTP request
+
+Status: DONE
+Branch: feat/auth-request-otp
+PR: pending
+
+Files changed:
+- apps/api/src/auth/auth.controller.ts
+- apps/api/src/auth/auth.module.ts
+- apps/api/src/auth/otp.service.ts
+- apps/api/src/auth/otp-rate-limit.service.ts
+- apps/api/src/auth/otp-hash.util.ts
+- apps/api/src/auth/contact.util.ts
+- apps/api/src/auth/dto/request-otp.dto.ts
+- apps/api/src/auth/otp.util.spec.ts
+- apps/api/src/sms/sms.service.ts
+- apps/api/src/sms/sms.module.ts
+- apps/api/src/sms/index.ts
+- apps/api/src/email/email.service.ts
+- apps/api/src/email/email.module.ts
+- apps/api/src/email/index.ts
+- apps/api/src/redis/redis.service.ts
+- apps/api/src/redis/redis.module.ts
+- apps/api/src/redis/index.ts
+- apps/api/src/config/configuration.ts
+- apps/api/src/config/env.validation.ts
+- apps/api/src/app.module.ts
+- apps/api/tsconfig.json
+- apps/api/jest.config.js
+- .env.example
+- .env
+- docs/adr/ADR-0012-otp-request-and-rate-limiting.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Implemented the first step of the OTP auth-flow (`request → verify → refresh → logout`): `POST /api/v1/auth/otp/request` (public/GUEST). Route follows the `API.md` §3 contract (`auth/otp/request`), not the `request-otp` wording in the task card — `API.md` is authoritative (CLAUDE.md §2). Accepts `{ channel: SMS|EMAIL, destination }`, returns `{ request_id, channel, expires_in, resend_after }`; the code itself is never returned.
+- OTP codes are stored as a slow `scrypt` hash (`node:crypto`) with a unique per-code salt (`code_hash` = `salt:key`), never plaintext, with constant-time verification — protects the low-entropy 6-digit code (~10^6 combos) against brute-force on a DB leak. Prior unconsumed codes for a destination are invalidated on a new request (only the latest is valid). `user_id` is bound to a non-DELETED account when one exists, else null (pre-signup login, DB_SCHEMA §4).
+- Delivery via `SmsService` (Eskiz.uz REST over global `fetch`, in-memory Bearer token with 401-refresh) and `EmailService` (SMTP transport deferred to `email_queue`); when a provider is not configured, the code is logged in dev only (never in production — ARCHITECTURE §23). Both abstractions keep `sendOtp` signatures stable for the future real transport.
+- Rate limiting on a new global `RedisModule` (per the "destination + IP" requirement, DB_SCHEMA §15 / API.md §3): per-destination cooldown (`OTP_RESEND_COOLDOWN`) plus a per-IP fixed window (`RATE_LIMIT_WINDOW` / `RATE_LIMIT_MAX`); either breach → `429 RATE_LIMITED` in the unified error-envelope (ADR-0007). State lives in Redis so it survives an API restart.
+- Added `otp` / `rateLimit` config namespaces (ENV.md §8) with safe defaults and env validation: `OTP_TTL`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_COOLDOWN`, `RATE_LIMIT_WINDOW`, `RATE_LIMIT_MAX`, `ESKIZ_FROM`.
+- Verified end-to-end against the project's Postgres + Redis containers: `nest build` clean; 9/9 unit tests green (scrypt hash roundtrip / wrong-code / unique-salt / malformed-hash, plus phone/email normalization). Live smoke: valid SMS and EMAIL requests → 200; invalid phone / bad enum / extra field → 400 `VALIDATION_ERROR` with per-field details; immediate resend → 429 `RATE_LIMITED`; dev delivery logged the codes; `otp_codes` rows stored 97-char scrypt hashes (no plaintext), `attempts=0`, not expired, email normalized to lowercase.
+
+Commit messages:
+- feat(auth): add OTP hashing and rate limit
+- feat(auth): add OTP request endpoint
+
+Related ADR:
+- docs/adr/ADR-0012-otp-request-and-rate-limiting.md
