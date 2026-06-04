@@ -717,57 +717,7 @@ _TASK-121 completed — see docs/DONE.md._
 
 _TASK-122 completed — see docs/DONE.md._
 
-### TASK-123 — Add promotion expiration job
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/promotion-expiration-job
-```
-
-Scope:
-
-```text
-Implement background job to expire VIP/TOP promotions.
-```
-
-Files expected:
-
-```text
-apps/api/src/promotions/
-apps/api/src/queues/
-apps/api/src/notifications/
-```
-
-Acceptance criteria:
-
-```text
-promotion_queue exists
-expire_listing_promotions job exists
-Expired promotion becomes EXPIRED
-Listing read cache returns to NORMAL
-Notification job is queued
-Search still treats expired promotion as NORMAL even if job is delayed
-```
-
-Suggested commits:
-
-```text
-feat(promotions): add expiration job
-```
-
-Dependencies:
-
-```text
-TASK-122
-TASK-100
-```
+_TASK-123 completed — see docs/DONE.md._
 
 ## 17. M13 — Admin panel backend
 
