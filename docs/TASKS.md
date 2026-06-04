@@ -424,56 +424,7 @@ _All M4 tasks completed — see docs/DONE.md (TASK-040–044)._
 
 ## 9. M5 — Listings and moderation
 
-_TASK-050, TASK-051 completed — see docs/DONE.md._
-
----
-
-### TASK-052 — Add owner listings endpoint
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/my-listings
-```
-
-Scope:
-
-```text
-Implement authenticated user's own listings endpoint.
-```
-
-Files expected:
-
-```text
-apps/api/src/listings/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/me/listings exists
-Returns current user's listings
-Supports status filter
-Supports pagination
-```
-
-Suggested commits:
-
-```text
-feat(listings): add my listings endpoint
-```
-
-Dependencies:
-
-```text
-TASK-050
-```
+_TASK-050, TASK-051, TASK-052 completed — see docs/DONE.md._
 
 ---
 
