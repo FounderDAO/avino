@@ -558,6 +558,50 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-052 — Add owner listings endpoint
+
+Status: DONE
+Branch: feat/my-listings
+PR: pending
+
+Files changed:
+- apps/api/src/listings/dto/list-my-listings.dto.ts
+- apps/api/src/listings/listings.controller.ts
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/listings.service.spec.ts
+- apps/api/src/listings/index.ts
+- docs/adr/ADR-0020-owner-listings-endpoint-pagination.md
+
+Summary:
+- Added `GET /api/v1/listings/mine` — paginated list of the current user's own
+  listings (Bearer auth, only own `owner_id`). Route declared before `:id` so the
+  static path is not captured by the param route.
+- Route follows `docs/API.md` §7 (`/listings/mine`), not the task-card wording
+  `/me/listings` — API.md is authoritative on route divergence.
+- Returns any status except `DELETED`: soft-deleted listings stay excluded from all
+  read-path (API.md §7), so an explicit `status=DELETED` filter is coerced to
+  `{ not: DELETED }` and never leaks deleted rows.
+- First collection endpoint — fixes the page-based envelope contract: `page`
+  (default 1) + `limit` (default 20, max 100, capped) + required `meta.total`
+  (API.md §4); `PaginatedResponse<T> = { data, meta:{ page, limit, total } }`.
+  Keyset stays reserved for public search/listings (ADR-007).
+- Compact `ListingListItem` (lighter than the detail card): core scalars,
+  promotion fields, `title` on `original_language` (fallback to first translation),
+  `thumbnail_url` cover (first media by `sort_order`). Decimal/dates as strings.
+- Sort `created_at DESC, id DESC` (deterministic tail). `findMany` + `count` run in
+  parallel. Deliberately out of scope: keyset pagination, per-list language
+  negotiation, `DELETE`/`/translations`/moderation (TASK-053+).
+
+Commit messages:
+- feat(listings): add owner listings endpoint
+- test(listings): cover owner listings pagination and filtering
+- docs(adr): record owner listings endpoint decision (ADR-0020)
+
+Related ADR:
+- docs/adr/ADR-0020-owner-listings-endpoint-pagination.md
+
+---
+
 ### TASK-051 — Add public listing detail
 
 Status: DONE
