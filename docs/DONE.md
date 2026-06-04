@@ -558,6 +558,49 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-042 — Add AuthModule OTP verify and tokens
+
+Status: DONE
+Branch: feat/auth-verify-otp
+PR: pending
+
+Files changed:
+- apps/api/src/auth/auth.controller.ts
+- apps/api/src/auth/auth.service.ts
+- apps/api/src/auth/auth.service.spec.ts
+- apps/api/src/auth/token.service.ts
+- apps/api/src/auth/token.util.ts
+- apps/api/src/auth/token.util.spec.ts
+- apps/api/src/auth/dto/verify-otp.dto.ts
+- apps/api/src/auth/auth.module.ts
+- apps/api/src/config/configuration.ts
+- apps/api/src/config/env.validation.ts
+- apps/api/package.json
+- pnpm-lock.yaml
+- .env.example
+- docs/adr/ADR-0014-otp-verify-and-session-tokens.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Implemented the second step of the OTP auth-flow: `POST /api/v1/auth/otp/verify` (public). Route follows the `API.md` §3 contract (`auth/otp/verify`), not the `verify-otp` wording in the task card — `API.md` is authoritative (CLAUDE.md §2). Accepts `{ channel, destination, code }`, returns `{ access_token, refresh_token, token_type: "Bearer", expires_in, user }`.
+- Verify checks run in order: latest unconsumed code for the destination (else `OTP_INVALID`); expired → consumed + `OTP_EXPIRED`; `attempts >= OTP_MAX_ATTEMPTS` → `OTP_ATTEMPTS_EXCEEDED` (429); wrong code → increment `attempts` and `OTP_INVALID` (or `OTP_ATTEMPTS_EXCEEDED` when the attempt hits the limit); success → the code is consumed (single-use).
+- Signup-as-login: when no non-DELETED account owns the contact, a `users` row + base `USER` role are created in one transaction and the used channel is marked verified; an existing `BLOCKED` account → `USER_BLOCKED` (403); otherwise the verified flag and `last_login_at` are updated.
+- Tokens via `@nestjs/jwt` (HS256): access and refresh are signed with DIFFERENT secrets (`JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET`, both mandatory, no defaults). access carries `sub`+`roles`; refresh carries `sub`+`fid`+`jti` (jti = `refresh_tokens` row id, the hook TASK-043 uses for rotation/reuse-detection). Only a deterministic `HMAC-SHA256(token, JWT_REFRESH_SECRET)` hash is stored — the token value is never persisted.
+- Successful logins are written to `audit_logs` (`action='LOGIN'`, `entity_type='user'`, `metadata.channel`); ip/user-agent are saved on the refresh row and the audit row.
+- Added the `jwt` config namespace + `JWT_*` env vars (ENV.md §7, validated fail-fast) to `.env.example` and env validation. `TokenService` is exported for TASK-043.
+
+Important notes:
+- refresh rotation / logout (reuse-detection by `family_id`) is deliberately out of scope — TASK-043.
+- 22 unit tests pass (`token.util` determinism/pepper; full `AuthService.verifyOtp` decision matrix incl. signup, blocked, lockout). `nest build` is green. apps/api ESLint config is still absent (pre-existing scaffold gap from TASK-010); Prettier-formatted.
+
+Commit messages:
+- feat(auth): add OTP verification and issue access/refresh tokens
+- docs(adr): record OTP verify and session token decision (TASK-042)
+
+Related ADR:
+- docs/adr/ADR-0014-otp-verify-and-session-tokens.md
+
 ### TASK-041 — Add AuthModule OTP request
 
 Status: DONE
