@@ -35,3 +35,18 @@ export const PROMOTION_PLANS: readonly PromotionPlan[] = [
   { type: PromotionType.VIP, period_days: 14, price: '210000.00', currency: Currency.UZS },
   { type: PromotionType.VIP, period_days: 30, price: '350000.00', currency: Currency.UZS },
 ] as const;
+
+/**
+ * Найти план по тиру и периоду. `undefined`, если комбинации нет в каталоге
+ * (например `period_days` не из {7,14,30}) — вызывающий трактует это как
+ * `422 INVALID_PERIOD`. Каталог — единственный источник цены/валюты активации
+ * (TASK-121), online-оплаты в MVP нет.
+ */
+export function findPlan(
+  type: PromotionType,
+  periodDays: number,
+): PromotionPlan | undefined {
+  return PROMOTION_PLANS.find(
+    (plan) => plan.type === type && plan.period_days === periodDays,
+  );
+}
