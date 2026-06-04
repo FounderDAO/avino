@@ -39,6 +39,39 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-082 — Add PostGIS radius and near-me search
+
+Status: DONE
+Branch: feat/search-postgis-radius
+PR: pending
+
+Files changed:
+- apps/api/src/search/dto/geo-search.dto.ts
+- apps/api/src/search/search.controller.ts
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/search.service.spec.ts
+- apps/api/src/search/search.service.geo.int-spec.ts
+- docs/adr/ADR-0028-search-postgis-radius-near-me.md
+- docs/API.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added two public geo endpoints on top of the existing PostGIS schema (no new migrations — `location` trigger + GIST index `idx_listings_location` already exist from TASK-035, ADR-0003): `GET /api/v1/search/radius` (ST_DWithin within `radius_m`, GIST-indexed, promotion-priority ordering + keyset like `/search`) and `GET /api/v1/search/near-me` (ST_Distance ASC, promotion as a tie-breaker, single page sized by `limit`). Both attach `distance_m` (meters, rounded) to each card — an optional, non-breaking field absent from plain `/search`.
+- Route names follow docs/API.md (`/radius` + `/near-me`), which is authoritative over the task-card wording (`/nearby`). The query point is built as `ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography` (longitude first, matching the sync trigger); NULL-`location` rows are excluded.
+- Coordinate validation per acceptance criteria: `GeoSearchQueryDto` requires `lat` (−90..90) / `lng` (−180..180); `radius_m` is bounded to 1..50000 m; invalid/missing → `400 VALIDATION_ERROR`.
+- Reused the ranking pipeline: extracted shared `hydrateCards` / `buildKeysetEnvelope` so `search`, `searchRadius` and `searchNearMe` share hydration and keyset assembly (DRY); `search` behavior unchanged.
+
+Important notes:
+- Verified: `pnpm test` 20 suites / 166 tests (was 161, +5 unit tests for radius/near-me SQL shape, distance_m, keyset). `pnpm test:int` 2 suites / 5 tests on live PostGIS — new `search.service.geo.int-spec.ts` seeds listings at known coordinates and asserts ST_DWithin radius exclusion (incl. NULL-geo), ST_Distance ascending order, distance_m magnitude, and stable radius keyset. `tsc --noEmit` and ESLint clean.
+- "GIST index is used" is satisfied by radius's ST_DWithin; near-me orders by ST_Distance per the acceptance criterion (KNN `<->` optimization is backlog M8).
+
+Commit messages:
+- feat(search): add PostGIS radius and near-me search
+
+Related ADR:
+- docs/adr/ADR-0028-search-postgis-radius-near-me.md
+
 ### TASK-081 — Promotion-aware sorting: live-PostgreSQL integration test (follow-up)
 
 Status: DONE

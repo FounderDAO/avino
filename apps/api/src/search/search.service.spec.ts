@@ -62,7 +62,9 @@ describe('SearchService', () => {
       originalLanguage: Language.RU,
       createdAt: new Date('2026-06-01T12:00:00.000Z'),
       translations: [{ language: Language.RU, title: '3-комн в центре' }],
-      media: [{ url: 'https://cdn/l1.webp', thumbnailUrl: 'https://cdn/l1_t.webp' }],
+      media: [
+        { url: 'https://cdn/l1.webp', thumbnailUrl: 'https://cdn/l1_t.webp' },
+      ],
       ...over,
     };
   }
@@ -198,22 +200,41 @@ describe('SearchService', () => {
 
   it('emits a tier-aware next_cursor and applies the keyset on the next page', async () => {
     const rows = [
-      pageRow({ id: 'l0', created_at: new Date('2026-06-01T00:00:00.000Z'), tier_rank: 2 }),
-      pageRow({ id: 'l1', created_at: new Date('2026-06-02T00:00:00.000Z'), tier_rank: 1 }),
-      pageRow({ id: 'l2', created_at: new Date('2026-06-03T00:00:00.000Z'), tier_rank: 0 }),
+      pageRow({
+        id: 'l0',
+        created_at: new Date('2026-06-01T00:00:00.000Z'),
+        tier_rank: 2,
+      }),
+      pageRow({
+        id: 'l1',
+        created_at: new Date('2026-06-02T00:00:00.000Z'),
+        tier_rank: 1,
+      }),
+      pageRow({
+        id: 'l2',
+        created_at: new Date('2026-06-03T00:00:00.000Z'),
+        tier_rank: 0,
+      }),
     ];
     mockQuery(rows, 9); // limit 2 → take 3, hasMore
-    prisma.listing.findMany.mockResolvedValue([dbRow({ id: 'l0' }), dbRow({ id: 'l1' })]);
+    prisma.listing.findMany.mockResolvedValue([
+      dbRow({ id: 'l0' }),
+      dbRow({ id: 'l1' }),
+    ]);
 
     const first = await service.search({ limit: 2 });
     expect(first.data).toHaveLength(2);
-    expect((prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql).values).toContain(3); // take = limit + 1
+    expect((prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql).values).toContain(
+      3,
+    ); // take = limit + 1
     expect(first.meta).toMatchObject({ limit: 2, total: 9 });
     expect(first.meta.next_cursor).toBeTruthy();
 
     // Курсор указывает на последний показанный элемент (l1, rank 1, 2026-06-02).
     const decoded = JSON.parse(
-      Buffer.from(first.meta.next_cursor as string, 'base64url').toString('utf8'),
+      Buffer.from(first.meta.next_cursor as string, 'base64url').toString(
+        'utf8',
+      ),
     );
     expect(decoded).toEqual({
       rank: 1,
@@ -222,7 +243,10 @@ describe('SearchService', () => {
     });
 
     mockQuery([], 9);
-    await service.search({ cursor: first.meta.next_cursor as string, limit: 2 });
+    await service.search({
+      cursor: first.meta.next_cursor as string,
+      limit: 2,
+    });
     const nextPageSql = prisma.$queryRaw.mock.calls[2][0] as Prisma.Sql;
     // Keyset «строго после позиции» по (tier_rank, created_at, id).
     expect(nextPageSql.values).toEqual(
@@ -247,5 +271,98 @@ describe('SearchService', () => {
       service.search({ cursor: token }),
       ApiErrorCode.VALIDATION_ERROR,
     );
+  });
+
+  describe('searchRadius', () => {
+    const POINT = { lat: 41.31, lng: 69.28, radius_m: 2000 };
+
+    it('filters by ST_DWithin around the point and keeps promotion ordering + keyset', async () => {
+      mockQuery([pageRow()], 1);
+      prisma.listing.findMany.mockResolvedValue([dbRow()]);
+
+      await service.searchRadius(POINT);
+
+      const pageSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+      const text = sqlText(pageSql);
+      // Гео-предикат по GIST: NULL-location отсекается, ST_DWithin в метрах.
+      expect(text).toContain('location IS NOT NULL');
+      expect(text).toContain('ST_DWithin(location,');
+      // Точка строится как geography(Point,4326) с порядком (lng, lat).
+      expect(text).toContain('ST_SetSRID(ST_MakePoint(');
+      expect(text).toContain('4326)::geography');
+      // Базовый ACTIVE-фильтр и promotion-приоритетный ORDER BY сохранены.
+      expect(text).toContain("status = 'ACTIVE'");
+      expect(text).toContain('DESC, created_at DESC, id DESC');
+      // Параметры точки/радиуса биндятся (lng первой, затем lat), radius_m в метрах.
+      expect(pageSql.values).toEqual(
+        expect.arrayContaining([POINT.lng, POINT.lat, POINT.radius_m]),
+      );
+    });
+
+    it('attaches a rounded distance_m to each card', async () => {
+      mockQuery([pageRow({ distance_m: 1234.56 })], 1);
+      prisma.listing.findMany.mockResolvedValue([dbRow()]);
+
+      const result = await service.searchRadius(POINT);
+
+      expect(result.data[0].distance_m).toBe(1235);
+    });
+
+    it('emits a tier-aware next_cursor like /search (limit + 1 fetched)', async () => {
+      mockQuery(
+        [
+          pageRow({ id: 'l0', tier_rank: 2 }),
+          pageRow({ id: 'l1', tier_rank: 1 }),
+          pageRow({ id: 'l2', tier_rank: 0 }),
+        ],
+        9,
+      );
+      prisma.listing.findMany.mockResolvedValue([
+        dbRow({ id: 'l0' }),
+        dbRow({ id: 'l1' }),
+      ]);
+
+      const result = await service.searchRadius({ ...POINT, limit: 2 });
+
+      expect(
+        (prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql).values,
+      ).toContain(3); // take = limit + 1
+      expect(result.data).toHaveLength(2);
+      expect(result.meta.next_cursor).toBeTruthy();
+    });
+  });
+
+  describe('searchNearMe', () => {
+    const POINT = { lat: 41.31, lng: 69.28 };
+
+    it('orders by ST_Distance ascending with promotion as a tie-breaker, single page', async () => {
+      mockQuery([pageRow({ distance_m: 50.4 })], 1);
+      prisma.listing.findMany.mockResolvedValue([dbRow()]);
+
+      const result = await service.searchNearMe(POINT);
+
+      const pageSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+      const text = sqlText(pageSql);
+      expect(text).toContain('location IS NOT NULL');
+      // Дистанция — первичный ключ сортировки (ST_Distance ASC), промо вторичен.
+      expect(text).toContain('ORDER BY ST_Distance(location,');
+      expect(text).toContain('ASC,');
+      expect(text).toContain('DESC, created_at DESC, id DESC');
+      // near-me — одна страница, keyset не применяется.
+      expect(result.meta.next_cursor).toBeNull();
+      expect(result.data[0].distance_m).toBe(50);
+    });
+
+    it('does not fetch an extra row (no keyset look-ahead)', async () => {
+      mockQuery([], 0);
+
+      await service.searchNearMe({ ...POINT, limit: 5 });
+
+      const pageSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+      // LIMIT — ровно limit (без +1), курсорного условия нет.
+      expect(pageSql.values).toContain(5);
+      expect(pageSql.values).not.toContain(6);
+      expect(sqlText(pageSql)).not.toContain('ST_DWithin');
+    });
   });
 });

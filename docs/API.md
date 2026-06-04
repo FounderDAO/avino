@@ -528,7 +528,8 @@ Query: `lat`, `lng`, `radius_m` (метры) + любые фильтры из §
 ```text
 GET /api/v1/search/radius?lat=41.31&lng=69.28&radius_m=2000&transaction_type=RENT
 ```
-200 → тот же envelope, что `/search` (+ опционально `distance_m` у элемента).
+`radius_m` — метры (1..50000). 200 → тот же envelope/keyset, что `/search`,
+promotion-упорядочивание; каждый элемент несёт `distance_m` (метры, `ST_Distance`).
 
 ### GET /api/v1/search/bounds
 Поиск по видимой области карты (`ST_MakeEnvelope`/`ST_Within`). Auth: **public**.
@@ -541,8 +542,9 @@ GET /api/v1/search/bounds?sw_lat=41.2&sw_lng=69.1&ne_lat=41.4&ne_lng=69.4
 ### GET /api/v1/search/near-me
 Ближайшие к точке (`ORDER BY location <-> point`). Auth: **public** (для mobile).
 Query: `lat`, `lng`, `limit` + фильтры.
-200 → листинги, отсортированные по дистанции (с учётом promo при равенстве — для
-near-me основной ключ — дистанция).
+200 → тот же envelope, что `/search` (`next_cursor = null`, одна страница
+размером `limit`); листинги отсортированы по `distance_m` ASC (промо — вторичный
+ключ при равенстве), каждый элемент несёт `distance_m` (метры, `ST_Distance`).
 
 ### GET /api/v1/search/clusters
 Кластеризация маркеров для зума карты. Auth: **public**.
