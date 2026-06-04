@@ -715,56 +715,7 @@ _TASK-120 completed — see docs/DONE.md._
 
 _TASK-121 completed — see docs/DONE.md._
 
-### TASK-122 — Add promotion cancel and extend
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/admin-promotion-management
-```
-
-Scope:
-
-```text
-Implement cancel and extend actions for promotions.
-```
-
-Files expected:
-
-```text
-apps/api/src/promotions/
-apps/api/src/admin/
-```
-
-Acceptance criteria:
-
-```text
-PATCH /api/v1/admin/listing-promotions/:id/cancel works
-PATCH /api/v1/admin/listing-promotions/:id/extend works
-Promotion logs are created
-Read cache updates correctly
-Only one ACTIVE promotion remains
-```
-
-Suggested commits:
-
-```text
-feat(promotions): add cancel and extend actions
-```
-
-Dependencies:
-
-```text
-TASK-121
-```
-
----
+_TASK-122 completed — see docs/DONE.md._
 
 ### TASK-123 — Add promotion expiration job
 
