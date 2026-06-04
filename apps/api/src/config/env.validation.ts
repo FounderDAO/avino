@@ -154,6 +154,27 @@ export class EnvironmentVariables {
   @Min(1)
   @IsOptional()
   RATE_LIMIT_MAX?: number;
+
+  // ── JWT / auth (обязательно; секреты без дефолтов, ENV.md §7) ──
+  // access и refresh подписываются РАЗНЫМИ секретами (ADR-0010). Отсутствие
+  // секрета — fail-fast на старте, чтобы сессии не подписывались пустым ключом.
+  @IsString()
+  @IsNotEmpty()
+  JWT_ACCESS_SECRET!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  JWT_REFRESH_SECRET!: string;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  JWT_ACCESS_TTL?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  JWT_REFRESH_TTL?: number;
 }
 
 /**

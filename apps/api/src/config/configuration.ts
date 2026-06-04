@@ -69,6 +69,17 @@ export const rateLimitConfig = registerAs('rateLimit', () => ({
   max: parseInt(process.env.RATE_LIMIT_MAX ?? '100', 10),
 }));
 
+// JWT / auth-токены (TASK-042, ENV.md §7). access и refresh подписываются
+// РАЗНЫМИ секретами; refresh хранится хешированным и ротируется (ADR-0010).
+// Секреты обязательны и провалидированы в env.validation.ts — дефолтов нет
+// (CLAUDE.md §3 «никаких дефолтов для секретов»).
+export const jwtConfig = registerAs('jwt', () => ({
+  accessSecret: process.env.JWT_ACCESS_SECRET,
+  refreshSecret: process.env.JWT_REFRESH_SECRET,
+  accessTtl: parseInt(process.env.JWT_ACCESS_TTL ?? '900', 10),
+  refreshTtl: parseInt(process.env.JWT_REFRESH_TTL ?? '2592000', 10),
+}));
+
 export const configurations = [
   appConfig,
   databaseConfig,
@@ -80,4 +91,5 @@ export const configurations = [
   mailConfig,
   otpConfig,
   rateLimitConfig,
+  jwtConfig,
 ];
