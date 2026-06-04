@@ -121,6 +121,38 @@ export class UploadsService {
     return extname(filename).toLowerCase();
   }
 
+  /**
+   * Обратное к {@link getObjectUrl} в публичном режиме: вычислить ключ объекта из
+   * сохранённого URL. `listing_media.url` хранит URL, а не ключ (DB_SCHEMA §6),
+   * поэтому для удаления файла из S3 (ListingMediaService, TASK-061) ключ нужно
+   * восстановить. Поддерживаются:
+   * - публичный base-URL/CDN (`S3_PUBLIC_BASE_URL`) — отрезается префикс базы;
+   * - path-style URL — отрезается сегмент бакета в начале пути.
+   * Query-строка (на случай presigned URL) отбрасывается.
+   */
+  extractKey(url: string): string {
+    const publicBaseUrl = this.configService.get<string>('s3.publicBaseUrl');
+    if (publicBaseUrl) {
+      const base = publicBaseUrl.replace(/\/+$/, '');
+      if (url.startsWith(`${base}/`)) {
+        return url.slice(base.length + 1).split('?')[0];
+      }
+    }
+
+    let pathname: string;
+    try {
+      pathname = new URL(url).pathname;
+    } catch {
+      pathname = url;
+    }
+    let key = pathname.replace(/^\/+/, '').split('?')[0];
+    const bucket = this.configService.get<string>('s3.bucket');
+    if (bucket && key.startsWith(`${bucket}/`)) {
+      key = key.slice(bucket.length + 1);
+    }
+    return key;
+  }
+
   private bucket(): string {
     const bucket = this.configService.get<string>('s3.bucket');
     if (!bucket) {

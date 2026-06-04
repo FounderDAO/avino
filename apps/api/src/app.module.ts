@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { AppConfigModule } from './config';
 import { HealthModule } from './health/health.module';
+import { ListingMediaModule } from './listing-media';
 import { ListingsModule } from './listings/listings.module';
 import { PrismaModule } from './prisma';
 import { RedisModule } from './redis';
@@ -20,6 +21,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     ListingsModule,
+    ListingMediaModule,
     AdminModule,
     UploadsModule,
   ],
