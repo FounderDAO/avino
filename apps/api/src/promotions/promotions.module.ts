@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
+import { NotificationsModule } from '../notifications';
 import { AdminPromotionsService } from './admin-promotions.service';
+import { PromotionExpiryService } from './promotion-expiry.service';
+import { PromotionWorker } from './promotion.worker';
 import { PromotionsController } from './promotions.controller';
 import { PromotionsService } from './promotions.service';
 
@@ -11,10 +14,21 @@ import { PromotionsService } from './promotions.service';
  * {@link AdminPromotionsService} работает с ledger'ом `listing_promotions` через
  * глобальный Prisma (импорт не нужен) и экспортируется для HTTP-слоя в
  * AdminModule; его же переиспользует cancel/extend (TASK-122).
+ *
+ * Фоновое истечение (TASK-123): {@link PromotionExpiryService} — бизнес-логика
+ * sweep'а, {@link PromotionWorker} — консьюмер `promotion_queue` (расписание
+ * ставит глобальный {@link PromotionQueue} из QueuesModule). Постановка
+ * уведомлений делегируется {@link NotificationsService} (NotificationsModule).
  */
 @Module({
+  imports: [NotificationsModule],
   controllers: [PromotionsController],
-  providers: [PromotionsService, AdminPromotionsService],
-  exports: [PromotionsService, AdminPromotionsService],
+  providers: [
+    PromotionsService,
+    AdminPromotionsService,
+    PromotionExpiryService,
+    PromotionWorker,
+  ],
+  exports: [PromotionsService, AdminPromotionsService, PromotionExpiryService],
 })
 export class PromotionsModule {}

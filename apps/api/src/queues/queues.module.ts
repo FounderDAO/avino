@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { PromotionQueue } from './promotion.queue';
 import { TranslationQueue } from './translation.queue';
 
 /**
@@ -12,7 +13,7 @@ import { TranslationQueue } from './translation.queue';
  */
 @Global()
 @Module({
-  providers: [TranslationQueue],
-  exports: [TranslationQueue],
+  providers: [TranslationQueue, PromotionQueue],
+  exports: [TranslationQueue, PromotionQueue],
 })
 export class QueuesModule {}

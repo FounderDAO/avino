@@ -135,6 +135,21 @@ export class EnvironmentVariables {
   @IsOptional()
   TRANSLATE_QUEUE_CONCURRENCY?: number;
 
+  // ── Истечение промо VIP/TOP (TASK-123, опционально — есть дефолты) ──
+  @IsString()
+  @IsOptional()
+  PROMOTION_EXPIRY_CRON?: string;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  PROMOTION_EXPIRY_CONCURRENCY?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  PROMOTION_EXPIRY_BATCH_SIZE?: number;
+
   // ── SMTP / email (опционально на старте) ──
   @IsString()
   @IsOptional()

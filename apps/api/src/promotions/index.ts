@@ -5,3 +5,4 @@ export {
   PromotionResponse,
 } from './admin-promotions.service';
 export { PROMOTION_PLANS, PromotionPlan, findPlan } from './promotions.catalog';
+export { PromotionExpiryService } from './promotion-expiry.service';

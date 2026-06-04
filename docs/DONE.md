@@ -39,6 +39,52 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-123 — Add promotion expiration job
+
+Status: DONE
+Branch: feat/promotion-expiration-job
+PR: pending
+
+Files changed:
+- apps/api/src/queues/queue.constants.ts
+- apps/api/src/queues/promotion.queue.ts
+- apps/api/src/queues/promotion.queue.spec.ts
+- apps/api/src/queues/queues.module.ts
+- apps/api/src/queues/index.ts
+- apps/api/src/promotions/promotion-expiry.service.ts
+- apps/api/src/promotions/promotion-expiry.service.spec.ts
+- apps/api/src/promotions/promotion.worker.ts
+- apps/api/src/promotions/promotions.module.ts
+- apps/api/src/promotions/index.ts
+- apps/api/src/notifications/notifications.service.ts
+- apps/api/src/notifications/notifications.service.spec.ts
+- apps/api/src/notifications/notifications.module.ts
+- apps/api/src/notifications/index.ts
+- apps/api/src/config/configuration.ts
+- apps/api/src/config/env.validation.ts
+- docs/adr/ADR-0035-promotion-expiration-job.md
+- .env.example
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the background expiration of VIP/TOP promotions (acceptance: `promotion_queue` + `expire_listing_promotions` job). A new `PromotionQueue` producer (global `QueuesModule`) registers a **repeatable** sweep via BullMQ `upsertJobScheduler` (cron `PROMOTION_EXPIRY_CRON`, default every minute); `PromotionWorker` (in `PromotionsModule`) consumes it and delegates to `PromotionExpiryService.run()`.
+- `PromotionExpiryService` selects `ACTIVE` promotions with `expires_at <= now()` (batch-bounded) and, per row in its own transaction: conditional flip `status → EXPIRED` (`updateMany WHERE status=ACTIVE` — idempotent, race-safe), resets the `listings` read-cache to `NORMAL` **guarded by `promotion_expires_at <= now()`** so a fresh re-activation isn't clobbered, queues a PENDING notification to the owner, and writes a system `audit_logs(LISTING_PROMOTION_EXPIRE, actor_id=null)`.
+- "Notification job is queued" is implemented as a PENDING `notifications` row (DB_SCHEMA §11, like ModerationService) via a new `NotificationsService.queuePromotionExpired` (`PROMOTION_EXPIRED / EMAIL / PENDING`) in a new `NotificationsModule`.
+- "Search still treats expired promotion as NORMAL even if job is delayed" required **no change**: search already time-guards the tier in SQL (`promotion_expires_at > now()`) and in `effectiveTier()` (ADR-0027), independent of the job — already covered by `search.service.spec.ts`.
+
+Important notes:
+- System expiry logs to `audit_logs` only, NOT `promotion_logs` (that journal is scoped to *admin* actions; its `PromotionAdminAction` enum has no `EXPIRE` value) — avoids a migration. Decision recorded in ADR-0035.
+- The job is eventual-consistency cleanup, not the ranking source of truth — safe to lag or be down without affecting search correctness.
+- New env vars (defaults, not secrets): `PROMOTION_EXPIRY_CRON`, `PROMOTION_EXPIRY_CONCURRENCY`, `PROMOTION_EXPIRY_BATCH_SIZE` (added to `.env.example`, following the `TRANSLATE_QUEUE_*` precedent).
+- Coverage: unit tests with mocked Prisma/BullMQ — expiry happy-path (EXPIRED + cache→NORMAL guard + notification + audit), concurrent-skip (flip count=0), per-row failure isolation, batch-size default; queue scheduler cron + default; notification row shape. Verified: jest 27 suites / 222 tests green (+9), `tsc --noEmit` and ESLint clean.
+
+Commit messages:
+- feat(promotions): add expiration job
+
+Related ADR:
+- docs/adr/ADR-0035-promotion-expiration-job.md
+
 ### TASK-122 — Add promotion cancel and extend
 
 Status: DONE
