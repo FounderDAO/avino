@@ -59,6 +59,8 @@ describe('ListingsService', () => {
         create: jest.fn(),
         findFirst: jest.fn(),
         findUnique: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
         update: jest.fn(),
       },
     };
@@ -403,6 +405,135 @@ describe('ListingsService', () => {
       const result = await service.findOne(LISTING_ID, moderator);
 
       expect(result.status).toBe(ListingStatus.DRAFT);
+    });
+  });
+
+  describe('findMine', () => {
+    const listRow = {
+      id: LISTING_ID,
+      status: ListingStatus.NEW,
+      transactionType: TransactionType.RENT,
+      propertyType: PropertyType.APARTMENT,
+      originalLanguage: Language.RU,
+      price: new Prisma.Decimal('4500000.00'),
+      currency: Currency.UZS,
+      area: new Prisma.Decimal('62.50'),
+      rooms: 2,
+      cityId: 'c1',
+      districtId: 'd1',
+      promotionType: PromotionType.NORMAL,
+      promotionExpiresAt: null,
+      publishedAt: null,
+      createdAt: new Date('2026-06-03T09:00:00.000Z'),
+      translations: [
+        { language: Language.RU, title: '2-комн квартира' },
+        { language: Language.EN, title: '2-room apartment' },
+      ],
+      media: [
+        {
+          url: 'https://cdn.avino.uz/l1/1.webp',
+          thumbnailUrl: 'https://cdn.avino.uz/l1/1_thumb.webp',
+        },
+      ],
+    };
+
+    it('returns the owner listings as a paginated snake_case envelope with defaults', async () => {
+      prisma.listing.findMany.mockResolvedValue([listRow]);
+      prisma.listing.count.mockResolvedValue(1);
+
+      const result = await service.findMine(OWNER_ID, {});
+
+      expect(prisma.listing.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { ownerId: OWNER_ID, status: { not: ListingStatus.DELETED } },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          skip: 0,
+          take: 20,
+        }),
+      );
+      expect(result.meta).toEqual({ page: 1, limit: 20, total: 1 });
+      expect(result.data[0]).toEqual({
+        id: LISTING_ID,
+        status: ListingStatus.NEW,
+        transaction_type: TransactionType.RENT,
+        property_type: PropertyType.APARTMENT,
+        price: '4500000.00',
+        currency: Currency.UZS,
+        area: '62.50',
+        rooms: 2,
+        city_id: 'c1',
+        district_id: 'd1',
+        promotion_type: PromotionType.NORMAL,
+        promotion_expires_at: null,
+        original_language: Language.RU,
+        // title берётся на original_language (RU), не первый перевод.
+        title: '2-комн квартира',
+        thumbnail_url: 'https://cdn.avino.uz/l1/1_thumb.webp',
+        published_at: null,
+        created_at: '2026-06-03T09:00:00.000Z',
+      });
+    });
+
+    it('applies the status filter and page-based skip/take', async () => {
+      prisma.listing.findMany.mockResolvedValue([]);
+      prisma.listing.count.mockResolvedValue(40);
+
+      const result = await service.findMine(OWNER_ID, {
+        status: ListingStatus.ACTIVE,
+        page: 2,
+        limit: 15,
+      });
+
+      expect(prisma.listing.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { ownerId: OWNER_ID, status: ListingStatus.ACTIVE },
+          skip: 15,
+          take: 15,
+        }),
+      );
+      expect(result.meta).toEqual({ page: 2, limit: 15, total: 40 });
+    });
+
+    it('never exposes DELETED listings even when explicitly filtered', async () => {
+      prisma.listing.findMany.mockResolvedValue([]);
+      prisma.listing.count.mockResolvedValue(0);
+
+      await service.findMine(OWNER_ID, { status: ListingStatus.DELETED });
+
+      expect(prisma.listing.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { ownerId: OWNER_ID, status: { not: ListingStatus.DELETED } },
+        }),
+      );
+    });
+
+    it('caps limit at 100', async () => {
+      prisma.listing.findMany.mockResolvedValue([]);
+      prisma.listing.count.mockResolvedValue(0);
+
+      const result = await service.findMine(OWNER_ID, { limit: 500 });
+
+      expect(prisma.listing.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 100 }),
+      );
+      expect(result.meta.limit).toBe(100);
+    });
+
+    it('falls back to the first translation title when original_language is missing', async () => {
+      prisma.listing.findMany.mockResolvedValue([
+        {
+          ...listRow,
+          originalLanguage: Language.UZ,
+          translations: [{ language: Language.EN, title: 'Only EN' }],
+          media: [],
+        },
+      ]);
+      prisma.listing.count.mockResolvedValue(1);
+
+      const result = await service.findMine(OWNER_ID, {});
+
+      expect(result.data[0].title).toBe('Only EN');
+      expect(result.data[0].thumbnail_url).toBeNull();
     });
   });
 });
