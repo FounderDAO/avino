@@ -10,6 +10,7 @@ import { ListingsModule } from './listings/listings.module';
 import { PrismaModule } from './prisma';
 import { QueuesModule } from './queues';
 import { RedisModule } from './redis';
+import { SearchModule } from './search';
 import { TranslationsModule } from './translations';
 import { UploadsModule } from './uploads';
 import { UsersModule } from './users/users.module';
@@ -26,6 +27,7 @@ import { UsersModule } from './users/users.module';
     TranslationsModule,
     ListingsModule,
     ListingMediaModule,
+    SearchModule,
     AdminModule,
     UploadsModule,
   ],

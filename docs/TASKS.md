@@ -443,7 +443,7 @@ _TASK-070, TASK-071 completed — see docs/DONE.md._
 Status:
 
 ```text
-TODO
+IN_PROGRESS
 ```
 
 Branch:
