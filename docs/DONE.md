@@ -558,6 +558,47 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-061 — Add listing media endpoints
+
+Status: DONE
+Branch: feat/listing-media-endpoints
+PR: #47
+
+Files changed:
+- apps/api/src/listing-media/listing-media.controller.ts
+- apps/api/src/listing-media/listing-media.service.ts
+- apps/api/src/listing-media/listing-media.service.spec.ts
+- apps/api/src/listing-media/listing-media.module.ts
+- apps/api/src/listing-media/dto/reorder-media.dto.ts
+- apps/api/src/listing-media/index.ts
+- apps/api/src/uploads/uploads.service.ts
+- apps/api/src/uploads/uploads.service.spec.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0023-listing-media-endpoints.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Implemented the listing media gallery endpoints (M6) on top of `UploadsService` (TASK-060) and the existing `ListingMedia` model: `GET /api/v1/listings/:id/media` (list), `POST /api/v1/listings/:id/media` (proxy `multipart/form-data` upload, field `file`), `DELETE /api/v1/listings/:id/media/:mediaId`, `PATCH /api/v1/listings/:id/media/reorder`.
+- Route naming follows `API.md` §8 (`reorder`), not the `sort` wording in the task card — `API.md` is the authoritative contract on divergence (CLAUDE.md §2; confirmed by Team Lead). MVP scope is upload/list/delete/reorder; presigned PUT + `confirm` (direct-to-S3) are deferred.
+- Authorization is per-operation: modification (upload/delete/reorder) requires Bearer + an ownership gate (listing owner **or** ADMIN — MODERATOR moderates status, not content); list uses `OptionalJwtAuthGuard` and mirrors the listing-detail visibility (ACTIVE public; non-public statuses → owner/MODERATOR/ADMIN; DELETED/missing → 404 without leaking existence).
+- Upload validation reuses the existing error catalog (ADR-0007): MIME allow-list `image/jpeg|png|webp` → 415; size > 10 MiB → 413; > 20 media per listing → 422; missing file → 400. New media is appended at the end (`sort_order = count`); reorder requires a full permutation of the listing's media ids and rewrites `sort_order` in one transaction.
+- `listing_media` stores `url`, not the S3 key (DB_SCHEMA §6), so deletion derives the key via a new `UploadsService.extractKey(url)` (inverse of `getObjectUrl`; handles public CDN base-URL and path-style bucket). Delete is best-effort: the DB row (source of truth) is removed first, then the S3 object; an S3 error is logged, not fatal — the orphan-reap job is the backstop.
+
+Important notes:
+- EXIF/GPS stripping and `thumbnail_url`/`width`/`height` generation are NOT done on the API layer — they belong to the `media_processing_queue` worker (`process_uploaded_image`, ARCHITECTURE §14). Until it lands, `thumbnail_url` is null and EXIF is not stripped; this is documented as `TODO(M6)` in the service (acceptance: "EXIF stripping is implemented or clearly TODO documented").
+- Proxy upload buffers the file in memory (`FileInterceptor`); presigned PUT will remove that later. Size/count limits are module constants (not env) for MVP.
+- 28 new unit tests (ListingMediaService gates/validation/upload/delete/reorder + `extractKey`); full apps/api suite green (14 suites, 123 tests). `tsc -p tsconfig.build.json --noEmit` clean; ESLint clean.
+
+Commit messages:
+- feat(media): add listing media endpoints
+- feat(media): validate image uploads
+- test(media): cover media service and extractKey
+- docs(adr): record listing media endpoints decision (ADR-0023)
+
+Related ADR:
+- docs/adr/ADR-0023-listing-media-endpoints.md
+
 ### TASK-060 — Add S3 upload service
 
 Status: DONE

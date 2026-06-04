@@ -421,6 +421,11 @@ Soft-delete (`status → DELETED`). Auth: **владелец / MODERATOR / ADMIN
 MVP). DB-запись `listing_media` — source of truth; осиротевшие S3-объекты
 подчищаются cleanup-джобой.
 
+### GET /api/v1/listings/:id/media
+Медиа листинга по `sort_order`. Auth: **public** для `ACTIVE`; непубличные статусы
+видят владелец/MODERATOR/ADMIN (зеркалит видимость карточки, ADR-0019). 200 →
+массив объектов media `{ id, url, thumbnail_url, sort_order, type }`.
+
 ### POST /api/v1/listings/:id/media/presign
 Получить presigned PUT URL. Auth: **владелец листинга**.
 
