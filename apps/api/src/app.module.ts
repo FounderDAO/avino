@@ -9,6 +9,7 @@ import { ListingMediaModule } from './listing-media';
 import { ListingsModule } from './listings/listings.module';
 import { PrismaModule } from './prisma';
 import { RedisModule } from './redis';
+import { TranslationsModule } from './translations';
 import { UploadsModule } from './uploads';
 import { UsersModule } from './users/users.module';
 
@@ -20,6 +21,7 @@ import { UsersModule } from './users/users.module';
     HealthModule,
     AuthModule,
     UsersModule,
+    TranslationsModule,
     ListingsModule,
     ListingMediaModule,
     AdminModule,
