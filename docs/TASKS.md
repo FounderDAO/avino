@@ -438,56 +438,7 @@ _TASK-070, TASK-071 completed — see docs/DONE.md._
 
 ## 12. M8 — Search and PostGIS
 
-_TASK-080, TASK-081 completed — see docs/DONE.md._
-
-### TASK-082 — Add PostGIS radius and near-me search
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/search-postgis-radius
-```
-
-Scope:
-
-```text
-Implement radius and near-me search using PostGIS.
-```
-
-Files expected:
-
-```text
-apps/api/src/search/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/search/nearby exists
-Radius search uses ST_DWithin
-Distance sort uses ST_Distance where requested
-GIST index is used
-Latitude/longitude validation exists
-```
-
-Suggested commits:
-
-```text
-feat(search): add PostGIS radius search
-```
-
-Dependencies:
-
-```text
-TASK-080
-TASK-035
-```
+_TASK-080, TASK-081, TASK-082 completed — see docs/DONE.md._
 
 ---
 

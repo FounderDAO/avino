@@ -11,6 +11,10 @@ import {
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
+import {
+  NearMeSearchQueryDto,
+  RadiusSearchQueryDto,
+} from './dto/geo-search.dto';
 import { SearchListingsQueryDto } from './dto/search-listings.dto';
 
 /** Дефолт/максимум размера страницы (API.md §4: default 20, max 100). */
@@ -42,6 +46,12 @@ export interface SearchListItem {
   title: string;
   thumbnail_url: string | null;
   created_at: string;
+  /**
+   * Дистанция от точки запроса в метрах (округлённая). Присутствует только в
+   * гео-ответах (`/search/radius`, `/search/near-me`); в обычном `/search`
+   * отсутствует (опциональное поле — non-breaking, API.md §4/§10).
+   */
+  distance_m?: number;
 }
 
 /**
@@ -79,11 +89,15 @@ const TIER_RANK_SQL = Prisma.sql`
     ELSE 0
   END`;
 
-/** Строка страницы из raw-запроса ранжирования (только ключи сортировки). */
+/**
+ * Строка страницы из raw-запроса ранжирования (ключи сортировки + опц. дистанция).
+ * `distance_m` присутствует только в гео-запросах (`ST_Distance`, метры).
+ */
 interface RankedRow {
   id: string;
   created_at: Date;
   tier_rank: number;
+  distance_m?: number | null;
 }
 
 const SEARCH_SELECT = {
@@ -120,8 +134,9 @@ type SearchRow = Prisma.ListingGetPayload<{ select: typeof SEARCH_SELECT }>;
  * Возвращает ТОЛЬКО `status = ACTIVE` (`DELETED` и прочие непубличные статусы
  * исключены, DB_SCHEMA §15). Сортировка — promotion-приоритетная (TASK-081,
  * ADR-0004): `effective_tier DESC, created_at DESC, id DESC`, где `effective_tier`
- * — time-guarded ранг промо ({@link TIER_RANK_SQL}). Гео-фильтры (PostGIS) —
- * TASK-082.
+ * — time-guarded ранг промо ({@link TIER_RANK_SQL}). Гео-поиск (PostGIS) —
+ * {@link SearchService.searchRadius} (`ST_DWithin`, GIST) и
+ * {@link SearchService.searchNearMe} (`ST_Distance` сортировка), TASK-082.
  *
  * Ранжирование, keyset-пагинация и `total` считаются raw-SQL (Prisma `orderBy`
  * не выражает CASE с гардом по времени, ADR-0004 §2/§4); далее страница
@@ -166,26 +181,122 @@ export class SearchService {
       `),
     ]);
 
-    const total = countRows[0]?.count ?? 0;
+    return this.buildKeysetEnvelope(
+      ranked,
+      countRows[0]?.count ?? 0,
+      limit,
+      langParam,
+      acceptLanguage,
+    );
+  }
+
+  /**
+   * `GET /api/v1/search/radius` — ACTIVE-листинги в радиусе `radius_m` метров от
+   * точки (`ST_DWithin` по GIST-индексу `idx_listings_location`). Порядок —
+   * promotion-приоритетный, как у `/search` (keyset с тиром), каждый элемент
+   * получает `distance_m` (`ST_Distance`, метры). API.md §10, ADR-0003.
+   */
+  async searchRadius(
+    query: RadiusSearchQueryDto,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<CursorPaginatedResponse<SearchListItem>> {
+    const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const cursor = this.decodeCursor(query.cursor);
+    const point = this.pointSql(query.lng, query.lat);
+    // ST_DWithin по GIST-индексу; NULL-location отсекается (NULL не проходит WHERE).
+    const filterSql = Prisma.sql`${this.buildWhereSql(query)} AND location IS NOT NULL AND ST_DWithin(location, ${point}, ${query.radius_m})`;
+    const pageWhere = cursor
+      ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor)}`
+      : filterSql;
+
+    const [ranked, countRows] = await Promise.all([
+      this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
+        SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank,
+               ST_Distance(location, ${point}) AS distance_m
+        FROM listings
+        WHERE ${pageWhere}
+        ORDER BY ${TIER_RANK_SQL} DESC, created_at DESC, id DESC
+        LIMIT ${limit + 1}
+      `),
+      this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
+        SELECT count(*)::int AS count FROM listings WHERE ${filterSql}
+      `),
+    ]);
+
+    return this.buildKeysetEnvelope(
+      ranked,
+      countRows[0]?.count ?? 0,
+      limit,
+      langParam,
+      acceptLanguage,
+    );
+  }
+
+  /**
+   * `GET /api/v1/search/near-me` — ближайшие к точке ACTIVE-листинги,
+   * отсортированные по дистанции (`ST_Distance` ASC); промо — вторичный ключ при
+   * равенстве (API.md §10: для near-me основной ключ — дистанция). Одна страница
+   * размером `limit`, keyset не применяется (`next_cursor = null`). Каждый
+   * элемент получает `distance_m` (метры).
+   */
+  async searchNearMe(
+    query: NearMeSearchQueryDto,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<CursorPaginatedResponse<SearchListItem>> {
+    const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const point = this.pointSql(query.lng, query.lat);
+    const filterSql = Prisma.sql`${this.buildWhereSql(query)} AND location IS NOT NULL`;
+
+    const [rows, countRows] = await Promise.all([
+      this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
+        SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank,
+               ST_Distance(location, ${point}) AS distance_m
+        FROM listings
+        WHERE ${filterSql}
+        ORDER BY ST_Distance(location, ${point}) ASC, ${TIER_RANK_SQL} DESC, created_at DESC, id DESC
+        LIMIT ${limit}
+      `),
+      this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
+        SELECT count(*)::int AS count FROM listings WHERE ${filterSql}
+      `),
+    ]);
+
+    return {
+      data: await this.hydrateCards(rows, langParam, acceptLanguage),
+      meta: { limit, total: countRows[0]?.count ?? 0, next_cursor: null },
+    };
+  }
+
+  /**
+   * Точка запроса как `geography(Point,4326)`. Порядок аргументов
+   * `ST_MakePoint(lng, lat)` — долгота первой (как в sync-триггере `location`,
+   * DB_SCHEMA §14); перепутанный порядок дал бы неверную дистанцию.
+   */
+  private pointSql(lng: number, lat: number): Prisma.Sql {
+    return Prisma.sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography`;
+  }
+
+  /**
+   * Сборка keyset-envelope из ранжированных строк (+1 строка — индикатор
+   * следующей страницы): срез до `limit`, гидратация карточек, tier-aware
+   * `next_cursor` по последнему показанному элементу. Общая для `/search` и
+   * `/search/radius`.
+   */
+  private async buildKeysetEnvelope(
+    ranked: RankedRow[],
+    total: number,
+    limit: number,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const hasMore = ranked.length > limit;
     const pageRows = hasMore ? ranked.slice(0, limit) : ranked;
     const last = pageRows[pageRows.length - 1];
 
-    // Гидратация relation-карточки по id + восстановление порядка ранжирования
-    // (findMany не гарантирует порядок `IN (...)`).
-    const hydrated = pageRows.length
-      ? await this.prisma.listing.findMany({
-          where: { id: { in: pageRows.map((row) => row.id) } },
-          select: SEARCH_SELECT,
-        })
-      : [];
-    const byId = new Map(hydrated.map((row) => [row.id, row]));
-
     return {
-      data: pageRows
-        .map((row) => byId.get(row.id))
-        .filter((row): row is SearchRow => row !== undefined)
-        .map((row) => this.toSearchItem(row, langParam, acceptLanguage)),
+      data: await this.hydrateCards(pageRows, langParam, acceptLanguage),
       meta: {
         limit,
         total,
@@ -202,6 +313,42 @@ export class SearchService {
   }
 
   /**
+   * Гидратация relation-карточек по id из ранжированных строк с восстановлением
+   * порядка ранжирования (`findMany` не гарантирует порядок `IN (...)`).
+   * `distance_m` из raw-строки (гео) пробрасывается в карточку (метры, округление).
+   */
+  private async hydrateCards(
+    pageRows: RankedRow[],
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<SearchListItem[]> {
+    if (pageRows.length === 0) {
+      return [];
+    }
+    const hydrated = await this.prisma.listing.findMany({
+      where: { id: { in: pageRows.map((row) => row.id) } },
+      select: SEARCH_SELECT,
+    });
+    const byId = new Map<string, SearchRow>(
+      hydrated.map((row) => [row.id, row]),
+    );
+
+    return pageRows
+      .map((row) => {
+        const dbRow = byId.get(row.id);
+        if (dbRow === undefined) {
+          return undefined;
+        }
+        const card = this.toSearchItem(dbRow, langParam, acceptLanguage);
+        if (row.distance_m !== undefined && row.distance_m !== null) {
+          card.distance_m = Math.round(Number(row.distance_m));
+        }
+        return card;
+      })
+      .filter((card): card is SearchListItem => card !== undefined);
+  }
+
+  /**
    * `WHERE`-фрагмент: обязательный `status = ACTIVE` + базовые фильтры (TASK-080).
    * Параметры биндятся через `Prisma.sql` (защита от инъекций). Enum-колонки
    * сравниваются через `::text` (не зависит от имени PG-типа); диапазон цены —
@@ -211,7 +358,9 @@ export class SearchService {
     const conds: Prisma.Sql[] = [Prisma.sql`status = 'ACTIVE'`];
 
     if (query.transaction_type !== undefined)
-      conds.push(Prisma.sql`transaction_type::text = ${query.transaction_type}`);
+      conds.push(
+        Prisma.sql`transaction_type::text = ${query.transaction_type}`,
+      );
     if (query.property_type !== undefined)
       conds.push(Prisma.sql`property_type::text = ${query.property_type}`);
     if (query.currency !== undefined)
