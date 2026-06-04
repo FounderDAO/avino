@@ -420,57 +420,7 @@ _All M4 tasks completed — see docs/DONE.md (TASK-040–044)._
 
 ## 9. M5 — Listings and moderation
 
-_TASK-050 completed — see docs/DONE.md._
-
----
-
-### TASK-051 — Add public listing detail
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/listing-detail
-```
-
-Scope:
-
-```text
-Implement public listing detail endpoint.
-```
-
-Files expected:
-
-```text
-apps/api/src/listings/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/listings/:id exists
-Public endpoint returns only ACTIVE listings
-Owner/admin can view own non-ACTIVE listing where allowed
-Translations are included
-Media are included
-```
-
-Suggested commits:
-
-```text
-feat(listings): add listing detail endpoint
-```
-
-Dependencies:
-
-```text
-TASK-050
-```
+_TASK-050, TASK-051 completed — see docs/DONE.md._
 
 ---
 

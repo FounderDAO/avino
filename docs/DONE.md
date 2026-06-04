@@ -558,6 +558,49 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-051 — Add public listing detail
+
+Status: DONE
+Branch: feat/listing-detail
+PR: pending
+
+Files changed:
+- apps/api/src/common/guards/optional-jwt-auth.guard.ts
+- apps/api/src/common/guards/optional-jwt-auth.guard.spec.ts
+- apps/api/src/common/guards/jwt-auth.guard.ts
+- apps/api/src/common/guards/index.ts
+- apps/api/src/roles/roles.module.ts
+- apps/api/src/listings/listings.controller.ts
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/listings.service.spec.ts
+- docs/adr/ADR-0019-public-listing-detail-endpoint.md
+
+Summary:
+- Added public `GET /api/v1/listings/:id` — full listing card with the resolved
+  translation (flattened) and ordered media.
+- Visibility: `ACTIVE` is public; non-public statuses are visible only to the owner
+  and MODERATOR/ADMIN; `DELETED` is `404` for everyone. Hidden listings return
+  `404` (not `403`) so their existence is not leaked.
+- New `OptionalJwtAuthGuard` (soft Bearer auth): a request without a token passes as
+  guest; a request with a token is validated strictly (bad token → `401`). Controller
+  guards moved from class to method level so create/update keep `JwtAuthGuard`.
+- Translation chosen by `?lang` / `Accept-Language` with fallback to
+  `original_language` (ADR-012). Decimal/dates serialized as strings.
+- Deliberately out of scope: structured `features[]` (no amenities model yet),
+  AGENCY/agency-admin visibility (no membership model), `/translations`, `/mine`,
+  `DELETE` (TASK-052+).
+
+Commit messages:
+- feat(auth): add optional JWT auth guard for public endpoints
+- feat(listings): add public listing detail endpoint
+- test(listings): cover listing detail visibility and translation fallback
+- docs(adr): record public listing detail decision (ADR-0019)
+
+Related ADR:
+- docs/adr/ADR-0019-public-listing-detail-endpoint.md
+
+---
+
 ### TASK-050 — Add ListingsModule create/update
 
 Status: DONE
