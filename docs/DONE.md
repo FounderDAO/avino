@@ -562,7 +562,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/translation-queue
-PR: pending
+PR: #49
 
 Files changed:
 - apps/api/src/queues/queues.module.ts
