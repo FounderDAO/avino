@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/promotion-expiration-job
-PR: pending
+PR: #62
 
 Files changed:
 - apps/api/src/queues/queue.constants.ts
