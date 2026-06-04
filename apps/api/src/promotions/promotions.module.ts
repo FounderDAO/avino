@@ -1,17 +1,20 @@
 import { Module } from '@nestjs/common';
+import { AdminPromotionsService } from './admin-promotions.service';
 import { PromotionsController } from './promotions.controller';
 import { PromotionsService } from './promotions.service';
 
 /**
- * PromotionsModule — публичный каталог промо-планов (TASK-120, M12).
+ * PromotionsModule — каталог промо-планов (TASK-120) + ручная админ-активация
+ * VIP/TOP (TASK-121, M12).
  *
- * Каталог статичен — ни Prisma, ни `RolesModule` не нужны (эндпоинт public).
- * `PromotionsService` экспортируется для переиспользования каталога в будущих
- * админ-задачах активации/продления (TASK-121/122).
+ * Публичный каталог ({@link PromotionsService}) статичен — БД не нужна.
+ * {@link AdminPromotionsService} работает с ledger'ом `listing_promotions` через
+ * глобальный Prisma (импорт не нужен) и экспортируется для HTTP-слоя в
+ * AdminModule; его же переиспользует cancel/extend (TASK-122).
  */
 @Module({
   controllers: [PromotionsController],
-  providers: [PromotionsService],
-  exports: [PromotionsService],
+  providers: [PromotionsService, AdminPromotionsService],
+  exports: [PromotionsService, AdminPromotionsService],
 })
 export class PromotionsModule {}

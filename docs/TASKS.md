@@ -713,61 +713,7 @@ TASK-100
 
 _TASK-120 completed — see docs/DONE.md._
 
-### TASK-121 — Add admin promotion activation
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/admin-promotion-activation
-```
-
-Scope:
-
-```text
-Implement manual admin activation for VIP/TOP.
-```
-
-Files expected:
-
-```text
-apps/api/src/promotions/
-apps/api/src/admin/
-```
-
-Acceptance criteria:
-
-```text
-POST /api/v1/admin/listings/:id/promotions works
-Admin can activate TOP
-Admin can activate VIP
-Period can be 7/14/30 days
-listing_promotions row is created
-listings promotion read cache is updated
-promotion log is created
-Only admin/moderator allowed if approved by role rules
-```
-
-Suggested commits:
-
-```text
-feat(promotions): add admin promotion activation
-```
-
-Dependencies:
-
-```text
-TASK-037
-TASK-044
-TASK-050
-```
-
----
+_TASK-121 completed — see docs/DONE.md._
 
 ### TASK-122 — Add promotion cancel and extend
 
