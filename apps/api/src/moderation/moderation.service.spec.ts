@@ -26,6 +26,7 @@ describe('ModerationService', () => {
   const LISTING_ID = '11111111-1111-1111-1111-111111111111';
 
   let prisma: any;
+  let translationQueue: { enqueueListingTranslation: jest.Mock };
   let service: ModerationService;
 
   const dbListItem = {
@@ -58,7 +59,8 @@ describe('ModerationService', () => {
       // Интерактивная транзакция: коллбэк получает тот же мок (tx === prisma).
       $transaction: jest.fn(async (cb: any) => cb(prisma)),
     };
-    service = new ModerationService(prisma);
+    translationQueue = { enqueueListingTranslation: jest.fn() };
+    service = new ModerationService(prisma, translationQueue as any);
   });
 
   async function expectCode(promise: Promise<unknown>, code: ApiErrorCode) {
@@ -183,6 +185,10 @@ describe('ModerationService', () => {
         status: ListingStatus.ACTIVE,
         published_at: '2026-06-04T10:00:00.000Z',
       });
+      // APPROVE→ACTIVE triggers auto-translation (TASK-071, ADR-005).
+      expect(translationQueue.enqueueListingTranslation).toHaveBeenCalledWith(
+        LISTING_ID,
+      );
     });
 
     it('keeps the existing published_at when re-approving a DRAFT listing', async () => {
@@ -234,6 +240,32 @@ describe('ModerationService', () => {
         }),
       });
       expect(result.published_at).toBeNull();
+      // Non-ACTIVE transitions must not enqueue auto-translation.
+      expect(translationQueue.enqueueListingTranslation).not.toHaveBeenCalled();
+    });
+
+    it('does not enqueue auto-translation when the queue insert fails after commit', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        status: ListingStatus.NEW,
+        publishedAt: null,
+      });
+      prisma.listing.update.mockResolvedValue({
+        id: LISTING_ID,
+        status: ListingStatus.ACTIVE,
+        publishedAt: new Date('2026-06-04T10:00:00.000Z'),
+      });
+      translationQueue.enqueueListingTranslation.mockRejectedValue(
+        new Error('redis down'),
+      );
+
+      // A failed enqueue must not fail the moderation response — the listing
+      // is already ACTIVE and a missed job can be re-triggered.
+      const result = await service.changeStatus(MODERATOR_ID, LISTING_ID, {
+        action: ModerationAction.APPROVE,
+      });
+      expect(result.status).toBe(ListingStatus.ACTIVE);
     });
 
     it('throws 404 when the listing does not exist', async () => {
