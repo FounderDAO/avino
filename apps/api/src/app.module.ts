@@ -9,6 +9,7 @@ import { HealthModule } from './health/health.module';
 import { ListingMediaModule } from './listing-media';
 import { ListingsModule } from './listings/listings.module';
 import { PrismaModule } from './prisma';
+import { PromotionsModule } from './promotions';
 import { QueuesModule } from './queues';
 import { RedisModule } from './redis';
 import { SavedSearchesModule } from './saved-searches';
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     SearchModule,
     FavoritesModule,
     SavedSearchesModule,
+    PromotionsModule,
     AdminModule,
     UploadsModule,
   ],

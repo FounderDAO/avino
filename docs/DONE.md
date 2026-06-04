@@ -39,6 +39,42 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-120 — Add promotion plans endpoint
+
+Status: DONE
+Branch: feat/promotion-plans
+PR: pending
+
+Files changed:
+- apps/api/src/promotions/promotions.catalog.ts
+- apps/api/src/promotions/promotions.service.ts
+- apps/api/src/promotions/promotions.controller.ts
+- apps/api/src/promotions/promotions.module.ts
+- apps/api/src/promotions/promotions.service.spec.ts
+- apps/api/src/promotions/index.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0032-promotion-plans-static-catalog.md
+- docs/API.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the promotions module with the public `GET /api/v1/promotions/plans` endpoint (API.md §15). Auth is public (no guard, like `/search`) — the price catalog must be visible to guests, web and the future Flutter app.
+- The plan catalog (tier × period × price) is a static in-code constant (`PROMOTION_PLANS` in `promotions.catalog.ts`), not a DB table — there is no `promotion_plans` table in the schema and prices rarely change in MVP (ADR-0032). The service has no Prisma/Redis dependency and returns a shallow copy so external mutation can't corrupt the constant.
+- Price matrix (UZS, confirmed with Team Lead): TOP 50k/90k/150k, VIP 120k/210k/350k for 7/14/30 days. The 7- and 30-day prices come from API.md §15; the 14-day prices (TOP 90k, VIP 210k — midpoint) are introduced by this task and recorded in ADR-0032. Prices are returned as `Decimal` strings (`"50000.00"`); currency is `UZS`.
+
+Important notes:
+- Only `TOP` and `VIP` tiers are listed (`NORMAL` means "no promo"). Admin activation, the `listing_promotions` ledger, cancel/extend and the expiration job are out of scope here (TASK-121/122/123); `PromotionsService` is exported so those tasks reuse the catalog for period validation and price lookup.
+- Changing prices requires a code deploy (no DB/admin override) — a conscious MVP trade-off; the response shape stays stable if the catalog later moves to a table/config.
+- Coverage is unit tests (no DB): 6-plan shape, tier/period completeness, exact price matrix, `Decimal` format, and return immutability.
+- Verified: `jest` 23 suites / 193 tests green (+5 for promotions); `nest build` and ESLint clean.
+
+Commit messages:
+- feat(promotions): add promotion plans endpoint
+
+Related ADR:
+- docs/adr/ADR-0032-promotion-plans-static-catalog.md
+
 ### TASK-091 — Add saved searches module
 
 Status: DONE
