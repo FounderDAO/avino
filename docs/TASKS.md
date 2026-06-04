@@ -420,56 +420,7 @@ _All M4 tasks completed — see docs/DONE.md (TASK-040–044)._
 
 ## 9. M5 — Listings and moderation
 
-### TASK-050 — Add ListingsModule create/update
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/listings-crud
-```
-
-Scope:
-
-```text
-Implement listing create and update for authenticated listing owners.
-```
-
-Files expected:
-
-```text
-apps/api/src/listings/
-```
-
-Acceptance criteria:
-
-```text
-POST /api/v1/listings exists
-PATCH /api/v1/listings/:id exists
-New listing status is NEW
-Owner cannot update another user's listing
-DTO validation exists
-```
-
-Suggested commits:
-
-```text
-feat(listings): add listing create endpoint
-feat(listings): add listing update endpoint
-```
-
-Dependencies:
-
-```text
-TASK-035
-TASK-036
-TASK-044
-```
+_TASK-050 completed — see docs/DONE.md._
 
 ---
 
