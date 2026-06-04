@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/search-map-bounds
-PR: pending
+PR: #56
 
 Files changed:
 - apps/api/src/search/dto/geo-search.dto.ts
