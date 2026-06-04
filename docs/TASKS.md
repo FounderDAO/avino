@@ -438,58 +438,9 @@ _TASK-070, TASK-071 completed — see docs/DONE.md._
 
 ## 12. M8 — Search and PostGIS
 
-_TASK-080, TASK-081, TASK-082 completed — see docs/DONE.md._
+_TASK-080, TASK-081, TASK-082, TASK-083 completed — see docs/DONE.md._
 
 ---
-
-### TASK-083 — Add map bounds search
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/search-map-bounds
-```
-
-Scope:
-
-```text
-Implement map bounds search for Yandex Maps frontend/mobile.
-```
-
-Files expected:
-
-```text
-apps/api/src/search/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/search/map exists
-Supports north/south/east/west bounds
-Returns listing marker data
-Only ACTIVE listings returned
-Promotion fields are included for marker UI
-```
-
-Suggested commits:
-
-```text
-feat(search): add map bounds search
-```
-
-Dependencies:
-
-```text
-TASK-080
-TASK-035
-```
 
 ## 13. M9 — Favorites and saved searches
 

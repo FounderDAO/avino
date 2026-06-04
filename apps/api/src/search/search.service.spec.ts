@@ -332,6 +332,69 @@ describe('SearchService', () => {
     });
   });
 
+  describe('searchBounds', () => {
+    // sw — юго-западный угол, ne — северо-восточный (Ташкент).
+    const BOX = { sw_lat: 41.2, sw_lng: 69.1, ne_lat: 41.4, ne_lng: 69.4 };
+
+    it('filters by the map envelope and keeps promotion ordering + keyset', async () => {
+      mockQuery([pageRow()], 1);
+      prisma.listing.findMany.mockResolvedValue([dbRow()]);
+
+      await service.searchBounds(BOX);
+
+      const pageSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+      const text = sqlText(pageSql);
+      // bbox-предикат: NULL-location отсекается, envelope + точный ST_Within.
+      expect(text).toContain('location IS NOT NULL');
+      expect(text).toContain('ST_MakeEnvelope(');
+      expect(text).toContain('ST_Within(location::geometry,');
+      // Базовый ACTIVE-фильтр и promotion-приоритетный ORDER BY сохранены.
+      expect(text).toContain("status = 'ACTIVE'");
+      expect(text).toContain('DESC, created_at DESC, id DESC');
+      // Параметры envelope биндятся в порядке (xmin=sw_lng, ymin=sw_lat, xmax=ne_lng, ymax=ne_lat).
+      expect(pageSql.values).toEqual(
+        expect.arrayContaining([
+          BOX.sw_lng,
+          BOX.sw_lat,
+          BOX.ne_lng,
+          BOX.ne_lat,
+        ]),
+      );
+    });
+
+    it('does not attach distance_m (no center point in bounds)', async () => {
+      mockQuery([pageRow()], 1);
+      prisma.listing.findMany.mockResolvedValue([dbRow()]);
+
+      const result = await service.searchBounds(BOX);
+
+      expect(result.data[0].distance_m).toBeUndefined();
+    });
+
+    it('emits a tier-aware next_cursor like /search (limit + 1 fetched)', async () => {
+      mockQuery(
+        [
+          pageRow({ id: 'l0', tier_rank: 2 }),
+          pageRow({ id: 'l1', tier_rank: 1 }),
+          pageRow({ id: 'l2', tier_rank: 0 }),
+        ],
+        9,
+      );
+      prisma.listing.findMany.mockResolvedValue([
+        dbRow({ id: 'l0' }),
+        dbRow({ id: 'l1' }),
+      ]);
+
+      const result = await service.searchBounds({ ...BOX, limit: 2 });
+
+      expect(
+        (prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql).values,
+      ).toContain(3); // take = limit + 1
+      expect(result.data).toHaveLength(2);
+      expect(result.meta.next_cursor).toBeTruthy();
+    });
+  });
+
   describe('searchNearMe', () => {
     const POINT = { lat: 41.31, lng: 69.28 };
 

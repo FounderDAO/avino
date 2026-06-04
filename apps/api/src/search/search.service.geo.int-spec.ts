@@ -18,6 +18,8 @@ import { SearchService } from './search.service';
  *   - `/search/radius` (`ST_DWithin`) отсекает листинги вне радиуса и листинги
  *     без координат (NULL `location`);
  *   - `/search/near-me` (`ST_Distance` ASC) сортирует по реальной дистанции;
+ *   - `/search/bounds` (`ST_MakeEnvelope`/`ST_Within`) отсекает листинги вне
+ *     видимой области карты и листинги без координат (NULL `location`);
  *   - `distance_m` возвращается и численно соответствует разносу координат.
  *
  * `location` заполняется sync-триггером из latitude/longitude (DB_SCHEMA §14,
@@ -164,6 +166,57 @@ describe('SearchService geo (integration, live PostGIS)', () => {
     // Ближайший ~111 м (±50 м допуск на сферическую геометрию geography).
     expect(distances[0]).toBeGreaterThan(60);
     expect(distances[0]).toBeLessThan(170);
+  });
+
+  it('bounds (ST_MakeEnvelope/ST_Within) returns only listings inside the bbox, excludes no-geo rows', async () => {
+    // bbox охватывает near/mid/far (41.31..41.36), но не outside (~41.49).
+    const result = await service.searchBounds({
+      sw_lat: 41.3,
+      sw_lng: 69.27,
+      ne_lat: 41.36,
+      ne_lng: 69.29,
+      city_id: CITY_ID,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toEqual(new Set([ID.near, ID.mid, ID.far]));
+    expect(result.meta.total).toBe(3);
+    // outside за пределами bbox; noGeo — NULL location, не проходит ST_Within.
+    expect(ids.has(ID.outside)).toBe(false);
+    expect(ids.has(ID.noGeo)).toBe(false);
+
+    // bounds не несёт distance_m (центральной точки нет).
+    for (const item of result.data) {
+      expect(item.distance_m).toBeUndefined();
+    }
+  });
+
+  it('bounds keeps a stable keyset across pages with no gaps or duplicates', async () => {
+    const collected: string[] = [];
+    let cursor: string | null | undefined;
+    let pages = 0;
+
+    do {
+      const page = await service.searchBounds({
+        sw_lat: 41.3,
+        sw_lng: 69.27,
+        ne_lat: 41.5, // широкий bbox — все 4 гео-листинга
+        ne_lng: 69.29,
+        city_id: CITY_ID,
+        limit: 2,
+        cursor: cursor ?? undefined,
+      });
+      collected.push(...page.data.map((d) => d.id));
+      cursor = page.meta.next_cursor;
+      pages += 1;
+      expect(pages).toBeLessThanOrEqual(10);
+    } while (cursor);
+
+    expect(pages).toBe(2); // 4 гео-листинга по 2 на страницу
+    expect(collected).toHaveLength(4);
+    expect(new Set(collected).size).toBe(4); // без дублей
+    expect(collected).not.toContain(ID.noGeo);
   });
 
   it('radius keeps a stable keyset across pages with no gaps or duplicates', async () => {

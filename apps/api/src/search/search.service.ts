@@ -12,6 +12,7 @@ import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
 import {
+  BoundsSearchQueryDto,
   NearMeSearchQueryDto,
   RadiusSearchQueryDto,
 } from './dto/geo-search.dto';
@@ -136,7 +137,8 @@ type SearchRow = Prisma.ListingGetPayload<{ select: typeof SEARCH_SELECT }>;
  * ADR-0004): `effective_tier DESC, created_at DESC, id DESC`, где `effective_tier`
  * — time-guarded ранг промо ({@link TIER_RANK_SQL}). Гео-поиск (PostGIS) —
  * {@link SearchService.searchRadius} (`ST_DWithin`, GIST) и
- * {@link SearchService.searchNearMe} (`ST_Distance` сортировка), TASK-082.
+ * {@link SearchService.searchNearMe} (`ST_Distance` сортировка), TASK-082;
+ * {@link SearchService.searchBounds} (bbox `ST_MakeEnvelope`/`ST_Within`), TASK-083.
  *
  * Ранжирование, keyset-пагинация и `total` считаются raw-SQL (Prisma `orderBy`
  * не выражает CASE с гардом по времени, ADR-0004 §2/§4); далее страница
@@ -234,6 +236,52 @@ export class SearchService {
   }
 
   /**
+   * `GET /api/v1/search/bounds` — ACTIVE-листинги внутри видимой области карты
+   * (bbox `ST_MakeEnvelope`). Порядок — promotion-приоритетный, как у `/search`
+   * (keyset с тиром); `distance_m` не возвращается (центра у bbox нет). API.md §10.
+   *
+   * Фильтр: `&&` (bbox-оверлап по GIST-индексу geography — быстрый префильтр) +
+   * точный `ST_Within(location::geometry, envelope)`. Для точечной геометрии `&&`
+   * по осевому прямоугольнику уже эквивалентен «точка внутри», но `ST_Within`
+   * оставлен явно (контракт API.md §10, комментарий миграции idx_listings_location).
+   */
+  async searchBounds(
+    query: BoundsSearchQueryDto,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<CursorPaginatedResponse<SearchListItem>> {
+    const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const cursor = this.decodeCursor(query.cursor);
+    const envelope = this.envelopeSql(query);
+    // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
+    const filterSql = Prisma.sql`${this.buildWhereSql(query)} AND location IS NOT NULL AND location && ${envelope}::geography AND ST_Within(location::geometry, ${envelope})`;
+    const pageWhere = cursor
+      ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor)}`
+      : filterSql;
+
+    const [ranked, countRows] = await Promise.all([
+      this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
+        SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank
+        FROM listings
+        WHERE ${pageWhere}
+        ORDER BY ${TIER_RANK_SQL} DESC, created_at DESC, id DESC
+        LIMIT ${limit + 1}
+      `),
+      this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
+        SELECT count(*)::int AS count FROM listings WHERE ${filterSql}
+      `),
+    ]);
+
+    return this.buildKeysetEnvelope(
+      ranked,
+      countRows[0]?.count ?? 0,
+      limit,
+      langParam,
+      acceptLanguage,
+    );
+  }
+
+  /**
    * `GET /api/v1/search/near-me` — ближайшие к точке ACTIVE-листинги,
    * отсортированные по дистанции (`ST_Distance` ASC); промо — вторичный ключ при
    * равенстве (API.md §10: для near-me основной ключ — дистанция). Одна страница
@@ -276,6 +324,16 @@ export class SearchService {
    */
   private pointSql(lng: number, lat: number): Prisma.Sql {
     return Prisma.sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography`;
+  }
+
+  /**
+   * Прямоугольник видимой области карты как `geometry(Polygon,4326)`.
+   * `ST_MakeEnvelope(xmin, ymin, xmax, ymax, srid)` — порядок аргументов
+   * (долгота, широта): `xmin=sw_lng, ymin=sw_lat, xmax=ne_lng, ymax=ne_lat`.
+   * Перевёрнутый/вырожденный bbox (`sw > ne`) даёт пустую выдачу, а не ошибку.
+   */
+  private envelopeSql(query: BoundsSearchQueryDto): Prisma.Sql {
+    return Prisma.sql`ST_MakeEnvelope(${query.sw_lng}, ${query.sw_lat}, ${query.ne_lng}, ${query.ne_lat}, 4326)`;
   }
 
   /**
