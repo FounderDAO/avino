@@ -12,12 +12,12 @@ import {
   PromotionType,
   PropertyType,
   TransactionType,
-  TranslationSource,
 } from '@prisma/client';
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
 import { PrismaService } from '../prisma';
+import { TranslationsService } from '../translations';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
@@ -198,7 +198,6 @@ const LISTING_DETAIL_SELECT = {
 type ListingDetailRow = Prisma.ListingGetPayload<{
   select: typeof LISTING_DETAIL_SELECT;
 }>;
-type ListingTranslationRow = ListingDetailRow['translations'][number];
 
 /**
  * Компактная карточка листинга для коллекций (`GET /api/v1/listings/mine`,
@@ -284,10 +283,16 @@ const PRIVILEGED_VIEW_ROLES: readonly UserRole[] = [
  * вместе с авторским переводом на `original_language` (source=USER). Обновлять
  * можно только собственное объявление — чужое → `403 FORBIDDEN`. `location`
  * (PostGIS) и ре-генерация машинных переводов — отдельные задачи M5.
+ *
+ * Логика переводов (построение авторской строки, выбор языка ответа с фолбэком)
+ * делегируется {@link TranslationsService} — единому источнику (TASK-070).
  */
 @Injectable()
 export class ListingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly translations: TranslationsService,
+  ) {}
 
   /** `POST /api/v1/listings` — создать объявление (статус `NEW`). */
   async create(
@@ -307,15 +312,10 @@ export class ListingsService {
       price: dto.price,
       currency: dto.currency,
       translations: {
-        create: {
-          language: dto.original_language,
-          source: TranslationSource.USER,
-          isAutoTranslated: false,
-          title: dto.translation.title,
-          description: dto.translation.description ?? null,
-          addressNote: dto.translation.address_note ?? null,
-          featuresText: dto.translation.features_text ?? null,
-        },
+        create: this.translations.buildOriginalTranslationInput(
+          dto.original_language,
+          dto.translation,
+        ),
       },
     };
 
@@ -416,7 +416,7 @@ export class ListingsService {
       throw notFound;
     }
 
-    const language = this.resolveLanguage(
+    const language = this.translations.resolveLanguage(
       listing.translations,
       listing.originalLanguage,
       langParam,
@@ -479,56 +479,6 @@ export class ListingsService {
       return true;
     }
     return viewer.roles.some((role) => PRIVILEGED_VIEW_ROLES.includes(role));
-  }
-
-  /**
-   * Выбрать язык перевода: приоритет у `?lang`, затем `Accept-Language`, фолбэк —
-   * `original_language` (ADR-012). Учитываются только языки, для которых перевод
-   * реально существует (машинные переводы появляются после ACTIVE, ADR-005).
-   */
-  private resolveLanguage(
-    translations: ListingTranslationRow[],
-    originalLanguage: Language,
-    langParam?: string,
-    acceptLanguage?: string,
-  ): Language {
-    const available = new Set(translations.map((t) => t.language));
-    const candidates = [
-      this.normalizeLanguage(langParam),
-      ...this.parseAcceptLanguage(acceptLanguage),
-    ];
-    for (const candidate of candidates) {
-      if (candidate && available.has(candidate)) {
-        return candidate;
-      }
-    }
-    if (available.has(originalLanguage)) {
-      return originalLanguage;
-    }
-    // Крайний случай (нет строки на original_language) — отдаём первую доступную.
-    return translations[0]?.language ?? originalLanguage;
-  }
-
-  /** Нормализовать строку языка (`ru`/`RU`) к enum `Language` либо `null`. */
-  private normalizeLanguage(value: string | undefined): Language | null {
-    if (!value) {
-      return null;
-    }
-    const upper = value.trim().toUpperCase();
-    return (Object.values(Language) as string[]).includes(upper)
-      ? (upper as Language)
-      : null;
-  }
-
-  /** Языки из `Accept-Language` по убыванию приоритета (q-веса игнорируются). */
-  private parseAcceptLanguage(header: string | undefined): Language[] {
-    if (!header) {
-      return [];
-    }
-    return header
-      .split(',')
-      .map((part) => this.normalizeLanguage(part.split(';')[0]?.split('-')[0]))
-      .filter((lang): lang is Language => lang !== null);
   }
 
   /** DTO (snake_case) → Prisma scalar data (camelCase). Пропускает undefined. */

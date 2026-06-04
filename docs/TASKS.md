@@ -434,56 +434,7 @@ _TASK-060, TASK-061 completed — see docs/DONE.md._
 
 ## 11. M7 — Translations
 
-### TASK-070 — Add listing translation service
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/listing-translation-service
-```
-
-Scope:
-
-```text
-Implement listing translation storage service.
-```
-
-Files expected:
-
-```text
-apps/api/src/translations/
-apps/api/src/listings/
-```
-
-Acceptance criteria:
-
-```text
-Original language row is created
-Translation rows can be retrieved by language
-Listing response supports language selection
-Missing translation fallback is defined
-```
-
-Suggested commits:
-
-```text
-feat(translations): add listing translation service
-```
-
-Dependencies:
-
-```text
-TASK-036
-TASK-050
-```
-
----
+_TASK-070 completed — see docs/DONE.md._
 
 ### TASK-071 — Add translation queue and provider abstraction
 
