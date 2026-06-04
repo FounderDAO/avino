@@ -25,10 +25,18 @@ export const redisConfig = registerAs('redis', () => ({
 
 export const s3Config = registerAs('s3', () => ({
   endpoint: process.env.S3_ENDPOINT,
-  region: process.env.S3_REGION,
+  region: process.env.S3_REGION ?? 'us-east-1',
   bucket: process.env.S3_BUCKET,
   accessKeyId: process.env.S3_ACCESS_KEY_ID,
   secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+  // S3-compatible (MinIO/Spaces) обычно требует path-style. Дефолт true;
+  // явный "false" нужен для нативного AWS S3 с virtual-hosted-style.
+  forcePathStyle: process.env.S3_FORCE_PATH_STYLE !== 'false',
+  // Базовый публичный URL/CDN. Если задан — getObjectUrl возвращает публичный
+  // URL (объекты заливаются с public-read ACL). Если пуст — возвращается
+  // presigned GET URL (приватный bucket). См. ARCHITECTURE §14, ENV §9.
+  publicBaseUrl: process.env.S3_PUBLIC_BASE_URL,
+  signedUrlTtl: parseInt(process.env.S3_SIGNED_URL_TTL ?? '3600', 10),
 }));
 
 export const mapsConfig = registerAs('maps', () => ({

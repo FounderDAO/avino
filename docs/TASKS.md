@@ -430,55 +430,7 @@ _TASK-050, TASK-051, TASK-052, TASK-053 completed — see docs/DONE.md._
 
 ## 10. M6 — Media uploads
 
-### TASK-060 — Add S3 upload service
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/s3-upload-service
-```
-
-Scope:
-
-```text
-Implement S3-compatible upload service.
-```
-
-Files expected:
-
-```text
-apps/api/src/uploads/
-.env.example
-```
-
-Acceptance criteria:
-
-```text
-S3 config is loaded from env
-Upload service can upload file buffer
-Service returns public or signed URL according to config
-No local permanent storage is used
-```
-
-Suggested commits:
-
-```text
-feat(uploads): add S3 upload service
-```
-
-Dependencies:
-
-```text
-TASK-022
-```
-
----
+_TASK-060 completed — see docs/DONE.md._
 
 ### TASK-061 — Add listing media endpoints
 

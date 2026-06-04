@@ -558,6 +558,68 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-060 — Add S3 upload service
+
+Status: DONE
+Branch: feat/s3-upload-service
+PR: https://github.com/FounderDAO/avino/pull/46
+
+Files changed:
+- apps/api/src/uploads/uploads.service.ts
+- apps/api/src/uploads/uploads.service.spec.ts
+- apps/api/src/uploads/uploads.module.ts
+- apps/api/src/uploads/index.ts
+- apps/api/src/config/configuration.ts
+- apps/api/src/config/env.validation.ts
+- apps/api/src/app.module.ts
+- apps/api/package.json
+- apps/api/.eslintrc.cjs
+- .env.example
+- docs/adr/ADR-0022-s3-upload-service.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Открыт milestone M6 (media): добавлен сервисный слой загрузки файлов в
+  S3-compatible storage (`UploadsModule`/`UploadsService`) на AWS SDK v3
+  (`@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner`). SDK совместим с
+  нативным AWS S3, MinIO и DigitalOcean Spaces — провайдер выбирается env-конфигом
+  без правок кода (ARCHITECTURE §14, CLAUDE.md §3/§13). Сервис экспортируется для
+  ListingMediaModule (TASK-061).
+- Контракт узкий и client-agnostic: `upload({ buffer, contentType, key?, prefix?,
+  extension? }) → { key, url }`, `getObjectUrl(key)`, `delete(key)` (для reap
+  orphaned media), `extensionFromFilename()`. Валидация MIME/размера — на слое
+  вызова (TASK-061), сервис её не дублирует.
+- Public vs signed URL по конфигу (acceptance): задан `S3_PUBLIC_BASE_URL` (CDN/
+  публичный bucket) → объекты с `public-read` ACL, прямой публичный URL; пуст →
+  приватный bucket, presigned GET URL (`S3_SIGNED_URL_TTL`, дефолт 3600 c).
+- Никакого локального хранилища (acceptance): при отсутствии кредов/бакета сервис
+  бросает понятную ошибку (`S3 storage is not configured: …`), а не пишет на FS;
+  клиент инициализируется лениво, чтобы приложение поднималось без S3-кредов
+  (опциональная интеграция, TASK-022).
+- Новые env-переменные (опциональны): `S3_FORCE_PATH_STYLE` (дефолт `true`;
+  валидируется как строка — class-transformer привёл бы `"false"` к `true`),
+  `S3_PUBLIC_BASE_URL`, `S3_SIGNED_URL_TTL`; `S3_REGION` получил дефолт
+  `us-east-1`. Обновлены `configuration.ts`, `env.validation.ts`, `.env.example`.
+- Вне scope (см. ADR-0022): HTTP media-эндпоинты (TASK-061), EXIF-стриппинг и
+  thumbnail (media_processing_queue), presigned PUT (direct-to-S3), запись
+  `listing_media` в БД (TASK-061).
+- Проверено: `nest build` чистый; `tsc --noEmit` без ошибок; 102/102 unit-теста
+  зелёные (7 новых для UploadsService: presigned vs public URL, public-read ACL,
+  генерация ключа, delete, fail-fast при отсутствии кредов/бакета, extension).
+- Попутно починен `npm run lint`: у API не было конфига ESLint (общая проблема
+  репозитория, не регрессия задачи). Добавлен `apps/api/.eslintrc.cjs`
+  (NestJS-стандарт: `@typescript-eslint` parser + recommended) и объявлены
+  dev-зависимости eslint/parser/plugin в `package.json`. Lint проходит чисто по
+  всему `src`.
+
+Commit messages:
+- feat(uploads): add S3 upload service
+- chore(api): add ESLint config and fix lint
+
+Related ADR:
+- docs/adr/ADR-0022-s3-upload-service.md
+
 ### TASK-053 — Add listing moderation workflow
 
 Status: DONE

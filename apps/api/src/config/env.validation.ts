@@ -75,6 +75,21 @@ export class EnvironmentVariables {
   @IsOptional()
   S3_SECRET_ACCESS_KEY?: string;
 
+  // Строкой (не boolean): class-transformer привёл бы любую непустую строку,
+  // включая "false", к true. Парсинг в configuration.ts (s3.forcePathStyle).
+  @IsString()
+  @IsOptional()
+  S3_FORCE_PATH_STYLE?: string;
+
+  @IsString()
+  @IsOptional()
+  S3_PUBLIC_BASE_URL?: string;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  S3_SIGNED_URL_TTL?: number;
+
   // ── Yandex Maps (опционально на старте) ──
   @IsString()
   @IsOptional()
