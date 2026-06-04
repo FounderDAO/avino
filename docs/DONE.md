@@ -562,7 +562,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/search-promotion-sorting
-PR: pending
+PR: #52
 
 Files changed:
 - apps/api/src/search/search.service.ts
