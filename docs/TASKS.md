@@ -444,56 +444,9 @@ _TASK-080, TASK-081, TASK-082, TASK-083 completed — see docs/DONE.md._
 
 ## 13. M9 — Favorites and saved searches
 
-### TASK-091 — Add saved searches module
+_TASK-090, TASK-091 completed — see docs/DONE.md._
 
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/saved-searches
-```
-
-Scope:
-
-```text
-Implement saved search CRUD.
-```
-
-Files expected:
-
-```text
-apps/api/src/saved-searches/
-```
-
-Acceptance criteria:
-
-```text
-POST /api/v1/saved-searches works
-GET /api/v1/saved-searches works
-PATCH /api/v1/saved-searches/:id works
-DELETE /api/v1/saved-searches/:id works
-filters_json includes schemaVersion
-User can only manage own saved searches
-```
-
-Suggested commits:
-
-```text
-feat(saved-searches): add saved search CRUD
-```
-
-Dependencies:
-
-```text
-TASK-038
-TASK-044
-TASK-080
-```
+---
 
 ## 14. M10 — Notifications
 

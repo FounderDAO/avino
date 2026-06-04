@@ -39,6 +39,45 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-091 — Add saved searches module
+
+Status: DONE
+Branch: feat/saved-searches
+PR: #58
+
+Files changed:
+- apps/api/src/saved-searches/saved-searches.controller.ts
+- apps/api/src/saved-searches/saved-searches.service.ts
+- apps/api/src/saved-searches/saved-searches.module.ts
+- apps/api/src/saved-searches/saved-searches.service.spec.ts
+- apps/api/src/saved-searches/dto/filters-json.dto.ts
+- apps/api/src/saved-searches/dto/create-saved-search.dto.ts
+- apps/api/src/saved-searches/dto/update-saved-search.dto.ts
+- apps/api/src/saved-searches/dto/list-saved-searches.dto.ts
+- apps/api/src/saved-searches/index.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0031-saved-searches-module.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the saved-searches module on top of the existing schema (no new migrations — the `SavedSearch` model / `saved_searches` table already exist from migration `20260603180000_add_favorites_saved_searches`, DB_SCHEMA §9): `GET /api/v1/saved-searches`, `POST /api/v1/saved-searches`, `PATCH /api/v1/saved-searches/:id`, `DELETE /api/v1/saved-searches/:id`. The whole controller is under `JwtAuthGuard`, so a guest without a Bearer token gets `401` (API.md §12). `SearchModule` is NOT imported (unlike favorites) — saved searches return their own records, no listing-card hydration.
+- `filters_json` is versioned (`{ schemaVersion, filters }`, API.md §12) and validated in two layers: `FiltersJsonDto` enforces structure (`schemaVersion` int, `filters` object) → a bad type is `400 VALIDATION_ERROR`; the service then checks the version against `SUPPORTED_SCHEMA_VERSIONS = { 1 }` → a structurally-valid but unknown version (e.g. `99`) is `422 UNSUPPORTED_FILTER_SCHEMA`. The inner `filters` object is intentionally freeform (not validated against the `/search` DTO) for forward compatibility — the saved-search matcher stays tolerant to versions and the search filter set grows (TASK-081/082).
+- Ownership is enforced at the write level: `PATCH`/`DELETE` use `(id, user_id)` filters via `updateMany`/`deleteMany`; `count === 0` → `404` (a stranger's search is unreachable and not leaked by existence). `PATCH` is partial (`name` / `filters_json` / `is_active`), and after a successful `updateMany` re-reads the row for the `200` body. `:id` is validated by `ParseUUIDPipe`.
+- `GET` lists by `created_at DESC, id DESC` (newest first) and returns `meta: { limit, total }` exactly per the §12 contract (no keyset cursor — saved searches are a short personal list); `limit` default 20, max 100 (API.md §4).
+
+Important notes:
+- `filters` content is not validated against the search schema — a malformed filter set is accepted and simply matches nothing later, rather than failing on write. Conscious trade-off for forward compatibility; strict checking deferred to the versioned matcher (M10).
+- `is_active=false` lets a user pause alerts without deleting the saved search.
+- Coverage is unit tests (Prisma mocked), as with favorites; no live-PostgreSQL integration spec was added.
+- Verified: `jest` 22 suites / 188 tests green (+9 for saved-searches create/update/remove/list, including `422` on unknown schemaVersion and `404` owner guard); `tsc --noEmit` and ESLint clean.
+
+Commit messages:
+- feat(saved-searches): add saved search CRUD
+
+Related ADR:
+- docs/adr/ADR-0031-saved-searches-module.md
+
 ### TASK-090 — Add favorites module
 
 Status: DONE
