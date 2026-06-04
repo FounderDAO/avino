@@ -1,35 +1,47 @@
 import {
   Body,
   Controller,
+  Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { UserRole } from '@avino/shared';
 import { CurrentUser, Roles } from '../common/decorators';
-import { JwtAuthGuard, RolesGuard } from '../common/guards';
+import type { AuthenticatedUser } from '../common/guards';
+import {
+  JwtAuthGuard,
+  OptionalJwtAuthGuard,
+  RolesGuard,
+} from '../common/guards';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
-import { ListingResponse, ListingsService } from './listings.service';
+import {
+  ListingDetailResponse,
+  ListingResponse,
+  ListingsService,
+} from './listings.service';
 
 /**
- * ListingsController — создание/обновление объявлений (TASK-050, API.md §7).
+ * ListingsController — CRUD объявлений (TASK-050/051, API.md §7).
  *
- * Все эндпоинты под `@UseGuards(JwtAuthGuard, RolesGuard)` (Auth: Bearer).
- * Создание требует роли с правом публикации (`@Roles(...)`); обновление доступно
- * любому аутентифицированному, но сервис разрешает менять только собственное
- * объявление (`ownerId` из access-токена). Версионирование URI обязательно
- * (CLAUDE.md §14); префикс `api` ставит main.ts.
+ * Guards подключаются ПОэндпоинтно (не на классе), т.к. видимость разная:
+ * create/update — Bearer (`JwtAuthGuard`); публичная карточка `GET :id` —
+ * `OptionalJwtAuthGuard` (гость видит ACTIVE, владелец/MODERATOR/ADMIN — и
+ * непубличные статусы). Версионирование URI обязательно (CLAUDE.md §14);
+ * префикс `api` ставит main.ts.
  */
 @Controller({ path: 'listings', version: '1' })
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class ListingsController {
   constructor(private readonly listingsService: ListingsService) {}
 
   /** `POST /api/v1/listings` — создать объявление (статус `NEW`). */
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(
     UserRole.OWNER,
     UserRole.AGENT,
@@ -44,8 +56,25 @@ export class ListingsController {
     return this.listingsService.create(userId, dto);
   }
 
+  /**
+   * `GET /api/v1/listings/:id` — публичная карточка объявления.
+   * Перевод выбирается по `?lang`/`Accept-Language` с фолбэком на
+   * `original_language`; медиа включены.
+   */
+  @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
+  findOne(
+    @Param('id', ParseUUIDPipe) listingId: string,
+    @CurrentUser() viewer: AuthenticatedUser | undefined,
+    @Query('lang') lang?: string,
+    @Headers('accept-language') acceptLanguage?: string,
+  ): Promise<ListingDetailResponse> {
+    return this.listingsService.findOne(listingId, viewer, lang, acceptLanguage);
+  }
+
   /** `PATCH /api/v1/listings/:id` — обновить собственное объявление. */
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   update(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) listingId: string,
