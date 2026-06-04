@@ -145,4 +145,20 @@ describe('UploadsService', () => {
     const service = makeService();
     expect(service.extensionFromFilename('PHOTO.JPG')).toBe('.jpg');
   });
+
+  describe('extractKey', () => {
+    it('strips the public base URL (CDN mode)', () => {
+      const service = makeService({ 's3.publicBaseUrl': 'https://cdn.avino.uz/' });
+      expect(
+        service.extractKey('https://cdn.avino.uz/listings/42/media/u.webp'),
+      ).toBe('listings/42/media/u.webp');
+    });
+
+    it('strips the bucket segment for path-style URLs (private mode)', () => {
+      const service = makeService();
+      expect(
+        service.extractKey('https://minio.local/avino-media/listings/42/u.jpg?sig=x'),
+      ).toBe('listings/42/u.jpg');
+    });
+  });
 });
