@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/favorites
-PR: pending
+PR: #57
 
 Files changed:
 - apps/api/src/favorites/favorites.controller.ts
