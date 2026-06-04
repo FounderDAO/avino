@@ -738,8 +738,10 @@ NOT_REQUIRED`, активация вручную админом.
 ```json
 { "plans": [
   { "type": "TOP", "period_days": 7,  "price": "50000.00",  "currency": "UZS" },
+  { "type": "TOP", "period_days": 14, "price": "90000.00",  "currency": "UZS" },
   { "type": "TOP", "period_days": 30, "price": "150000.00", "currency": "UZS" },
   { "type": "VIP", "period_days": 7,  "price": "120000.00", "currency": "UZS" },
+  { "type": "VIP", "period_days": 14, "price": "210000.00", "currency": "UZS" },
   { "type": "VIP", "period_days": 30, "price": "350000.00", "currency": "UZS" }
 ] }
 ```

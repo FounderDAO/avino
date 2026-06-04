@@ -711,55 +711,7 @@ TASK-100
 
 ## 16. M12 — VIP/TOP promotions
 
-### TASK-120 — Add promotion plans endpoint
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/promotion-plans
-```
-
-Scope:
-
-```text
-Implement public endpoint for promotion plans.
-```
-
-Files expected:
-
-```text
-apps/api/src/promotions/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/promotions/plans works
-Returns TOP and VIP options
-Returns 7/14/30 day periods
-Online payment is not required
-```
-
-Suggested commits:
-
-```text
-feat(promotions): add promotion plans endpoint
-```
-
-Dependencies:
-
-```text
-TASK-037
-TASK-021
-```
-
----
+_TASK-120 completed — see docs/DONE.md._
 
 ### TASK-121 — Add admin promotion activation
 
