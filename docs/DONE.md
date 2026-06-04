@@ -39,6 +39,40 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-122 — Add promotion cancel and extend
+
+Status: DONE
+Branch: feat/admin-promotion-management
+PR: pending
+
+Files changed:
+- apps/api/src/promotions/admin-promotions.service.ts
+- apps/api/src/promotions/admin-promotions.service.spec.ts
+- apps/api/src/promotions/dto/cancel-promotion.dto.ts
+- apps/api/src/promotions/dto/extend-promotion.dto.ts
+- apps/api/src/admin/admin-listing-promotions.controller.ts
+- apps/api/src/admin/admin.module.ts
+- docs/adr/ADR-0034-admin-promotion-cancel-extend.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added cancel and extend for existing promotions (API.md §15): `PATCH /api/v1/admin/listing-promotions/:id/cancel` and `PATCH /api/v1/admin/listing-promotions/:id/extend`. Unlike activate/history (which key off the listing), these key off the **promotion id**, so they live in a new `AdminListingPromotionsController` at `/admin/listing-promotions`. Access is **ADMIN only** (RolesGuard), consistent with TASK-121.
+- Both ops require the promotion to be `ACTIVE` (shared `requireActivePromotion` guard): missing row → `404 NOT_FOUND`, non-active → `422 PROMOTION_NOT_ACTIVE`. The error catalog (§17) scopes `PROMOTION_NOT_ACTIVE` to both extend and cancel.
+- **cancel**: in one transaction sets `status → CANCELLED`, resets the `listings` read-cache to NORMAL (`promotion_type = NORMAL`, both dates `null`), and writes `promotion_logs(CANCEL_PROMOTION)` (delta `old_type → NORMAL`, with optional `reason`) + `audit_logs(LISTING_PROMOTION_CHANGE)`. This preserves the "one ACTIVE per listing" invariant.
+- **extend**: validates `period_days` against the tier catalog (`422 INVALID_PERIOD`), then `expires_at += period_days` anchored on the current `expires_at` (an ACTIVE promo is future-dated → this is a prolongation, not a restart; falls back to `now` only if data is desynced). Syncs the cache `promotion_expires_at` and writes `promotion_logs(EXTEND_PROMOTION)` (delta) + `audit_logs`.
+
+Important notes:
+- "Only one ACTIVE promotion remains" holds because neither op ever creates a second row: cancel removes one from the ACTIVE set, extend mutates a single existing row.
+- `audit_logs(LISTING_PROMOTION_CHANGE)` is written in addition to the contract-mandated `promotion_logs`, mirroring activation (ADR-0033) for a complete security audit trail; it does not change the API response shape. Decision recorded in ADR-0034.
+- Coverage is unit tests with mocked Prisma (mirrors TASK-121): cancel happy-path + cache reset + logging + null reason; extend happy-path + delta; 404 / 422 PROMOTION_NOT_ACTIVE / 422 INVALID_PERIOD for both. Verified: jest 24 suites / 213 tests green (+8 for cancel/extend), `tsc --noEmit` and ESLint clean.
+
+Commit messages:
+- feat(promotions): add cancel and extend actions
+
+Related ADR:
+- docs/adr/ADR-0034-admin-promotion-cancel-extend.md
+
 ### TASK-121 — Add admin promotion activation
 
 Status: DONE
