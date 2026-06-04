@@ -558,6 +558,41 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-043 — Add refresh and logout flow
+
+Status: DONE
+Branch: feat/auth-refresh-logout
+PR: #37
+
+Files changed:
+- apps/api/src/auth/token.service.ts
+- apps/api/src/auth/auth.service.ts
+- apps/api/src/auth/auth.controller.ts
+- apps/api/src/auth/dto/refresh-token.dto.ts
+- apps/api/src/auth/token.service.spec.ts
+- docs/adr/ADR-0015-refresh-rotation-and-logout.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Implemented the third and fourth steps of the OTP auth-flow (`request → verify → refresh → logout`, API.md §3): `POST /api/v1/auth/refresh` (rotation) and `POST /api/v1/auth/logout` (204). Both take `{ refresh_token }` in the body via the shared `RefreshTokenDto` (`@IsJWT`).
+- `refresh` (`TokenService.rotateSession`): verify refresh-JWT signature (`JWT_REFRESH_SECRET`) — `TokenExpiredError` → `TOKEN_EXPIRED`, else `TOKEN_INVALID`; locate the `refresh_tokens` row by `jti` and assert `token_hash`/`user_id`/`family_id` match (desync → `TOKEN_INVALID`); rotate inside one transaction (current row `revoked_at`, new row in the SAME family with a fresh `jti`). The new access token carries roles re-read fresh from the DB; a non-ACTIVE user → family revoked + `TOKEN_INVALID` (a blocked account cannot renew its session).
+- **Reuse detection** (DB_SCHEMA §4): presenting an already-rotated (revoked) token revokes the WHOLE session family via `revokeFamily` (`updateMany where family_id, revoked_at=null`) and returns `TOKEN_REUSED`. Stealing one refresh token therefore cannot grant long-lived access.
+- `logout` (`TokenService.revokeSession`): idempotent, signature-free — the row is found by the deterministic `token_hash`; found → revoke the whole family + write `audit_logs` (`action='LOGOUT'`); not found → no-op. Always `204 No Content` (does not leak session existence). Body-addressed until the Bearer guard lands (TASK-044).
+- Error codes `TOKEN_INVALID` / `TOKEN_EXPIRED` / `TOKEN_REUSED` are all 401 (API.md §3).
+
+Important notes:
+- No schema or migration changes: the `refresh_tokens` model (`revoked_at`, `family_id`) and `JWT_*` env were introduced in TASK-042; reuse detection is pure service logic over the existing `(token_hash)`/`(family_id)` indexes.
+- 31 unit tests pass (`pnpm jest src/auth`; 9 new in `token.service.spec.ts`: rotation, reuse→family revoke, expired/invalid signature, missing/mismatched row, non-active user, idempotent logout). `nest build` green; Prettier-formatted. apps/api ESLint config still absent (pre-existing scaffold gap from TASK-010).
+- Concurrent double-refresh of one token can briefly leave two active rows in a family (read-before-revoke window); acceptable for MVP (ADR-0015).
+
+Commit messages:
+- feat(auth): add refresh token rotation and logout
+- docs(adr): record refresh rotation and logout decision (TASK-043)
+
+Related ADR:
+- docs/adr/ADR-0015-refresh-rotation-and-logout.md
+
 ### TASK-042 — Add AuthModule OTP verify and tokens
 
 Status: DONE

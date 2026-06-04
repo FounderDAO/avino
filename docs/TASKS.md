@@ -475,57 +475,6 @@ TASK-043 (@CurrentUser / auth guard) — реальный блокер
 
 ---
 
-### TASK-043 — Add refresh and logout flow
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/auth-refresh-logout
-```
-
-Scope:
-
-```text
-Implement refresh token rotation and logout.
-```
-
-Files expected:
-
-```text
-apps/api/src/auth/
-```
-
-Acceptance criteria:
-
-```text
-POST /api/v1/auth/refresh exists
-POST /api/v1/auth/logout exists
-Refresh token rotation works
-Rotated token reuse is detected
-Logout revokes refresh token
-```
-
-Suggested commits:
-
-```text
-feat(auth): add refresh token rotation
-feat(auth): add logout endpoint
-```
-
-Dependencies:
-
-```text
-TASK-042
-```
-
----
-
 ### TASK-044 — Add RBAC guards
 
 Status:
