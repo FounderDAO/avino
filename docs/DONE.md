@@ -558,6 +558,60 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-071 — Add translation queue and provider abstraction
+
+Status: DONE
+Branch: feat/translation-queue
+PR: pending
+
+Files changed:
+- apps/api/src/queues/queues.module.ts
+- apps/api/src/queues/translation.queue.ts
+- apps/api/src/queues/translation.queue.spec.ts
+- apps/api/src/queues/queue.constants.ts
+- apps/api/src/queues/bullmq-connection.ts
+- apps/api/src/queues/index.ts
+- apps/api/src/translations/providers/translation-provider.interface.ts
+- apps/api/src/translations/providers/yandex.provider.ts
+- apps/api/src/translations/providers/google.provider.ts
+- apps/api/src/translations/providers/translation-provider.factory.ts
+- apps/api/src/translations/providers/translation-provider.factory.spec.ts
+- apps/api/src/translations/providers/translation-provider.spec.ts
+- apps/api/src/translations/providers/index.ts
+- apps/api/src/translations/listing-auto-translator.service.ts
+- apps/api/src/translations/listing-auto-translator.service.spec.ts
+- apps/api/src/translations/translation.worker.ts
+- apps/api/src/translations/translations.module.ts
+- apps/api/src/moderation/moderation.service.ts
+- apps/api/src/moderation/moderation.service.spec.ts
+- apps/api/src/config/configuration.ts
+- apps/api/src/config/env.validation.ts
+- apps/api/src/app.module.ts
+- .env.example
+- docs/adr/ADR-0025-listing-translation-queue.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the BullMQ `translation_queue` for listing auto-translation (M7). Producer `TranslationQueue` (global `QueuesModule`) enqueues a `translate_listing` job with retry options (`attempts` from `TRANSLATE_QUEUE_ATTEMPTS`, default 3, + exponential backoff) and a dedup `jobId = translate:<listingId>`. Uses raw `bullmq` wired manually (no `@nestjs/bullmq` dependency), with the Redis connection built as plain options from `REDIS_URL` (`buildBullConnection`) to sidestep the ioredis version skew between the app and BullMQ's bundle.
+- Added a provider abstraction: `TranslationProvider` interface with `YandexTranslationProvider`/`GoogleTranslationProvider`, selected by `TRANSLATE_PROVIDER` via `createTranslationProvider` (DI token `TRANSLATION_PROVIDER`, default Yandex). Real HTTP through global `fetch`; without `TRANSLATE_API_KEY` the provider degrades gracefully (returns source text), mirroring `SmsService`/`EmailService`.
+- Worker `TranslationWorker` (concurrency from `TRANSLATE_QUEUE_CONCURRENCY`) is a thin BullMQ consumer delegating to the unit-tested `ListingAutoTranslator.run(listingId)`: loads the author row on `original_language`, translates `title`/`description`/`address_note`/`features_text` into the other languages, and upserts `ListingTranslation` rows (`source=<provider>`, `is_auto_translated=true`). Idempotent via upsert on `(listing_id, language)`; null fields skip the provider; stale jobs (missing/not-ACTIVE/no author row) are skipped softly.
+- Trigger: `ModerationService.changeStatus` enqueues on APPROVE→ACTIVE after the transaction commits. A failed enqueue is logged but not propagated (the listing is already ACTIVE). The listing-create path is untouched, so no direct translation call blocks listing create.
+
+Important notes:
+- Acceptance criteria satisfied: `translation_queue` exists; provider abstraction exists; Google/Yandex selected by env; failed jobs retry (BullMQ `attempts` + backoff); no direct translation call blocks listing create (auto-translation runs in the background after moderation approval).
+- Re-generation of machine translations on author-text edits and manual per-translation PUT/PATCH remain out of scope.
+- 18 new unit tests (provider factory + providers, `ListingAutoTranslator`, `TranslationQueue`, moderation enqueue); full apps/api suite green (19 suites, 154 tests). `tsc --noEmit`, `nest build`, ESLint and Prettier all clean.
+
+Commit messages:
+- feat(translations): add provider abstraction
+- feat(translations): add translation queue and auto-translate worker
+- feat(moderation): enqueue auto-translation on approve
+- docs(adr): record translation queue decision (ADR-0025)
+
+Related ADR:
+- docs/adr/ADR-0025-listing-translation-queue.md
+
 ### TASK-070 — Add listing translation service
 
 Status: DONE

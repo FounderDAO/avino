@@ -434,59 +434,7 @@ _TASK-060, TASK-061 completed — see docs/DONE.md._
 
 ## 11. M7 — Translations
 
-_TASK-070 completed — see docs/DONE.md._
-
-### TASK-071 — Add translation queue and provider abstraction
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/translation-queue
-```
-
-Scope:
-
-```text
-Add BullMQ queue for listing auto-translation.
-```
-
-Files expected:
-
-```text
-apps/api/src/translations/
-apps/api/src/queues/
-.env.example
-```
-
-Acceptance criteria:
-
-```text
-translation_queue exists
-Provider abstraction exists
-Google/Yandex provider can be selected by env
-Failed jobs can retry
-No direct translation call blocks listing create request
-```
-
-Suggested commits:
-
-```text
-feat(translations): add translation queue
-feat(translations): add provider abstraction
-```
-
-Dependencies:
-
-```text
-TASK-070
-TASK-011
-```
+_TASK-070, TASK-071 completed — see docs/DONE.md._
 
 ## 12. M8 — Search and PostGIS
 
