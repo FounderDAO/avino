@@ -2,6 +2,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -17,6 +18,7 @@ import {
 } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { PrismaService } from '../prisma';
+import { TranslationQueue } from '../queues';
 import { ListAdminListingsQueryDto } from './dto/list-admin-listings.dto';
 import { ModerateListingDto } from './dto/moderate-listing.dto';
 
@@ -131,7 +133,12 @@ type AdminListingRow = Prisma.ListingGetPayload<{
  */
 @Injectable()
 export class ModerationService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ModerationService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly translationQueue: TranslationQueue,
+  ) {}
 
   /**
    * `GET /api/v1/admin/listings` — очередь модерации и админ-список (API.md §16).
@@ -281,6 +288,21 @@ export class ModerationService {
 
       return listing;
     });
+
+    // После коммита: APPROVE→ACTIVE инициирует авто-перевод (TASK-071, ADR-005).
+    // Постановка джобы — не блокирующий перевод, а единичный insert в Redis; сбой
+    // постановки не должен валить ответ (листинг уже ACTIVE, джобу можно
+    // ре-инициировать), поэтому ошибка логируется, но не пробрасывается.
+    if (updated.status === ListingStatus.ACTIVE) {
+      try {
+        await this.translationQueue.enqueueListingTranslation(updated.id);
+      } catch (error) {
+        this.logger.error(
+          `Failed to enqueue translation for listing ${updated.id}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
 
     return {
       id: updated.id,

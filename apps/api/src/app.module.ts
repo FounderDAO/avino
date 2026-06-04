@@ -8,6 +8,7 @@ import { HealthModule } from './health/health.module';
 import { ListingMediaModule } from './listing-media';
 import { ListingsModule } from './listings/listings.module';
 import { PrismaModule } from './prisma';
+import { QueuesModule } from './queues';
 import { RedisModule } from './redis';
 import { TranslationsModule } from './translations';
 import { UploadsModule } from './uploads';
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module';
     AppConfigModule,
     PrismaModule,
     RedisModule,
+    QueuesModule,
     HealthModule,
     AuthModule,
     UsersModule,

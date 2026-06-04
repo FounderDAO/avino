@@ -121,6 +121,20 @@ export class EnvironmentVariables {
   @IsOptional()
   TRANSLATE_API_KEY?: string;
 
+  @IsString()
+  @IsOptional()
+  TRANSLATE_FOLDER_ID?: string;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  TRANSLATE_QUEUE_ATTEMPTS?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  TRANSLATE_QUEUE_CONCURRENCY?: number;
+
   // ── SMTP / email (опционально на старте) ──
   @IsString()
   @IsOptional()
