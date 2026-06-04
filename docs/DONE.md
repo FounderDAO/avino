@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: test/search-promotion-sorting-integration
-PR: pending
+PR: #53
 
 Files changed:
 - apps/api/src/search/search.service.int-spec.ts
