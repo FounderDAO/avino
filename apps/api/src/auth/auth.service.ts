@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma';
 import { normalizeContact } from './contact.util';
 import { verifyOtpCode } from './otp-hash.util';
 import { TokenService } from './token.service';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 /** Сводка пользователя в ответе verify (API.md §3). */
@@ -34,6 +35,14 @@ export interface VerifyOtpResult {
   token_type: 'Bearer';
   expires_in: number;
   user: AuthUserSummary;
+}
+
+/** Ответ `POST /api/v1/auth/refresh` (API.md §3) — без блока `user`. */
+export interface RefreshResult {
+  access_token: string;
+  refresh_token: string;
+  token_type: 'Bearer';
+  expires_in: number;
 }
 
 /** Внутреннее представление пользователя после resolve (создан или найден). */
@@ -190,6 +199,53 @@ export class AuthService {
         is_email_verified: user.isEmailVerified,
       },
     };
+  }
+
+  /**
+   * Ротация refresh-токена (`POST /api/v1/auth/refresh`, API.md §3, TASK-043).
+   * Делегирует {@link TokenService.rotateSession}; reuse-detection и отзыв family
+   * — внутри сервиса токенов.
+   */
+  async refresh(
+    dto: RefreshTokenDto,
+    ip: string,
+    userAgent?: string,
+  ): Promise<RefreshResult> {
+    const tokens = await this.tokenService.rotateSession(
+      dto.refresh_token,
+      ip,
+      userAgent,
+    );
+    return {
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+      token_type: 'Bearer',
+      expires_in: tokens.expiresIn,
+    };
+  }
+
+  /**
+   * Отзыв сессии (`POST /api/v1/auth/logout`, API.md §3, TASK-043) → 204.
+   * Идемпотентен; при найденной сессии пишет `audit_logs` (`action='LOGOUT'`).
+   */
+  async logout(
+    dto: RefreshTokenDto,
+    ip: string,
+    userAgent?: string,
+  ): Promise<void> {
+    const userId = await this.tokenService.revokeSession(dto.refresh_token);
+    if (userId) {
+      await this.prisma.auditLog.create({
+        data: {
+          actorId: userId,
+          action: 'LOGOUT',
+          entityType: 'user',
+          entityId: userId,
+          ip: ip ? ip.slice(0, 64) : null,
+          userAgent: userAgent ?? null,
+        },
+      });
+    }
   }
 
   /**
