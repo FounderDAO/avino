@@ -430,61 +430,7 @@ _TASK-050, TASK-051, TASK-052, TASK-053 completed — see docs/DONE.md._
 
 ## 10. M6 — Media uploads
 
-_TASK-060 completed — see docs/DONE.md._
-
-### TASK-061 — Add listing media endpoints
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/listing-media-endpoints
-```
-
-Scope:
-
-```text
-Implement listing media upload/list/delete/sort endpoints.
-```
-
-Files expected:
-
-```text
-apps/api/src/listing-media/
-apps/api/src/uploads/
-```
-
-Acceptance criteria:
-
-```text
-POST /api/v1/listings/:id/media exists
-GET /api/v1/listings/:id/media exists
-DELETE /api/v1/listings/:id/media/:mediaId exists
-PATCH /api/v1/listings/:id/media/sort exists
-Only owner/admin can modify media
-Allowed MIME types only
-EXIF stripping is implemented or clearly TODO documented
-```
-
-Suggested commits:
-
-```text
-feat(media): add listing media endpoints
-feat(media): validate image uploads
-```
-
-Dependencies:
-
-```text
-TASK-060
-TASK-036
-TASK-050
-```
+_TASK-060, TASK-061 completed — see docs/DONE.md._
 
 ## 11. M7 — Translations
 
