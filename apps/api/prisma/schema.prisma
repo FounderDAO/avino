@@ -142,6 +142,17 @@ enum PromotionAdminAction {
   EXTEND_PROMOTION
 }
 
+/// Действие модерации над объявлением, фиксируемое в moderation_logs
+/// (DB_SCHEMA.md §7, API.md §16, TASK-053). Маппинг на listing_status:
+/// APPROVE → ACTIVE, SEND_TO_DRAFT → DRAFT, REJECT → REJECTED, DELETE → DELETED.
+/// Добавление нового действия — non-breaking (ADR-0008).
+enum ModerationAction {
+  APPROVE
+  SEND_TO_DRAFT
+  REJECT
+  DELETE
+}
+
 /// Тип уведомления (DB_SCHEMA.md §3/§11, TASK-038). Доменное событие, по которому
 /// порождается notification. Добавление нового типа — non-breaking (ADR-0008).
 enum NotificationType {
@@ -213,6 +224,8 @@ model User {
   promotionsRequested  ListingPromotion[]   @relation("PromotionRequester")
   // Действия над продвижениями, совершённые этим пользователем как админом.
   promotionLogsAsAdmin PromotionLog[]       @relation("PromotionLogAdmin")
+  // Действия модерации, совершённые этим пользователем как модератором (TASK-053).
+  moderationLogs       ModerationLog[]      @relation("ModerationLogModerator")
   // Вовлечённость (TASK-038).
   favorites            Favorite[]
   savedSearches        SavedSearch[]
@@ -374,13 +387,14 @@ model Listing {
   createdAt          DateTime                               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime                               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  owner         User                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  translations  ListingTranslation[]
-  media         ListingMedia[]
-  promotions    ListingPromotion[]
-  promotionLogs PromotionLog[]
-  favorites     Favorite[]
-  chatThreads   ChatThread[]
+  owner          User                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  translations   ListingTranslation[]
+  media          ListingMedia[]
+  promotions     ListingPromotion[]
+  promotionLogs  PromotionLog[]
+  moderationLogs ModerationLog[]
+  favorites      Favorite[]
+  chatThreads    ChatThread[]
 
   @@index([status])
   @@index([propertyType])
@@ -524,6 +538,33 @@ model PromotionLog {
   @@index([listingPromotionId])
   @@index([adminId])
   @@map("promotion_logs")
+}
+
+/// Журнал модерации объявлений (DB_SCHEMA.md §7, API.md §16, TASK-053). Каждое
+/// действие модератора над объявлением логируется здесь (доменный лог) — в
+/// дополнение к audit_logs(LISTING_STATUS_CHANGE). old_status/new_status
+/// фиксируют переход; reason — опциональная причина (например для REJECT).
+///
+/// listing_id → listings ON DELETE CASCADE: лог не переживает физического
+/// удаления объявления. moderator_id → users ON DELETE SET NULL, nullable —
+/// запись сохраняется, даже если аккаунт модератора удалён (null = система).
+model ModerationLog {
+  id          String           @id @default(uuid()) @db.Uuid
+  listingId   String           @map("listing_id") @db.Uuid
+  moderatorId String?          @map("moderator_id") @db.Uuid
+  action      ModerationAction
+  oldStatus   ListingStatus?   @map("old_status")
+  newStatus   ListingStatus?   @map("new_status")
+  reason      String?
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  moderator User?   @relation("ModerationLogModerator", fields: [moderatorId], references: [id], onDelete: SetNull)
+
+  @@index([listingId])
+  @@index([moderatorId])
+  @@index([createdAt])
+  @@map("moderation_logs")
 }
 
 /// Избранное (DB_SCHEMA.md §9, TASK-038). Один пользователь — одна строка на

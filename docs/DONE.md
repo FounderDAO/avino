@@ -558,6 +558,73 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-053 — Add listing moderation workflow
+
+Status: DONE
+Branch: feat/listing-moderation
+PR: #45
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260604120000_add_moderation_logs/migration.sql
+- apps/api/src/moderation/moderation.service.ts
+- apps/api/src/moderation/moderation.service.spec.ts
+- apps/api/src/moderation/moderation.module.ts
+- apps/api/src/moderation/dto/list-admin-listings.dto.ts
+- apps/api/src/moderation/dto/moderate-listing.dto.ts
+- apps/api/src/moderation/index.ts
+- apps/api/src/admin/admin-listings.controller.ts
+- apps/api/src/admin/admin.module.ts
+- apps/api/src/admin/index.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0021-listing-moderation-workflow.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Implemented the listing moderation workflow (API.md §16, CLAUDE.md §9): admin
+  queue `GET /api/v1/admin/listings`, moderation action
+  `PATCH /api/v1/admin/listings/:id/status`, and history
+  `GET /api/v1/admin/listings/:id/moderation-logs`. All routes are MODERATOR /
+  ADMIN only (`JwtAuthGuard + RolesGuard` on the controller class).
+- Materialized the planned `moderation_logs` table + `ModerationAction` enum
+  (DB_SCHEMA §7) via migration `20260604120000_add_moderation_logs`:
+  `listing_id` ON DELETE CASCADE, `moderator_id` ON DELETE SET NULL nullable
+  (null = system), `old_status`/`new_status`/`reason`. Materialization of an
+  already-accepted contract, not a new architectural decision.
+- Action → status mapping in the service: `APPROVE → ACTIVE`,
+  `SEND_TO_DRAFT → DRAFT`, `REJECT → REJECTED`, `DELETE → DELETED`. Missing or
+  already-`DELETED` listing → `404`; source outside `{NEW, ACTIVE, DRAFT,
+  REJECTED}` or a no-op same-status transition → `422
+  INVALID_STATUS_TRANSITION`. `published_at` is set only on first publish
+  (`APPROVE → ACTIVE`) and not reset on re-approval.
+- Each status change is one interactive `$transaction`: update status +
+  `moderation_logs` (domain log) + `audit_logs(LISTING_STATUS_CHANGE)` (ADR-0004)
+  + an owner notification row (`LISTING_MODERATION_STATUS_CHANGED`, channel
+  EMAIL, status PENDING). PENDING = enqueued for the BullMQ worker (transport not
+  wired yet, see EmailService) — this is the "notification job queued".
+- Admin list supports `status` / `property_type` / `transaction_type` / `q`
+  (case-insensitive title search) filters with page-based pagination
+  (`PaginatedResponse`, ADR-0020); unlike owner/public paths it shows ALL
+  statuses including DELETED (moderators need full visibility). New `ModerationModule`
+  (logic) + `AdminModule` (HTTP) — the admin module is the home for future admin
+  routes (complaints, audit-logs, admin/users).
+- Deliberately out of scope: `translate_listing` enqueue on APPROVE (ADR-005,
+  with the BullMQ worker), real notification delivery, complaints, admin
+  audit-logs/users routes. Verified: 95/95 jest tests pass (11 new), `tsc`
+  strict build clean, `prisma generate` clean.
+
+Commit messages:
+- feat(moderation): add moderation logs schema and migration
+- feat(moderation): add listing moderation endpoints
+- test(moderation): cover moderation transitions, logging and notifications
+- docs(adr): record listing moderation workflow decision (ADR-0021)
+
+Related ADR:
+- docs/adr/ADR-0021-listing-moderation-workflow.md
+
+---
+
 ### TASK-052 — Add owner listings endpoint
 
 Status: DONE
