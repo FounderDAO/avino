@@ -2747,6 +2747,64 @@ TASK-051
 
 ---
 
+### TASK-BL-002 — Composite index for owner listings sort
+
+Status:
+
+```text
+BACKLOG
+```
+
+Branch:
+
+```text
+perf/listings-owner-index
+```
+
+Scope:
+
+```text
+Добавить составной индекс под сортировку owner-списка GET /api/v1/listings/mine
+(TASK-052, ADR-0020): запрос фильтрует по owner_id и сортирует по
+(created_at DESC, id DESC). Сейчас индекса под этот ключ нет — на росте числа
+листингов владельца/агентства OFFSET+sort деградирует.
+
+Индекс: listings(owner_id, created_at DESC, id DESC). Согласовать с DB_SCHEMA §8
+(детерминированный ключ сортировки) — тот же хвост id. Через Prisma migration
+(raw SQL при необходимости для DESC-порядка колонок).
+```
+
+Files expected:
+
+```text
+apps/api/prisma/schema.prisma
+apps/api/prisma/migrations/
+docs/DB_SCHEMA.md
+```
+
+Acceptance criteria:
+
+```text
+Существует индекс listings(owner_id, created_at DESC, id DESC)
+EXPLAIN ANALYZE на GET /listings/mine использует индекс (Index Scan, без Sort)
+Миграция применяется чисто (up/down)
+DB_SCHEMA.md обновлён
+```
+
+Suggested commits:
+
+```text
+perf(listings): add composite index for owner listings sort
+```
+
+Dependencies:
+
+```text
+TASK-052
+```
+
+---
+
 ## 23. Priority execution order
 
 Claude should execute in this order:
