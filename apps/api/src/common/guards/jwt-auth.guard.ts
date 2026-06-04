@@ -33,7 +33,7 @@ interface AccessPayload {
 }
 
 /** Минимальный структурный тип запроса — без зависимости от `@types/express`. */
-interface RequestLike {
+export interface RequestLike {
   headers?: Record<string, string | string[] | undefined>;
   user?: AuthenticatedUser;
 }
@@ -91,7 +91,7 @@ export class JwtAuthGuard implements CanActivate {
   }
 
   /** Достать токен из `Authorization: Bearer <token>` (схема — case-insensitive). */
-  private extractBearer(request: RequestLike): string | null {
+  protected extractBearer(request: RequestLike): string | null {
     const header = request.headers?.['authorization'];
     const value = Array.isArray(header) ? header[0] : header;
     if (!value) {
