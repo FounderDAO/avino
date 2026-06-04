@@ -225,12 +225,16 @@ Claude must still provide git commands, commit messages and PR description for e
 Use these statuses:
 
 ```text
+BACKLOG
 TODO
 IN_PROGRESS
 REVIEW
 DONE
 BLOCKED
 ```
+
+`BACKLOG` — задача зафиксирована, но не запланирована в текущую итерацию;
+лежит в секции «Backlog» и промотируется в `TODO`, когда берётся в работу.
 
 ## 3. Task format
 
@@ -2721,6 +2725,76 @@ Dependencies:
 TASK-151
 TASK-153
 ```
+
+## Backlog (not scheduled)
+
+Зафиксированные, но не запланированные задачи. Промотируются в нужный milestone
+со статусом `TODO`, когда берутся в работу.
+
+### TASK-BL-001 — Agency-admin visibility for listing detail
+
+Status:
+
+```text
+BACKLOG
+```
+
+Branch:
+
+```text
+feat/listing-detail-agency-visibility
+```
+
+Scope:
+
+```text
+Расширить видимость непубличных листингов в GET /api/v1/listings/:id на agency-
+admin: пользователь, входящий в агентство (listings.agency_id), должен видеть
+непубличные статусы листингов своего агентства наравне с владельцем и
+MODERATOR/ADMIN. Сейчас (TASK-051, ADR-0019) непубличные статусы видит только
+сам владелец и MODERATOR/ADMIN — agency-видимость отложена, т.к. в схеме нет
+модели членства пользователь→agency.
+
+Предусловие: ввести связь пользователь↔agency (membership/роль внутри агентства)
+— модель и миграция. Без неё определить «admin агентства» нельзя. Объём модели
+членства согласовать с Team Lead (отдельное архитектурное решение).
+```
+
+Files expected:
+
+```text
+apps/api/prisma/schema.prisma
+apps/api/src/listings/listings.service.ts
+apps/api/src/listings/listings.service.spec.ts
+docs/DB_SCHEMA.md
+docs/adr/
+```
+
+Acceptance criteria:
+
+```text
+Существует связь пользователь↔agency (membership), определяющая agency-admin
+Agency-admin видит непубличные листинги своего агентства (listings.agency_id)
+Agency-admin НЕ видит непубличные листинги чужого агентства (404)
+Гость по-прежнему видит только ACTIVE; DELETED → 404 для всех
+Покрыто юнит-тестами видимости (owner / agency-admin / чужой / гость)
+```
+
+Suggested commits:
+
+```text
+feat(agency): add user-agency membership model
+feat(listings): allow agency-admin to view own agency non-active listings
+test(listings): cover agency-admin listing visibility
+```
+
+Dependencies:
+
+```text
+TASK-051
+```
+
+---
 
 ## 23. Priority execution order
 
