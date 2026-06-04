@@ -573,6 +573,7 @@ Files changed:
 - apps/api/src/config/env.validation.ts
 - apps/api/src/app.module.ts
 - apps/api/package.json
+- apps/api/.eslintrc.cjs
 - .env.example
 - docs/adr/ADR-0022-s3-upload-service.md
 - docs/TASKS.md
@@ -606,9 +607,15 @@ Summary:
 - Проверено: `nest build` чистый; `tsc --noEmit` без ошибок; 102/102 unit-теста
   зелёные (7 новых для UploadsService: presigned vs public URL, public-read ACL,
   генерация ключа, delete, fail-fast при отсутствии кредов/бакета, extension).
+- Попутно починен `npm run lint`: у API не было конфига ESLint (общая проблема
+  репозитория, не регрессия задачи). Добавлен `apps/api/.eslintrc.cjs`
+  (NestJS-стандарт: `@typescript-eslint` parser + recommended) и объявлены
+  dev-зависимости eslint/parser/plugin в `package.json`. Lint проходит чисто по
+  всему `src`.
 
 Commit messages:
 - feat(uploads): add S3 upload service
+- chore(api): add ESLint config and fix lint
 
 Related ADR:
 - docs/adr/ADR-0022-s3-upload-service.md

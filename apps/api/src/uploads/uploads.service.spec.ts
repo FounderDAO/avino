@@ -1,3 +1,5 @@
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { UploadsService } from './uploads.service';
 
 /**
@@ -30,10 +32,9 @@ jest.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: jest.fn().mockResolvedValue('https://signed.example/get'),
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+// jest.mock хойстится выше импортов, поэтому здесь — уже мокнутые реализации.
+const putObjectCommandMock = PutObjectCommand as unknown as jest.Mock;
+const getSignedUrlMock = getSignedUrl as unknown as jest.Mock;
 
 function makeService(overrides: Record<string, unknown> = {}): UploadsService {
   const values: Record<string, unknown> = {
@@ -56,8 +57,8 @@ function makeService(overrides: Record<string, unknown> = {}): UploadsService {
 describe('UploadsService', () => {
   beforeEach(() => {
     send.mockClear();
-    PutObjectCommand.mockClear();
-    getSignedUrl.mockClear();
+    putObjectCommandMock.mockClear();
+    getSignedUrlMock.mockClear();
   });
 
   it('uploads a buffer and returns a presigned URL for a private bucket', async () => {
@@ -72,7 +73,7 @@ describe('UploadsService', () => {
 
     // PutObject отправлен с правильным bucket/body/contentType, без ACL.
     expect(send).toHaveBeenCalledTimes(1);
-    const putInput = PutObjectCommand.mock.calls[0][0];
+    const putInput = putObjectCommandMock.mock.calls[0][0];
     expect(putInput.Bucket).toBe('avino-media');
     expect(putInput.Body).toBe(buffer);
     expect(putInput.ContentType).toBe('image/jpeg');
@@ -80,7 +81,7 @@ describe('UploadsService', () => {
     expect(putInput.Key).toMatch(/^uploads\/[0-9a-f-]+\.jpg$/);
 
     // Приватный bucket → presigned URL.
-    expect(getSignedUrl).toHaveBeenCalledTimes(1);
+    expect(getSignedUrlMock).toHaveBeenCalledTimes(1);
     expect(result.url).toBe('https://signed.example/get');
     expect(result.key).toBe(putInput.Key);
   });
@@ -96,12 +97,12 @@ describe('UploadsService', () => {
       key: 'listings/42/cover.png',
     });
 
-    const putInput = PutObjectCommand.mock.calls[0][0];
+    const putInput = putObjectCommandMock.mock.calls[0][0];
     expect(putInput.ACL).toBe('public-read');
     expect(putInput.Key).toBe('listings/42/cover.png');
 
     // Публичный режим → прямой URL без подписи, лишний слэш базы убран.
-    expect(getSignedUrl).not.toHaveBeenCalled();
+    expect(getSignedUrlMock).not.toHaveBeenCalled();
     expect(result.url).toBe('https://cdn.avino.uz/listings/42/cover.png');
   });
 
