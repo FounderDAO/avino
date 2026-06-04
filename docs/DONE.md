@@ -39,6 +39,42 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-121 — Add admin promotion activation
+
+Status: DONE
+Branch: feat/admin-promotion-activation
+PR: pending
+
+Files changed:
+- apps/api/src/promotions/admin-promotions.service.ts
+- apps/api/src/promotions/admin-promotions.service.spec.ts
+- apps/api/src/promotions/dto/activate-promotion.dto.ts
+- apps/api/src/promotions/promotions.catalog.ts
+- apps/api/src/promotions/promotions.module.ts
+- apps/api/src/promotions/index.ts
+- apps/api/src/admin/admin-promotions.controller.ts
+- apps/api/src/admin/admin.module.ts
+- docs/adr/ADR-0033-admin-promotion-activation.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added manual VIP/TOP promotion activation and history (API.md §15): `POST /api/v1/admin/listings/:id/promotions` and `GET /api/v1/admin/listings/:id/promotions`. The `listing_promotions` ledger is the source of truth; the `listings.promotion_*` read-cache is updated in the same transaction. Online payments are out of scope in MVP — activation is manual with `payment_status = NOT_REQUIRED` and price/currency pulled from the static `PROMOTION_PLANS` catalog (ADR-0032).
+- Access is **ADMIN only** (API.md §15 takes precedence over the task card's looser "admin/moderator" wording — MODERATOR moderates content, not paid tiers).
+- Activation auto-supersedes: any previous `ACTIVE` promo is set to `CANCELLED`, a new `ACTIVE` row is created, the cache is synced, and one `promotion_logs` row (old→new delta) + `audit_logs(LISTING_PROMOTION_CHANGE)` are written — all atomically. This keeps the "one ACTIVE per listing" PARTIAL UNIQUE invariant.
+- Idempotency: the optional `Idempotency-Key` header is stored as `payment_reference` (the PARTIAL UNIQUE column already reserved for this); a repeated key replays the existing promo (pre-check + P2002 race replay) instead of creating a duplicate. A concurrent non-idempotent race maps to `409 ACTIVE_PROMOTION_EXISTS`.
+
+Important notes:
+- Period is validated against the catalog in the service → `422 INVALID_PERIOD` (not `400`), as the contract requires; `type` is restricted to `TOP|VIP` by the DTO. Missing/DELETED listing → `404`.
+- No `PROMOTION_ACTIVATED` notification is emitted here — the POST contract (API.md §15) lists only promotion_logs + audit_logs. Generic idempotency middleware for payment callbacks is deferred to Phase 1.5. Both decisions recorded in ADR-0033.
+- Coverage is unit tests with mocked Prisma (mirrors ModerationService): activation/supersede/logging, idempotency replay (pre-check and P2002), 422/404/409 paths, and history. Verified: jest green, `tsc --noEmit` and ESLint clean.
+
+Commit messages:
+- feat(promotions): add admin promotion activation
+
+Related ADR:
+- docs/adr/ADR-0033-admin-promotion-activation.md
+
 ### TASK-120 — Add promotion plans endpoint
 
 Status: DONE
