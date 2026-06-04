@@ -558,6 +558,45 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-044 — Add RBAC guards
+
+Status: DONE
+Branch: feat/rbac-guards
+PR: #38
+
+Files changed:
+- apps/api/src/common/guards/jwt-auth.guard.ts
+- apps/api/src/common/guards/roles.guard.ts
+- apps/api/src/common/guards/index.ts
+- apps/api/src/common/guards/jwt-auth.guard.spec.ts
+- apps/api/src/common/guards/roles.guard.spec.ts
+- apps/api/src/common/decorators/roles.decorator.ts
+- apps/api/src/common/decorators/current-user.decorator.ts
+- apps/api/src/common/decorators/index.ts
+- apps/api/src/common/decorators/decorators.spec.ts
+- apps/api/src/roles/roles.module.ts
+- apps/api/src/roles/index.ts
+- apps/api/src/auth/auth.module.ts
+- apps/api/src/auth/auth.controller.ts
+- docs/adr/ADR-0016-rbac-guards.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Реализован слой авторизации (RBAC) поверх auth-flow (TASK-041–043). `JwtAuthGuard` извлекает `Authorization: Bearer <token>` (схема case-insensitive), проверяет подпись `JWT_ACCESS_SECRET` (per-call секрет, как при выпуске — ADR-0010) и кладёт `{ id, roles }` в `request.user`. Маппинг ошибок на стабильные коды (API.md §17): нет/не-Bearer → `401 UNAUTHORIZED`, `TokenExpiredError` → `401 TOKEN_EXPIRED`, иначе → `401 TOKEN_INVALID`, всё в едином error-envelope (ADR-0007).
+- `RolesGuard` читает требуемые роли из `@Roles(...)` через `Reflector.getAllAndOverride` (хендлер переопределяет класс). Без метаданных → нужна только аутентификация; OR-семантика (достаточно одной из ролей), иначе `403 FORBIDDEN`; нет `request.user` → `401 UNAUTHORIZED`. Запускается после `JwtAuthGuard` в `@UseGuards(JwtAuthGuard, RolesGuard)`.
+- `@Roles(...roles: UserRole[])` — декларативные метаданные (`SetMetadata`/`ROLES_KEY`); `@CurrentUser(field?)` — param-декоратор, отдаёт весь `AuthenticatedUser` или поле (фабрика `currentUserFactory` вынесена для юнит-тестов). Тип `AuthenticatedUser` принадлежит `JwtAuthGuard` (producer `request.user`) — единый контракт. Коды ролей из общего `UserRole` (@avino/shared); `GUEST` не используется (неявное состояние неаутентифицированного запроса, ADR-0008).
+- `RolesModule` (`apps/api/src/roles/`) бандлит `JwtModule.register({})` (без глобального секрета) и оба guard'а, экспортирует их + `JwtModule` — feature-модули включают RBAC одним импортом, не регистрируя `JwtModule` у себя (`ConfigService` глобален, ADR-0006). Авторизация stateless: роли берутся из подписанного access-токена, без БД-запросов на запрос; новых зависимостей не добавлено (`@nestjs/jwt` уже в стеке).
+- `logout` помечен `@UseGuards(JwtAuthGuard)` (API.md §3: Auth Bearer) — закрыт явный TODO в контроллере; вызвать может только аутентифицированный пользователь, session family по-прежнему адресует refresh-токен в теле.
+- Дизайн-решение зафиксировано в ADR-0016. Trade-off: роли в access-токене «застывают» на его TTL (≤15 мин) — отзыв роли вступает в силу после следующей ротации, приемлемо для MVP при коротком access-TTL.
+- Проверено: `nest build` чистый; 48/48 unit-тестов зелёные (новые spec: `jwt-auth.guard` — успешная привязка user, дефолт ролей `[]`, case-insensitive scheme, маппинг UNAUTHORIZED/TOKEN_EXPIRED/TOKEN_INVALID; `roles.guard` — пропуск без `@Roles`, OR-семантика, 403, 401-без-user; `decorators` — метаданные `@Roles`, admin-only чтение, фабрика `@CurrentUser`). Acceptance criteria TASK-044 выполнены: auth guard, roles guard, `@CurrentUser`, `@Roles`, защита admin-only эндпоинта.
+
+Commit messages:
+- feat(auth): add RBAC guards and decorators
+
+Related ADR:
+- docs/adr/ADR-0016-rbac-guards.md
+
 ### TASK-043 — Add refresh and logout flow
 
 Status: DONE

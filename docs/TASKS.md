@@ -475,57 +475,6 @@ TASK-043 (@CurrentUser / auth guard) — реальный блокер
 
 ---
 
-### TASK-044 — Add RBAC guards
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/rbac-guards
-```
-
-Scope:
-
-```text
-Implement role-based access control guards and decorators.
-```
-
-Files expected:
-
-```text
-apps/api/src/common/guards/
-apps/api/src/common/decorators/
-apps/api/src/roles/
-```
-
-Acceptance criteria:
-
-```text
-Auth guard works
-Roles guard works
-@CurrentUser decorator works
-@Roles decorator works
-Admin-only endpoint can be protected
-```
-
-Suggested commits:
-
-```text
-feat(auth): add RBAC guards and decorators
-```
-
-Dependencies:
-
-```text
-TASK-043
-TASK-033
-```
-
 ## 9. M5 — Listings and moderation
 
 ### TASK-050 — Add ListingsModule create/update

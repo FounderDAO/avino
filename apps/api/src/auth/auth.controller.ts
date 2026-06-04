@@ -6,7 +6,9 @@ import {
   HttpStatus,
   Ip,
   Post,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../common/guards';
 import { AuthService, RefreshResult, VerifyOtpResult } from './auth.service';
 import { OtpService, RequestOtpResult } from './otp.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -74,9 +76,12 @@ export class AuthController {
 
   /**
    * Отозвать session family текущего refresh-токена. Идемпотентен → 204 No
-   * Content. Bearer-guard добавит TASK-044; пока сессия адресуется токеном в теле.
+   * Content. Защищён Bearer-guard (TASK-044, API.md §3): вызвать может только
+   * аутентифицированный пользователь, а конкретную family адресует refresh-токен
+   * в теле.
    */
   @Post('logout')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   logout(
     @Body() dto: RefreshTokenDto,
