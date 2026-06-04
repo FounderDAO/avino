@@ -558,6 +558,35 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-081 — Add promotion-aware sorting
+
+Status: DONE
+Branch: feat/search-promotion-sorting
+PR: #52
+
+Files changed:
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/search.service.spec.ts
+- docs/adr/ADR-0027-search-promotion-sorting.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- `GET /api/v1/search` now ranks promoted listings first: `effective_tier DESC, created_at DESC, id DESC` (ADR-0004 §4). VIP appears before TOP, TOP before NORMAL; `created_at desc` and `id desc` are the final, deterministic tie-breakers, so the order is stable.
+- The effective tier is **time-guarded in SQL** (`CASE WHEN promotion_type = 'VIP'/'TOP' AND promotion_expires_at > now() ... ELSE 0`): an expired promotion is ranked as NORMAL immediately, independent of any expire-job (ADR-0004 §2). This matches the existing time-guarded `effective_tier` already shipped in the card.
+- Ranking, keyset and `total` moved to parameterized raw SQL (`Prisma.sql`/`$queryRaw`) because Prisma `orderBy` can't express a time-guarded CASE. The page is then hydrated via `prisma.listing.findMany({ where: { id: { in } } })` with order restored — keeping filters in one SQL builder and the relation-load + §9 card mapping unchanged.
+
+Important notes:
+- The opaque keyset cursor is extended with the tier rank: base64url-JSON `{ rank, createdAt, id }` (predicted by ADR-0026). A malformed or structurally-invalid cursor (missing `rank`) returns `400 VALIDATION_ERROR`, not a silent reset. Response shape (API.md §9) is unchanged — only ordering and the opaque cursor format changed.
+- Filters are built as `Prisma.sql` fragments (injection-safe): enum columns compared via `::text`, ids via `::uuid`, price via `::numeric` within one currency. `status = 'ACTIVE'` is always applied first.
+- Two unit tests added (7 search tests total); full apps/api suite green (20 suites, 161 tests). `tsc --noEmit` and ESLint clean.
+
+Commit messages:
+- feat(search): add promotion priority sorting
+
+Related ADR:
+- docs/adr/ADR-0027-search-promotion-sorting.md
+
 ### TASK-080 — Add listing search filters
 
 Status: DONE
