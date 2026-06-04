@@ -93,6 +93,10 @@ export class EnvironmentVariables {
   @IsOptional()
   ESKIZ_BASE_URL?: string;
 
+  @IsString()
+  @IsOptional()
+  ESKIZ_FROM?: string;
+
   // ── Translation (опционально на старте) ──
   @IsEnum(TranslateProvider)
   @IsOptional()
@@ -124,6 +128,32 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   SMTP_FROM?: string;
+
+  // ── OTP / rate limiting (опционально; есть безопасные дефолты, ENV.md §8) ──
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  OTP_TTL?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  OTP_MAX_ATTEMPTS?: number;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  OTP_RESEND_COOLDOWN?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  RATE_LIMIT_WINDOW?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  RATE_LIMIT_MAX?: number;
 }
 
 /**
