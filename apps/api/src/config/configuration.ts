@@ -39,6 +39,7 @@ export const smsConfig = registerAs('sms', () => ({
   eskizEmail: process.env.ESKIZ_EMAIL,
   eskizPassword: process.env.ESKIZ_PASSWORD,
   eskizBaseUrl: process.env.ESKIZ_BASE_URL,
+  eskizFrom: process.env.ESKIZ_FROM,
 }));
 
 export const translateConfig = registerAs('translate', () => ({
@@ -54,6 +55,20 @@ export const mailConfig = registerAs('mail', () => ({
   from: process.env.SMTP_FROM,
 }));
 
+// OTP-параметры (TASK-041, ENV.md §8). maxAttempts используется при verify
+// (TASK-042) — заводим весь namespace сразу, чтобы не переописывать конфиг.
+export const otpConfig = registerAs('otp', () => ({
+  ttl: parseInt(process.env.OTP_TTL ?? '300', 10),
+  maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS ?? '5', 10),
+  resendCooldown: parseInt(process.env.OTP_RESEND_COOLDOWN ?? '60', 10),
+}));
+
+// Общий per-IP rate-limit (TASK-041, ENV.md §8).
+export const rateLimitConfig = registerAs('rateLimit', () => ({
+  window: parseInt(process.env.RATE_LIMIT_WINDOW ?? '60', 10),
+  max: parseInt(process.env.RATE_LIMIT_MAX ?? '100', 10),
+}));
+
 export const configurations = [
   appConfig,
   databaseConfig,
@@ -63,4 +78,6 @@ export const configurations = [
   smsConfig,
   translateConfig,
   mailConfig,
+  otpConfig,
+  rateLimitConfig,
 ];
