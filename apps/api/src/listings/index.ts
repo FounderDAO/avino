@@ -1,2 +1,7 @@
 export { ListingsModule } from './listings.module';
-export { ListingsService, ListingResponse } from './listings.service';
+export {
+  ListingsService,
+  ListingResponse,
+  ListingListItem,
+  PaginatedResponse,
+} from './listings.service';

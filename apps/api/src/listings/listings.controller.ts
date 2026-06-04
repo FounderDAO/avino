@@ -19,11 +19,14 @@ import {
   RolesGuard,
 } from '../common/guards';
 import { CreateListingDto } from './dto/create-listing.dto';
+import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import {
   ListingDetailResponse,
+  ListingListItem,
   ListingResponse,
   ListingsService,
+  PaginatedResponse,
 } from './listings.service';
 
 /**
@@ -57,6 +60,20 @@ export class ListingsController {
   }
 
   /**
+   * `GET /api/v1/listings/mine` — листинги текущего пользователя (любой статус,
+   * кроме DELETED). Объявлен ДО `:id`, чтобы статический путь не перехватывался
+   * параметрическим роутом. Query: `status`, `page`, `limit` (page-based).
+   */
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  findMine(
+    @CurrentUser('id') userId: string,
+    @Query() query: ListMyListingsQueryDto,
+  ): Promise<PaginatedResponse<ListingListItem>> {
+    return this.listingsService.findMine(userId, query);
+  }
+
+  /**
    * `GET /api/v1/listings/:id` — публичная карточка объявления.
    * Перевод выбирается по `?lang`/`Accept-Language` с фолбэком на
    * `original_language`; медиа включены.
@@ -69,7 +86,12 @@ export class ListingsController {
     @Query('lang') lang?: string,
     @Headers('accept-language') acceptLanguage?: string,
   ): Promise<ListingDetailResponse> {
-    return this.listingsService.findOne(listingId, viewer, lang, acceptLanguage);
+    return this.listingsService.findOne(
+      listingId,
+      viewer,
+      lang,
+      acceptLanguage,
+    );
   }
 
   /** `PATCH /api/v1/listings/:id` — обновить собственное объявление. */

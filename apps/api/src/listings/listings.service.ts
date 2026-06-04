@@ -19,6 +19,7 @@ import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
 import { PrismaService } from '../prisma';
 import { CreateListingDto } from './dto/create-listing.dto';
+import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 
 /**
@@ -199,6 +200,77 @@ type ListingDetailRow = Prisma.ListingGetPayload<{
 }>;
 type ListingTranslationRow = ListingDetailRow['translations'][number];
 
+/**
+ * Компактная карточка листинга для коллекций (`GET /api/v1/listings/mine`,
+ * TASK-052). В отличие от {@link ListingDetailResponse}, без полного описания/
+ * координат/всех переводов: только поля, нужные для списка-управления владельца.
+ * `title` берётся на `original_language` (владелец редактирует исходный текст),
+ * `thumbnail_url` — обложка (первое медиа по `sort_order`). Decimal/даты — строки.
+ */
+export interface ListingListItem {
+  id: string;
+  status: ListingStatus;
+  transaction_type: TransactionType;
+  property_type: PropertyType;
+  price: string;
+  currency: Currency;
+  area: string | null;
+  rooms: number | null;
+  city_id: string | null;
+  district_id: string | null;
+  promotion_type: PromotionType;
+  promotion_expires_at: string | null;
+  original_language: Language;
+  title: string;
+  thumbnail_url: string | null;
+  published_at: string | null;
+  created_at: string;
+}
+
+/**
+ * Единый envelope коллекций (API.md §4): `data` + `meta`. Для page-based списков
+ * `meta.total` обязателен; `page`/`limit` отражают фактически применённые значения.
+ */
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: { page: number; limit: number; total: number };
+}
+
+const LISTING_LIST_SELECT = {
+  id: true,
+  status: true,
+  transactionType: true,
+  propertyType: true,
+  originalLanguage: true,
+  price: true,
+  currency: true,
+  area: true,
+  rooms: true,
+  cityId: true,
+  districtId: true,
+  promotionType: true,
+  promotionExpiresAt: true,
+  publishedAt: true,
+  createdAt: true,
+  translations: {
+    select: { language: true, title: true },
+  },
+  media: {
+    select: { url: true, thumbnailUrl: true },
+    orderBy: { sortOrder: Prisma.SortOrder.asc },
+    take: 1,
+  },
+} as const;
+
+type ListingListRow = Prisma.ListingGetPayload<{
+  select: typeof LISTING_LIST_SELECT;
+}>;
+
+/** Дефолты пагинации `mine` (API.md §4: default `limit` 20, max 100). */
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
 /** Роли, которые видят непубличные (не-ACTIVE) листинги наравне с владельцем. */
 const PRIVILEGED_VIEW_ROLES: readonly UserRole[] = [
   UserRole.MODERATOR,
@@ -353,6 +425,48 @@ export class ListingsService {
     return this.toDetailResponse(listing, language);
   }
 
+  /**
+   * `GET /api/v1/listings/mine` — листинги текущего пользователя (API.md §7).
+   *
+   * Auth: Bearer (любой аутентифицированный — отдаёт только свои `ownerId`).
+   * Возвращаются любые статусы, КРОМЕ `DELETED`: soft-deleted листинги исключены
+   * из всех read-path (API.md §7), поэтому фильтр `status=DELETED` трактуется как
+   * «без фильтра» (всё, кроме удалённых). Сортировка — `created_at DESC, id DESC`
+   * (детерминированный хвост `id` для стабильного порядка). Пагинация page-based
+   * (1-based) + `limit`; `meta.total` обязателен (API.md §4).
+   */
+  async findMine(
+    ownerId: string,
+    query: ListMyListingsQueryDto,
+  ): Promise<PaginatedResponse<ListingListItem>> {
+    const page = query.page ?? DEFAULT_PAGE;
+    const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+
+    const where: Prisma.ListingWhereInput = {
+      ownerId,
+      status:
+        query.status && query.status !== ListingStatus.DELETED
+          ? query.status
+          : { not: ListingStatus.DELETED },
+    };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.listing.findMany({
+        where,
+        select: LISTING_LIST_SELECT,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.listing.count({ where }),
+    ]);
+
+    return {
+      data: rows.map((row) => this.toListItem(row)),
+      meta: { page, limit, total },
+    };
+  }
+
   /** Владелец листинга или привилегированная роль (MODERATOR/ADMIN). */
   private canViewNonActive(
     ownerId: string,
@@ -480,6 +594,34 @@ export class ListingsService {
       // хвостовые нули ("4500000.00" → "4500000"), поэтому toFixed(2).
       price: listing.price.toFixed(2),
       currency: listing.currency,
+      created_at: listing.createdAt.toISOString(),
+    };
+  }
+
+  /** Компактная карточка листинга в snake_case для коллекций (TASK-052). */
+  private toListItem(listing: ListingListRow): ListingListItem {
+    const translation =
+      listing.translations.find(
+        (t) => t.language === listing.originalLanguage,
+      ) ?? listing.translations[0];
+    const cover = listing.media[0];
+    return {
+      id: listing.id,
+      status: listing.status,
+      transaction_type: listing.transactionType,
+      property_type: listing.propertyType,
+      price: listing.price.toFixed(2),
+      currency: listing.currency,
+      area: listing.area?.toFixed(2) ?? null,
+      rooms: listing.rooms,
+      city_id: listing.cityId,
+      district_id: listing.districtId,
+      promotion_type: listing.promotionType,
+      promotion_expires_at: listing.promotionExpiresAt?.toISOString() ?? null,
+      original_language: listing.originalLanguage,
+      title: translation?.title ?? '',
+      thumbnail_url: cover?.thumbnailUrl ?? cover?.url ?? null,
+      published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
     };
   }
