@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/search-postgis-radius
-PR: pending
+PR: #54
 
 Files changed:
 - apps/api/src/search/dto/geo-search.dto.ts
