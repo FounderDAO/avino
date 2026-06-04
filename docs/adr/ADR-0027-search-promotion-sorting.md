@@ -88,6 +88,9 @@ Negative / trade-offs:
 
 - apps/api/src/search/search.service.ts
 - apps/api/src/search/search.service.spec.ts
+- apps/api/src/search/search.service.int-spec.ts (live-PostgreSQL ordering/keyset)
+- apps/api/jest.int.config.js
+- apps/api/test/load-env.ts
 
 ## Related task
 

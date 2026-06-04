@@ -37,6 +37,37 @@ Related ADR:
 
 ---
 
+## 2026-06-05
+
+### TASK-081 — Promotion-aware sorting: live-PostgreSQL integration test (follow-up)
+
+Status: DONE
+Branch: test/search-promotion-sorting-integration
+PR: #53
+
+Files changed:
+- apps/api/src/search/search.service.int-spec.ts
+- apps/api/jest.int.config.js
+- apps/api/test/load-env.ts
+- apps/api/package.json
+- docs/adr/ADR-0027-search-promotion-sorting.md
+- docs/DONE.md
+
+Summary:
+- Added an opt-in integration suite that verifies the actual `ORDER BY` against a live PostgreSQL (the unit suite mocks Prisma and only checks SQL shape). It seeds VIP/TOP/NORMAL listings plus an expired-VIP and a `created_at`-tie pair, then asserts the real ranking: `VIP > TOP > NORMAL`, expired promotion ranked as NORMAL, `created_at desc` / `id desc` final tie-breakers, and keyset pagination stable across pages (no gaps/duplicates).
+- Kept separate from the default suite: new `*.int-spec.ts` convention + `jest.int.config.js` + `pnpm test:int` (requires DB with migrations). `test/load-env.ts` loads the root `.env` so `PrismaClient` finds `DATABASE_URL` under ts-jest.
+- Self-isolating: a unique `city_id` scopes the search; data is seeded in `beforeAll` and removed in `afterAll`.
+
+Important notes:
+- Closes the previously-open integration checkbox of TASK-081 (PR #52). Run: `docker compose up -d postgres && pnpm --filter @avino/api prisma:migrate && pnpm --filter @avino/api test:int`.
+- Default `pnpm test` unchanged (20 suites / 161 tests); the int suite (2 tests) runs only via `test:int`. `tsc --noEmit` and ESLint clean.
+
+Commit messages:
+- test(search): add live-PostgreSQL integration test for promotion sorting
+
+Related ADR:
+- docs/adr/ADR-0027-search-promotion-sorting.md
+
 ## 2026-06-02
 
 ### TASK-DOCS-INIT — Initial project tracking documents (DONE.md + ADR)
