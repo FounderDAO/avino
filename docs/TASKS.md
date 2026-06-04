@@ -438,59 +438,7 @@ _TASK-070, TASK-071 completed — see docs/DONE.md._
 
 ## 12. M8 — Search and PostGIS
 
-### TASK-080 — Add listing search filters
-
-Status:
-
-```text
-IN_PROGRESS
-```
-
-Branch:
-
-```text
-feat/search-listing-filters
-```
-
-Scope:
-
-```text
-Implement public listing search by basic filters.
-```
-
-Files expected:
-
-```text
-apps/api/src/search/
-apps/api/src/listings/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/search/listings exists
-Filters by transactionType
-Filters by propertyType
-Filters by price range
-Filters by city/district
-Only ACTIVE listings returned
-Pagination works
-```
-
-Suggested commits:
-
-```text
-feat(search): add basic listing filters
-```
-
-Dependencies:
-
-```text
-TASK-050
-TASK-051
-```
-
----
+_TASK-080 completed — see docs/DONE.md._
 
 ### TASK-081 — Add promotion-aware sorting
 

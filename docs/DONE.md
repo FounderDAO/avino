@@ -558,6 +558,41 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-080 — Add listing search filters
+
+Status: DONE
+Branch: feat/search-listing-filters
+PR: #50
+
+Files changed:
+- apps/api/src/search/search.controller.ts
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/search.service.spec.ts
+- apps/api/src/search/search.module.ts
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/search/index.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0026-public-search-keyset-filters.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added the public `GET /api/v1/search` endpoint (API.md §9), opening milestone M8. New `SearchModule` (public, no guards; imports `TranslationsModule`) registered in `app.module.ts`. The endpoint always restricts to `status = ACTIVE` (DELETED and other non-public statuses are excluded from all public read-paths, DB_SCHEMA §15).
+- Basic filters (TASK-080 scope): `transaction_type`, `property_type`, price range `price_min`/`price_max` applied within one `currency` (no FX), `city_id`, `district_id`. Unknown params are ignored (forward-compatible).
+- Keyset (cursor) pagination on `(created_at DESC, id DESC)` — the main mode for public search (API.md §4, ADR-0007). Opaque base64url `next_cursor`; `take = limit + 1` detects the next page; a malformed cursor returns `400 VALIDATION_ERROR` rather than silently resetting. Envelope `meta = { limit, total, next_cursor }`; `total` is a parallel count over the filters.
+- Search card matches API.md §9 in full, including the time-guarded `effective_tier` (VIP/TOP only while `promotion_expires_at > now()`, else NORMAL). Card language is negotiated via `?lang`/`Accept-Language` with original-language fallback, delegated to `TranslationsService`.
+
+Important notes:
+- Acceptance criteria satisfied: `GET /api/v1/search` exists (per authoritative API.md §9; the task-card wording `/search/listings` was superseded), filters by transaction_type / property_type / price range / city / district, only ACTIVE listings returned, pagination works (keyset).
+- Deliberately out of scope: promotion-priority sorting as the primary sort key (TASK-081 — a pure ORDER BY change since `effective_tier` already ships), PostGIS geo filters (TASK-082), free-text `q`, area/rooms/feature_ids and the `sort` param (later).
+- 5 new unit tests; full apps/api suite green (20 suites, 159 tests). `tsc --noEmit` and ESLint clean.
+
+Commit messages:
+- feat(search): add basic listing filters
+
+Related ADR:
+- docs/adr/ADR-0026-public-search-keyset-filters.md
+
 ### TASK-071 — Add translation queue and provider abstraction
 
 Status: DONE
