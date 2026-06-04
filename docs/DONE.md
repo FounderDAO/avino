@@ -562,7 +562,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/auth-request-otp
-PR: pending
+PR: #35
 
 Files changed:
 - apps/api/src/auth/auth.controller.ts
