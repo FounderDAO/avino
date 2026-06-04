@@ -558,6 +558,41 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-040 — Add UsersModule
+
+Status: DONE
+Branch: feat/users-module
+PR: pending
+
+Files changed:
+- apps/api/src/users/users.module.ts
+- apps/api/src/users/users.controller.ts
+- apps/api/src/users/users.service.ts
+- apps/api/src/users/users.service.spec.ts
+- apps/api/src/users/dto/update-user.dto.ts
+- apps/api/src/profiles/profiles.service.ts
+- apps/api/src/profiles/profiles.service.spec.ts
+- apps/api/src/profiles/dto/update-profile.dto.ts
+- apps/api/src/profiles/index.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0017-users-profile-endpoints.md
+
+Summary:
+- Implemented self-service account endpoints (API.md §5), the first protected feature module on top of the auth/RBAC layer (TASK-041–044): `GET /api/v1/users/me`, `PATCH /api/v1/users/me`, `PATCH /api/v1/users/me/profile`. All under `@UseGuards(JwtAuthGuard)`; user is always scoped to its own record via `@CurrentUser('id')` (no `:id` in paths).
+- `getMe` reads fresh roles + profile from DB and returns the same snake_case contract as the verify `user` block, with nested `profile` (or `null`).
+- `PATCH /users/me` supports `email` and `default_language`; an email change resets `is_email_verified=false` and enforces contact uniqueness among non-DELETED accounts (`409 CONTACT_TAKEN`, ADR-013).
+- `PATCH /users/me/profile` upserts the profile, so it is created on first update ("created if missing").
+- Phone change and `DELETE /users/me` were intentionally left out of scope (no contact verify-flow yet; one PR = one task) — documented in ADR-0017.
+- Verified: `pnpm test` green (60 tests, 12 new); `pnpm build` (nest/tsc) passes; eslint clean on new files.
+
+Commit messages:
+- feat(users): add user profile endpoints
+- test(users): cover users and profiles services
+- docs(adr): record users & profile endpoints decision (ADR-0017)
+
+Related ADR:
+- docs/adr/ADR-0017-users-profile-endpoints.md
+
 ### TASK-044 — Add RBAC guards
 
 Status: DONE
