@@ -6,6 +6,7 @@ import { AppConfigModule } from './config';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma';
 import { RedisModule } from './redis';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { RedisModule } from './redis';
     RedisModule,
     HealthModule,
     AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
