@@ -562,7 +562,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/listing-media-endpoints
-PR: pending
+PR: #47
 
 Files changed:
 - apps/api/src/listing-media/listing-media.controller.ts
