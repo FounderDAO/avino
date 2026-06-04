@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { AppConfigModule } from './config';
+import { FavoritesModule } from './favorites';
 import { HealthModule } from './health/health.module';
 import { ListingMediaModule } from './listing-media';
 import { ListingsModule } from './listings/listings.module';
@@ -28,6 +29,7 @@ import { UsersModule } from './users/users.module';
     ListingsModule,
     ListingMediaModule,
     SearchModule,
+    FavoritesModule,
     AdminModule,
     UploadsModule,
   ],
