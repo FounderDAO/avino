@@ -562,7 +562,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/s3-upload-service
-PR: pending
+PR: https://github.com/FounderDAO/avino/pull/46
 
 Files changed:
 - apps/api/src/uploads/uploads.service.ts
