@@ -562,7 +562,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/listing-translation-service
-PR: pending
+PR: #48
 
 Files changed:
 - apps/api/src/translations/translations.service.ts
