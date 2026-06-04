@@ -16,6 +16,8 @@ import {
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { PrismaService } from '../prisma';
 import { ActivatePromotionDto } from './dto/activate-promotion.dto';
+import { CancelPromotionDto } from './dto/cancel-promotion.dto';
+import { ExtendPromotionDto } from './dto/extend-promotion.dto';
 import { findPlan } from './promotions.catalog';
 
 /** Миллисекунд в сутках — для расчёта `expires_at = starts_at + period_days`. */
@@ -220,6 +222,192 @@ export class AdminPromotionsService {
       }
       throw error;
     }
+  }
+
+  /**
+   * `PATCH /api/v1/admin/listing-promotions/:id/cancel` — отменить промо
+   * (TASK-122, API.md §15). Ключ — `id` самой промо (а не листинга).
+   *
+   * Только `ACTIVE`-промо отменяема: иначе `422 PROMOTION_NOT_ACTIVE` (уже
+   * `CANCELLED/EXPIRED/REFUNDED` — нечего отменять). Атомарно (одна транзакция):
+   * `status → CANCELLED`, сброс read-cache на `listings` в `NORMAL` (тир-инвариант
+   * «одна ACTIVE» при этом только усиливается), `promotion_logs(CANCEL_PROMOTION)`
+   * с дельтой `old_type → NORMAL` + `audit_logs(LISTING_PROMOTION_CHANGE)`.
+   */
+  async cancel(
+    adminId: string,
+    promotionId: string,
+    dto: CancelPromotionDto,
+  ): Promise<PromotionResponse> {
+    const promotion = await this.requireActivePromotion(promotionId);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.listingPromotion.update({
+        where: { id: promotionId },
+        data: { status: PromotionStatus.CANCELLED },
+        select: PROMOTION_SELECT,
+      });
+
+      // Сброс read-cache активной строки → NORMAL (источник истины — ledger выше).
+      await tx.listing.update({
+        where: { id: promotion.listingId },
+        data: {
+          promotionType: PromotionType.NORMAL,
+          promotionStartedAt: null,
+          promotionExpiresAt: null,
+        },
+      });
+
+      await tx.promotionLog.create({
+        data: {
+          listingPromotionId: promotion.id,
+          listingId: promotion.listingId,
+          adminId,
+          action: PromotionAdminAction.CANCEL_PROMOTION,
+          oldType: promotion.type,
+          newType: PromotionType.NORMAL,
+          oldExpiresAt: promotion.expiresAt,
+          newExpiresAt: null,
+          reason: dto.reason ?? null,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: adminId,
+          action: 'LISTING_PROMOTION_CHANGE',
+          entityType: 'listing',
+          entityId: promotion.listingId,
+          metadata: {
+            promotion_id: promotion.id,
+            action: 'cancel',
+            reason: dto.reason ?? null,
+          },
+        },
+      });
+
+      return row;
+    });
+
+    return this.toResponse(updated);
+  }
+
+  /**
+   * `PATCH /api/v1/admin/listing-promotions/:id/extend` — продлить промо
+   * (TASK-122, API.md §15). Ключ — `id` промо.
+   *
+   * Продлевать можно только `ACTIVE`-промо (иначе `422 PROMOTION_NOT_ACTIVE`);
+   * `period_days` валидируется по каталогу для тира промо → `422 INVALID_PERIOD`.
+   * `expires_at += period_days` (отсчёт от текущего `expires_at`: у активной промо
+   * он в будущем, т.е. продление, а не рестарт). Атомарно: апдейт `expires_at`,
+   * синхронизация read-cache, `promotion_logs(EXTEND_PROMOTION)` (дельта
+   * `old_expires_at → new`) + `audit_logs(LISTING_PROMOTION_CHANGE)`.
+   */
+  async extend(
+    adminId: string,
+    promotionId: string,
+    dto: ExtendPromotionDto,
+  ): Promise<PromotionResponse> {
+    const promotion = await this.requireActivePromotion(promotionId);
+
+    // Период валидируется по каталогу тира: нет плана → 422 INVALID_PERIOD.
+    if (!findPlan(promotion.type, dto.period_days)) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.INVALID_PERIOD,
+          message: `Unsupported promotion period: ${dto.period_days}`,
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    // Отсчёт от текущего expires_at (у ACTIVE он не null и в будущем). На случай
+    // рассинхрона данных подстраховываемся `now`, чтобы не уехать в прошлое.
+    const base = promotion.expiresAt ?? new Date();
+    const newExpiresAt = new Date(base.getTime() + dto.period_days * MS_PER_DAY);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.listingPromotion.update({
+        where: { id: promotionId },
+        data: { expiresAt: newExpiresAt },
+        select: PROMOTION_SELECT,
+      });
+
+      await tx.listing.update({
+        where: { id: promotion.listingId },
+        data: { promotionExpiresAt: newExpiresAt },
+      });
+
+      await tx.promotionLog.create({
+        data: {
+          listingPromotionId: promotion.id,
+          listingId: promotion.listingId,
+          adminId,
+          action: PromotionAdminAction.EXTEND_PROMOTION,
+          oldType: promotion.type,
+          newType: promotion.type,
+          oldExpiresAt: promotion.expiresAt,
+          newExpiresAt,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: adminId,
+          action: 'LISTING_PROMOTION_CHANGE',
+          entityType: 'listing',
+          entityId: promotion.listingId,
+          metadata: {
+            promotion_id: promotion.id,
+            action: 'extend',
+            period_days: dto.period_days,
+            new_expires_at: newExpiresAt.toISOString(),
+          },
+        },
+      });
+
+      return row;
+    });
+
+    return this.toResponse(updated);
+  }
+
+  /**
+   * Загрузить промо по `id` и убедиться, что она `ACTIVE`. Общий guard для
+   * cancel/extend: `404 NOT_FOUND`, если строки нет; `422 PROMOTION_NOT_ACTIVE`,
+   * если статус не `ACTIVE`.
+   */
+  private async requireActivePromotion(promotionId: string): Promise<{
+    id: string;
+    listingId: string;
+    type: PromotionType;
+    expiresAt: Date | null;
+  }> {
+    const promotion = await this.prisma.listingPromotion.findUnique({
+      where: { id: promotionId },
+      select: { id: true, listingId: true, type: true, status: true, expiresAt: true },
+    });
+    if (!promotion) {
+      throw new NotFoundException({
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Promotion not found',
+      });
+    }
+    if (promotion.status !== PromotionStatus.ACTIVE) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.PROMOTION_NOT_ACTIVE,
+          message: 'Promotion is not active',
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+    return {
+      id: promotion.id,
+      listingId: promotion.listingId,
+      type: promotion.type,
+      expiresAt: promotion.expiresAt,
+    };
   }
 
   /**

@@ -45,9 +45,10 @@ describe('AdminPromotionsService', () => {
       },
       listingPromotion: {
         findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn(),
         findMany: jest.fn(),
         create: jest.fn().mockResolvedValue(createdRow),
-        update: jest.fn(),
+        update: jest.fn().mockResolvedValue(createdRow),
       },
       promotionLog: { create: jest.fn() },
       auditLog: { create: jest.fn() },
@@ -279,6 +280,159 @@ describe('AdminPromotionsService', () => {
         }),
         ApiErrorCode.ACTIVE_PROMOTION_EXISTS,
       );
+    });
+  });
+
+  describe('cancel', () => {
+    const activePromo = {
+      id: PROMO_ID,
+      listingId: LISTING_ID,
+      type: PromotionType.VIP,
+      status: PromotionStatus.ACTIVE,
+      expiresAt: new Date('2026-07-05T08:00:00.000Z'),
+    };
+
+    it('cancels an ACTIVE promotion, resets the cache to NORMAL, logs and audits', async () => {
+      prisma.listingPromotion.findUnique.mockResolvedValue(activePromo);
+
+      await service.cancel(ADMIN_ID, PROMO_ID, { reason: 'по запросу владельца' });
+
+      expect(prisma.listingPromotion.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: PROMO_ID },
+          data: { status: PromotionStatus.CANCELLED },
+        }),
+      );
+      // Read-cache откатывается в NORMAL: тир + обе даты обнуляются.
+      expect(prisma.listing.update).toHaveBeenCalledWith({
+        where: { id: LISTING_ID },
+        data: {
+          promotionType: PromotionType.NORMAL,
+          promotionStartedAt: null,
+          promotionExpiresAt: null,
+        },
+      });
+      expect(prisma.promotionLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          listingPromotionId: PROMO_ID,
+          listingId: LISTING_ID,
+          adminId: ADMIN_ID,
+          action: PromotionAdminAction.CANCEL_PROMOTION,
+          oldType: PromotionType.VIP,
+          newType: PromotionType.NORMAL,
+          oldExpiresAt: activePromo.expiresAt,
+          newExpiresAt: null,
+          reason: 'по запросу владельца',
+        }),
+      });
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          actorId: ADMIN_ID,
+          action: 'LISTING_PROMOTION_CHANGE',
+          entityType: 'listing',
+          entityId: LISTING_ID,
+        }),
+      });
+    });
+
+    it('stores null reason when none is provided', async () => {
+      prisma.listingPromotion.findUnique.mockResolvedValue(activePromo);
+      await service.cancel(ADMIN_ID, PROMO_ID, {});
+      expect(prisma.promotionLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ reason: null }),
+      });
+    });
+
+    it('throws 404 when the promotion does not exist', async () => {
+      prisma.listingPromotion.findUnique.mockResolvedValue(null);
+      await expectCode(
+        service.cancel(ADMIN_ID, PROMO_ID, {}),
+        ApiErrorCode.NOT_FOUND,
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('throws 422 PROMOTION_NOT_ACTIVE when the promotion is not ACTIVE', async () => {
+      prisma.listingPromotion.findUnique.mockResolvedValue({
+        ...activePromo,
+        status: PromotionStatus.CANCELLED,
+      });
+      await expectCode(
+        service.cancel(ADMIN_ID, PROMO_ID, {}),
+        ApiErrorCode.PROMOTION_NOT_ACTIVE,
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('extend', () => {
+    const expiresAt = new Date('2026-07-05T08:00:00.000Z');
+    const activePromo = {
+      id: PROMO_ID,
+      listingId: LISTING_ID,
+      type: PromotionType.VIP,
+      status: PromotionStatus.ACTIVE,
+      expiresAt,
+    };
+
+    it('extends expires_at from the current value, syncs cache, logs and audits', async () => {
+      prisma.listingPromotion.findUnique.mockResolvedValue(activePromo);
+
+      await service.extend(ADMIN_ID, PROMO_ID, { period_days: 14 });
+
+      const expected = new Date(
+        expiresAt.getTime() + 14 * 24 * 60 * 60 * 1000,
+      );
+      expect(prisma.listingPromotion.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: PROMO_ID },
+          data: { expiresAt: expected },
+        }),
+      );
+      // Read-cache синхронизируется только по дате — тир продления не меняет.
+      expect(prisma.listing.update).toHaveBeenCalledWith({
+        where: { id: LISTING_ID },
+        data: { promotionExpiresAt: expected },
+      });
+      expect(prisma.promotionLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: PromotionAdminAction.EXTEND_PROMOTION,
+          oldType: PromotionType.VIP,
+          newType: PromotionType.VIP,
+          oldExpiresAt: expiresAt,
+          newExpiresAt: expected,
+        }),
+      });
+      expect(prisma.auditLog.create).toHaveBeenCalled();
+    });
+
+    it('throws 422 INVALID_PERIOD for a period not in the catalog', async () => {
+      prisma.listingPromotion.findUnique.mockResolvedValue(activePromo);
+      await expectCode(
+        service.extend(ADMIN_ID, PROMO_ID, { period_days: 10 }),
+        ApiErrorCode.INVALID_PERIOD,
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('throws 404 when the promotion does not exist', async () => {
+      prisma.listingPromotion.findUnique.mockResolvedValue(null);
+      await expectCode(
+        service.extend(ADMIN_ID, PROMO_ID, { period_days: 14 }),
+        ApiErrorCode.NOT_FOUND,
+      );
+    });
+
+    it('throws 422 PROMOTION_NOT_ACTIVE when the promotion is not ACTIVE', async () => {
+      prisma.listingPromotion.findUnique.mockResolvedValue({
+        ...activePromo,
+        status: PromotionStatus.EXPIRED,
+      });
+      await expectCode(
+        service.extend(ADMIN_ID, PROMO_ID, { period_days: 14 }),
+        ApiErrorCode.PROMOTION_NOT_ACTIVE,
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 
