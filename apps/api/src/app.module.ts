@@ -8,6 +8,7 @@ import { HealthModule } from './health/health.module';
 import { ListingsModule } from './listings/listings.module';
 import { PrismaModule } from './prisma';
 import { RedisModule } from './redis';
+import { UploadsModule } from './uploads';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -20,6 +21,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     ListingsModule,
     AdminModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
