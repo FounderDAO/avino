@@ -414,64 +414,7 @@ TASK-001
 
 ## 8. M4 — Auth and users
 
-### TASK-040 — Add UsersModule
-
-Status:
-
-```text
-BLOCKED
-```
-
-Blocked by:
-
-```text
-Требуется аутентификация: GET/PATCH /users/me работают только для
-authenticated user, но Auth-модуль (OTP + access-токены + @CurrentUser)
-ещё не реализован. Декоратор @CurrentUser — deliverable TASK-043.
-Разблокировать после TASK-041 → TASK-042 → TASK-043.
-```
-
-Branch:
-
-```text
-feat/users-module
-```
-
-Scope:
-
-```text
-Implement user profile read/update foundation.
-```
-
-Files expected:
-
-```text
-apps/api/src/users/
-apps/api/src/profiles/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/users/me works for authenticated user (контракт API.md §5)
-PATCH /api/v1/users/me updates base user fields
-PATCH /api/v1/users/me/profile updates profile
-User profile is created if missing
-```
-
-Suggested commits:
-
-```text
-feat(users): add user profile endpoints
-```
-
-Dependencies:
-
-```text
-TASK-033
-TASK-021
-TASK-043 (@CurrentUser / auth guard) — реальный блокер
-```
+_All M4 tasks completed — see docs/DONE.md (TASK-040–044)._
 
 ---
 
