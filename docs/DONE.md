@@ -562,7 +562,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/auth-verify-otp
-PR: pending
+PR: #36
 
 Files changed:
 - apps/api/src/auth/auth.controller.ts
