@@ -562,7 +562,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/listing-moderation
-PR: pending
+PR: #45
 
 Files changed:
 - apps/api/prisma/schema.prisma
