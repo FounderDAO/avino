@@ -53,6 +53,12 @@ export const smsConfig = registerAs('sms', () => ({
 export const translateConfig = registerAs('translate', () => ({
   provider: process.env.TRANSLATE_PROVIDER ?? 'yandex',
   apiKey: process.env.TRANSLATE_API_KEY,
+  folderId: process.env.TRANSLATE_FOLDER_ID,
+  queueAttempts: parseInt(process.env.TRANSLATE_QUEUE_ATTEMPTS ?? '3', 10),
+  queueConcurrency: parseInt(
+    process.env.TRANSLATE_QUEUE_CONCURRENCY ?? '2',
+    10,
+  ),
 }));
 
 export const mailConfig = registerAs('mail', () => ({
