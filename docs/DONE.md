@@ -558,6 +558,46 @@ Related ADR:
 
 ## 2026-06-04
 
+### TASK-050 — Add ListingsModule create/update
+
+Status: DONE
+Branch: feat/listings-crud
+PR: #40
+
+Files changed:
+- apps/api/src/listings/listings.module.ts
+- apps/api/src/listings/listings.controller.ts
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/dto/create-listing.dto.ts
+- apps/api/src/listings/dto/update-listing.dto.ts
+- apps/api/src/listings/listings.service.spec.ts
+- apps/api/src/listings/index.ts
+- apps/api/src/app.module.ts
+- docs/adr/ADR-0018-listing-create-update-endpoints.md
+
+Summary:
+- Opened milestone M5 with the first listings feature module: `POST /api/v1/listings`
+  (create, status `NEW`) and `PATCH /api/v1/listings/:id` (update own listing).
+- Create persists the author translation on `original_language` in one nested write
+  (`source=USER`, `is_auto_translated=false`); update gates by owner — другой `ownerId`
+  → `403 FORBIDDEN`, отсутствующий/`DELETED` → `404 NOT_FOUND`.
+- DTO validation (snake_case contract, Decimal-as-string, SmallInt ranges,
+  lat/long, `forbidNonWhitelisted`). `price` returned via `Decimal.toFixed(2)`.
+- Deliberately out of scope (follow-up M5 tasks): PostGIS `location` sync,
+  `feature_ids`, machine-translation regeneration, moderation status transitions,
+  and `GET`/`DELETE` endpoints (TASK-051/052/053).
+
+Commit messages:
+- feat(listings): add listing create endpoint
+- feat(listings): add listing update endpoint
+- test(listings): cover create and update service
+- docs(adr): record listing create/update decision (ADR-0018)
+
+Related ADR:
+- docs/adr/ADR-0018-listing-create-update-endpoints.md
+
+---
+
 ### TASK-040 — Add UsersModule
 
 Status: DONE
