@@ -26,6 +26,13 @@ export interface PromotionExpiredNotificationData {
   expiredAt: string;
 }
 
+/** Ссылки на сущности saved-search алерта (data_json уведомления, TASK-102). */
+export interface SavedSearchNewListingNotificationData {
+  savedSearchId: string;
+  savedSearchName: string;
+  listingId: string;
+}
+
 /** Поля выборки уведомления под {@link NotificationResponse}. */
 const SELECT = {
   id: true,
@@ -114,6 +121,32 @@ export class NotificationsService {
           promotion_id: data.promotionId,
           promotion_type: data.promotionType,
           expired_at: data.expiredAt,
+        },
+      },
+    });
+  }
+
+  /**
+   * Поставить уведомление о новом объявлении по сохранённому поиску (TASK-102,
+   * `NotificationType.SAVED_SEARCH_NEW_LISTING`). Канал — EMAIL (saved-search
+   * алерты — это email-уведомления, §11/§16); одно уведомление на новое
+   * совпадение. Принимает `tx`, чтобы коммититься в одной транзакции с продвижкой
+   * `last_checked_at` матчера — постановка алертов и сдвиг watermark атомарны.
+   */
+  async queueSavedSearchNewListing(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    data: SavedSearchNewListingNotificationData,
+  ): Promise<void> {
+    await tx.notification.create({
+      data: {
+        userId,
+        type: NotificationType.SAVED_SEARCH_NEW_LISTING,
+        channel: NotificationChannel.EMAIL,
+        dataJson: {
+          saved_search_id: data.savedSearchId,
+          saved_search_name: data.savedSearchName,
+          listing_id: data.listingId,
         },
       },
     });

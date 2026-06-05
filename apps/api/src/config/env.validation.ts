@@ -150,6 +150,26 @@ export class EnvironmentVariables {
   @IsOptional()
   PROMOTION_EXPIRY_BATCH_SIZE?: number;
 
+  // ── Saved-search алерты (TASK-102, опционально — есть дефолты) ──
+  @IsString()
+  @IsOptional()
+  SAVED_SEARCH_ALERT_CRON?: string;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  SAVED_SEARCH_ALERT_CONCURRENCY?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  SAVED_SEARCH_ALERT_BATCH_SIZE?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  SAVED_SEARCH_ALERT_MAX_LISTINGS?: number;
+
   // ── SMTP / email (опционально на старте) ──
   @IsString()
   @IsOptional()

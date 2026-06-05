@@ -5,3 +5,4 @@ export {
   SavedSearchListResponse,
   SavedSearchFiltersJson,
 } from './saved-searches.service';
+export { SavedSearchAlertService } from './saved-search-alert.service';

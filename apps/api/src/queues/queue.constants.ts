@@ -39,6 +39,28 @@ export interface SendEmailJobData {
 }
 
 /**
+ * Очередь polling-матчера сохранённых поисков (TASK-102, ARCHITECTURE §16/§23,
+ * acceptance: `saved_search_queue` exists). Несёт периодическую джобу
+ * `check_saved_searches`, которая перепроверяет активные saved searches и
+ * эмитит дедуплицированные алерты по объявлениям, ставшим ACTIVE.
+ */
+export const SAVED_SEARCH_QUEUE_NAME = 'saved_search_queue';
+
+/**
+ * Периодическая джоба матчера сохранённых поисков (ARCHITECTURE §16/§17 —
+ * `check_saved_searches`). Запускается по расписанию (repeatable job scheduler):
+ * один прогон перебирает активные поиски и по каждому ставит алерты по новым
+ * совпадениям. Нагрузка не точечная (sweep), конкретный поиск не передаётся.
+ */
+export const CHECK_SAVED_SEARCHES_JOB = 'check_saved_searches';
+
+/**
+ * Нагрузка sweep-джобы матчера. Пустая: джоба сама находит все активные поиски и
+ * для каждого окно новых ACTIVE-листингов по `last_checked_at`.
+ */
+export type CheckSavedSearchesJobData = Record<string, never>;
+
+/**
  * Очередь фоновых задач продвижения (TASK-123, acceptance: `promotion_queue`
  * exists). Сейчас несёт единственную периодическую джобу истечения промо.
  */

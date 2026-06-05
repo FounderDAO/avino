@@ -74,6 +74,27 @@ export const promotionConfig = registerAs('promotion', () => ({
   expiryBatchSize: parseInt(process.env.PROMOTION_EXPIRY_BATCH_SIZE ?? '100', 10),
 }));
 
+// Polling-матчер saved-search алертов (TASK-102, ENV.md). alertCron — расписание
+// repeatable-джобы check_saved_searches (по умолчанию каждые 5 минут — алерты не
+// требуют минутной срочности); concurrency воркера, alertBatchSize — число
+// поисков за прогон, alertMaxListings — потолок алертов на один поиск за прогон
+// (защита от широкого поиска; остаток подхватывается следующим прогоном).
+export const savedSearchConfig = registerAs('savedSearch', () => ({
+  alertCron: process.env.SAVED_SEARCH_ALERT_CRON ?? '*/5 * * * *',
+  alertConcurrency: parseInt(
+    process.env.SAVED_SEARCH_ALERT_CONCURRENCY ?? '1',
+    10,
+  ),
+  alertBatchSize: parseInt(
+    process.env.SAVED_SEARCH_ALERT_BATCH_SIZE ?? '100',
+    10,
+  ),
+  alertMaxListings: parseInt(
+    process.env.SAVED_SEARCH_ALERT_MAX_LISTINGS ?? '50',
+    10,
+  ),
+}));
+
 // SMTP / email-доставка (TASK-041, TASK-101, ENV.md §13). host/креды опциональны
 // на старте (в dev письмо логируется). queueAttempts/queueConcurrency — ретраи и
 // параллелизм воркера `email_queue` (по аналогии с translate.*). from имеет
@@ -122,6 +143,7 @@ export const configurations = [
   smsConfig,
   translateConfig,
   promotionConfig,
+  savedSearchConfig,
   mailConfig,
   otpConfig,
   rateLimitConfig,

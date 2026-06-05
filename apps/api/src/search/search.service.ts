@@ -66,6 +66,15 @@ export interface CursorPaginatedResponse<T> {
 }
 
 /**
+ * Совпадение сохранённого поиска для polling-матчера (TASK-102): id ставшего
+ * видимым ACTIVE-листинга и его `published_at` (watermark для следующего прогона).
+ */
+export interface SavedSearchMatch {
+  id: string;
+  publishedAt: Date;
+}
+
+/**
  * Позиция keyset-курсора: `(tier_rank, created_at, id)` последнего элемента
  * страницы. `tier_rank` — time-guarded числовой ранг промо-тира (2/1/0),
  * первичный ключ сортировки (TASK-081, ADR-0004).
@@ -433,6 +442,49 @@ export class SearchService {
       .map((id) => byId.get(id))
       .filter((row): row is SearchRow => row !== undefined)
       .map((row) => this.toSearchItem(row, langParam, acceptLanguage));
+  }
+
+  /**
+   * Совпадения сохранённого поиска для polling-матчера (TASK-102, ARCHITECTURE
+   * §16). Возвращает ACTIVE-листинги, удовлетворяющие `filters`, ставшие видимыми
+   * в полуоткрытом окне `(publishedAfter, publishedUntil]` по `published_at`
+   * (момент первой публикации, проставляется модерацией при APPROVE → ACTIVE и не
+   * сбрасывается).
+   *
+   * Переиспользует {@link buildWhereSql} — тот же набор скалярных фильтров, что и
+   * `/search` (`status = ACTIVE` уже включён, acceptance «only ACTIVE listings
+   * trigger alerts»). Гео-фильтры (radius/bounds/near-me) намеренно НЕ применяются:
+   * они привязаны к подвижной точке пользователя и в MVP не участвуют в saved-search
+   * алертах (ARCHITECTURE §16). `filters` приходят из версионированного
+   * `filters_json` — параметры биндятся через `Prisma.sql` (защита от инъекций),
+   * как в `/search`.
+   *
+   * Полуоткрытое окно гарантирует отсутствие дублей и пропусков между
+   * последовательными прогонами. Результат упорядочен по `published_at ASC` и
+   * ограничен `limit` (потолок алертов на один поиск за прогон); вызывающий при
+   * усечении двигает watermark по `published_at` последнего совпадения.
+   */
+  async matchNewlyActiveListings(
+    filters: Record<string, unknown>,
+    publishedAfter: Date,
+    publishedUntil: Date,
+    limit: number,
+  ): Promise<SavedSearchMatch[]> {
+    const filterSql = this.buildWhereSql(
+      filters as unknown as SearchListingsQueryDto,
+    );
+    const rows = await this.prisma.$queryRaw<
+      { id: string; published_at: Date }[]
+    >(Prisma.sql`
+      SELECT id, published_at
+      FROM listings
+      WHERE ${filterSql}
+        AND published_at > ${publishedAfter}
+        AND published_at <= ${publishedUntil}
+      ORDER BY published_at ASC, id ASC
+      LIMIT ${limit}
+    `);
+    return rows.map((row) => ({ id: row.id, publishedAt: row.published_at }));
   }
 
   /**

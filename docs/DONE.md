@@ -39,6 +39,64 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-102 — Add saved search alert job
+
+Status: DONE
+Branch: feat/saved-search-alerts
+PR: pending
+
+Files changed:
+- apps/api/src/queues/queue.constants.ts
+- apps/api/src/queues/saved-search.queue.ts
+- apps/api/src/queues/saved-search.queue.spec.ts
+- apps/api/src/queues/queues.module.ts
+- apps/api/src/queues/index.ts
+- apps/api/src/saved-searches/saved-search-alert.service.ts
+- apps/api/src/saved-searches/saved-search-alert.service.spec.ts
+- apps/api/src/saved-searches/saved-search.worker.ts
+- apps/api/src/saved-searches/saved-searches.module.ts
+- apps/api/src/saved-searches/index.ts
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/index.ts
+- apps/api/src/notifications/notifications.service.ts
+- apps/api/src/notifications/index.ts
+- apps/api/src/config/configuration.ts
+- apps/api/src/config/env.validation.ts
+- .env.example
+- docs/ENV.md
+- docs/TASKS.md
+- docs/DONE.md
+- docs/adr/ADR-0038-saved-search-alert-job.md
+
+Summary:
+- Added a polling matcher that re-runs active saved searches on a schedule and
+  emits deduplicated alerts for listings that became ACTIVE since the previous
+  check (`saved_search_queue` / `check_saved_searches` repeatable job, mirroring
+  the promotion-expiry sweep).
+- `SavedSearchAlertService.run()`: per active saved search, matches new ACTIVE
+  listings in the half-open `(last_checked_at ?? created_at, now]` window by
+  `published_at`, atomically advances `last_checked_at` (optimistic guard) and
+  queues one `SAVED_SEARCH_NEW_LISTING` notification per match, then queues one
+  digest email per search per run via `email_queue` (best-effort).
+- Reused `SearchService` filters via a new public
+  `matchNewlyActiveListings(filters, after, until, limit)` that wraps the same
+  `buildWhereSql` as `/search` (`status = 'ACTIVE'` enforced); geo filters are
+  intentionally out of scope for MVP alerts.
+- Why: ARCHITECTURE §11/§16 require email alerts for new saved-search matches;
+  acceptance — only ACTIVE listings trigger alerts, duplicates avoided, email
+  queued, last_checked_at updated.
+- Notes: per-search cap (`MAX_LISTINGS`, default 50) advances the watermark to
+  the last match on truncation so the remainder is picked up next run (logged).
+  Watermark advances every run (even with zero matches) to bound the window.
+  All new env vars have defaults. Worker runs in-process (MVP). Target
+  architecture is reverse-matching at publish time (ADR-0038).
+
+Commit messages:
+- feat(saved-searches): add alert matcher job
+
+Related ADR:
+- docs/adr/ADR-0038-saved-search-alert-job.md
+
 ### TASK-101 — Add email queue
 
 Status: DONE

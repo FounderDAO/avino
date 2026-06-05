@@ -3,4 +3,5 @@ export {
   SearchService,
   SearchListItem,
   CursorPaginatedResponse,
+  SavedSearchMatch,
 } from './search.service';

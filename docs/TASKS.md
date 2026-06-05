@@ -450,57 +450,7 @@ _TASK-090, TASK-091 completed — see docs/DONE.md._
 
 ## 14. M10 — Notifications
 
-_TASK-100, TASK-101 completed — see docs/DONE.md._
-
-### TASK-102 — Add saved search alert job
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/saved-search-alerts
-```
-
-Scope:
-
-```text
-Implement background job to match saved searches and notify users.
-```
-
-Files expected:
-
-```text
-apps/api/src/saved-searches/
-apps/api/src/notifications/
-apps/api/src/queues/
-```
-
-Acceptance criteria:
-
-```text
-Only ACTIVE listings trigger alerts
-Duplicate alerts are avoided
-Email notification is queued
-last_checked_at is updated
-```
-
-Suggested commits:
-
-```text
-feat(saved-searches): add alert matcher job
-```
-
-Dependencies:
-
-```text
-TASK-091
-TASK-101
-```
+_TASK-100, TASK-101, TASK-102 completed — see docs/DONE.md._
 
 ## 15. M11 — Internal chat
 
