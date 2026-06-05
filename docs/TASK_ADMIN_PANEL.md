@@ -133,9 +133,10 @@ Suggested commit: `feat(web): add authApi RTK Query slice`
 
 ### ADMIN-04 — baseQuery: Bearer + авто-refresh + хранение токенов
 
-Status: `TODO`
+Status: `REVIEW`
 Branch: `feat/admin-web-auth-basequery`
 Depends: `ADMIN-03`
+ADR: `docs/adr/ADR-0045-web-auth-basequery-token-storage.md`
 
 Scope:
 - `baseQueryWithReauth`: подставлять `Authorization: Bearer <access>`; на `401`
@@ -401,7 +402,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-01 | DONE | #72 |
 | ADMIN-02 | DONE | #73 |
 | ADMIN-03 | DONE | #74 |
-| ADMIN-04 | TODO | — |
+| ADMIN-04 | REVIEW | pending |
 | ADMIN-05 | TODO | — |
 | ADMIN-06 | TODO | — |
 | ADMIN-07 | TODO | — |
