@@ -39,6 +39,42 @@ Related ADR:
 
 ## 2026-06-06
 
+### TASK-024 — Enable CORS for web clients
+
+Status: DONE
+Branch: chore/api-enable-cors
+PR: #77
+
+Files changed:
+- apps/api/src/main.ts
+- apps/api/src/common/cors/cors.options.ts
+- apps/api/src/common/cors/cors.options.spec.ts
+- apps/api/src/config/configuration.ts
+- apps/api/src/config/env.validation.ts
+- .env.example
+- docs/ENV.md
+- docs/TASKS.md
+- docs/adr/ADR-0047-api-cors-allowlist.md
+
+Summary:
+- Включён CORS в `main.ts` через `buildCorsOptions` — раньше `enableCors()` не
+  вызывался, что блокировало ВСЕ браузерные вызовы admin↔api (обнаружено на live
+  e2e ADMIN-05; curl CORS не проверяет).
+- Origin-allowlist берётся из `CORS_ORIGINS` (CSV), без хардкода; dev-дефолт
+  `http://localhost:3000`. Явный allowlist (без wildcard), `credentials: true`,
+  `exposedHeaders: X-Request-Id`, методы с `OPTIONS`, `maxAge: 86400`.
+- Логика парсинга/опций вынесена в `common/cors/cors.options.ts` (по аналогии с
+  `validation.options.ts`) + 7 unit-тестов.
+- `CORS_ORIGINS` добавлена в `env.validation.ts`, `.env.example`, ENV.md §15.
+- Mobile (Flutter) не затронут — CORS применяется только к браузеру.
+
+Commit messages:
+- chore(api): enable CORS for web clients
+- docs(api): document CORS env, add ADR-0047, mark TASK-024 in review
+
+Related ADR:
+- docs/adr/ADR-0047-api-cors-allowlist.md
+
 ### TASK-131 — Add admin audit and logs endpoints
 
 Status: DONE

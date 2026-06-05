@@ -414,63 +414,7 @@ TASK-001
 
 ## 6. M2 — Backend foundation
 
-### TASK-024 — Enable CORS for web clients
-
-Status:
-
-```text
-REVIEW
-```
-
-Branch:
-
-```text
-chore/api-enable-cors
-```
-
-Scope:
-
-```text
-apps/api не вызывает app.enableCors() в main.ts, поэтому браузерная админка
-(apps/web, RTK Query с http://localhost:3000) не может ходить в http://localhost:4000
-из-за CORS — блокирует ВСЕ браузерные вызовы admin↔api (обнаружено на live e2e
-ADMIN-05; curl CORS не проверяет и скрывает это).
-Включить CORS в main.ts: разрешённые origins из ENV (dev — localhost:3000;
-prod — домен админки), allowed methods/headers, credentials по необходимости.
-Origin-список вынести в config (ENV.md), без хардкода.
-```
-
-Files expected:
-
-```text
-apps/api/src/main.ts
-apps/api/src/config/configuration.ts
-apps/api/src/config/env.validation.ts
-.env.example
-docs/ENV.md
-```
-
-Acceptance criteria:
-
-```text
-Браузерный fetch с http://localhost:3000 на /api/v1/* проходит (нет CORS-ошибки)
-Origins берутся из ENV, не захардкожены
-lint + test зелёные
-```
-
-Suggested commits:
-
-```text
-chore(api): enable CORS for web clients
-```
-
-Dependencies:
-
-```text
-TASK-020
-```
-
----
+_TASK-024 completed — see docs/DONE.md._
 
 ## 7. M3 — Database and Prisma foundation
 
