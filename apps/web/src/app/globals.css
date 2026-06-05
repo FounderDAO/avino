@@ -102,3 +102,100 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * TailAdmin support layer (MIT — see apps/web/NOTICE).
+ *
+ * The admin shell (ADMIN-02) is vendored from TailAdmin, whose components rely
+ * on a `brand-*`/`gray-*` palette, `text-theme-*` / `text-title-*` sizes,
+ * `shadow-theme-*` shadows and the `menu-*` utilities below. We add exactly what
+ * the shell needs here so TailAdmin components drop in without per-component
+ * porting (ADR-0043). The `brand` scale is re-anchored to Avino's blue
+ * (`brand-500` = action #006AFF, `brand-600` = primary #0041D9) — this is the
+ * "адаптировать бренд под Avino" requirement. The neutral `gray` scale is
+ * TailAdmin's own. Further palettes (success/error/warning/…) are added as later
+ * admin pages need them.
+ * ────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Brand — Avino blue */
+  --color-brand-25: #f2f8ff;
+  --color-brand-50: #ecf4ff;
+  --color-brand-100: #d8e8ff;
+  --color-brand-200: #b3d2ff;
+  --color-brand-300: #80b4ff;
+  --color-brand-400: #4d97ff;
+  --color-brand-500: #006aff; /* Avino action */
+  --color-brand-600: #0041d9; /* Avino primary */
+  --color-brand-700: #0036b0;
+  --color-brand-800: #002d8f;
+  --color-brand-900: #002876;
+  --color-brand-950: #001a4d;
+
+  /* Neutral gray scale (TailAdmin) */
+  --color-gray-25: #fcfcfd;
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f2f4f7;
+  --color-gray-200: #e4e7ec;
+  --color-gray-300: #d0d5dd;
+  --color-gray-400: #98a2b3;
+  --color-gray-500: #667085;
+  --color-gray-600: #475467;
+  --color-gray-700: #344054;
+  --color-gray-800: #1d2939;
+  --color-gray-900: #101828;
+  --color-gray-950: #0c111d;
+
+  /* Theme typography */
+  --text-title-sm: 30px;
+  --text-title-sm--line-height: 38px;
+  --text-theme-sm: 14px;
+  --text-theme-sm--line-height: 20px;
+  --text-theme-xs: 12px;
+  --text-theme-xs--line-height: 18px;
+
+  /* Theme shadows */
+  --shadow-theme-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+  --shadow-theme-sm:
+    0px 1px 3px 0px rgba(16, 24, 40, 0.1),
+    0px 1px 2px 0px rgba(16, 24, 40, 0.06);
+  --shadow-theme-md:
+    0px 4px 8px -2px rgba(16, 24, 40, 0.1),
+    0px 2px 4px -2px rgba(16, 24, 40, 0.06);
+}
+
+/* Sidebar menu-item utilities (vendored from TailAdmin globals.css) */
+@utility menu-item {
+  @apply relative flex items-center w-full gap-3 px-3 py-2 font-medium rounded-lg text-theme-sm;
+}
+@utility menu-item-active {
+  @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
+}
+@utility menu-item-inactive {
+  @apply text-gray-700 hover:bg-gray-100 group-hover:text-gray-700 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-gray-300;
+}
+@utility menu-item-icon-active {
+  @apply text-brand-500 dark:text-brand-400;
+}
+@utility menu-item-icon-inactive {
+  @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300;
+}
+@utility menu-item-text {
+  @apply text-theme-sm;
+}
+@utility menu-dropdown-item {
+  @apply relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-theme-sm font-medium;
+}
+@utility menu-dropdown-item-active {
+  @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
+}
+@utility menu-dropdown-item-inactive {
+  @apply text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5;
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
