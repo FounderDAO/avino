@@ -85,7 +85,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/notifications-records
-PR: pending
+PR: #64
 
 Files changed:
 - apps/api/src/notifications/notifications.controller.ts
