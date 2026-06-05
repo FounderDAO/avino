@@ -155,7 +155,7 @@ Suggested commit: `feat(web): add Bearer auth + auto-refresh baseQuery`
 
 ### ADMIN-05 — Страница логина админа (OTP EMAIL)
 
-Status: `REVIEW`
+Status: `DONE` (PR #76) — ADR-0046
 Branch: `feat/admin-web-login`
 Depends: `ADMIN-02`, `ADMIN-04`
 ADR: `docs/adr/ADR-0046-web-admin-otp-login-page.md`
