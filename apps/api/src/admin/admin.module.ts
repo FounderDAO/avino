@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
+import { AuditModule } from '../audit';
 import { ModerationModule } from '../moderation';
 import { PromotionsModule } from '../promotions';
 import { RolesModule } from '../roles';
 import { AdminListingPromotionsController } from './admin-listing-promotions.controller';
 import { AdminListingsController } from './admin-listings.controller';
+import { AdminLogsController } from './admin-logs.controller';
+import { AdminLogsService } from './admin-logs.service';
 import { AdminPromotionsController } from './admin-promotions.controller';
 import { AdminUsersController } from './admin-users.controller';
 import { AdminUsersService } from './admin-users.service';
@@ -17,17 +20,20 @@ import { AdminUsersService } from './admin-users.service';
  * `PromotionsModule` — ручную активацию/историю промо ({@link AdminPromotionsService})
  * и управление существующей промо ({@link AdminListingPromotionsController}:
  * cancel/extend, TASK-122). {@link AdminUsersController}/{@link AdminUsersService}
- * — управление пользователями и ролями (TASK-130, API.md §6). Дальнейшие
- * админ-роуты (complaints, audit-logs) подключаются сюда же по мере реализации.
+ * — управление пользователями и ролями (TASK-130, API.md §6).
+ * {@link AdminLogsController}/{@link AdminLogsService} + `AuditModule` — read-only
+ * журналы (audit/moderation/promotion/notification, TASK-131, ADMIN-only).
+ * Дальнейшие админ-роуты (complaints) подключаются сюда же по мере реализации.
  */
 @Module({
-  imports: [RolesModule, ModerationModule, PromotionsModule],
+  imports: [RolesModule, ModerationModule, PromotionsModule, AuditModule],
   controllers: [
     AdminListingsController,
     AdminPromotionsController,
     AdminListingPromotionsController,
     AdminUsersController,
+    AdminLogsController,
   ],
-  providers: [AdminUsersService],
+  providers: [AdminUsersService, AdminLogsService],
 })
 export class AdminModule {}
