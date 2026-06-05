@@ -454,56 +454,7 @@ _TASK-100, TASK-101, TASK-102 completed — see docs/DONE.md._
 
 ## 15. M11 — Internal chat
 
-### TASK-110 — Add chat threads
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/chat-threads
-```
-
-Scope:
-
-```text
-Implement chat thread creation and listing.
-```
-
-Files expected:
-
-```text
-apps/api/src/chat/
-```
-
-Acceptance criteria:
-
-```text
-POST /api/v1/chat/threads works
-GET /api/v1/chat/threads works
-Thread uses initiator_id and owner_id
-Duplicate thread is prevented
-Guest cannot create thread
-Deleted listing cannot start new thread
-```
-
-Suggested commits:
-
-```text
-feat(chat): add chat threads
-```
-
-Dependencies:
-
-```text
-TASK-038
-TASK-051
-TASK-044
-```
+_TASK-110 completed — see docs/DONE.md._
 
 ---
 
