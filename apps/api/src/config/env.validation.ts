@@ -173,6 +173,17 @@ export class EnvironmentVariables {
   @IsOptional()
   SMTP_FROM?: string;
 
+  // Очередь email_queue (TASK-101): число попыток и параллелизм воркера.
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  EMAIL_QUEUE_ATTEMPTS?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  EMAIL_QUEUE_CONCURRENCY?: number;
+
   // ── OTP / rate limiting (опционально; есть безопасные дефолты, ENV.md §8) ──
   @IsInt()
   @Min(1)
