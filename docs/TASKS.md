@@ -420,64 +420,7 @@ _TASK-024 completed — see docs/DONE.md._
 
 ## 8. M4 — Auth and users
 
-_TASK-040–044 completed — see docs/DONE.md._
-
-### TASK-045 — Implement GET /auth/me
-
-Status:
-
-```text
-REVIEW
-```
-
-Branch:
-
-```text
-feat/api-auth-me
-```
-
-Scope:
-
-```text
-Эндпоинт GET /api/v1/auth/me задокументирован в API.md §3 и уже типизирован на
-фронте (authApi.getMe, ADMIN-03), но в apps/api НЕ реализован — auth.controller.ts
-содержит только otp/request, otp/verify, refresh, logout (обнаружено на live e2e
-ADMIN-05). Гард роли ADMIN (ADMIN-06) зависит от него → ADMIN-06 заблокирован.
-Реализовать @Get('me') в AuthController (Bearer-guard): вернуть текущего
-пользователя + профиль + roles строго по контракту API.md §3 (snake_case).
-Ошибка 401 UNAUTHORIZED при отсутствии/невалидном access-токене.
-```
-
-Files expected:
-
-```text
-apps/api/src/auth/auth.controller.ts
-apps/api/src/auth/auth.service.ts
-apps/api/src/auth/dto/me-response.dto.ts
-apps/api/src/auth/auth.controller.spec.ts
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/auth/me с валидным Bearer → 200 { id, phone, email, status,
-  default_language, is_phone_verified, is_email_verified, roles, profile }
-Без/с невалидным токеном → 401 UNAUTHORIZED (error-envelope §4)
-Контракт совпадает с API.md §3 и фронтовым типом MeResponse
-test + lint зелёные
-```
-
-Suggested commits:
-
-```text
-feat(auth): implement GET /auth/me endpoint
-```
-
-Dependencies:
-
-```text
-TASK-042
-```
+_TASK-040–045 completed — see docs/DONE.md._
 
 ---
 

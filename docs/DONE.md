@@ -39,6 +39,45 @@ Related ADR:
 
 ## 2026-06-06
 
+### TASK-045 — Implement GET /auth/me
+
+Status: DONE
+Branch: feat/api-auth-me
+PR: #78
+
+Files changed:
+- apps/api/src/auth/auth.controller.ts
+- apps/api/src/auth/auth.service.ts
+- apps/api/src/auth/dto/me-response.dto.ts
+- apps/api/src/auth/auth.controller.spec.ts
+- apps/api/src/auth/auth.service.spec.ts
+- docs/adr/ADR-0048-api-auth-me-contract.md
+- docs/TASKS.md
+
+Summary:
+- Реализован `GET /api/v1/auth/me` под `JwtAuthGuard` — последний недостающий
+  auth-эндпоинт. Был задокументирован в API.md §3 и типизирован на фронте
+  (`authApi.getMe`, `MeResponse`, ADMIN-03), но в `apps/api` отсутствовал
+  (обнаружено на live e2e ADMIN-05).
+- `@CurrentUser('id')` → `AuthService.getMe(userId)`; ответ строго по контракту
+  §3 и фронтовому `MeResponse` (snake_case): `{ id, phone, email, status,
+  default_language, is_phone_verified, is_email_verified, roles, profile }`.
+- Роли читаются из БД (актуальные, а не из access-токена). `profile`
+  присутствует всегда: без строки `user_profiles` поля `null`, а
+  `preferred_language` фолбэчится на `default_language` (фронтовый тип языка
+  non-null). DELETED/несуществующий субъект валидного токена → `401
+  UNAUTHORIZED`.
+- Разблокирует ADMIN-06 (гард роли ADMIN на фронте).
+- Новый `auth.controller.spec.ts` + 4 теста `getMe` в `auth.service.spec.ts`;
+  суммарно 323/323 зелёные, lint чистый.
+
+Commit messages:
+- feat(auth): implement GET /auth/me endpoint
+- docs(auth): add ADR-0048, mark TASK-045 in review
+
+Related ADR:
+- docs/adr/ADR-0048-api-auth-me-contract.md
+
 ### TASK-024 — Enable CORS for web clients
 
 Status: DONE
