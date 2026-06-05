@@ -1,16 +1,17 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from './baseQuery';
 
 /**
  * Единая точка входа RTK Query (CLAUDE.md §4).
  * Все эндпоинты добавляются через baseApi.injectEndpoints в файлах
  * src/store/api/*.ts (authApi, listingsApi, searchApi, ...).
  * Прямые fetch()/axios внутри компонентов запрещены.
+ *
+ * baseQuery — baseQueryWithReauth (ADMIN-04): Bearer + авто-refresh на 401.
  */
 export const baseApi = createApi({
   reducerPath: 'api',
-  baseQuery: fetchBaseQuery({
-    baseUrl: `${process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000'}/api/v1`,
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: [
     'Auth',
     'Listing',
