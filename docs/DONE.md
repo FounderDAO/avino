@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/admin-users
-PR: pending
+PR: #69
 
 Files changed:
 - apps/api/src/admin/admin-users.controller.ts
