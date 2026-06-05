@@ -472,58 +472,7 @@ _TASK-123 completed — see docs/DONE.md._
 
 _TASK-130 completed — see docs/DONE.md._
 
-### TASK-131 — Add admin audit and logs endpoints
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/admin-logs
-```
-
-Scope:
-
-```text
-Expose audit, moderation, promotion and notification logs to admin.
-```
-
-Files expected:
-
-```text
-apps/api/src/admin/
-apps/api/src/audit/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/admin/audit-logs works
-GET /api/v1/admin/moderation-logs works
-GET /api/v1/admin/promotion-logs works
-GET /api/v1/admin/notification-logs works
-Only admin can access
-Pagination works
-```
-
-Suggested commits:
-
-```text
-feat(admin): add logs endpoints
-```
-
-Dependencies:
-
-```text
-TASK-038
-TASK-053
-TASK-121
-TASK-100
-```
+_TASK-131 completed — see docs/DONE.md._
 
 ## 18. M14 — Web frontend foundation
 

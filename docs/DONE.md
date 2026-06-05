@@ -39,6 +39,53 @@ Related ADR:
 
 ## 2026-06-06
 
+### TASK-131 — Add admin audit and logs endpoints
+
+Status: DONE
+Branch: feat/admin-logs
+PR: pending
+
+Files changed:
+- apps/api/src/audit/audit.service.ts
+- apps/api/src/audit/audit.service.spec.ts
+- apps/api/src/audit/audit.module.ts
+- apps/api/src/audit/index.ts
+- apps/api/src/audit/dto/list-audit-logs.dto.ts
+- apps/api/src/admin/admin-logs.controller.ts
+- apps/api/src/admin/admin-logs.service.ts
+- apps/api/src/admin/admin-logs.service.spec.ts
+- apps/api/src/admin/dto/list-moderation-logs.dto.ts
+- apps/api/src/admin/dto/list-promotion-logs.dto.ts
+- apps/api/src/admin/dto/list-notification-logs.dto.ts
+- apps/api/src/admin/admin.module.ts
+- docs/API.md
+- docs/adr/ADR-0042-admin-log-read-endpoints.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Added four ADMIN-only read-only log endpoints under `/api/v1/admin/`:
+  `audit-logs`, `moderation-logs`, `promotion-logs`, `notification-logs`.
+- `audit_logs` is cross-domain (written by many modules), so its read-side lives
+  in a dedicated `AuditModule`/`AuditService`; the three domain logs
+  (`moderation_logs`/`promotion_logs`/`notifications`) are served by
+  `AdminLogsService` in the admin module. One `AdminLogsController` wires all four.
+- `moderation-logs` is a global feed across all listings, complementing the
+  per-listing `GET /admin/listings/:id/moderation-logs` (TASK-053).
+- Application-layer over existing tables — no Prisma migrations. Uniform
+  page-based pagination (limit default 20 / max 100, `meta.total`), sort
+  `created_at DESC, id DESC`, optional AND filters, snake_case contract.
+- Unit-tested with Prisma mocked (9 new tests; full suite 311 green). Build gate
+  `nest build` has a pre-existing, unrelated `@types/express` error in
+  `chat/chat.controller.ts` (present on `main`).
+
+Commit messages:
+- feat(admin): add logs endpoints
+- docs(admin): add ADR-0042 and API.md log endpoints; finalize TASK-131 tracking
+
+Related ADR:
+- docs/adr/ADR-0042-admin-log-read-endpoints.md
+
 ### TASK-130 — Add admin users endpoint
 
 Status: DONE

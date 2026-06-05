@@ -850,9 +850,39 @@ ADMIN**.
 ```
 200 → обновлённая жалоба.
 
-### GET /api/v1/admin/audit-logs
-Просмотр аудит-лога безопасности (`audit_logs`, ADR-004). Auth: **ADMIN**.
-Query: `action`, `actor_id`, `entity_type`, `entity_id`, `page`, `limit`.
+### Admin logs
+
+Read-only журналы для админ-панели (TASK-131, ADR-0042). Все — **ADMIN**-only
+(не MODERATOR), пагинация page-based (`meta.total` обязателен, §4), сортировка
+`created_at DESC, id DESC`. Все фильтры опциональны и комбинируются через AND.
+
+#### GET /api/v1/admin/audit-logs
+Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
+`entity_type`, `entity_id`, `page`, `limit`.
+200 → пагинированный список (`id`, `actor_id`, `action`, `entity_type`,
+`entity_id`, `ip`, `user_agent`, `metadata`, `created_at`).
+
+#### GET /api/v1/admin/moderation-logs
+Глобальный журнал модерации (`moderation_logs`) по всем объявлениям — в отличие
+от per-listing `GET /admin/listings/:id/moderation-logs`. Query: `listing_id`,
+`moderator_id`, `action` (`APPROVE|SEND_TO_DRAFT|REJECT|DELETE`), `page`, `limit`.
+200 → список (`id`, `listing_id`, `moderator_id`, `action`, `old_status`,
+`new_status`, `reason`, `created_at`).
+
+#### GET /api/v1/admin/promotion-logs
+Журнал админских действий над промо VIP/TOP (`promotion_logs`). Query:
+`listing_id`, `admin_id`, `action`
+(`ACTIVATE_VIP|ACTIVATE_TOP|CANCEL_PROMOTION|EXTEND_PROMOTION`), `page`, `limit`.
+200 → список (`id`, `listing_promotion_id`, `listing_id`, `admin_id`, `action`,
+`old_type`, `new_type`, `old_expires_at`, `new_expires_at`, `reason`,
+`created_at`).
+
+#### GET /api/v1/admin/notification-logs
+Глобальный журнал уведомлений (`notifications`). Query: `user_id`, `type`,
+`channel` (`EMAIL|PUSH|IN_APP`), `status` (`PENDING|SENT|FAILED|READ`), `page`,
+`limit`.
+200 → список (`id`, `user_id`, `type`, `channel`, `status`, `title`, `body`,
+`data_json`, `read_at`, `sent_at`, `created_at`).
 
 ---
 
