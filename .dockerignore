@@ -1,0 +1,22 @@
+# Build context hygiene — keep images small and never bake secrets/artefacts.
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+.git
+.gitignore
+**/*.log
+
+# Secrets / local env — provided to containers via compose env_file, not COPY.
+.env
+.env.*
+!.env.example
+
+# Editor / OS noise
+.vscode
+.idea
+.DS_Store
+
+# Playwright browsers / test output (local only)
+**/test-results
+**/playwright-report
