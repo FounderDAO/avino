@@ -44,6 +44,12 @@ export class EnvironmentVariables {
   @IsOptional()
   API_PORT: number = 4000;
 
+  // ── CORS (опционально; есть dev-дефолт http://localhost:3000, ENV.md §15) ──
+  // CSV разрешённых origin'ов. Парсинг в configuration.ts (cors.origins).
+  @IsString()
+  @IsOptional()
+  CORS_ORIGINS?: string;
+
   // ── PostgreSQL + PostGIS (обязательно) ──
   @IsString()
   @IsNotEmpty()

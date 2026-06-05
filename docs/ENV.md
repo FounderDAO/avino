@@ -213,11 +213,19 @@ Notes:
 
 ## 15. CORS
 
-> Required by `ARCHITECTURE.md` §23/§24 but NOT yet in `.env.example` — add it.
+> Enabled in `apps/api/src/main.ts` via `buildCorsOptions` (TASK-024,
+> ARCHITECTURE §24). Origins come from `CORS_ORIGINS` only — never hardcoded.
 
-| Variable      | Req? | Secret | Client | Example                                      | Description                                  |
-|---------------|------|--------|--------|----------------------------------------------|----------------------------------------------|
-| CORS_ORIGINS  | yes  | no     | no     | http://localhost:3000,https://www.avino.uz   | Comma-separated allowed origins for the API  |
+| Variable      | Req? | Secret | Client | Example                                      | Description                                                              |
+|---------------|------|--------|--------|----------------------------------------------|-------------------------------------------------------------------------|
+| CORS_ORIGINS  | no¹  | no     | no     | http://localhost:3000,https://www.avino.uz   | Comma-separated allowed origins for the API. ¹dev-default http://localhost:3000; set explicitly in production. |
+
+```text
+- Empty/unset → dev-default http://localhost:3000 (the web admin's dev origin).
+- Explicit allowlist only (no wildcard), required because credentials are
+  enabled. The API exposes X-Request-Id and accepts Authorization/Content-Type.
+- Parsing: apps/api/src/common/cors/cors.options.ts (parseCorsOrigins).
+```
 
 ## 16. Payments
 
@@ -244,17 +252,14 @@ Notes:
 
 ## 18. Gaps vs current .env.example
 
-The current `.env.example` covers Node, API, DB, Redis, S3, Yandex, Eskiz,
-Translation, SMTP and Web. The following are referenced by ARCHITECTURE / API
-but are NOT yet in `.env.example` and should be added when their module lands:
+The current `.env.example` covers Node, API, CORS, DB, Redis, S3, Yandex, Eskiz,
+Translation, SMTP, OTP/rate-limit, JWT and Web. The following are referenced by
+ARCHITECTURE / API but are NOT yet in `.env.example` and should be added when
+their module lands:
 
 ```text
-- JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, JWT_ACCESS_TTL, JWT_REFRESH_TTL  (§7)
-- OTP_TTL, OTP_MAX_ATTEMPTS, OTP_RESEND_COOLDOWN, RATE_LIMIT_*            (§8)
-- CORS_ORIGINS                                                            (§15)
 - FCM_PROJECT_ID, FCM_SERVICE_ACCOUNT_JSON  (when push is implemented)    (§14)
 ```
 
-These additions are non-breaking and can be made together with AuthModule and
-the CORS/security setup; this document should be updated in lockstep with
-`.env.example`.
+These additions are non-breaking; this document should be updated in lockstep
+with `.env.example`.

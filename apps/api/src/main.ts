@@ -2,6 +2,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { buildCorsOptions } from './common/cors/cors.options';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
 import { validationPipeOptions } from './common/validation/validation.options';
@@ -18,6 +19,9 @@ async function bootstrap() {
   // Единый error-envelope на всех эндпоинтах (TASK-023, docs/API.md §4).
   app.useGlobalFilters(new AllExceptionsFilter());
   const config = app.get(ConfigService);
+  // CORS для браузерных клиентов (apps/web): origin-allowlist из ENV (TASK-024,
+  // ARCHITECTURE §24). Без этого RTK Query из браузера не может ходить в API.
+  app.enableCors(buildCorsOptions(config.get<string[]>('cors.origins') ?? []));
   const port = config.get<number>('app.port') ?? 4000;
   await app.listen(port);
   // eslint-disable-next-line no-console
