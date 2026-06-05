@@ -3,6 +3,7 @@ import { AdminModule } from './admin';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { ChatModule } from './chat';
 import { AppConfigModule } from './config';
 import { FavoritesModule } from './favorites';
 import { HealthModule } from './health/health.module';
@@ -36,6 +37,7 @@ import { UsersModule } from './users/users.module';
     SavedSearchesModule,
     PromotionsModule,
     NotificationsModule,
+    ChatModule,
     AdminModule,
     UploadsModule,
   ],

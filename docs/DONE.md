@@ -39,6 +39,50 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-110 — Add chat threads
+
+Status: DONE
+Branch: feat/chat-threads
+PR: pending
+
+Files changed:
+- apps/api/src/chat/chat.controller.ts
+- apps/api/src/chat/chat.service.ts
+- apps/api/src/chat/chat.module.ts
+- apps/api/src/chat/chat.service.spec.ts
+- apps/api/src/chat/dto/create-thread.dto.ts
+- apps/api/src/chat/dto/list-threads.dto.ts
+- apps/api/src/chat/index.ts
+- apps/api/src/app.module.ts
+- docs/TASKS.md
+- docs/DONE.md
+- docs/adr/ADR-0039-chat-threads-module.md
+
+Summary:
+- Реализован внутренний чат — треды (M11, API.md §13): `POST /api/v1/chat/threads`
+  (создать/получить тред с создателем листинга) и `GET /api/v1/chat/threads`
+  (треды пользователя как initiator или owner).
+- Поверх существующей схемы (`ChatThread`/`ChatMessage`, DB_SCHEMA §10) — без
+  новых миграций. Привязка `initiator_id`/`owner_id` (не buyer/seller, ADR-0003).
+- `POST` идемпотентен по `UNIQUE (listing_id, initiator_id, owner_id)`: новый тред
+  → `201`, существующий → `200`; гонка ловится по `P2002`. Новый тред только на
+  `ACTIVE`-листинге (иначе `422 LISTING_NOT_AVAILABLE`); писать себе нельзя
+  (`403`); `GUEST` отсекается `JwtAuthGuard` (`401`).
+- `GET` — keyset-пагинация по `last_message_at DESC NULLS LAST, created_at, id`;
+  для каждого треда `unread_count` (`chatMessage.groupBy`, без N+1) и
+  `listing_preview` (карточка как в `/search` через `SearchService.cardsByIds`).
+- Создание сообщений и уведомление `NEW_CHAT_MESSAGE` — TASK-111. `body` в
+  `POST /threads` принимается ради совместимости контракта, но в TASK-110 не
+  персистится.
+- Тесты: 13 юнит-тестов ChatService зелёные; полный suite API — 270/270; tsc и
+  eslint чисты.
+
+Commit messages:
+- feat(chat): add chat threads
+
+Related ADR:
+- docs/adr/ADR-0039-chat-threads-module.md
+
 ### TASK-102 — Add saved search alert job
 
 Status: DONE
