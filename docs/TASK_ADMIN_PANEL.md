@@ -63,7 +63,7 @@ Query layer). `ADMIN-07..15` ⇒ **M16** (TASK-160/161/162: web admin features),
 
 ### ADMIN-01 — Поднять стек apps/web + Tailwind v4 + дизайн-токены
 
-Status: `DONE` (PR #PRNUM) — ADR-0043
+Status: `DONE` (PR #72) — ADR-0043
 Branch: `feat/admin-web-foundation`
 Depends: —
 
@@ -394,7 +394,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 
 | Задача | Статус | PR |
 |---|---|---|
-| ADMIN-01 | DONE | #PRNUM |
+| ADMIN-01 | DONE | #72 |
 | ADMIN-02 | TODO | — |
 | ADMIN-03 | TODO | — |
 | ADMIN-04 | TODO | — |
