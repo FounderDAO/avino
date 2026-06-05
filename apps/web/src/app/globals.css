@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+
+/* Dark-mode стратегия: class (`<html class="dark">`). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Дизайн-токены Avino (docs/AvinoWebPlan.md §3).
+ * Базис Zillow-подобный; бренд-цвета — placeholder, отстраиваются под Avino.
+ * Токены в @theme генерируют Tailwind-утилиты (bg-*, text-*, rounded-*, …)
+ * и одновременно доступны как CSS-переменные var(--color-*).
+ */
+@theme {
+  /* ── Brand ── */
+  --color-primary: #0041d9;
+  --color-action: #006aff;
+  --color-primary-light: #65b4ff;
+
+  /* ── Text ── */
+  --color-text-primary: #2a2a33;
+  --color-text-dark: #11111a;
+  --color-text-secondary: #596b82;
+  --color-text-tertiary: #d1d1d5;
+  --color-text-link: #0d4599;
+
+  /* ── Backgrounds ── */
+  --color-bg-white: #ffffff;
+  --color-bg-gray: #f7f7f7;
+  --color-bg-gray-subtle: #f1f1f4;
+  --color-bg-filter-active: #f2faff;
+
+  /* ── Status / Promotion ── */
+  --color-error: #a3000b;
+  --color-vip: #8a5700; /* VIP бейдж */
+  --color-vip-bg: #fff8e1;
+  --color-top: #0041d9; /* TOP бейдж */
+
+  /* ── Borders ── */
+  --color-border: #d1d1d5;
+  --color-border-active: #006aff;
+  --color-separator: #eeeef0;
+
+  /* ── Radius ── */
+  --radius-card: 8px;
+  --radius-button: 12px;
+  --radius-pill: 999px;
+
+  /* ── Typography ── */
+  --font-ui: var(--font-inter), 'Inter', system-ui, sans-serif;
+  --text-hero: 60px;
+  --text-h1: 44px;
+  --text-h2: 32px;
+  --text-h3: 24px;
+  --text-h4: 20px;
+  --text-body: 16px;
+  --text-small: 14px;
+  --text-caption: 12px;
+}
+
+/*
+ * Токены, не маппящиеся на namespace Tailwind (spacing-шкала и размеры
+ * компонентов) — держим как обычные CSS-переменные для использования через var().
+ */
+:root {
+  /* ── Spacing (base 8px) ── */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+
+  /* ── Component dims ── */
+  --header-height: 72px;
+  --filter-bar-height: 56px;
+  --search-input-height: 64px;
+  --contact-sidebar-width: 320px;
+}
+
+/*
+ * Dark-mode переопределение семантических поверхностей. Класс `.dark`
+ * вешается на html; токены меняют значение, и утилиты поверхностей/текста
+ * адаптируются автоматически.
+ */
+.dark {
+  --color-text-primary: #e4e4ea;
+  --color-text-dark: #f5f5f7;
+  --color-text-secondary: #9aa7ba;
+  --color-bg-white: #16181d;
+  --color-bg-gray: #1c1f26;
+  --color-bg-gray-subtle: #22252e;
+  --color-border: #2c303a;
+  --color-separator: #23262e;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-ui);
+    background-color: var(--color-bg-white);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
