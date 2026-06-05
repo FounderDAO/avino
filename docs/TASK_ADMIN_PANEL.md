@@ -85,7 +85,7 @@ Suggested commit: `chore(web): upgrade to next15/react19 + tailwind v4`
 
 ### ADMIN-02 — Вендор TailAdmin: layout-оболочка админки
 
-Status: `DONE` (PR #PRNUM) — ADR-0044
+Status: `DONE` (PR #73) — ADR-0044
 Branch: `feat/admin-web-shell`
 Depends: `ADMIN-01`
 
@@ -395,7 +395,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | Задача | Статус | PR |
 |---|---|---|
 | ADMIN-01 | DONE | #72 |
-| ADMIN-02 | DONE | #PRNUM |
+| ADMIN-02 | DONE | #73 |
 | ADMIN-03 | TODO | — |
 | ADMIN-04 | TODO | — |
 | ADMIN-05 | TODO | — |
