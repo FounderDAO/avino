@@ -179,6 +179,23 @@ Notes:
   dev and not sent in production (ADR-0037, ARCHITECTURE §23).
 ```
 
+### 13.1 Saved-search alerts (TASK-102)
+
+| Variable                       | Req? | Secret | Client | Example       | Description                                              |
+|--------------------------------|------|--------|--------|---------------|---------------------------------------------------------|
+| SAVED_SEARCH_ALERT_CRON        | no   | no     | no     | `*/5 * * * *` | `check_saved_searches` repeatable cron (default 5 min)  |
+| SAVED_SEARCH_ALERT_CONCURRENCY | no   | no     | no     | 1             | `saved_search_queue` worker concurrency                 |
+| SAVED_SEARCH_ALERT_BATCH_SIZE  | no   | no     | no     | 100           | Saved searches processed per run                        |
+| SAVED_SEARCH_ALERT_MAX_LISTINGS| no   | no     | no     | 50            | Alert cap per saved search per run (remainder next run) |
+
+```text
+- MVP matches saved searches via a polling worker (`saved_search_queue` /
+  `check_saved_searches`): only ACTIVE listings whose published_at falls in the
+  (last_checked_at, now] window trigger alerts; one digest email per search per
+  run is queued via email_queue; last_checked_at is advanced each run
+  (ADR-0038, ARCHITECTURE §16/§17/§23). All values have defaults.
+```
+
 ## 14. Push / FCM (notifications)
 
 > Stub for MVP per ADR-010 — wired up when the Flutter app integrates push.

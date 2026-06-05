@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { EmailQueue } from './email.queue';
 import { PromotionQueue } from './promotion.queue';
+import { SavedSearchQueue } from './saved-search.queue';
 import { TranslationQueue } from './translation.queue';
 
 /**
@@ -14,7 +15,7 @@ import { TranslationQueue } from './translation.queue';
  */
 @Global()
 @Module({
-  providers: [TranslationQueue, PromotionQueue, EmailQueue],
-  exports: [TranslationQueue, PromotionQueue, EmailQueue],
+  providers: [TranslationQueue, PromotionQueue, EmailQueue, SavedSearchQueue],
+  exports: [TranslationQueue, PromotionQueue, EmailQueue, SavedSearchQueue],
 })
 export class QueuesModule {}
