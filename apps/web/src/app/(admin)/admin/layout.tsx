@@ -1,9 +1,10 @@
 import { ThemeProvider } from "@/context/ThemeContext";
 import { SidebarProvider } from "@/context/SidebarContext";
-import { AdminShell } from "@/layout/AdminShell";
+import { ConditionalShell } from "@/layout/ConditionalShell";
 
 // Route group `(admin)` keeps the admin shell separate from the public site.
-// Providers wrap the shell so AppSidebar/AppHeader can consume the contexts.
+// Providers wrap the content so AppSidebar/AppHeader can consume the contexts;
+// ConditionalShell renders the full-screen login (/admin/login) without chrome.
 export default function AdminLayout({
   children,
 }: {
@@ -12,7 +13,7 @@ export default function AdminLayout({
   return (
     <ThemeProvider>
       <SidebarProvider>
-        <AdminShell>{children}</AdminShell>
+        <ConditionalShell>{children}</ConditionalShell>
       </SidebarProvider>
     </ThemeProvider>
   );
