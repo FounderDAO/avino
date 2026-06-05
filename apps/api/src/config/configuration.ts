@@ -1,4 +1,5 @@
 import { registerAs } from '@nestjs/config';
+import { parseCorsOrigins } from '../common/cors/cors.options';
 
 /**
  * Типизированные namespaced-конфиги (TASK-022).
@@ -13,6 +14,15 @@ import { registerAs } from '@nestjs/config';
 export const appConfig = registerAs('app', () => ({
   env: process.env.NODE_ENV ?? 'development',
   port: parseInt(process.env.API_PORT ?? '4000', 10),
+}));
+
+// CORS allowlist (TASK-024, ENV.md §15). Origin-список НЕ хардкодится — берётся
+// из CORS_ORIGINS (CSV). Без переменной — dev-дефолт http://localhost:3000
+// (origin самой админки в dev); в prod значение обязательно задаётся явно.
+export const corsConfig = registerAs('cors', () => ({
+  origins: parseCorsOrigins(
+    process.env.CORS_ORIGINS ?? 'http://localhost:3000',
+  ),
 }));
 
 export const databaseConfig = registerAs('database', () => ({
@@ -136,6 +146,7 @@ export const jwtConfig = registerAs('jwt', () => ({
 
 export const configurations = [
   appConfig,
+  corsConfig,
   databaseConfig,
   redisConfig,
   s3Config,
