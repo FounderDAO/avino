@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/admin-logs
-PR: pending
+PR: #70
 
 Files changed:
 - apps/api/src/audit/audit.service.ts
