@@ -106,7 +106,7 @@ Suggested commit: `feat(web): add TailAdmin admin shell layout`
 
 ### ADMIN-03 — authApi (RTK Query)
 
-Status: `DONE` (PR #PRNUM)
+Status: `DONE` (PR #74)
 Branch: `feat/admin-web-auth-api`
 Depends: `ADMIN-01`
 
@@ -400,7 +400,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 |---|---|---|
 | ADMIN-01 | DONE | #72 |
 | ADMIN-02 | DONE | #73 |
-| ADMIN-03 | DONE | #PRNUM |
+| ADMIN-03 | DONE | #74 |
 | ADMIN-04 | TODO | — |
 | ADMIN-05 | TODO | — |
 | ADMIN-06 | TODO | — |
