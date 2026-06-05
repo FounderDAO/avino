@@ -106,16 +106,20 @@ Suggested commit: `feat(web): add TailAdmin admin shell layout`
 
 ### ADMIN-03 — authApi (RTK Query)
 
-Status: `TODO`
+Status: `DONE` (PR #PRNUM)
 Branch: `feat/admin-web-auth-api`
 Depends: `ADMIN-01`
 
-Backend (API.md §5):
-- `POST /auth/otp/request` `{ channel: "EMAIL", destination }`
-- `POST /auth/otp/verify` `{ request_id, code }` → `{ access_token, refresh_token, … }`
-- `POST /auth/refresh` `{ refresh_token }` → новые токены
+Backend (API.md §3 — авторитетный источник, контракт уточнён по нему):
+- `POST /auth/otp/request` `{ channel, destination }` → `{ request_id, channel, expires_in, resend_after }`
+- `POST /auth/otp/verify` `{ channel, destination, code }` → `{ access_token, refresh_token, token_type, expires_in, user }`
+- `POST /auth/refresh` `{ refresh_token }` → новая пара токенов
 - `POST /auth/logout` `{ refresh_token }` → 204
-- `GET /auth/me` → user + roles
+- `GET /auth/me` → user + profile + roles
+
+> Прим.: карточка ранее ссылалась на «API.md §5» и тело verify `{ request_id, code }`.
+> Auth-контракты в API.md живут в **§3**, а verify принимает `{ channel, destination, code }`.
+> Реализовано по API.md (CLAUDE.md §2 — API.md авторитетна при расхождении).
 
 Scope:
 - `src/store/api/authApi.ts` через `baseApi.injectEndpoints`: `requestOtp`,
@@ -396,7 +400,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 |---|---|---|
 | ADMIN-01 | DONE | #72 |
 | ADMIN-02 | DONE | #73 |
-| ADMIN-03 | TODO | — |
+| ADMIN-03 | DONE | #PRNUM |
 | ADMIN-04 | TODO | — |
 | ADMIN-05 | TODO | — |
 | ADMIN-06 | TODO | — |
