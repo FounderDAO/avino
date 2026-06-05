@@ -37,13 +37,65 @@ Related ADR:
 
 ---
 
+## 2026-06-06
+
+### TASK-130 — Add admin users endpoint
+
+Status: DONE
+Branch: feat/admin-users
+PR: #69
+
+Files changed:
+- apps/api/src/admin/admin-users.controller.ts
+- apps/api/src/admin/admin-users.service.ts
+- apps/api/src/admin/admin-users.service.spec.ts
+- apps/api/src/admin/admin.module.ts
+- apps/api/src/admin/dto/list-admin-users.dto.ts
+- apps/api/src/admin/dto/update-admin-user.dto.ts
+- apps/api/src/admin/dto/assign-role.dto.ts
+- apps/api/src/roles/roles.controller.ts
+- apps/api/src/roles/roles.service.ts
+- apps/api/src/roles/roles.service.spec.ts
+- apps/api/src/roles/roles.module.ts
+- apps/api/src/roles/index.ts
+- docs/TASKS.md
+- docs/DONE.md
+- docs/adr/ADR-0041-admin-users-roles-management.md
+
+Summary:
+- Реализован admin-блок управления пользователями и ролями (API.md §6, ADR-0041):
+  `GET /api/v1/admin/users` (список с фильтрами status/role/q + пагинация),
+  `GET /api/v1/admin/users/:id` (карточка), `PATCH /api/v1/admin/users/:id`
+  (смена статуса), `POST /api/v1/admin/users/:id/roles` (назначить роль),
+  `DELETE /api/v1/admin/users/:id/roles/:role` (снять роль → 204),
+  `GET /api/v1/roles` (справочник ролей).
+- Все мутации только для ADMIN (`/roles` — ADMIN/MODERATOR), guards
+  `JwtAuthGuard`+`RolesGuard`. Каждая мутация атомарна и пишет аудит:
+  `ADMIN_USER_UPDATE` (смена статуса) и `ROLE_CHANGE` (`op: grant|revoke`).
+- Контракт snake_case, переиспользует `PaginatedResponse` (moderation) и
+  `toProfileResponse` (profiles). Без новых миграций — поверх существующей схемы.
+- Инвариант `DELETED ⇒ deleted_at` (ADR-0013) соблюдён; GUEST отклоняется как
+  неизвестная роль (не сидируется, ADR-0011). Маршруты взяты из API.md
+  (авторитетнее формулировки карточки задачи).
+
+Commit messages:
+- feat(admin): add user management endpoints
+- feat(roles): add roles dictionary endpoint
+- docs(adr): add ADR-0041 admin users & roles management
+- docs(tasks): move TASK-130 to DONE
+
+Related ADR:
+- docs/adr/ADR-0041-admin-users-roles-management.md
+
+---
+
 ## 2026-06-05
 
 ### TASK-111 — Add chat messages
 
 Status: DONE
 Branch: feat/chat-messages
-PR: pending
+PR: #68
 
 Files changed:
 - apps/api/src/chat/chat.controller.ts
