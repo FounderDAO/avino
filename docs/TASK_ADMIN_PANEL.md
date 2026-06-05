@@ -155,9 +155,10 @@ Suggested commit: `feat(web): add Bearer auth + auto-refresh baseQuery`
 
 ### ADMIN-05 — Страница логина админа (OTP EMAIL)
 
-Status: `TODO`
+Status: `REVIEW`
 Branch: `feat/admin-web-login`
 Depends: `ADMIN-02`, `ADMIN-04`
+ADR: `docs/adr/ADR-0046-web-admin-otp-login-page.md`
 
 Scope:
 - `src/app/(admin)/admin/login/page.tsx`: шаг 1 — ввод email → `requestOtp`;
@@ -167,6 +168,18 @@ Scope:
 - Стиль — TailAdmin auth-форма.
 
 Acceptance: реальный логин админа end-to-end против запущенного `apps/api`.
+
+> Реализовано (PR pending): двухшаговая форма EMAIL-OTP, таймер resend из
+> `resend_after`, мапинг кодов ошибок §17 (`messageForCode`), хелпер
+> `store/api/apiError.ts`. Логин лежит в группе `(admin)`, но рендерится
+> полноэкранным через новый `layout/ConditionalShell.tsx` (ADR-0046) — туда же
+> встанет гард ADMIN-06. Gates `lint`+`build` зелёные; `/admin/login` отдаёт 200
+> и форму без оболочки, `/admin` сохраняет sidebar/header.
+> **Live end-to-end против `apps/api` в этой сессии не прогнан**: backend не
+> стартует из-за pre-existing проблем, не связанных с задачей (отсутствует
+> `@types/express` — `chat.controller.ts`, + ESM-резолюция в `packages/shared`).
+> Контракт эндпоинтов (`/auth/otp/request|verify`) уже подтверждён live в
+> ADMIN-03. Нужен ручной прогон формы при поднятом api.
 
 Suggested commit: `feat(web): add admin OTP login page`
 
