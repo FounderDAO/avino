@@ -39,6 +39,37 @@ Related ADR:
 
 ## 2026-06-06
 
+### ADMIN-06 — Web admin ADMIN role guard and logout
+
+Status: DONE
+Branch: feat/admin-web-role-guard
+PR: #79
+
+Files changed:
+- apps/web/src/layout/RoleGuard.tsx
+- apps/web/src/layout/UserMenu.tsx
+- apps/web/src/layout/ConditionalShell.tsx
+- apps/web/src/layout/AppHeader.tsx
+- apps/web/src/hooks/useLogout.ts
+- docs/adr/ADR-0049-web-admin-role-guard.md
+- docs/TASK_ADMIN_PANEL.md
+- docs/DONE.md
+
+Summary:
+- Защитил разделы админки (`/admin/*`) гардом роли `ADMIN` (ADMIN-06). Новый клиентский `RoleGuard` вешается в `ConditionalShell` **только на не-логин маршруты** — `/admin/login` остаётся вне гарда, поэтому редирект на логин не зацикливается.
+- Поток гарда: флаг `hydrated` (false на сервере и при первом клиентском рендере) + `selectAuthInitialized` гейтят первый рендер нейтральным экраном «Загрузка…» — это убирает hydration mismatch (на сервере `localStorage` нет, `isAuthenticated` всегда false, на клиенте зависит от refresh-токена). Нет токенов → `router.replace('/admin/login')`. Есть токен → `GET /auth/me` через существующий `useGetMeQuery`: истёкший access восстанавливает авто-refresh (ADMIN-04), невалидный refresh приводит к `logOut` в `baseQueryWithReauth` → гард видит «нет токенов» → редирект на логин. Профиль без роли `ADMIN` → полноэкранный экран 403. Ошибка `/auth/me` не по 401 (сеть / 5xx) → экран «Повторить/Выйти».
+- Выход вынесен в переиспользуемый хук `useLogout`: `POST /auth/logout` (`{ refresh_token }`) → `logOut()` (очистка access из памяти + refresh из `localStorage` + user) → редирект на `/admin/login`. Сетевые ошибки самого `/auth/logout` игнорируются — локальный разлогин выполняется всегда. Хук используется кнопкой выхода в шапке и экранами 403/ошибки.
+- Статичная заглушка «AD / Администратор» в шапке заменена на `UserMenu`: реальные имя/email из кэша `/auth/me`, dropdown с кнопкой «Выйти» (закрытие по клику вне и Escape, фокус-стили, без emoji-иконок — inline SVG).
+- Gates: `pnpm --filter @avino/web lint` — без ошибок; `pnpm --filter @avino/web build` — чистая сборка + type-check (Next 15, 6 страниц). Live end-to-end против `apps/api` не прогнан: backend не стартует из-за pre-existing проблем (нет `@types/express` в `chat.controller.ts` + ESM в `packages/shared`), к ADMIN-06 отношения не имеют — нужен ручной прогон при поднятом api (не-админ → 403, logout → `/admin/login`).
+
+Commit messages:
+- feat(web): add ADMIN role guard and logout
+
+Related ADR:
+- docs/adr/ADR-0049-web-admin-role-guard.md
+
+---
+
 ### TASK-045 — Implement GET /auth/me
 
 Status: DONE
