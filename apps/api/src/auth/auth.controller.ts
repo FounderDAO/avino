@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
   HttpStatus,
@@ -8,9 +9,11 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
 import { AuthService, RefreshResult, VerifyOtpResult } from './auth.service';
 import { OtpService, RequestOtpResult } from './otp.service';
+import { MeResponse } from './dto/me-response.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -57,6 +60,18 @@ export class AuthController {
     @Headers('user-agent') userAgent?: string,
   ): Promise<VerifyOtpResult> {
     return this.authService.verifyOtp(dto, ip, userAgent);
+  }
+
+  /**
+   * Текущий пользователь + профиль + роли (TASK-045, API.md §3). Защищён
+   * Bearer-guard: `@CurrentUser('id')` берёт `sub` из access-токена, который
+   * положил {@link JwtAuthGuard}. Нет/невалидный токен → `401 UNAUTHORIZED`
+   * (бросает guard). Тело ответа строится в сервисе строго по контракту.
+   */
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  me(@CurrentUser('id') userId: string): Promise<MeResponse> {
+    return this.authService.getMe(userId);
   }
 
   /**

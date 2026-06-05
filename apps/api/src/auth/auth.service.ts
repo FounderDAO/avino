@@ -15,6 +15,7 @@ import { verifyOtpCode } from './otp-hash.util';
 import { TokenService } from './token.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { MeResponse } from './dto/me-response.dto';
 
 /** Сводка пользователя в ответе verify (API.md §3). */
 export interface AuthUserSummary {
@@ -197,6 +198,52 @@ export class AuthService {
         roles: user.roles,
         is_phone_verified: user.isPhoneVerified,
         is_email_verified: user.isEmailVerified,
+      },
+    };
+  }
+
+  /**
+   * Текущий пользователь + профиль + роли (`GET /api/v1/auth/me`, API.md §3,
+   * TASK-045). Bearer-аутентификацию выполняет {@link JwtAuthGuard}; сюда
+   * приходит `userId` из `sub` access-токена (`@CurrentUser('id')`).
+   *
+   * Источник истины ролей здесь — БД (а не токен), чтобы `/auth/me` отдавал
+   * актуальный набор ролей сразу после изменения (токен «свежеет» только при
+   * ротации). DELETED-аккаунт по валидному токену трактуется как несуществующий
+   * субъект → `401 UNAUTHORIZED`. `profile` присутствует всегда: при отсутствии
+   * строки `user_profiles` поля null, а `preferred_language` берётся из
+   * `default_language` пользователя (контракт фронта — non-null язык).
+   */
+  async getMe(userId: string): Promise<MeResponse> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, status: { not: UserStatus.DELETED } },
+      include: { profile: true, roles: { include: { role: true } } },
+    });
+
+    if (!user) {
+      throw new HttpException(
+        { code: ApiErrorCode.UNAUTHORIZED, message: 'Authentication required' },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    return {
+      id: user.id,
+      phone: user.phone,
+      email: user.email,
+      status: user.status,
+      default_language: user.defaultLanguage,
+      is_phone_verified: user.isPhoneVerified,
+      is_email_verified: user.isEmailVerified,
+      roles: user.roles.map((r) => r.role.code),
+      profile: {
+        first_name: user.profile?.firstName ?? null,
+        last_name: user.profile?.lastName ?? null,
+        display_name: user.profile?.displayName ?? null,
+        avatar_url: user.profile?.avatarUrl ?? null,
+        contact_phone: user.profile?.contactPhone ?? null,
+        preferred_language:
+          user.profile?.preferredLanguage ?? user.defaultLanguage,
       },
     };
   }
