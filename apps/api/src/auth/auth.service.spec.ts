@@ -232,3 +232,112 @@ describe('AuthService.verifyOtp', () => {
     );
   });
 });
+
+/**
+ * Юнит-тесты `getMe` (TASK-045, API.md §3). Проверяется контракт ответа: набор
+ * полей snake_case, маппинг ролей, всегда-присутствующий `profile` и фолбэк
+ * `preferred_language` на `default_language`. 401 при отсутствии пользователя.
+ */
+describe('AuthService.getMe', () => {
+  let prisma: any;
+  let service: AuthService;
+
+  const dbUser = {
+    id: 'u1',
+    phone: '+998901234567',
+    email: null,
+    defaultLanguage: 'RU',
+    status: UserStatus.ACTIVE,
+    isPhoneVerified: true,
+    isEmailVerified: false,
+    roles: [{ role: { code: 'USER' } }, { role: { code: 'AGENT' } }],
+    profile: {
+      firstName: 'Ali',
+      lastName: 'Valiev',
+      displayName: 'Ali V.',
+      avatarUrl: null,
+      contactPhone: '+998901234567',
+      preferredLanguage: 'RU',
+    },
+  };
+
+  beforeEach(() => {
+    prisma = { user: { findFirst: jest.fn() } };
+    service = new AuthService(prisma, { get: jest.fn() } as any, {} as any);
+  });
+
+  it('returns the full contract for a user with a profile', async () => {
+    prisma.user.findFirst.mockResolvedValue(dbUser);
+
+    const result = await service.getMe('u1');
+
+    expect(result).toEqual({
+      id: 'u1',
+      phone: '+998901234567',
+      email: null,
+      status: UserStatus.ACTIVE,
+      default_language: 'RU',
+      is_phone_verified: true,
+      is_email_verified: false,
+      roles: ['USER', 'AGENT'],
+      profile: {
+        first_name: 'Ali',
+        last_name: 'Valiev',
+        display_name: 'Ali V.',
+        avatar_url: null,
+        contact_phone: '+998901234567',
+        preferred_language: 'RU',
+      },
+    });
+    // не отдаём DELETED-аккаунты по валидному токену
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+      where: { id: 'u1', status: { not: UserStatus.DELETED } },
+      include: { profile: true, roles: { include: { role: true } } },
+    });
+  });
+
+  it('returns a null-filled profile and falls back preferred_language when no profile row', async () => {
+    prisma.user.findFirst.mockResolvedValue({
+      ...dbUser,
+      defaultLanguage: 'UZ',
+      profile: null,
+    });
+
+    const result = await service.getMe('u1');
+
+    expect(result.profile).toEqual({
+      first_name: null,
+      last_name: null,
+      display_name: null,
+      avatar_url: null,
+      contact_phone: null,
+      preferred_language: 'UZ',
+    });
+  });
+
+  it('falls back preferred_language to default_language when the profile leaves it unset', async () => {
+    prisma.user.findFirst.mockResolvedValue({
+      ...dbUser,
+      defaultLanguage: 'EN',
+      profile: { ...dbUser.profile, preferredLanguage: null },
+    });
+
+    const result = await service.getMe('u1');
+
+    expect(result.profile.preferred_language).toBe('EN');
+  });
+
+  it('throws 401 UNAUTHORIZED when the token subject no longer resolves', async () => {
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    const promise = service.getMe('ghost');
+    await expect(promise).rejects.toBeInstanceOf(HttpException);
+    try {
+      await promise;
+    } catch (e) {
+      expect((e as HttpException).getStatus()).toBe(401);
+      const res = (e as HttpException).getResponse() as { code: string };
+      expect(res.code).toBe(ApiErrorCode.UNAUTHORIZED);
+    }
+  });
+});
