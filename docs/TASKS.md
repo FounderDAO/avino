@@ -414,11 +414,126 @@ TASK-001
 
 ## 6. M2 — Backend foundation
 
+### TASK-024 — Enable CORS for web clients
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+chore/api-enable-cors
+```
+
+Scope:
+
+```text
+apps/api не вызывает app.enableCors() в main.ts, поэтому браузерная админка
+(apps/web, RTK Query с http://localhost:3000) не может ходить в http://localhost:4000
+из-за CORS — блокирует ВСЕ браузерные вызовы admin↔api (обнаружено на live e2e
+ADMIN-05; curl CORS не проверяет и скрывает это).
+Включить CORS в main.ts: разрешённые origins из ENV (dev — localhost:3000;
+prod — домен админки), allowed methods/headers, credentials по необходимости.
+Origin-список вынести в config (ENV.md), без хардкода.
+```
+
+Files expected:
+
+```text
+apps/api/src/main.ts
+apps/api/src/config/configuration.ts
+apps/api/src/config/env.validation.ts
+.env.example
+docs/ENV.md
+```
+
+Acceptance criteria:
+
+```text
+Браузерный fetch с http://localhost:3000 на /api/v1/* проходит (нет CORS-ошибки)
+Origins берутся из ENV, не захардкожены
+lint + test зелёные
+```
+
+Suggested commits:
+
+```text
+chore(api): enable CORS for web clients
+```
+
+Dependencies:
+
+```text
+TASK-020
+```
+
+---
+
 ## 7. M3 — Database and Prisma foundation
 
 ## 8. M4 — Auth and users
 
-_All M4 tasks completed — see docs/DONE.md (TASK-040–044)._
+_TASK-040–044 completed — see docs/DONE.md._
+
+### TASK-045 — Implement GET /auth/me
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+feat/api-auth-me
+```
+
+Scope:
+
+```text
+Эндпоинт GET /api/v1/auth/me задокументирован в API.md §3 и уже типизирован на
+фронте (authApi.getMe, ADMIN-03), но в apps/api НЕ реализован — auth.controller.ts
+содержит только otp/request, otp/verify, refresh, logout (обнаружено на live e2e
+ADMIN-05). Гард роли ADMIN (ADMIN-06) зависит от него → ADMIN-06 заблокирован.
+Реализовать @Get('me') в AuthController (Bearer-guard): вернуть текущего
+пользователя + профиль + roles строго по контракту API.md §3 (snake_case).
+Ошибка 401 UNAUTHORIZED при отсутствии/невалидном access-токене.
+```
+
+Files expected:
+
+```text
+apps/api/src/auth/auth.controller.ts
+apps/api/src/auth/auth.service.ts
+apps/api/src/auth/dto/me-response.dto.ts
+apps/api/src/auth/auth.controller.spec.ts
+```
+
+Acceptance criteria:
+
+```text
+GET /api/v1/auth/me с валидным Bearer → 200 { id, phone, email, status,
+  default_language, is_phone_verified, is_email_verified, roles, profile }
+Без/с невалидным токеном → 401 UNAUTHORIZED (error-envelope §4)
+Контракт совпадает с API.md §3 и фронтовым типом MeResponse
+test + lint зелёные
+```
+
+Suggested commits:
+
+```text
+feat(auth): implement GET /auth/me endpoint
+```
+
+Dependencies:
+
+```text
+TASK-042
+```
 
 ---
 
