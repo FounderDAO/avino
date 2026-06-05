@@ -1,51 +1,38 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { EmailQueue } from '../queues/email.queue';
+import { SendEmailJobData } from '../queues/queue.constants';
 
 /**
- * EmailService — абстракция отправки email (TASK-041, ARCHITECTURE §6 email login).
+ * EmailService — публичный фасад постановки email в очередь (TASK-041/TASK-101,
+ * ARCHITECTURE §6/§23).
  *
- * Контракт узкий (`sendOtp`), чтобы OtpService не зависел от транспорта. Реальная
- * доставка через SMTP (provider-agnostic) выполняется асинхронно через
- * `email_queue` (BullMQ, ARCHITECTURE §23) — это отдельная задача. До её
- * подключения сервис работает как абстракция:
- * - SMTP настроен  → предупреждение, что транспорт ещё не подключён (видно в логах);
- * - SMTP не настроен (dev) → код логируется (NODE_ENV !== production),
- *   чтобы пройти flow request → verify локально.
+ * Контракт намеренно узкий (`sendOtp` / `sendEmail`), чтобы вызывающий код
+ * (OtpService и будущие уведомления) не зависел от транспорта. С TASK-101
+ * доставка стала по-настоящему асинхронной: письмо кладётся в BullMQ
+ * `email_queue` ({@link EmailQueue}), а реальную SMTP-отправку и логирование
+ * результата выполняет воркер ({@link EmailWorker} → {@link EmailSender}).
  *
- * Сигнатура (`sendOtp`) уже стабильна: подключение реального SMTP-транспорта не
- * затронет вызывающий код.
+ * Сигнатура `sendOtp` не изменилась — подключение очереди прозрачно для
+ * AuthModule/OtpService.
  */
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly emailQueue: EmailQueue) {}
 
-  /** Отправить OTP-код на email. */
+  /** Поставить OTP-письмо в очередь доставки. */
   async sendOtp(email: string, code: string): Promise<void> {
-    const subject = 'Avino — код для входа';
-    const text = `Ваш код для входа в Avino: ${code}. Никому не сообщайте его.`;
-    await this.send(email, subject, text);
+    await this.sendEmail({
+      to: email,
+      subject: 'Avino — код для входа',
+      text: `Ваш код для входа в Avino: ${code}. Никому не сообщайте его.`,
+    });
   }
 
-  /** Отправить произвольное письмо. */
-  async send(to: string, subject: string, text: string): Promise<void> {
-    const host = this.configService.get<string>('mail.host');
-    const env = this.configService.get<string>('app.env');
-
-    if (host) {
-      // SMTP-транспорт подключается через email_queue (отдельная задача).
-      this.logger.warn(
-        `SMTP transport is not wired yet; email "${subject}" to ${to} was queued only conceptually`,
-      );
-    }
-
-    if (env !== 'production') {
-      this.logger.warn(`[DEV EMAIL → ${to}] ${subject}: ${text}`);
-    } else if (!host) {
-      this.logger.warn(
-        `Email provider is not configured; message to ${to} was NOT sent`,
-      );
-    }
+  /** Поставить произвольное письмо в очередь доставки. */
+  async sendEmail(data: SendEmailJobData): Promise<void> {
+    await this.emailQueue.enqueueSendEmail(data);
+    this.logger.debug(`Queued email "${data.subject}" to ${data.to}`);
   }
 }

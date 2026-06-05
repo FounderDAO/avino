@@ -74,12 +74,18 @@ export const promotionConfig = registerAs('promotion', () => ({
   expiryBatchSize: parseInt(process.env.PROMOTION_EXPIRY_BATCH_SIZE ?? '100', 10),
 }));
 
+// SMTP / email-доставка (TASK-041, TASK-101, ENV.md §13). host/креды опциональны
+// на старте (в dev письмо логируется). queueAttempts/queueConcurrency — ретраи и
+// параллелизм воркера `email_queue` (по аналогии с translate.*). from имеет
+// non-secret дефолт.
 export const mailConfig = registerAs('mail', () => ({
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT ?? '587', 10),
   user: process.env.SMTP_USER,
   password: process.env.SMTP_PASSWORD,
-  from: process.env.SMTP_FROM,
+  from: process.env.SMTP_FROM ?? 'no-reply@avino.uz',
+  queueAttempts: parseInt(process.env.EMAIL_QUEUE_ATTEMPTS ?? '3', 10),
+  queueConcurrency: parseInt(process.env.EMAIL_QUEUE_CONCURRENCY ?? '2', 10),
 }));
 
 // OTP-параметры (TASK-041, ENV.md §8). maxAttempts используется при verify

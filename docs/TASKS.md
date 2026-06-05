@@ -450,59 +450,7 @@ _TASK-090, TASK-091 completed — see docs/DONE.md._
 
 ## 14. M10 — Notifications
 
-_TASK-100 completed — see docs/DONE.md._
-
-### TASK-101 — Add email queue
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/email-queue
-```
-
-Scope:
-
-```text
-Implement email delivery queue foundation.
-```
-
-Files expected:
-
-```text
-apps/api/src/email/
-apps/api/src/queues/
-.env.example
-```
-
-Acceptance criteria:
-
-```text
-email_queue exists
-SMTP config exists
-Email job can be queued
-Email delivery result is logged
-```
-
-Suggested commits:
-
-```text
-feat(email): add email queue foundation
-```
-
-Dependencies:
-
-```text
-TASK-011
-TASK-100
-```
-
----
+_TASK-100, TASK-101 completed — see docs/DONE.md._
 
 ### TASK-102 — Add saved search alert job
 

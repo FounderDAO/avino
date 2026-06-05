@@ -39,6 +39,48 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-101 — Add email queue
+
+Status: DONE
+Branch: feat/email-queue
+PR: pending
+
+Files changed:
+- apps/api/src/queues/queue.constants.ts
+- apps/api/src/queues/email.queue.ts
+- apps/api/src/queues/email.queue.spec.ts
+- apps/api/src/queues/queues.module.ts
+- apps/api/src/queues/index.ts
+- apps/api/src/email/email-sender.service.ts
+- apps/api/src/email/email-sender.service.spec.ts
+- apps/api/src/email/email.worker.ts
+- apps/api/src/email/email.service.ts
+- apps/api/src/email/email.service.spec.ts
+- apps/api/src/email/email.module.ts
+- apps/api/src/email/index.ts
+- apps/api/src/config/configuration.ts
+- apps/api/src/config/env.validation.ts
+- apps/api/package.json
+- pnpm-lock.yaml
+- .env.example
+- docs/ENV.md
+- docs/adr/ADR-0037-email-queue-foundation.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Implemented the email delivery queue foundation (TASK-101, ARCHITECTURE §23). Promotes the TASK-041 `EmailService` stub ("conceptually queued") to genuine async delivery through BullMQ `email_queue` with a worker that performs real SMTP send and logs the delivery result. Reuses the translation/promotion BullMQ pattern (dedicated Redis connection, `attempts` + exponential backoff, producer in global `QueuesModule`, worker in the domain module).
+- Producer `EmailQueue.enqueueSendEmail` adds a `send_email` job (`EMAIL_QUEUE_ATTEMPTS`, default 3; no dedup `jobId` — repeat OTPs to one address are distinct jobs). Consumer `EmailWorker` (`EMAIL_QUEUE_CONCURRENCY`, default 2) delegates to `EmailSender` and logs `Email job <id> → <to>: <status>`; transport errors propagate so BullMQ retries.
+- `EmailSender` uses **nodemailer** for provider-agnostic SMTP (ADR-0037 — SMTP has no `fetch` equivalent). Three branches mirror `SmsService`: SMTP configured → `SENT` + `messageId`; no SMTP in dev → logged `SKIPPED_DEV`; no SMTP in prod → `SKIPPED_NOT_CONFIGURED` (not sent, no pointless retries).
+- `EmailService` is now a thin enqueue facade (`sendOtp` / `sendEmail`); `sendOtp` signature unchanged, so `OtpService`/`AuthModule` are untouched — OTP email delivery just became asynchronous via the queue. SMTP config already existed (TASK-041); added `EMAIL_QUEUE_ATTEMPTS`/`EMAIL_QUEUE_CONCURRENCY` and a non-secret `SMTP_FROM` default.
+- Verified: `tsc --noEmit` clean, `eslint` clean on changed dirs, full unit suite **241/241** green (11 new across `email.queue.spec`, `email-sender.service.spec`, `email.service.spec` covering queue name/payload/retry/no-jobId, all three delivery branches incl. port-465 implicit TLS and transport-error propagation, and facade enqueue). No migration, no new enum.
+
+Commit messages:
+- feat(email): add email queue foundation
+
+Related ADR:
+- docs/adr/ADR-0037-email-queue-foundation.md
+
 ### TASK-100 — Add notification records module
 
 Status: DONE

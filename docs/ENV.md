@@ -170,6 +170,14 @@ Notes:
 | SMTP_USER     | yes  | yes    | no     | (set)               | SMTP username                    |
 | SMTP_PASSWORD | yes  | yes    | no     | (set)               | SMTP password                    |
 | SMTP_FROM     | yes  | no     | no     | no-reply@avino.uz   | Default "from" address           |
+| EMAIL_QUEUE_ATTEMPTS    | no | no | no | 3 | `email_queue` retry attempts per job (TASK-101) |
+| EMAIL_QUEUE_CONCURRENCY | no | no | no | 2 | `email_queue` worker concurrency (TASK-101)     |
+
+```text
+- Email delivery is async via BullMQ `email_queue`: the worker performs the SMTP
+  send (nodemailer) and logs the result. Without SMTP_HOST, email is logged in
+  dev and not sent in production (ADR-0037, ARCHITECTURE §23).
+```
 
 ## 14. Push / FCM (notifications)
 
