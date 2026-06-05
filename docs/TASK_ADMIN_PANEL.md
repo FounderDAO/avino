@@ -187,9 +187,10 @@ Suggested commit: `feat(web): add admin OTP login page`
 
 ### ADMIN-06 — Guard роли ADMIN
 
-Status: `TODO`
+Status: `REVIEW` (PR pending) — ADR-0049
 Branch: `feat/admin-web-role-guard`
 Depends: `ADMIN-05`
+ADR: `docs/adr/ADR-0049-web-admin-role-guard.md`
 
 Scope:
 - В layout `(admin)`: при заходе дёрнуть `getMe`; если нет токена → `/admin/login`;
@@ -197,6 +198,20 @@ Scope:
 - Кнопка logout в Header (`logout` + очистка токенов).
 
 Acceptance: не-админ не попадает в админку; logout работает.
+
+> Реализовано: `RoleGuard` (новый) вешается в `ConditionalShell` только на
+> защищённые маршруты — логин остаётся вне гарда (нет редирект-петли). Гард:
+> флаг `hydrated` + `selectAuthInitialized` гейтят первый рендер (убирают
+> hydration mismatch), нет токенов → `/admin/login`, есть → `GET /auth/me`
+> (переиспользует `useGetMeQuery` + авто-refresh ADMIN-04), без роли `ADMIN` →
+> экран 403, ошибка не-401 → экран «Повторить/Выйти». Выход вынесен в хук
+> `useLogout` (`POST /auth/logout` + `logOut` + редирект), используется кнопкой
+> в шапке (`UserMenu` заменил статичную заглушку, показывает реальные имя/email
+> из `/auth/me`) и экранами 403/ошибки. Gates `lint`+`build` зелёные.
+> **Live end-to-end против `apps/api` не прогнан** — backend не стартует из-за
+> pre-existing проблем (нет `@types/express` в `chat.controller.ts` + ESM в
+> `packages/shared`), к ADMIN-06 отношения не имеют. Нужен ручной прогон при
+> поднятом api: не-админ → 403, logout → `/admin/login`.
 
 Suggested commit: `feat(web): add ADMIN role guard and logout`
 
@@ -417,7 +432,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-03 | DONE | #74 |
 | ADMIN-04 | DONE | #75 |
 | ADMIN-05 | TODO | — |
-| ADMIN-06 | TODO | — |
+| ADMIN-06 | REVIEW | pending |
 | ADMIN-07 | TODO | — |
 | ADMIN-08 | TODO | — |
 | ADMIN-09 | TODO | — |

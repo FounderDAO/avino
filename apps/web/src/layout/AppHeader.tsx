@@ -3,9 +3,10 @@
 // Adapted from TailAdmin (MIT) — github.com/TailAdmin/free-nextjs-admin-dashboard
 // See apps/web/NOTICE. Sidebar toggle, command-search affordance and theme toggle
 // are kept; TailAdmin's notification/user dropdowns are replaced with an Avino
-// brand mark and a user placeholder (logout lands in ADMIN-06).
+// brand mark and the real user menu + logout (ADMIN-06, UserMenu).
 
 import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
+import { UserMenu } from "@/layout/UserMenu";
 import { useSidebar } from "@/context/SidebarContext";
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
@@ -152,19 +153,7 @@ const AppHeader: React.FC = () => {
           <div className="flex items-center gap-2 2xsm:gap-3">
             <ThemeToggleButton />
           </div>
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400">
-              AD
-            </span>
-            <span className="hidden text-left lg:block">
-              <span className="block text-theme-sm font-medium text-gray-700 dark:text-gray-300">
-                Администратор
-              </span>
-              <span className="block text-theme-xs text-gray-500 dark:text-gray-400">
-                Avino
-              </span>
-            </span>
-          </div>
+          <UserMenu />
         </div>
       </div>
     </header>
