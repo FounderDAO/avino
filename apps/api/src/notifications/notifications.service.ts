@@ -33,6 +33,14 @@ export interface SavedSearchNewListingNotificationData {
   listingId: string;
 }
 
+/** Ссылки на сущности нового сообщения чата (data_json уведомления, TASK-111). */
+export interface ChatMessageNotificationData {
+  threadId: string;
+  listingId: string;
+  messageId: string;
+  senderId: string;
+}
+
 /** Поля выборки уведомления под {@link NotificationResponse}. */
 const SELECT = {
   id: true,
@@ -147,6 +155,35 @@ export class NotificationsService {
           saved_search_id: data.savedSearchId,
           saved_search_name: data.savedSearchName,
           listing_id: data.listingId,
+        },
+      },
+    });
+  }
+
+  /**
+   * Поставить уведомление получателю о новом сообщении в чате (TASK-111,
+   * `NotificationType.NEW_CHAT_MESSAGE`). Канал — IN_APP: чат — это in-app
+   * уведомление (бейдж/лента TASK-100), а не email-дайджест; PUSH-транспорт
+   * подключится с регистрацией устройств (DB_SCHEMA §11, стаб). Получатель —
+   * второй участник треда (не отправитель), вычисляется в {@link ChatService}.
+   * Принимает `tx`, чтобы коммититься в одной транзакции с созданием сообщения
+   * и продвижкой `last_message_at` треда (атомарность сообщение↔уведомление).
+   */
+  async queueChatMessage(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    data: ChatMessageNotificationData,
+  ): Promise<void> {
+    await tx.notification.create({
+      data: {
+        userId,
+        type: NotificationType.NEW_CHAT_MESSAGE,
+        channel: NotificationChannel.IN_APP,
+        dataJson: {
+          thread_id: data.threadId,
+          listing_id: data.listingId,
+          message_id: data.messageId,
+          sender_id: data.senderId,
         },
       },
     });

@@ -456,59 +456,7 @@ _TASK-100, TASK-101, TASK-102 completed — see docs/DONE.md._
 
 _TASK-110 completed — see docs/DONE.md._
 
----
-
-### TASK-111 — Add chat messages
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/chat-messages
-```
-
-Scope:
-
-```text
-Implement chat message send/read endpoints.
-```
-
-Files expected:
-
-```text
-apps/api/src/chat/
-apps/api/src/notifications/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/chat/threads/:id works
-POST /api/v1/chat/threads/:id/messages works
-PATCH /api/v1/chat/threads/:id/read works
-Only thread participants can access messages
-Sender must be thread participant
-New message queues notification
-```
-
-Suggested commits:
-
-```text
-feat(chat): add chat messages
-feat(chat): add chat read status
-```
-
-Dependencies:
-
-```text
-TASK-110
-TASK-100
-```
+_TASK-111 completed — see docs/DONE.md._
 
 ## 16. M12 — VIP/TOP promotions
 

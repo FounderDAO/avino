@@ -3,6 +3,7 @@ export {
   NotificationsService,
   PromotionExpiredNotificationData,
   SavedSearchNewListingNotificationData,
+  ChatMessageNotificationData,
   NotificationResponse,
   NotificationListResponse,
 } from './notifications.service';

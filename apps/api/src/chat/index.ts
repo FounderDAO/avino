@@ -5,4 +5,6 @@ export {
   ThreadListItem,
   ThreadListResponse,
   ThreadListingPreview,
+  MessageResponse,
+  MessageListResponse,
 } from './chat.service';

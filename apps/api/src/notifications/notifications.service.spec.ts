@@ -75,6 +75,33 @@ describe('NotificationsService', () => {
     });
   });
 
+  describe('queueChatMessage', () => {
+    it('queues a NEW_CHAT_MESSAGE notification as a PENDING IN_APP row', async () => {
+      const tx = { notification: { create: jest.fn() } } as any;
+
+      await service.queueChatMessage(tx, OWNER_ID, {
+        threadId: 'thread-1',
+        listingId: 'listing-1',
+        messageId: 'msg-1',
+        senderId: 'sender-1',
+      });
+
+      expect(tx.notification.create).toHaveBeenCalledWith({
+        data: {
+          userId: OWNER_ID,
+          type: NotificationType.NEW_CHAT_MESSAGE,
+          channel: NotificationChannel.IN_APP,
+          dataJson: {
+            thread_id: 'thread-1',
+            listing_id: 'listing-1',
+            message_id: 'msg-1',
+            sender_id: 'sender-1',
+          },
+        },
+      });
+    });
+  });
+
   describe('list', () => {
     function row(id: string, createdAt: Date) {
       return {
