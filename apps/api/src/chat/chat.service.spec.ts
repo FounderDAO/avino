@@ -30,6 +30,7 @@ describe('ChatService', () => {
 
   let prisma: any;
   let search: any;
+  let notifications: any;
   let service: ChatService;
 
   beforeEach(() => {
@@ -40,11 +41,20 @@ describe('ChatService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         count: jest.fn(),
+        update: jest.fn(),
       },
-      chatMessage: { groupBy: jest.fn().mockResolvedValue([]) },
+      chatMessage: {
+        groupBy: jest.fn().mockResolvedValue([]),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        updateMany: jest.fn(),
+      },
+      // $transaction исполняет callback с самим prisma как tx (мок).
+      $transaction: jest.fn(async (cb: any) => cb(prisma)),
     };
     search = { cardsByIds: jest.fn().mockResolvedValue([]) };
-    service = new ChatService(prisma, search);
+    notifications = { queueChatMessage: jest.fn() };
+    service = new ChatService(prisma, search, notifications);
   });
 
   async function expectError(p: Promise<unknown>, code: ApiErrorCode) {
@@ -324,6 +334,268 @@ describe('ChatService', () => {
         service.listThreads(user, 20, 'not-a-valid-cursor!!!'),
         ApiErrorCode.VALIDATION_ERROR,
       );
+    });
+  });
+
+  const T1 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const M1 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const owner: AuthenticatedUser = { id: OWNER_ID, roles: [UserRole.USER] };
+  const moderator: AuthenticatedUser = {
+    id: 'u-mod',
+    roles: [UserRole.MODERATOR],
+  };
+  const stranger: AuthenticatedUser = { id: 'u-x', roles: [UserRole.USER] };
+
+  /** Тред initiator=USER_ID, owner=OWNER_ID на листинге L1. */
+  function threadRow(status: ListingStatus = ListingStatus.ACTIVE) {
+    return {
+      initiatorId: USER_ID,
+      ownerId: OWNER_ID,
+      listingId: L1,
+      listing: { status },
+    };
+  }
+
+  describe('listMessages', () => {
+    it('маппит сообщения (DESC), next_cursor при hasMore', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue({
+        initiatorId: USER_ID,
+        ownerId: OWNER_ID,
+      });
+      const c1 = new Date('2026-06-05T10:00:00.000Z');
+      const c2 = new Date('2026-06-05T09:00:00.000Z');
+      // limit=1, возвращаем 2 → hasMore.
+      prisma.chatMessage.findMany.mockResolvedValue([
+        {
+          id: M1,
+          threadId: T1,
+          senderId: USER_ID,
+          body: 'Здравствуйте',
+          isRead: false,
+          createdAt: c1,
+        },
+        {
+          id: 'm2',
+          threadId: T1,
+          senderId: OWNER_ID,
+          body: 'Да',
+          isRead: true,
+          createdAt: c2,
+        },
+      ]);
+
+      const res = await service.listMessages(user, T1, 1, undefined);
+
+      expect(res.data).toHaveLength(1);
+      expect(res.data[0]).toEqual({
+        id: M1,
+        thread_id: T1,
+        sender_id: USER_ID,
+        body: 'Здравствуйте',
+        is_read: false,
+        created_at: '2026-06-05T10:00:00.000Z',
+      });
+      expect(res.meta.limit).toBe(1);
+      const decoded = JSON.parse(
+        Buffer.from(res.meta.next_cursor as string, 'base64url').toString(
+          'utf8',
+        ),
+      );
+      expect(decoded).toEqual({ createdAt: c1.toISOString(), id: M1 });
+      const order = prisma.chatMessage.findMany.mock.calls[0][0].orderBy;
+      expect(order).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
+    });
+
+    it('next_cursor=null, когда страниц больше нет', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue({
+        initiatorId: USER_ID,
+        ownerId: OWNER_ID,
+      });
+      prisma.chatMessage.findMany.mockResolvedValue([]);
+      const res = await service.listMessages(user, T1, 20, undefined);
+      expect(res.meta.next_cursor).toBeNull();
+      expect(res.data).toEqual([]);
+    });
+
+    it('404, если треда нет', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue(null);
+      await expectError(
+        service.listMessages(user, T1, 20, undefined),
+        ApiErrorCode.NOT_FOUND,
+      );
+    });
+
+    it('403, если не участник и не модератор', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue({
+        initiatorId: USER_ID,
+        ownerId: OWNER_ID,
+      });
+      await expectError(
+        service.listMessages(stranger, T1, 20, undefined),
+        ApiErrorCode.FORBIDDEN,
+      );
+    });
+
+    it('MODERATOR может читать сообщения (complaint-flow)', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue({
+        initiatorId: USER_ID,
+        ownerId: OWNER_ID,
+      });
+      prisma.chatMessage.findMany.mockResolvedValue([]);
+      const res = await service.listMessages(moderator, T1, 20, undefined);
+      expect(res.data).toEqual([]);
+    });
+
+    it('400 на повреждённый курсор', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue({
+        initiatorId: USER_ID,
+        ownerId: OWNER_ID,
+      });
+      await expectError(
+        service.listMessages(user, T1, 20, 'bad!!!'),
+        ApiErrorCode.VALIDATION_ERROR,
+      );
+    });
+  });
+
+  describe('createMessage', () => {
+    it('создаёт сообщение, двигает last_message_at и шлёт уведомление владельцу', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue(threadRow());
+      const createdAt = new Date('2026-06-05T12:00:00.000Z');
+      prisma.chatMessage.create.mockResolvedValue({
+        id: M1,
+        threadId: T1,
+        senderId: USER_ID,
+        body: 'Актуально?',
+        isRead: false,
+        createdAt,
+      });
+
+      const res = await service.createMessage(user, T1, 'Актуально?');
+
+      expect(res).toEqual({
+        id: M1,
+        thread_id: T1,
+        sender_id: USER_ID,
+        body: 'Актуально?',
+        is_read: false,
+        created_at: '2026-06-05T12:00:00.000Z',
+      });
+      expect(prisma.chatMessage.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { threadId: T1, senderId: USER_ID, body: 'Актуально?' },
+        }),
+      );
+      expect(prisma.chatThread.update).toHaveBeenCalledWith({
+        where: { id: T1 },
+        data: { lastMessageAt: createdAt },
+      });
+      // Отправитель = initiator → уведомление получает owner.
+      expect(notifications.queueChatMessage).toHaveBeenCalledWith(
+        prisma,
+        OWNER_ID,
+        { threadId: T1, listingId: L1, messageId: M1, senderId: USER_ID },
+      );
+    });
+
+    it('уведомление получает initiator, когда отправитель — owner', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue(threadRow());
+      prisma.chatMessage.create.mockResolvedValue({
+        id: M1,
+        threadId: T1,
+        senderId: OWNER_ID,
+        body: 'Да',
+        isRead: false,
+        createdAt: new Date('2026-06-05T12:00:00.000Z'),
+      });
+
+      await service.createMessage(owner, T1, 'Да');
+
+      expect(notifications.queueChatMessage).toHaveBeenCalledWith(
+        prisma,
+        USER_ID,
+        expect.objectContaining({ senderId: OWNER_ID }),
+      );
+    });
+
+    it('404, если треда нет', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue(null);
+      await expectError(
+        service.createMessage(user, T1, 'x'),
+        ApiErrorCode.NOT_FOUND,
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('403, если не участник (модератор писать не может)', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue(threadRow());
+      await expectError(
+        service.createMessage(moderator, T1, 'x'),
+        ApiErrorCode.FORBIDDEN,
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('422 LISTING_NOT_AVAILABLE, если листинг DELETED', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue(
+        threadRow(ListingStatus.DELETED),
+      );
+      await expectError(
+        service.createMessage(user, T1, 'x'),
+        ApiErrorCode.LISTING_NOT_AVAILABLE,
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('разрешает писать на не-ACTIVE, но не-DELETED листинге (SOLD)', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue(
+        threadRow(ListingStatus.SOLD),
+      );
+      prisma.chatMessage.create.mockResolvedValue({
+        id: M1,
+        threadId: T1,
+        senderId: USER_ID,
+        body: 'ещё доступно?',
+        isRead: false,
+        createdAt: new Date('2026-06-05T12:00:00.000Z'),
+      });
+      const res = await service.createMessage(user, T1, 'ещё доступно?');
+      expect(res.id).toBe(M1);
+    });
+  });
+
+  describe('markRead', () => {
+    it('отмечает входящие (sender != user) прочитанными', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue({
+        initiatorId: USER_ID,
+        ownerId: OWNER_ID,
+      });
+      prisma.chatMessage.updateMany.mockResolvedValue({ count: 3 });
+
+      await service.markRead(user, T1);
+
+      expect(prisma.chatMessage.updateMany).toHaveBeenCalledWith({
+        where: { threadId: T1, senderId: { not: USER_ID }, isRead: false },
+        data: { isRead: true },
+      });
+    });
+
+    it('404, если треда нет', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue(null);
+      await expectError(service.markRead(user, T1), ApiErrorCode.NOT_FOUND);
+      expect(prisma.chatMessage.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('403, если не участник (модератор отметить не может)', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue({
+        initiatorId: USER_ID,
+        ownerId: OWNER_ID,
+      });
+      await expectError(
+        service.markRead(moderator, T1),
+        ApiErrorCode.FORBIDDEN,
+      );
+      expect(prisma.chatMessage.updateMany).not.toHaveBeenCalled();
     });
   });
 });

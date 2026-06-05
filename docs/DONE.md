@@ -39,11 +39,60 @@ Related ADR:
 
 ## 2026-06-05
 
+### TASK-111 — Add chat messages
+
+Status: DONE
+Branch: feat/chat-messages
+PR: pending
+
+Files changed:
+- apps/api/src/chat/chat.controller.ts
+- apps/api/src/chat/chat.service.ts
+- apps/api/src/chat/chat.service.spec.ts
+- apps/api/src/chat/chat.module.ts
+- apps/api/src/chat/dto/send-message.dto.ts
+- apps/api/src/chat/dto/list-messages.dto.ts
+- apps/api/src/chat/index.ts
+- apps/api/src/notifications/notifications.service.ts
+- apps/api/src/notifications/notifications.service.spec.ts
+- apps/api/src/notifications/index.ts
+- docs/TASKS.md
+- docs/DONE.md
+- docs/adr/ADR-0040-chat-messages-module.md
+
+Summary:
+- Достроены сообщения внутреннего чата поверх тредов (M11, API.md §13):
+  `GET /api/v1/chat/threads/:id/messages`, `POST /api/v1/chat/threads/:id/messages`,
+  `POST /api/v1/chat/threads/:id/read`. Маршруты по API.md (карточка писала
+  `GET …/:id` и `PATCH …/read`, но API.md авторитетен — как в ADR-0036).
+- Поверх существующей схемы (`ChatMessage`, DB_SCHEMA §10) — без новых миграций;
+  `unread_count` тредов (ADR-0039) заработал с реальными сообщениями.
+- Доступ: чтение сообщений — участник треда ИЛИ `MODERATOR`/`ADMIN`
+  (complaint-flow); отправка и отметка прочтения — только участник. Нет треда →
+  `404`, нет доступа → `403`. `sender_id` берётся из Bearer-токена, не из тела.
+- Отправка, сдвиг `last_message_at` и постановка уведомления — в одной
+  `prisma.$transaction`. Слать нельзя на `DELETED`-листинге (`422
+  LISTING_NOT_AVAILABLE`); на `SOLD`/`ARCHIVED` переписка продолжается.
+- Новое сообщение ставит `NEW_CHAT_MESSAGE` второму участнику через
+  `NotificationsService.queueChatMessage` (PENDING-строка, канал `IN_APP`).
+- `GET …/messages` — keyset `created_at DESC, id DESC` (`meta = { limit,
+  next_cursor }`, без `total`); `POST …/read` помечает входящие
+  (`sender_id != user`) прочитанными, идемпотентно. → `204`.
+- Тесты: 28 юнит-тестов ChatService + queueChatMessage зелёные; полный suite API
+  — 286/286; eslint чист.
+
+Commit messages:
+- feat(chat): add chat messages
+- feat(chat): add chat read status
+
+Related ADR:
+- docs/adr/ADR-0040-chat-messages-module.md
+
 ### TASK-110 — Add chat threads
 
 Status: DONE
 Branch: feat/chat-threads
-PR: pending
+PR: #67
 
 Files changed:
 - apps/api/src/chat/chat.controller.ts

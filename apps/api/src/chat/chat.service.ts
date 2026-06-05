@@ -6,8 +6,10 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Currency, ListingStatus, Prisma } from '@prisma/client';
+import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
+import { NotificationsService } from '../notifications';
 import { PrismaService } from '../prisma';
 import { SearchService } from '../search';
 
@@ -86,6 +88,39 @@ interface ThreadCursor {
   id: string;
 }
 
+/** Сообщение в ответах API (API.md §13, snake_case контракт). */
+export interface MessageResponse {
+  id: string;
+  thread_id: string;
+  sender_id: string | null;
+  body: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+/**
+ * Ответ `GET /api/v1/chat/threads/:id/messages` (API.md §13). В отличие от списка
+ * тредов, `total` не отдаётся (лента сообщения — бесконечный скролл в историю,
+ * счётчик не нужен), только keyset-`next_cursor`.
+ */
+export interface MessageListResponse {
+  data: MessageResponse[];
+  meta: {
+    limit: number;
+    next_cursor: string | null;
+  };
+}
+
+/**
+ * Позиция keyset-курсора ленты сообщений: `(created_at, id)` последнего элемента
+ * страницы. Порядок — свежие сверху (`created_at DESC, id DESC`), как у
+ * `/notifications`; `next_cursor` листает в историю.
+ */
+interface MessageCursor {
+  createdAt: string;
+  id: string;
+}
+
 /**
  * ChatService — внутренний чат «инициатор ↔ владелец листинга» (TASK-110,
  * API.md §13, DB_SCHEMA.md §10).
@@ -106,6 +141,7 @@ export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly search: SearchService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -265,6 +301,249 @@ export class ChatService {
             : null,
       },
     };
+  }
+
+  /**
+   * `GET /api/v1/chat/threads/:id/messages` — сообщения треда, keyset-пагинация,
+   * свежие сверху. Доступ: участник треда (`initiator`/`owner`) ИЛИ
+   * `MODERATOR`/`ADMIN` (complaint/support-flow, API.md §13). Чтение НЕ помечает
+   * сообщения прочитанными — это отдельный `POST /read`.
+   */
+  async listMessages(
+    user: AuthenticatedUser,
+    threadId: string,
+    limitParam: number | undefined,
+    rawCursor: string | undefined,
+  ): Promise<MessageListResponse> {
+    const thread = await this.prisma.chatThread.findUnique({
+      where: { id: threadId },
+      select: { initiatorId: true, ownerId: true },
+    });
+    this.assertCanRead(user, thread);
+
+    const limit = Math.min(limitParam ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const cursor = this.decodeMessageCursor(rawCursor);
+
+    const where: Prisma.ChatMessageWhereInput = { threadId };
+    if (cursor) {
+      where.OR = [
+        { createdAt: { lt: new Date(cursor.createdAt) } },
+        { createdAt: new Date(cursor.createdAt), id: { lt: cursor.id } },
+      ];
+    }
+
+    const rows = await this.prisma.chatMessage.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      select: this.messageSelect(),
+    });
+
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const last = page[page.length - 1];
+
+    return {
+      data: page.map((row) => this.toMessageResponse(row)),
+      meta: {
+        limit,
+        next_cursor:
+          hasMore && last
+            ? this.encodeMessageCursor({
+                createdAt: last.createdAt.toISOString(),
+                id: last.id,
+              })
+            : null,
+      },
+    };
+  }
+
+  /**
+   * `POST /api/v1/chat/threads/:id/messages` — отправить сообщение. Доступ —
+   * только участник треда (`MODERATOR`/`ADMIN` писать не могут — они лишь читают
+   * для разбора жалоб). Слать нельзя на `DELETED`-листинге → `422
+   * LISTING_NOT_AVAILABLE` (на прочих статусах переписка продолжается: тред уже
+   * существует, объявление могло уйти в `SOLD`/`ARCHIVED`). В одной транзакции:
+   * создаём сообщение, двигаем `last_message_at` треда (порядок списка) и ставим
+   * `NEW_CHAT_MESSAGE` второму участнику (атомарность сообщение↔уведомление).
+   */
+  async createMessage(
+    user: AuthenticatedUser,
+    threadId: string,
+    body: string,
+  ): Promise<MessageResponse> {
+    const thread = await this.prisma.chatThread.findUnique({
+      where: { id: threadId },
+      select: {
+        initiatorId: true,
+        ownerId: true,
+        listingId: true,
+        listing: { select: { status: true } },
+      },
+    });
+    if (!thread) {
+      throw this.threadNotFound();
+    }
+    if (!this.isParticipant(user, thread)) {
+      throw this.forbidden();
+    }
+    if (thread.listing.status === ListingStatus.DELETED) {
+      throw new UnprocessableEntityException({
+        code: ApiErrorCode.LISTING_NOT_AVAILABLE,
+        message: 'Listing is not available for chat',
+      });
+    }
+
+    // Получатель уведомления — второй участник треда (не отправитель).
+    const recipientId =
+      thread.initiatorId === user.id ? thread.ownerId : thread.initiatorId;
+
+    const message = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.chatMessage.create({
+        data: { threadId, senderId: user.id, body },
+        select: this.messageSelect(),
+      });
+      await tx.chatThread.update({
+        where: { id: threadId },
+        data: { lastMessageAt: created.createdAt },
+      });
+      await this.notifications.queueChatMessage(tx, recipientId, {
+        threadId,
+        listingId: thread.listingId,
+        messageId: created.id,
+        senderId: user.id,
+      });
+      return created;
+    });
+
+    return this.toMessageResponse(message);
+  }
+
+  /**
+   * `POST /api/v1/chat/threads/:id/read` — отметить входящие сообщения
+   * прочитанными (`is_read=true` для чужих сообщений отправителя). Доступ — только
+   * участник треда. Идемпотентно (повторный вызов ничего не меняет). → `204`.
+   */
+  async markRead(user: AuthenticatedUser, threadId: string): Promise<void> {
+    const thread = await this.prisma.chatThread.findUnique({
+      where: { id: threadId },
+      select: { initiatorId: true, ownerId: true },
+    });
+    if (!thread) {
+      throw this.threadNotFound();
+    }
+    if (!this.isParticipant(user, thread)) {
+      throw this.forbidden();
+    }
+    await this.prisma.chatMessage.updateMany({
+      where: { threadId, senderId: { not: user.id }, isRead: false },
+      data: { isRead: true },
+    });
+  }
+
+  /** Текущий пользователь — участник треда (initiator или owner). */
+  private isParticipant(
+    user: AuthenticatedUser,
+    thread: { initiatorId: string; ownerId: string },
+  ): boolean {
+    return thread.initiatorId === user.id || thread.ownerId === user.id;
+  }
+
+  /** Модератор/админ — доступ к чужим тредам только для complaint-flow (чтение). */
+  private isModerator(user: AuthenticatedUser): boolean {
+    return (
+      user.roles.includes(UserRole.MODERATOR) ||
+      user.roles.includes(UserRole.ADMIN)
+    );
+  }
+
+  /**
+   * Гард чтения сообщений: `404` если треда нет, `403` если запрашивающий не
+   * участник и не модератор/админ.
+   */
+  private assertCanRead(
+    user: AuthenticatedUser,
+    thread: { initiatorId: string; ownerId: string } | null,
+  ): asserts thread {
+    if (!thread) {
+      throw this.threadNotFound();
+    }
+    if (!this.isParticipant(user, thread) && !this.isModerator(user)) {
+      throw this.forbidden();
+    }
+  }
+
+  private threadNotFound(): NotFoundException {
+    return new NotFoundException({
+      code: ApiErrorCode.NOT_FOUND,
+      message: 'Chat thread not found',
+    });
+  }
+
+  private forbidden(): ForbiddenException {
+    return new ForbiddenException({
+      code: ApiErrorCode.FORBIDDEN,
+      message: 'Not a participant of this chat thread',
+    });
+  }
+
+  /** Колонки сообщения под {@link MessageResponse}. */
+  private messageSelect() {
+    return {
+      id: true,
+      threadId: true,
+      senderId: true,
+      body: true,
+      isRead: true,
+      createdAt: true,
+    } satisfies Prisma.ChatMessageSelect;
+  }
+
+  private toMessageResponse(row: {
+    id: string;
+    threadId: string;
+    senderId: string | null;
+    body: string;
+    isRead: boolean;
+    createdAt: Date;
+  }): MessageResponse {
+    return {
+      id: row.id,
+      thread_id: row.threadId,
+      sender_id: row.senderId,
+      body: row.body,
+      is_read: row.isRead,
+      created_at: row.createdAt.toISOString(),
+    };
+  }
+
+  /** Непрозрачный keyset-токен ленты сообщений (base64url JSON позиции). */
+  private encodeMessageCursor(cursor: MessageCursor): string {
+    return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url');
+  }
+
+  /** Разбор keyset-токена сообщений; повреждённый → `400` (как у тредов). */
+  private decodeMessageCursor(raw: string | undefined): MessageCursor | null {
+    if (raw === undefined) {
+      return null;
+    }
+    try {
+      const json = Buffer.from(raw, 'base64url').toString('utf8');
+      const parsed = JSON.parse(json) as Partial<MessageCursor>;
+      if (
+        typeof parsed.createdAt !== 'string' ||
+        typeof parsed.id !== 'string' ||
+        Number.isNaN(new Date(parsed.createdAt).getTime())
+      ) {
+        throw new Error('malformed cursor');
+      }
+      return { createdAt: parsed.createdAt, id: parsed.id };
+    } catch {
+      throw new BadRequestException({
+        code: ApiErrorCode.VALIDATION_ERROR,
+        message: 'Invalid pagination cursor',
+      });
+    }
   }
 
   /** Колонки треда, нужные для ответов (создание и список). */

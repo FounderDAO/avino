@@ -3,7 +3,10 @@ import {
   Controller,
   Get,
   Headers,
+  HttpCode,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
   Post,
   Query,
   Res,
@@ -15,19 +18,24 @@ import type { AuthenticatedUser } from '../common/guards';
 import { JwtAuthGuard } from '../common/guards';
 import {
   ChatService,
+  MessageListResponse,
+  MessageResponse,
   ThreadListResponse,
   ThreadResponse,
 } from './chat.service';
 import { CreateThreadDto } from './dto/create-thread.dto';
+import { ListMessagesQueryDto } from './dto/list-messages.dto';
 import { ListThreadsQueryDto } from './dto/list-threads.dto';
+import { SendMessageDto } from './dto/send-message.dto';
 
 /**
  * ChatController — внутренний чат, треды (TASK-110, API.md §13).
  *
  * Все эндпоинты под `JwtAuthGuard` (класс-уровень): `GUEST` без Bearer → `401`
  * (CLAUDE.md §10/§11). Версионирование URI обязательно (CLAUDE.md §14); префикс
- * `api` ставит main.ts → `/api/v1/chat/threads`. Сообщения тредов
- * (`GET/POST /chat/threads/:id/messages`, read-status) — TASK-111.
+ * `api` ставит main.ts → `/api/v1/chat/threads`. Треды — TASK-110; сообщения
+ * (`GET/POST /chat/threads/:id/messages`) и отметка прочтения
+ * (`POST /chat/threads/:id/read`) — TASK-111.
  */
 @Controller({ path: 'chat', version: '1' })
 @UseGuards(JwtAuthGuard)
@@ -72,5 +80,48 @@ export class ChatController {
     );
     res.status(created ? HttpStatus.CREATED : HttpStatus.OK);
     return thread;
+  }
+
+  /**
+   * `GET /api/v1/chat/threads/:id/messages` — сообщения треда, keyset-пагинация,
+   * свежие сверху. Доступ: участник треда ИЛИ `MODERATOR`/`ADMIN` (complaint-flow).
+   * `404` (нет треда), `403` (не участник и не модератор).
+   */
+  @Get('threads/:id/messages')
+  listMessages(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: ListMessagesQueryDto,
+  ): Promise<MessageListResponse> {
+    return this.chatService.listMessages(user, id, query.limit, query.cursor);
+  }
+
+  /**
+   * `POST /api/v1/chat/threads/:id/messages` — отправить сообщение. Доступ —
+   * только участник треда. `201` → объект сообщения. `404`, `403`,
+   * `422 LISTING_NOT_AVAILABLE` (листинг `DELETED`). Создаёт `NEW_CHAT_MESSAGE`.
+   */
+  @Post('threads/:id/messages')
+  sendMessage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SendMessageDto,
+  ): Promise<MessageResponse> {
+    return this.chatService.createMessage(user, id, dto.body);
+  }
+
+  /**
+   * `POST /api/v1/chat/threads/:id/read` — отметить входящие прочитанными. Доступ
+   * — только участник. → `204`. `404` (нет треда), `403` (не участник).
+   * Маршрут — `POST` per API.md §13 (карточка TASK-111 пишет `PATCH`, но API.md
+   * авторитетен по формулировке маршрутов — как в ADR-0036 для notifications).
+   */
+  @Post('threads/:id/read')
+  @HttpCode(204)
+  read(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    return this.chatService.markRead(user, id);
   }
 }
