@@ -187,7 +187,7 @@ Suggested commit: `feat(web): add admin OTP login page`
 
 ### ADMIN-06 — Guard роли ADMIN
 
-Status: `REVIEW` (PR pending) — ADR-0049
+Status: `REVIEW` (PR #79) — ADR-0049
 Branch: `feat/admin-web-role-guard`
 Depends: `ADMIN-05`
 ADR: `docs/adr/ADR-0049-web-admin-role-guard.md`
@@ -432,7 +432,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-03 | DONE | #74 |
 | ADMIN-04 | DONE | #75 |
 | ADMIN-05 | TODO | — |
-| ADMIN-06 | REVIEW | pending |
+| ADMIN-06 | REVIEW | #79 |
 | ADMIN-07 | TODO | — |
 | ADMIN-08 | TODO | — |
 | ADMIN-09 | TODO | — |

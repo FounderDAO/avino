@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/admin-web-role-guard
-PR: pending
+PR: #79
 
 Files changed:
 - apps/web/src/layout/RoleGuard.tsx
