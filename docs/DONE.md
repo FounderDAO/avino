@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/email-queue
-PR: pending
+PR: #64
 
 Files changed:
 - apps/api/src/queues/queue.constants.ts
