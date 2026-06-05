@@ -470,57 +470,7 @@ _TASK-123 completed — see docs/DONE.md._
 
 ## 17. M13 — Admin panel backend
 
-### TASK-130 — Add admin users endpoint
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/admin-users
-```
-
-Scope:
-
-```text
-Implement admin user listing and role management foundation.
-```
-
-Files expected:
-
-```text
-apps/api/src/admin/
-apps/api/src/users/
-apps/api/src/roles/
-```
-
-Acceptance criteria:
-
-```text
-GET /api/v1/admin/users works
-PATCH /api/v1/admin/users/:id/roles works
-Only admin can access
-Role changes are audited
-```
-
-Suggested commits:
-
-```text
-feat(admin): add user management endpoints
-```
-
-Dependencies:
-
-```text
-TASK-044
-TASK-040
-```
-
----
+_TASK-130 completed — see docs/DONE.md._
 
 ### TASK-131 — Add admin audit and logs endpoints
 
