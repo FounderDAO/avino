@@ -39,6 +39,43 @@ Related ADR:
 
 ## 2026-06-06
 
+### TASK-184 — Fix: активация промо блокировалась CORS-preflight'ом
+
+Status: DONE (2026-06-06)
+Branch: fix/cors-idempotency-key-header
+PR: pending
+
+Files changed:
+- apps/api/src/common/cors/cors.options.ts
+- apps/api/src/common/cors/cors.options.spec.ts
+- docs/adr/ADR-0047-api-cors-allowlist.md
+- docs/DONE.md
+
+Summary:
+- Bugfix: «Активация промо не работает». Корень — CORS, не бизнес-логика.
+  Активация (`POST /api/v1/admin/listings/:id/promotions`, ADMIN-13/ADR-0033)
+  отправляет кастомный заголовок `Idempotency-Key` (§15/§24). Это единственное
+  admin-действие с нестандартным request-заголовком, поэтому браузер шлёт
+  CORS-preflight `OPTIONS`. Сервер отдавал `Access-Control-Allow-Headers:
+  Content-Type, Authorization, Accept` — без `Idempotency-Key` (ADR-0047,
+  `cors.options.ts:49`). Браузер блокировал сам `POST` ещё до отправки; RTK Query
+  получал generic `FETCH_ERROR` без `code`, и UI показывал fallback «Не удалось
+  выполнить действие». История/cancel/extend работали — у них нет кастомных
+  заголовков.
+- Фикс: добавлен `Idempotency-Key` в `allowedHeaders` (`buildCorsOptions`).
+  Бэкенд-сервис `AdminPromotionsService.activate()` был корректен — запрос просто
+  до него не доходил. Баг не ловился `curl`'ом (CORS проверяет только браузер).
+- Регрессионный тест в `cors.options.spec.ts` фиксирует наличие
+  `Idempotency-Key` в allowlist. `tsc --noEmit` чисто, 8/8 CORS-тестов зелёные.
+- Прод-нюанс: preflight кешируется браузером (`maxAge: 86400`) — после деплоя
+  может понадобиться сброс кеша/перезапуск api-контейнера.
+
+Commit messages:
+- fix(api): allow Idempotency-Key header in CORS
+
+Related ADR:
+- docs/adr/ADR-0047-api-cors-allowlist.md (дополнен)
+
 ### ADMIN-14 — Логи (4 вкладки, web)
 
 Status: DONE (2026-06-06) — live-verified против стека

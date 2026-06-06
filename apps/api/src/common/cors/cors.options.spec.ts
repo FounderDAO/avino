@@ -49,6 +49,13 @@ describe('buildCorsOptions', () => {
     expect(options.allowedHeaders).toEqual(
       expect.arrayContaining(['Authorization', 'Content-Type']),
     );
+  });
+
+  it('разрешает кастомный заголовок Idempotency-Key (активация промо)', () => {
+    const options = buildCorsOptions([]);
+    expect(options.allowedHeaders).toEqual(
+      expect.arrayContaining(['Idempotency-Key']),
+    );
     expect(options.methods).toEqual(
       expect.arrayContaining(['GET', 'POST', 'OPTIONS']),
     );

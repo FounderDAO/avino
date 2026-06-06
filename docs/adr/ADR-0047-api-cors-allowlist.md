@@ -31,8 +31,20 @@ bootstrap:
   пустых, дедупликация с сохранением порядка. Пусто → `[]` (fail-closed).
 - `buildCorsOptions(origins)` — `CorsOptions` с **явным allowlist** (без
   wildcard), `credentials: true`, `exposedHeaders: ['X-Request-Id']`,
-  `allowedHeaders: Content-Type/Authorization/Accept`, методы включая `OPTIONS`,
-  `maxAge: 86400` (кеш preflight на сутки).
+  `allowedHeaders: Content-Type/Authorization/Accept/Idempotency-Key`, методы
+  включая `OPTIONS`, `maxAge: 86400` (кеш preflight на сутки).
+
+### Дополнение (2026-06-06, TASK-184)
+
+В `allowedHeaders` добавлен `Idempotency-Key`. Активация промо
+(`POST /api/v1/admin/listings/:id/promotions`, ADR-0033/§15) — единственное
+admin-действие с кастомным request-заголовком; он попадает в список заголовков
+preflight'а (`Access-Control-Request-Headers`). Без `Idempotency-Key` в
+`Access-Control-Allow-Headers` браузер блокировал сам `POST` ещё до отправки на
+сервер, и активация молча падала с generic-ошибкой (cancel/extend без кастомных
+заголовков работали). `curl` preflight не проверяет, поэтому баг проявлялся
+только в браузерной админке. Будущие кастомные заголовки требуют добавления в
+этот же allowlist.
 
 **Origin-список — только из ENV.** Namespace `cors.origins` в `configuration.ts`
 читает `CORS_ORIGINS`; при отсутствии — dev-дефолт `http://localhost:3000`
