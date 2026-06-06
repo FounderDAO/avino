@@ -291,7 +291,7 @@ Suggested commit: `feat(web): add admin moderation detail and actions`
 
 ### ADMIN-10 — Жалобы
 
-Status: `TODO`
+Status: `REVIEW` (PR #84) — ADR-0050
 Branch: `feat/admin-web-complaints`
 Depends: `ADMIN-07`
 
@@ -302,6 +302,12 @@ Backend (API.md §16):
 Scope: страница `/admin/complaints` — список с фильтром по статусу + смена статуса.
 
 Acceptance: список и обработка жалоб работают.
+
+> ⚠️ **Бэкенд жалоб не реализован.** Нет модели `Complaint` в Prisma, нет
+> миграции/модуля (`admin.module.ts` помечает complaints как future). Эндпоинты
+> есть только в API.md §16 / DB_SCHEMA.md. По решению Team Lead FE мёрджится
+> contract-only (по образцу ADMIN-07); бэкенд заведён как **TASK-132** в
+> `docs/TASKS.md`. Live-verify и полный E2E ADMIN-10 — после TASK-132.
 
 Suggested commit: `feat(web): add admin complaints page`
 
@@ -450,7 +456,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-07 | DONE | #81 |
 | ADMIN-08 | DONE | #82 |
 | ADMIN-09 | DONE | #83 |
-| ADMIN-10 | TODO | — |
+| ADMIN-10 | REVIEW | #84 |
 | ADMIN-11 | TODO | — |
 | ADMIN-12 | TODO | — |
 | ADMIN-13 | TODO | — |
