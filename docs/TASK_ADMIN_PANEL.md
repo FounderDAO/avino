@@ -251,7 +251,7 @@ Suggested commit: `feat(web): add adminApi base and shared types`
 
 ### ADMIN-08 — Модерация: очередь листингов
 
-Status: `TODO`
+Status: `REVIEW`
 Branch: `feat/admin-web-moderation-list`
 Depends: `ADMIN-06`, `ADMIN-07`
 
@@ -448,7 +448,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-05 | TODO | — |
 | ADMIN-06 | DONE | #79 |
 | ADMIN-07 | DONE | #81 |
-| ADMIN-08 | TODO | — |
+| ADMIN-08 | REVIEW | pending |
 | ADMIN-09 | TODO | — |
 | ADMIN-10 | TODO | — |
 | ADMIN-11 | TODO | — |

@@ -39,6 +39,42 @@ Related ADR:
 
 ## 2026-06-06
 
+### ADMIN-08 — Модерация: очередь листингов
+
+Status: REVIEW (PR не смержен — финальная сверка/мерж за Team Lead)
+Branch: feat/admin-web-moderation-list
+PR: pending
+
+Files changed:
+- apps/web/src/store/api/adminListingsApi.ts
+- apps/web/src/store/api/adminTypes.ts
+- apps/web/src/lib/labels.ts
+- apps/web/src/lib/format.ts
+- apps/web/src/components/admin/DataTable.tsx
+- apps/web/src/components/admin/Pagination.tsx
+- apps/web/src/app/(admin)/admin/listings/page.tsx
+- apps/web/src/app/globals.css
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md
+- docs/TASK_ADMIN_PANEL.md
+- docs/DONE.md
+
+Summary:
+- Реализовал очередь модерации `/admin/listings` (API.md §16) — первую фичу админ-панели поверх базы ADMIN-07.
+- `adminListingsApi.ts`: эндпоинт `listAdminListings` (`GET /admin/listings?status&property_type&transaction_type&q&page&limit`) через `adminApi.injectEndpoints` — RTK Query, тег `Admin`, пустые фильтры отбрасываются `toQueryParams` (§4). Хук `useListAdminListingsQuery`. Сюда же ADMIN-09 добавит карточку/действия.
+- **Live-сверка DTO (обещание ADR-0050):** `AdminListingRow` приведён к реальной форме `AdminListingListItem` из `apps/api/src/moderation` — добавлены `title`/`original_language`/`published_at`, `city_id` стал nullable, удалены отсутствующие в списке `area`/`rooms`/`promotion_*` (они только в `ListingDetail`).
+- Страница `/admin/listings`: фильтры (status=NEW по умолчанию, тип недвижимости, тип сделки, дебаунс-поиск по заголовку), смена любого фильтра сбрасывает страницу на 1, page-based пагинация, ссылка с заголовка на карточку модерации (ADMIN-09).
+- Переиспользуемые примитивы для ADMIN-09..14: `components/admin/DataTable` (рендер по контракту `Column<Row>` из ADMIN-07, базовые loading/error/empty), `components/admin/Pagination` (page-based по `meta`), `lib/labels` (RU-подписи enum + badge-классы статуса), `lib/format` (Decimal-строка цены без потери точности, даты ru-RU).
+- `globals.css`: добавлены семантические шкалы `success`/`warning`/`error-*` (значения TailAdmin) — нужны для badge статусов и тостов (ADMIN-16).
+- Gates: `pnpm --filter @avino/web lint` — без ошибок; `pnpm --filter @avino/web build` — чистая сборка + type-check (Next 15), маршрут `/admin/listings` собран. Контракт выверен против исходников `apps/api` (источник истины); HTTP round-trip против запущенного бэкенда — финальная приёмка за Team Lead.
+
+Commit messages:
+- feat(web): add admin moderation queue page
+
+Related ADR:
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md (обновлён — live-сверка `AdminListingRow`)
+
+---
+
 ### ADMIN-07 — adminApi base + shared admin types & pagination
 
 Status: DONE
