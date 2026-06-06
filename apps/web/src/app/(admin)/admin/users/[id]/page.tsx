@@ -22,15 +22,12 @@ import { useToast } from "@/components/admin/toast/ToastProvider";
 import { formatDateTime, shortId } from "@/lib/format";
 import {
   USER_STATUSES,
-  USER_STATUS_ACTION_LABELS,
   USER_STATUS_BADGE,
   USER_STATUS_INTENT,
-  USER_STATUS_LABELS,
   USER_STATUS_REQUIRES_REASON,
-  languageLabel,
-  roleLabel,
   userActionErrorMessage,
 } from "@/lib/users";
+import { useT, useEnumLabels, languageLabel } from "@/lib/i18n";
 
 /**
  * ADMIN-11/12 — карточка пользователя (`/admin/users/[id]`, API.md §6).
@@ -42,16 +39,16 @@ import {
  * допускает — гард чисто фронтовый, чтобы админ не закрыл себе доступ). После
  * мутации кэш `Admin` инвалидируется — карточка перечитывается. Ошибки мапятся
  * по стабильному `error.code` (`409 ROLE_ALREADY_GRANTED` и т.д.). Данные —
- * только через RTK Query (CLAUDE.md §4). RU-only (i18n — ADMIN-17).
+ * только через RTK Query (CLAUDE.md §4). Локализовано (i18n — ADMIN-17).
  */
 
 /** Бейдж статуса пользователя. */
-function StatusBadge({ status }: { status: UserStatus }) {
+function StatusBadge({ status, label }: { status: UserStatus; label: string }) {
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium ${USER_STATUS_BADGE[status]}`}
     >
-      {USER_STATUS_LABELS[status]}
+      {label}
     </span>
   );
 }
@@ -72,9 +69,13 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function Verified({
   value,
   verified,
+  verifiedLabel,
+  notVerifiedLabel,
 }: {
   value: string | null;
   verified: boolean;
+  verifiedLabel: string;
+  notVerifiedLabel: string;
 }) {
   if (!value) return <>—</>;
   return (
@@ -87,28 +88,27 @@ function Verified({
             : "bg-gray-100 text-gray-500 dark:bg-gray-700/40 dark:text-gray-400"
         }`}
       >
-        {verified ? "подтверждён" : "не подтверждён"}
+        {verified ? verifiedLabel : notVerifiedLabel}
       </span>
     </span>
   );
 }
 
-function fullName(user: AdminUserDetail): string {
+function fullName(user: AdminUserDetail, fallback: string): string {
   const profile = user.profile;
-  if (!profile) return user.phone || user.email || "Пользователь";
+  if (!profile) return user.phone || user.email || fallback;
   const composed = [profile.first_name, profile.last_name]
     .filter(Boolean)
     .join(" ");
   return (
-    profile.display_name ||
-    composed ||
-    user.phone ||
-    user.email ||
-    "Пользователь"
+    profile.display_name || composed || user.phone || user.email || fallback
   );
 }
 
 export default function AdminUserDetailPage() {
+  const { t, locale } = useT();
+  const enums = useEnumLabels();
+
   const params = useParams<{ id: string }>();
   const id = params.id;
 
@@ -154,7 +154,7 @@ export default function AdminUserDetailPage() {
     if (!pendingStatus) return;
     const trimmed = reason.trim();
     if (USER_STATUS_REQUIRES_REASON[pendingStatus] && !trimmed) {
-      setStatusError("Укажите причину.");
+      setStatusError(t("users.reasonMissing"));
       return;
     }
     try {
@@ -162,7 +162,9 @@ export default function AdminUserDetailPage() {
         id,
         body: { status: pendingStatus, reason: trimmed || null },
       }).unwrap();
-      toast.success(`Статус изменён: ${USER_STATUS_LABELS[pendingStatus]}.`);
+      toast.success(
+        t("users.statusChanged", { status: enums.userStatus[pendingStatus] }),
+      );
       setPendingStatus(null);
       setReason("");
       setStatusError(null);
@@ -170,6 +172,7 @@ export default function AdminUserDetailPage() {
       toast.error(
         userActionErrorMessage(
           err as Parameters<typeof userActionErrorMessage>[0],
+          locale,
         ),
       );
     }
@@ -184,12 +187,15 @@ export default function AdminUserDetailPage() {
     if (!roleToAdd) return;
     try {
       await assignRole({ id, body: { role: roleToAdd } }).unwrap();
-      toast.success(`Роль назначена: ${roleLabel(roleToAdd)}.`);
+      toast.success(
+        t("users.roleAssigned", { role: enums.role[roleToAdd] }),
+      );
       setRoleToAdd("");
     } catch (err) {
       toast.error(
         userActionErrorMessage(
           err as Parameters<typeof userActionErrorMessage>[0],
+          locale,
         ),
       );
     }
@@ -199,11 +205,12 @@ export default function AdminUserDetailPage() {
     setRemovingRole(role);
     try {
       await removeRole({ id, role }).unwrap();
-      toast.success(`Роль снята: ${roleLabel(role)}.`);
+      toast.success(t("users.roleRemoved", { role: enums.role[role] }));
     } catch (err) {
       toast.error(
         userActionErrorMessage(
           err as Parameters<typeof userActionErrorMessage>[0],
+          locale,
         ),
       );
     } finally {
@@ -219,27 +226,29 @@ export default function AdminUserDetailPage() {
             href="/admin/users"
             className="text-theme-xs font-medium text-gray-500 transition hover:text-brand-500 dark:text-gray-400"
           >
-            ← К списку пользователей
+            {t("users.backToList")}
           </Link>
           <h1 className="text-title-sm font-bold text-gray-900 dark:text-white">
-            {user ? fullName(user) : "Карточка пользователя"}
+            {user ? fullName(user, t("users.fallbackName")) : t("users.cardTitle")}
           </h1>
           <span className="text-theme-xs text-gray-400">{shortId(id)}</span>
         </div>
-        {user && <StatusBadge status={user.status} />}
+        {user && (
+          <StatusBadge
+            status={user.status}
+            label={enums.userStatus[user.status]}
+          />
+        )}
       </div>
 
       {userQuery.isLoading && <DetailSkeleton />}
 
-      {notFound && (
-        <InfoState message="Пользователь недоступен — не найден или удалён." />
-      )}
+      {notFound && <InfoState message={t("users.notFound")} />}
 
       {userQuery.isError && !notFound && (
         <ErrorState
           message={
-            getApiError(userQuery.error)?.message ??
-            "Не удалось загрузить пользователя."
+            getApiError(userQuery.error)?.message ?? t("users.detailLoadError")
           }
           onRetry={() => userQuery.refetch()}
         />
@@ -251,51 +260,62 @@ export default function AdminUserDetailPage() {
           <div className="space-y-6 lg:col-span-2">
             <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
               <h2 className="mb-2 text-theme-sm font-semibold text-gray-800 dark:text-white/90">
-                Аккаунт
+                {t("users.sectionAccount")}
               </h2>
               <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
-                <Field label="Телефон">
+                <Field label={t("users.fieldPhone")}>
                   <Verified
                     value={user.phone}
                     verified={user.is_phone_verified}
+                    verifiedLabel={t("users.verified")}
+                    notVerifiedLabel={t("users.notVerified")}
                   />
                 </Field>
-                <Field label="Email">
+                <Field label={t("users.fieldEmail")}>
                   <Verified
                     value={user.email}
                     verified={user.is_email_verified}
+                    verifiedLabel={t("users.verified")}
+                    notVerifiedLabel={t("users.notVerified")}
                   />
                 </Field>
-                <Field label="Статус">
-                  <StatusBadge status={user.status} />
+                <Field label={t("users.fieldStatus")}>
+                  <StatusBadge
+                    status={user.status}
+                    label={enums.userStatus[user.status]}
+                  />
                 </Field>
-                <Field label="Язык интерфейса">
-                  {languageLabel(user.default_language)}
+                <Field label={t("users.fieldInterfaceLanguage")}>
+                  {languageLabel(user.default_language, locale)}
                 </Field>
               </div>
             </section>
 
             <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
               <h2 className="mb-2 text-theme-sm font-semibold text-gray-800 dark:text-white/90">
-                Профиль
+                {t("users.sectionProfile")}
               </h2>
               {user.profile ? (
                 <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
-                  <Field label="Имя">{user.profile.first_name || "—"}</Field>
-                  <Field label="Фамилия">{user.profile.last_name || "—"}</Field>
-                  <Field label="Отображаемое имя">
+                  <Field label={t("users.fieldFirstName")}>
+                    {user.profile.first_name || "—"}
+                  </Field>
+                  <Field label={t("users.fieldLastName")}>
+                    {user.profile.last_name || "—"}
+                  </Field>
+                  <Field label={t("users.fieldDisplayName")}>
                     {user.profile.display_name || "—"}
                   </Field>
-                  <Field label="Контактный телефон">
+                  <Field label={t("users.fieldContactPhone")}>
                     {user.profile.contact_phone || "—"}
                   </Field>
-                  <Field label="Предпочитаемый язык">
-                    {languageLabel(user.profile.preferred_language)}
+                  <Field label={t("users.fieldPreferredLanguage")}>
+                    {languageLabel(user.profile.preferred_language, locale)}
                   </Field>
                 </div>
               ) : (
                 <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-                  Профиль не заполнен.
+                  {t("users.profileEmpty")}
                 </p>
               )}
             </section>
@@ -307,10 +327,14 @@ export default function AdminUserDetailPage() {
               {/* Статус */}
               <div>
                 <h2 className="mb-2 text-theme-sm font-semibold text-gray-800 dark:text-white/90">
-                  Статус
+                  {t("users.sectionStatus")}
                 </h2>
                 <p className="mb-3 text-theme-xs text-gray-500 dark:text-gray-400">
-                  Текущий: <StatusBadge status={user.status} />
+                  {t("users.currentStatus")}
+                  <StatusBadge
+                    status={user.status}
+                    label={enums.userStatus[user.status]}
+                  />
                 </p>
                 <div className="flex flex-col gap-2.5">
                   {USER_STATUSES.filter((s) => s !== user.status).map(
@@ -329,11 +353,11 @@ export default function AdminUserDetailPage() {
                           className={`rounded-lg px-4 py-2.5 text-theme-sm font-medium transition disabled:cursor-not-allowed ${USER_STATUS_INTENT[status]}`}
                           title={
                             selfLock
-                              ? "Нельзя применить это действие к себе"
+                              ? t("users.selfActionForbidden")
                               : undefined
                           }
                         >
-                          {USER_STATUS_ACTION_LABELS[status]}
+                          {enums.userStatusAction[status]}
                         </button>
                       );
                     },
@@ -344,10 +368,12 @@ export default function AdminUserDetailPage() {
               {/* Роли */}
               <div className="border-t border-gray-100 pt-4 dark:border-gray-800">
                 <h2 className="mb-2 text-theme-sm font-semibold text-gray-800 dark:text-white/90">
-                  Роли
+                  {t("users.sectionRoles")}
                 </h2>
                 {user.roles.length === 0 ? (
-                  <p className="text-theme-xs text-gray-400">Ролей нет.</p>
+                  <p className="text-theme-xs text-gray-400">
+                    {t("users.rolesEmpty")}
+                  </p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {user.roles.map((code) => {
@@ -359,7 +385,7 @@ export default function AdminUserDetailPage() {
                           key={code}
                           className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/[0.15] dark:text-brand-400"
                         >
-                          {roleLabel(code)}
+                          {enums.role[code]}
                           <button
                             type="button"
                             onClick={() => handleRemoveRole(code)}
@@ -372,10 +398,12 @@ export default function AdminUserDetailPage() {
                             className="text-brand-400 transition hover:text-error-500 disabled:cursor-not-allowed disabled:opacity-40"
                             title={
                               selfAdmin
-                                ? "Нельзя снять роль ADMIN у себя"
-                                : "Снять роль"
+                                ? t("users.selfAdminRemoveForbidden")
+                                : t("users.removeRole")
                             }
-                            aria-label={`Снять роль ${roleLabel(code)}`}
+                            aria-label={t("users.removeRoleAria", {
+                              role: enums.role[code],
+                            })}
                           >
                             {pending ? "…" : "✕"}
                           </button>
@@ -399,12 +427,12 @@ export default function AdminUserDetailPage() {
                   >
                     <option value="">
                       {availableRoles.length === 0
-                        ? "Все роли назначены"
-                        : "Выберите роль…"}
+                        ? t("users.allRolesAssigned")
+                        : t("users.selectRole")}
                     </option>
                     {availableRoles.map((code) => (
                       <option key={code} value={code}>
-                        {roleLabel(code)}
+                        {enums.role[code]}
                       </option>
                     ))}
                   </select>
@@ -414,13 +442,13 @@ export default function AdminUserDetailPage() {
                     disabled={!roleToAdd || assignMutation.isLoading}
                     className="rounded-lg bg-brand-500 px-4 py-2 text-theme-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-brand-500/40"
                   >
-                    {assignMutation.isLoading ? "…" : "Назначить"}
+                    {assignMutation.isLoading ? "…" : t("users.assign")}
                   </button>
                 </div>
 
                 {rolesQuery.isError && (
                   <p className="mt-2 text-theme-xs text-error-600 dark:text-error-500">
-                    Не удалось загрузить справочник ролей.
+                    {t("users.rolesLoadError")}
                   </p>
                 )}
               </div>
@@ -428,28 +456,28 @@ export default function AdminUserDetailPage() {
               {/* Аудит */}
               <dl className="space-y-2 border-t border-gray-100 pt-4 text-theme-xs dark:border-gray-800">
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-400">Создан</dt>
+                  <dt className="text-gray-400">{t("users.fieldCreated")}</dt>
                   <dd className="text-gray-600 dark:text-gray-300">
-                    {formatDateTime(user.created_at)}
+                    {formatDateTime(user.created_at, locale)}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-400">Обновлён</dt>
+                  <dt className="text-gray-400">{t("users.fieldUpdated")}</dt>
                   <dd className="text-gray-600 dark:text-gray-300">
-                    {formatDateTime(user.updated_at)}
+                    {formatDateTime(user.updated_at, locale)}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-400">Последний вход</dt>
+                  <dt className="text-gray-400">{t("users.fieldLastLogin")}</dt>
                   <dd className="text-gray-600 dark:text-gray-300">
-                    {formatDateTime(user.last_login_at)}
+                    {formatDateTime(user.last_login_at, locale)}
                   </dd>
                 </div>
                 {user.deleted_at && (
                   <div className="flex justify-between gap-2">
-                    <dt className="text-gray-400">Удалён</dt>
+                    <dt className="text-gray-400">{t("users.fieldDeleted")}</dt>
                     <dd className="text-error-600 dark:text-error-500">
-                      {formatDateTime(user.deleted_at)}
+                      {formatDateTime(user.deleted_at, locale)}
                     </dd>
                   </div>
                 )}
@@ -470,25 +498,31 @@ export default function AdminUserDetailPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-theme-lg font-semibold text-gray-900 dark:text-white">
-              {USER_STATUS_ACTION_LABELS[pendingStatus]} пользователя?
+              {t("users.confirmTitle", {
+                action: enums.userStatusAction[pendingStatus],
+              })}
             </h3>
             <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-              Новый статус: <StatusBadge status={pendingStatus} />
+              {t("users.newStatus")}
+              <StatusBadge
+                status={pendingStatus}
+                label={enums.userStatus[pendingStatus]}
+              />
             </p>
 
             <label className="mt-4 flex flex-col gap-1.5">
               <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                Причина
+                {t("users.reasonLabel")}
                 {USER_STATUS_REQUIRES_REASON[pendingStatus]
-                  ? " (обязательно)"
-                  : " (необязательно)"}
+                  ? t("users.reasonRequired")
+                  : t("users.reasonOptional")}
               </span>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={3}
                 maxLength={255}
-                placeholder="Например: нарушение правил, спам"
+                placeholder={t("users.reasonPlaceholder")}
                 className="rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-theme-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white"
               />
             </label>
@@ -506,7 +540,7 @@ export default function AdminUserDetailPage() {
                 disabled={statusMutation.isLoading}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-theme-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
               >
-                Отмена
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -515,8 +549,8 @@ export default function AdminUserDetailPage() {
                 className={`rounded-lg px-4 py-2 text-theme-sm font-medium transition disabled:cursor-not-allowed ${USER_STATUS_INTENT[pendingStatus]}`}
               >
                 {statusMutation.isLoading
-                  ? "Применяем…"
-                  : USER_STATUS_ACTION_LABELS[pendingStatus]}
+                  ? t("common.applying")
+                  : enums.userStatusAction[pendingStatus]}
               </button>
             </div>
           </div>

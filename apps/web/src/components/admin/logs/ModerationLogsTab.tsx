@@ -15,8 +15,8 @@ import { DataTable } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
 import type { Column } from "@/lib/table";
 import { formatDateTime, shortId } from "@/lib/format";
-import { LISTING_STATUS_BADGE, LISTING_STATUS_LABELS } from "@/lib/labels";
-import { MODERATION_ACTION_LABELS } from "@/lib/moderation";
+import { LISTING_STATUS_BADGE } from "@/lib/labels";
+import { useT, useEnumLabels, type EnumLabels } from "@/lib/i18n";
 import {
   FilterGrid,
   FilterSelect,
@@ -35,21 +35,32 @@ import {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-const ACTION_OPTIONS = filterOptions(MODERATION_ACTION_LABELS, "Все действия");
-
 /** Бейдж статуса листинга (или прочерк, если статус неизвестен). */
-function StatusBadge({ status }: { status: ListingStatus | null }) {
+function StatusBadge({
+  status,
+  labels,
+}: {
+  status: ListingStatus | null;
+  labels: EnumLabels["listingStatus"];
+}) {
   if (!status) return <span className="text-gray-400">—</span>;
   return (
     <span
       className={`inline-flex rounded-full px-2 py-0.5 text-theme-xs font-medium ${LISTING_STATUS_BADGE[status]}`}
     >
-      {LISTING_STATUS_LABELS[status]}
+      {labels[status]}
     </span>
   );
 }
 
 export function ModerationLogsTab() {
+  const { t, locale } = useT();
+  const enums = useEnumLabels();
+  const actionOptions = useMemo(
+    () => filterOptions(enums.moderationAction, t("logs.filters.allActions")),
+    [enums, t],
+  );
+
   const [listingIdInput, setListingIdInput] = useState("");
   const [moderatorIdInput, setModeratorIdInput] = useState("");
   const [action, setAction] = useState<ModerationAction | "">("");
@@ -78,7 +89,7 @@ export function ModerationLogsTab() {
     () => [
       {
         key: "listing_id",
-        header: "Листинг",
+        header: t("logs.cols.listing"),
         render: (row) => (
           <Link
             href={`/admin/listings/${row.listing_id}`}
@@ -91,28 +102,28 @@ export function ModerationLogsTab() {
       },
       {
         key: "action",
-        header: "Действие",
+        header: t("logs.cols.action"),
         render: (row) => (
           <span className="text-gray-700 dark:text-gray-300">
-            {MODERATION_ACTION_LABELS[row.action]}
+            {enums.moderationAction[row.action]}
           </span>
         ),
       },
       {
         key: "transition",
-        header: "Статус",
+        header: t("logs.cols.status"),
         align: "center",
         render: (row) => (
           <div className="flex items-center justify-center gap-1.5">
-            <StatusBadge status={row.old_status} />
+            <StatusBadge status={row.old_status} labels={enums.listingStatus} />
             <span className="text-gray-400">→</span>
-            <StatusBadge status={row.new_status} />
+            <StatusBadge status={row.new_status} labels={enums.listingStatus} />
           </div>
         ),
       },
       {
         key: "moderator_id",
-        header: "Модератор",
+        header: t("logs.cols.moderator"),
         render: (row) => (
           <span
             className="text-theme-xs text-gray-500 dark:text-gray-400"
@@ -124,7 +135,7 @@ export function ModerationLogsTab() {
       },
       {
         key: "reason",
-        header: "Причина",
+        header: t("logs.cols.reason"),
         render: (row) => (
           <span className="line-clamp-2 max-w-xs text-theme-xs text-gray-500 dark:text-gray-400">
             {row.reason ?? "—"}
@@ -133,45 +144,47 @@ export function ModerationLogsTab() {
       },
       {
         key: "created_at",
-        header: "Когда",
+        header: t("logs.cols.when"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.created_at)}
+            {formatDateTime(row.created_at, locale)}
           </span>
         ),
       },
     ],
-    [],
+    [t, locale, enums],
   );
 
   const errorMessage = isError
-    ? (getApiError(error)?.message ?? "Не удалось загрузить журнал модерации.")
+    ? (getApiError(error)?.message ?? t("logs.errors.moderation"))
     : undefined;
 
   return (
     <div className="space-y-5">
       {isFetching && (
-        <span className="text-theme-xs text-gray-400">Обновление…</span>
+        <span className="text-theme-xs text-gray-400">
+          {t("common.updating")}
+        </span>
       )}
 
       <FilterGrid>
         <TextFilter
-          label="ID листинга"
+          label={t("logs.filters.listingId")}
           value={listingIdInput}
-          placeholder="UUID"
+          placeholder={t("logs.filters.uuidPlaceholder")}
           onChange={setListingIdInput}
         />
         <TextFilter
-          label="ID модератора"
+          label={t("logs.filters.moderatorId")}
           value={moderatorIdInput}
-          placeholder="UUID"
+          placeholder={t("logs.filters.uuidPlaceholder")}
           onChange={setModeratorIdInput}
         />
         <FilterSelect
-          label="Действие"
+          label={t("logs.filters.action")}
           value={action}
-          options={ACTION_OPTIONS}
+          options={actionOptions}
           onChange={setAction}
         />
       </FilterGrid>
@@ -184,7 +197,7 @@ export function ModerationLogsTab() {
         isError={isError}
         errorMessage={errorMessage}
         onRetry={refetch}
-        emptyMessage="По заданным фильтрам записей нет."
+        emptyMessage={t("logs.empty")}
       />
 
       <Pagination meta={data?.meta} page={page} onPageChange={setPage} />

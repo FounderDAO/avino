@@ -15,8 +15,8 @@ import { DataTable } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
 import type { Column } from "@/lib/table";
 import { formatDateTime, shortId } from "@/lib/format";
-import { PROMOTION_TYPE_BADGE, PROMOTION_TYPE_LABELS } from "@/lib/promotions";
-import { PROMOTION_ADMIN_ACTION_LABELS } from "@/lib/logs";
+import { PROMOTION_TYPE_BADGE } from "@/lib/promotions";
+import { useT, useEnumLabels, type EnumLabels } from "@/lib/i18n";
 import {
   FilterGrid,
   FilterSelect,
@@ -35,24 +35,33 @@ import {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-const ACTION_OPTIONS = filterOptions(
-  PROMOTION_ADMIN_ACTION_LABELS,
-  "Все действия",
-);
-
 /** Бейдж тира промо (или прочерк). */
-function TypeBadge({ type }: { type: PromotionType | null }) {
+function TypeBadge({
+  type,
+  labels,
+}: {
+  type: PromotionType | null;
+  labels: EnumLabels["promotionType"];
+}) {
   if (!type) return <span className="text-gray-400">—</span>;
   return (
     <span
       className={`inline-flex rounded-full px-2 py-0.5 text-theme-xs font-medium ${PROMOTION_TYPE_BADGE[type]}`}
     >
-      {PROMOTION_TYPE_LABELS[type]}
+      {labels[type]}
     </span>
   );
 }
 
 export function PromotionLogsTab() {
+  const { t, locale } = useT();
+  const enums = useEnumLabels();
+  const actionOptions = useMemo(
+    () =>
+      filterOptions(enums.promotionAdminAction, t("logs.filters.allActions")),
+    [enums, t],
+  );
+
   const [listingIdInput, setListingIdInput] = useState("");
   const [adminIdInput, setAdminIdInput] = useState("");
   const [action, setAction] = useState<PromotionAdminAction | "">("");
@@ -78,7 +87,7 @@ export function PromotionLogsTab() {
     () => [
       {
         key: "listing_id",
-        header: "Листинг",
+        header: t("logs.cols.listing"),
         render: (row) => (
           <Link
             href={`/admin/listings/${row.listing_id}`}
@@ -91,43 +100,43 @@ export function PromotionLogsTab() {
       },
       {
         key: "action",
-        header: "Действие",
+        header: t("logs.cols.action"),
         render: (row) => (
           <span className="text-gray-700 dark:text-gray-300">
-            {PROMOTION_ADMIN_ACTION_LABELS[row.action]}
+            {enums.promotionAdminAction[row.action]}
           </span>
         ),
       },
       {
         key: "type",
-        header: "Тип",
+        header: t("logs.cols.type"),
         align: "center",
         render: (row) => (
           <div className="flex items-center justify-center gap-1.5">
-            <TypeBadge type={row.old_type} />
+            <TypeBadge type={row.old_type} labels={enums.promotionType} />
             <span className="text-gray-400">→</span>
-            <TypeBadge type={row.new_type} />
+            <TypeBadge type={row.new_type} labels={enums.promotionType} />
           </div>
         ),
       },
       {
         key: "expires",
-        header: "Срок",
+        header: t("logs.cols.term"),
         align: "right",
         render: (row) => (
           <div className="flex flex-col items-end text-theme-xs text-gray-500 dark:text-gray-400">
             <span className="whitespace-nowrap">
-              {formatDateTime(row.old_expires_at)}
+              {formatDateTime(row.old_expires_at, locale)}
             </span>
             <span className="whitespace-nowrap text-gray-700 dark:text-gray-300">
-              → {formatDateTime(row.new_expires_at)}
+              → {formatDateTime(row.new_expires_at, locale)}
             </span>
           </div>
         ),
       },
       {
         key: "admin_id",
-        header: "Админ",
+        header: t("logs.cols.admin"),
         render: (row) => (
           <span
             className="text-theme-xs text-gray-500 dark:text-gray-400"
@@ -139,45 +148,47 @@ export function PromotionLogsTab() {
       },
       {
         key: "created_at",
-        header: "Когда",
+        header: t("logs.cols.when"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.created_at)}
+            {formatDateTime(row.created_at, locale)}
           </span>
         ),
       },
     ],
-    [],
+    [t, locale, enums],
   );
 
   const errorMessage = isError
-    ? (getApiError(error)?.message ?? "Не удалось загрузить журнал промо.")
+    ? (getApiError(error)?.message ?? t("logs.errors.promotion"))
     : undefined;
 
   return (
     <div className="space-y-5">
       {isFetching && (
-        <span className="text-theme-xs text-gray-400">Обновление…</span>
+        <span className="text-theme-xs text-gray-400">
+          {t("common.updating")}
+        </span>
       )}
 
       <FilterGrid>
         <TextFilter
-          label="ID листинга"
+          label={t("logs.filters.listingId")}
           value={listingIdInput}
-          placeholder="UUID"
+          placeholder={t("logs.filters.uuidPlaceholder")}
           onChange={setListingIdInput}
         />
         <TextFilter
-          label="ID админа"
+          label={t("logs.filters.adminId")}
           value={adminIdInput}
-          placeholder="UUID"
+          placeholder={t("logs.filters.uuidPlaceholder")}
           onChange={setAdminIdInput}
         />
         <FilterSelect
-          label="Действие"
+          label={t("logs.filters.action")}
           value={action}
-          options={ACTION_OPTIONS}
+          options={actionOptions}
           onChange={setAction}
         />
       </FilterGrid>
@@ -190,7 +201,7 @@ export function PromotionLogsTab() {
         isError={isError}
         errorMessage={errorMessage}
         onRetry={refetch}
-        emptyMessage="По заданным фильтрам записей нет."
+        emptyMessage={t("logs.empty")}
       />
 
       <Pagination meta={data?.meta} page={page} onPageChange={setPage} />

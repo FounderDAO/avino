@@ -16,13 +16,9 @@ import { DataTable } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
 import type { Column, SelectOption } from "@/lib/table";
 import { optionsFromLabels } from "@/lib/table";
-import {
-  LISTING_STATUS_BADGE,
-  LISTING_STATUS_LABELS,
-  PROPERTY_TYPE_LABELS,
-  TRANSACTION_TYPE_LABELS,
-} from "@/lib/labels";
+import { LISTING_STATUS_BADGE } from "@/lib/labels";
 import { formatDateTime, formatPrice, shortId } from "@/lib/format";
+import { useT, useEnumLabels } from "@/lib/i18n";
 
 /**
  * ADMIN-08 — очередь модерации (`/admin/listings`, API.md §16).
@@ -35,19 +31,6 @@ import { formatDateTime, formatPrice, shortId } from "@/lib/format";
  */
 
 const SEARCH_DEBOUNCE_MS = 300;
-
-const STATUS_OPTIONS: SelectOption<ListingStatus | "">[] = [
-  { value: "", label: "Все статусы" },
-  ...optionsFromLabels(LISTING_STATUS_LABELS),
-];
-const PROPERTY_OPTIONS: SelectOption<PropertyType | "">[] = [
-  { value: "", label: "Все типы" },
-  ...optionsFromLabels(PROPERTY_TYPE_LABELS),
-];
-const TRANSACTION_OPTIONS: SelectOption<TransactionType | "">[] = [
-  { value: "", label: "Все сделки" },
-  ...optionsFromLabels(TRANSACTION_TYPE_LABELS),
-];
 
 /** Дебаунс значения (для поля поиска). */
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -92,6 +75,22 @@ function FilterSelect<T extends string>({
 }
 
 export default function AdminListingsPage() {
+  const { t, locale } = useT();
+  const enums = useEnumLabels();
+
+  const STATUS_OPTIONS: SelectOption<ListingStatus | "">[] = [
+    { value: "", label: t("listings.allStatuses") },
+    ...optionsFromLabels(enums.listingStatus),
+  ];
+  const PROPERTY_OPTIONS: SelectOption<PropertyType | "">[] = [
+    { value: "", label: t("listings.allPropertyTypes") },
+    ...optionsFromLabels(enums.propertyType),
+  ];
+  const TRANSACTION_OPTIONS: SelectOption<TransactionType | "">[] = [
+    { value: "", label: t("listings.allTransactionTypes") },
+    ...optionsFromLabels(enums.transactionType),
+  ];
+
   const [status, setStatus] = useState<ListingStatus | "">("NEW");
   const [propertyType, setPropertyType] = useState<PropertyType | "">("");
   const [transactionType, setTransactionType] = useState<TransactionType | "">(
@@ -121,14 +120,14 @@ export default function AdminListingsPage() {
     () => [
       {
         key: "title",
-        header: "Объявление",
+        header: t("listings.colListing"),
         render: (row) => (
           <div className="flex flex-col">
             <Link
               href={`/admin/listings/${row.id}`}
               className="font-medium text-gray-800 transition hover:text-brand-500 dark:text-white/90"
             >
-              {row.title || "Без названия"}
+              {row.title || t("listings.untitled")}
             </Link>
             <span className="text-theme-xs text-gray-400">
               {shortId(row.id)} · {row.original_language}
@@ -138,19 +137,19 @@ export default function AdminListingsPage() {
       },
       {
         key: "type",
-        header: "Тип",
+        header: t("listings.colType"),
         render: (row) => (
           <div className="flex flex-col">
-            <span>{PROPERTY_TYPE_LABELS[row.property_type]}</span>
+            <span>{enums.propertyType[row.property_type]}</span>
             <span className="text-theme-xs text-gray-400">
-              {TRANSACTION_TYPE_LABELS[row.transaction_type]}
+              {enums.transactionType[row.transaction_type]}
             </span>
           </div>
         ),
       },
       {
         key: "price",
-        header: "Цена",
+        header: t("listings.colPrice"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap font-medium text-gray-800 dark:text-white/90">
@@ -160,19 +159,19 @@ export default function AdminListingsPage() {
       },
       {
         key: "status",
-        header: "Статус",
+        header: t("listings.colStatus"),
         align: "center",
         render: (row) => (
           <span
             className={`inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium ${LISTING_STATUS_BADGE[row.status]}`}
           >
-            {LISTING_STATUS_LABELS[row.status]}
+            {enums.listingStatus[row.status]}
           </span>
         ),
       },
       {
         key: "owner_id",
-        header: "Автор",
+        header: t("listings.colAuthor"),
         render: (row) => (
           <span className="text-theme-xs text-gray-500 dark:text-gray-400">
             {shortId(row.owner_id)}
@@ -181,21 +180,20 @@ export default function AdminListingsPage() {
       },
       {
         key: "created_at",
-        header: "Создано",
+        header: t("listings.colCreated"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.created_at)}
+            {formatDateTime(row.created_at, locale)}
           </span>
         ),
       },
     ],
-    [],
+    [t, enums, locale],
   );
 
   const errorMessage = isError
-    ? (getApiError(error)?.message ??
-      "Не удалось загрузить очередь модерации.")
+    ? (getApiError(error)?.message ?? t("listings.loadError"))
     : undefined;
 
   return (
@@ -203,46 +201,48 @@ export default function AdminListingsPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-title-sm font-bold text-gray-900 dark:text-white">
-            Модерация объявлений
+            {t("listings.title")}
           </h1>
           <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-            Очередь и админ-список листингов. По умолчанию — новые на модерации.
+            {t("listings.subtitle")}
           </p>
         </div>
         {isFetching && (
-          <span className="text-theme-xs text-gray-400">Обновление…</span>
+          <span className="text-theme-xs text-gray-400">
+            {t("common.updating")}
+          </span>
         )}
       </div>
 
       {/* Фильтры */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <FilterSelect
-          label="Статус"
+          label={t("listings.statusLabel")}
           value={status}
           options={STATUS_OPTIONS}
           onChange={setStatus}
         />
         <FilterSelect
-          label="Тип недвижимости"
+          label={t("listings.propertyTypeLabel")}
           value={propertyType}
           options={PROPERTY_OPTIONS}
           onChange={setPropertyType}
         />
         <FilterSelect
-          label="Тип сделки"
+          label={t("listings.transactionTypeLabel")}
           value={transactionType}
           options={TRANSACTION_OPTIONS}
           onChange={setTransactionType}
         />
         <label className="flex flex-col gap-1.5">
           <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-            Поиск
+            {t("listings.searchLabel")}
           </span>
           <input
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Заголовок объявления"
+            placeholder={t("listings.searchPlaceholder")}
             className="h-11 rounded-lg border border-gray-300 bg-transparent px-3 text-theme-sm text-gray-900 shadow-theme-xs outline-none transition placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white"
           />
         </label>
@@ -256,7 +256,7 @@ export default function AdminListingsPage() {
         isError={isError}
         errorMessage={errorMessage}
         onRetry={refetch}
-        emptyMessage="По заданным фильтрам объявлений нет."
+        emptyMessage={t("listings.empty")}
       />
 
       <Pagination meta={data?.meta} page={page} onPageChange={setPage} />

@@ -13,14 +13,14 @@ import { DEFAULT_LIMIT } from "@/store/api/pagination";
 import { DataTable } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
 import { useToast } from "@/components/admin/toast/ToastProvider";
-import type { Column, SelectOption } from "@/lib/table";
+import { optionsFromLabels, type Column, type SelectOption } from "@/lib/table";
 import { formatDateTime, shortId } from "@/lib/format";
 import {
   COMPLAINT_STATUSES,
   COMPLAINT_STATUS_BADGE,
-  COMPLAINT_STATUS_LABELS,
   complaintErrorMessage,
 } from "@/lib/complaints";
+import { useT, useEnumLabels, type EnumLabels } from "@/lib/i18n";
 
 /**
  * ADMIN-10 — жалобы (`/admin/complaints`, API.md §16).
@@ -30,21 +30,10 @@ import {
  * статуса (`PATCH /admin/complaints/:id` `{ status }`); мутация инвалидирует тег
  * `Admin`, поэтому список перечитывается после действия. Ссылка на листинг ведёт
  * в карточку модерации (ADMIN-09). Данные — только RTK Query (CLAUDE.md §4),
- * RU-only (i18n — ADMIN-17).
+ * локализовано (ADMIN-17).
  */
 
 const SEARCH_DEBOUNCE_MS = 300;
-
-const STATUS_FILTER_OPTIONS: SelectOption<ComplaintStatus | "">[] = [
-  { value: "", label: "Все статусы" },
-  ...COMPLAINT_STATUSES.map((s) => ({
-    value: s,
-    label: COMPLAINT_STATUS_LABELS[s],
-  })),
-];
-
-const STATUS_SELECT_OPTIONS: SelectOption<ComplaintStatus>[] =
-  COMPLAINT_STATUSES.map((s) => ({ value: s, label: COMPLAINT_STATUS_LABELS[s] }));
 
 /** Дебаунс значения (для текстовых фильтров). */
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -57,12 +46,18 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 }
 
 /** Бейдж статуса жалобы. */
-function StatusBadge({ status }: { status: ComplaintStatus }) {
+function StatusBadge({
+  status,
+  labels,
+}: {
+  status: ComplaintStatus;
+  labels: EnumLabels["complaintStatus"];
+}) {
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium ${COMPLAINT_STATUS_BADGE[status]}`}
     >
-      {COMPLAINT_STATUS_LABELS[status]}
+      {labels[status]}
     </span>
   );
 }
@@ -100,6 +95,25 @@ function FilterSelect<T extends string>({
 }
 
 export default function AdminComplaintsPage() {
+  const { t, locale } = useT();
+  const enums = useEnumLabels();
+
+  const statusFilterOptions: SelectOption<ComplaintStatus | "">[] = useMemo(
+    () => [
+      { value: "", label: t("complaints.allStatuses") },
+      ...COMPLAINT_STATUSES.map((s) => ({
+        value: s,
+        label: enums.complaintStatus[s],
+      })),
+    ],
+    [t, enums],
+  );
+
+  const statusSelectOptions: SelectOption<ComplaintStatus>[] = useMemo(
+    () => optionsFromLabels(enums.complaintStatus),
+    [enums],
+  );
+
   const [status, setStatus] = useState<ComplaintStatus | "">("NEW");
   const [listingIdInput, setListingIdInput] = useState("");
   const [page, setPage] = useState(1);
@@ -139,13 +153,16 @@ export default function AdminComplaintsPage() {
         status: target,
       }).unwrap();
       toast.success(
-        `Жалоба обновлена: ${COMPLAINT_STATUS_LABELS[updated.status]}.`,
+        t("complaints.updated", {
+          status: enums.complaintStatus[updated.status],
+        }),
       );
       setActive(null);
     } catch (err) {
       toast.error(
         complaintErrorMessage(
           err as Parameters<typeof complaintErrorMessage>[0],
+          locale,
         ),
       );
     }
@@ -155,7 +172,7 @@ export default function AdminComplaintsPage() {
     () => [
       {
         key: "reason",
-        header: "Жалоба",
+        header: t("complaints.colComplaint"),
         render: (row) => (
           <div className="flex max-w-xs flex-col gap-0.5">
             <span className="font-medium text-gray-800 dark:text-white/90">
@@ -174,7 +191,7 @@ export default function AdminComplaintsPage() {
       },
       {
         key: "listing_id",
-        header: "Листинг",
+        header: t("complaints.colListing"),
         render: (row) => (
           <Link
             href={`/admin/listings/${row.listing_id}`}
@@ -186,37 +203,39 @@ export default function AdminComplaintsPage() {
       },
       {
         key: "user_id",
-        header: "Автор",
+        header: t("complaints.colAuthor"),
         render: (row) => (
           <span className="text-theme-xs text-gray-500 dark:text-gray-400">
-            {row.user_id ? shortId(row.user_id) : "Аноним"}
+            {row.user_id ? shortId(row.user_id) : t("complaints.anonymous")}
           </span>
         ),
       },
       {
         key: "status",
-        header: "Статус",
+        header: t("complaints.colStatus"),
         align: "center",
-        render: (row) => <StatusBadge status={row.status} />,
+        render: (row) => (
+          <StatusBadge status={row.status} labels={enums.complaintStatus} />
+        ),
       },
       {
         key: "created_at",
-        header: "Создана",
+        header: t("complaints.colCreated"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.created_at)}
+            {formatDateTime(row.created_at, locale)}
           </span>
         ),
       },
       {
         key: "handled_at",
-        header: "Обработана",
+        header: t("complaints.colHandled"),
         align: "right",
         render: (row) => (
           <div className="flex flex-col items-end">
             <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-              {formatDateTime(row.handled_at)}
+              {formatDateTime(row.handled_at, locale)}
             </span>
             {row.handled_by && (
               <span className="text-theme-xs text-gray-400">
@@ -239,16 +258,16 @@ export default function AdminComplaintsPage() {
             }}
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-theme-xs font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
           >
-            Обработать
+            {t("complaints.handle")}
           </button>
         ),
       },
     ],
-    [],
+    [t, locale, enums],
   );
 
   const errorMessage = isError
-    ? (getApiError(error)?.message ?? "Не удалось загрузить жалобы.")
+    ? (getApiError(error)?.message ?? t("complaints.loadError"))
     : undefined;
 
   return (
@@ -256,34 +275,36 @@ export default function AdminComplaintsPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-title-sm font-bold text-gray-900 dark:text-white">
-            Жалобы
+            {t("complaints.title")}
           </h1>
           <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-            Жалобы на объявления. По умолчанию — новые, требующие обработки.
+            {t("complaints.subtitle")}
           </p>
         </div>
         {isFetching && (
-          <span className="text-theme-xs text-gray-400">Обновление…</span>
+          <span className="text-theme-xs text-gray-400">
+            {t("common.updating")}
+          </span>
         )}
       </div>
 
       {/* Фильтры */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FilterSelect
-          label="Статус"
+          label={t("complaints.statusLabel")}
           value={status}
-          options={STATUS_FILTER_OPTIONS}
+          options={statusFilterOptions}
           onChange={setStatus}
         />
         <label className="flex flex-col gap-1.5">
           <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-            ID листинга
+            {t("complaints.listingIdLabel")}
           </span>
           <input
             type="search"
             value={listingIdInput}
             onChange={(e) => setListingIdInput(e.target.value)}
-            placeholder="Фильтр по объявлению"
+            placeholder={t("complaints.listingIdPlaceholder")}
             className="h-11 rounded-lg border border-gray-300 bg-transparent px-3 text-theme-sm text-gray-900 shadow-theme-xs outline-none transition placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white"
           />
         </label>
@@ -297,7 +318,7 @@ export default function AdminComplaintsPage() {
         isError={isError}
         errorMessage={errorMessage}
         onRetry={refetch}
-        emptyMessage="По заданным фильтрам жалоб нет."
+        emptyMessage={t("complaints.empty")}
       />
 
       <Pagination meta={data?.meta} page={page} onPageChange={setPage} />
@@ -313,13 +334,13 @@ export default function AdminComplaintsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-theme-lg font-semibold text-gray-900 dark:text-white">
-              Обработка жалобы
+              {t("complaints.dialogTitle")}
             </h3>
 
             <dl className="mt-4 space-y-2.5 text-theme-sm">
               <div className="flex flex-col gap-0.5">
                 <dt className="text-theme-xs font-medium text-gray-400">
-                  Причина
+                  {t("complaints.fieldReason")}
                 </dt>
                 <dd className="text-gray-800 dark:text-gray-200">
                   {active.reason}
@@ -328,7 +349,7 @@ export default function AdminComplaintsPage() {
               {active.details && (
                 <div className="flex flex-col gap-0.5">
                   <dt className="text-theme-xs font-medium text-gray-400">
-                    Подробности
+                    {t("complaints.fieldDetails")}
                   </dt>
                   <dd className="whitespace-pre-line text-gray-800 dark:text-gray-200">
                     {active.details}
@@ -337,37 +358,42 @@ export default function AdminComplaintsPage() {
               )}
               <div className="flex items-center justify-between gap-2">
                 <dt className="text-theme-xs font-medium text-gray-400">
-                  Листинг
+                  {t("complaints.fieldListing")}
                 </dt>
                 <dd>
                   <Link
                     href={`/admin/listings/${active.listing_id}`}
                     className="font-medium text-brand-500 transition hover:text-brand-600"
                   >
-                    Открыть {shortId(active.listing_id)}
+                    {t("complaints.openListing", {
+                      id: shortId(active.listing_id),
+                    })}
                   </Link>
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <dt className="text-theme-xs font-medium text-gray-400">
-                  Текущий статус
+                  {t("complaints.fieldCurrentStatus")}
                 </dt>
                 <dd>
-                  <StatusBadge status={active.status} />
+                  <StatusBadge
+                    status={active.status}
+                    labels={enums.complaintStatus}
+                  />
                 </dd>
               </div>
             </dl>
 
             <label className="mt-4 flex flex-col gap-1.5">
               <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                Новый статус
+                {t("complaints.newStatusLabel")}
               </span>
               <select
                 value={target}
                 onChange={(e) => setTarget(e.target.value as ComplaintStatus)}
                 className="h-11 rounded-lg border border-gray-300 bg-transparent px-3 text-theme-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white dark:[&>option]:bg-gray-900"
               >
-                {STATUS_SELECT_OPTIONS.map((opt) => (
+                {statusSelectOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
@@ -382,7 +408,7 @@ export default function AdminComplaintsPage() {
                 disabled={update.isLoading}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-theme-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
               >
-                Отмена
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -390,7 +416,7 @@ export default function AdminComplaintsPage() {
                 disabled={update.isLoading || target === active.status}
                 className="rounded-lg bg-brand-500 px-4 py-2 text-theme-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-brand-500/40"
               >
-                {update.isLoading ? "Сохраняем…" : "Сохранить"}
+                {update.isLoading ? t("common.applying") : t("common.save")}
               </button>
             </div>
           </div>
