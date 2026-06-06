@@ -1,28 +1,23 @@
 /**
  * Хелперы пользователей (ADMIN-11/12).
  *
- * RU-подписи и badge-классы статусов пользователя, RU-подписи кодов ролей и
- * языков. Значения статусов/ролей/языков — часть API-контракта (DB_SCHEMA §3 /
- * API.md §6). Подписи держим в одном месте, чтобы список (ADMIN-11) и будущее
- * управление статусом/ролями (ADMIN-12) использовали общий словарь. RU-only
- * (i18n — ADMIN-17).
+ * Порядок статусов/ролей, badge/intent-классы и правила «нужна ли причина».
+ * Текстовые подписи статусов/ролей/языков вынесены в i18n (`lib/i18n/enums.ts`,
+ * `roleLabel`/`languageLabel`, ADMIN-17). Значения статусов/ролей/языков — часть
+ * API-контракта (DB_SCHEMA §3 / API.md §6).
  */
 
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
 import type { SerializedError } from '@reduxjs/toolkit';
 
-import type { Language, UserStatus } from '@/store/api/authApi';
+import type { UserStatus } from '@/store/api/authApi';
 import type { RoleCode } from '@/store/api/adminTypes';
 import { getApiError } from '@/store/api/apiError';
+import { translate } from '@/lib/i18n/t';
+import type { Locale } from '@/lib/i18n/config';
 
 /** Все статусы пользователя в порядке жизненного цикла (API.md §6). */
 export const USER_STATUSES: UserStatus[] = ['ACTIVE', 'BLOCKED', 'DELETED'];
-
-export const USER_STATUS_LABELS: Record<UserStatus, string> = {
-  ACTIVE: 'Активен',
-  BLOCKED: 'Заблокирован',
-  DELETED: 'Удалён',
-};
 
 /**
  * Tailwind-классы badge статуса (TailAdmin-палитра): ACTIVE — success,
@@ -49,42 +44,7 @@ export const ROLE_CODES: RoleCode[] = [
   'ADMIN',
 ];
 
-export const ROLE_LABELS: Record<RoleCode, string> = {
-  USER: 'Пользователь',
-  OWNER: 'Собственник',
-  AGENT: 'Агент',
-  AGENCY: 'Агентство',
-  LANDLORD: 'Арендодатель',
-  PROPERTY_MANAGER: 'Управляющий',
-  MODERATOR: 'Модератор',
-  ADMIN: 'Администратор',
-};
-
-/** RU-подпись роли по коду (неизвестный код → сам код, чтобы не падать). */
-export function roleLabel(code: string): string {
-  return ROLE_LABELS[code as RoleCode] ?? code;
-}
-
-export const LANGUAGE_LABELS: Record<Language, string> = {
-  UZ: 'Узбекский',
-  RU: 'Русский',
-  EN: 'Английский',
-};
-
-/** RU-подпись языка (nullable → «—»). */
-export function languageLabel(lang: Language | null | undefined): string {
-  if (!lang) return '—';
-  return LANGUAGE_LABELS[lang] ?? lang;
-}
-
 // ─── Управление статусом и ролями (ADMIN-12, API.md §6) ──────────────────────
-
-/** Глагольная подпись кнопки перехода в статус (в карточке — «сделать …»). */
-export const USER_STATUS_ACTION_LABELS: Record<UserStatus, string> = {
-  ACTIVE: 'Активировать',
-  BLOCKED: 'Заблокировать',
-  DELETED: 'Удалить',
-};
 
 /** Tailwind-классы кнопки перехода (intent-палитра TailAdmin, как в модерации). */
 export const USER_STATUS_INTENT: Record<UserStatus, string> = {
@@ -108,21 +68,22 @@ export const USER_STATUS_REQUIRES_REASON: Record<UserStatus, boolean> = {
   DELETED: true,
 };
 
-/** RU-сообщения по стабильному `error.code` мутаций пользователя (§6/§17). */
-const USER_ACTION_ERROR_MESSAGES: Record<string, string> = {
-  ROLE_ALREADY_GRANTED: 'Эта роль уже назначена пользователю.',
-  VALIDATION_ERROR: 'Проверьте корректность данных действия.',
-  NOT_FOUND: 'Пользователь или роль не найдены.',
-  FORBIDDEN: 'Недостаточно прав для этого действия.',
-};
-
-/** RU-сообщение по ошибке мутации статуса/ролей (по стабильному `error.code`). */
+/** Локализованное сообщение по стабильному `error.code` мутаций пользователя (§6/§17). */
 export function userActionErrorMessage(
   error: FetchBaseQueryError | SerializedError | undefined,
+  locale: Locale,
 ): string {
   const code = getApiError(error)?.code;
-  return (
-    (code && USER_ACTION_ERROR_MESSAGES[code]) ??
-    'Не удалось выполнить действие. Попробуйте ещё раз.'
-  );
+  switch (code) {
+    case 'ROLE_ALREADY_GRANTED':
+      return translate(locale, 'errors.users.ROLE_ALREADY_GRANTED');
+    case 'VALIDATION_ERROR':
+      return translate(locale, 'errors.validationAction');
+    case 'NOT_FOUND':
+      return translate(locale, 'errors.users.NOT_FOUND');
+    case 'FORBIDDEN':
+      return translate(locale, 'errors.forbidden');
+    default:
+      return translate(locale, 'errors.users.generic');
+  }
 }

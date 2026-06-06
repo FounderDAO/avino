@@ -1,0 +1,96 @@
+/**
+ * i18n админ-панели (ADMIN-17) — строки раздела жалоб (`/admin/complaints`).
+ * Namespace: `complaints`. Заполнен при миграции страницы (ADMIN-10 → ADMIN-17).
+ */
+
+import type { Locale } from '../config';
+
+type Dict = { [key: string]: string | Dict };
+
+export const complaints: Record<Locale, Dict> = {
+  ru: {
+    complaints: {
+      title: 'Жалобы',
+      subtitle: 'Жалобы на объявления. По умолчанию — новые, требующие обработки.',
+      allStatuses: 'Все статусы',
+      statusLabel: 'Статус',
+      listingIdLabel: 'ID листинга',
+      listingIdPlaceholder: 'Фильтр по объявлению',
+      colComplaint: 'Жалоба',
+      colListing: 'Листинг',
+      colAuthor: 'Автор',
+      colStatus: 'Статус',
+      colCreated: 'Создана',
+      colHandled: 'Обработана',
+      anonymous: 'Аноним',
+      handle: 'Обработать',
+      empty: 'По заданным фильтрам жалоб нет.',
+      loadError: 'Не удалось загрузить жалобы.',
+      dialogTitle: 'Обработка жалобы',
+      fieldReason: 'Причина',
+      fieldDetails: 'Подробности',
+      fieldListing: 'Листинг',
+      openListing: 'Открыть {id}',
+      fieldCurrentStatus: 'Текущий статус',
+      newStatusLabel: 'Новый статус',
+      updated: 'Жалоба обновлена: {status}.',
+    },
+  },
+  uz: {
+    complaints: {
+      title: 'Shikoyatlar',
+      subtitle:
+        'E’lonlarga shikoyatlar. Standart bo‘yicha — ko‘rib chiqishni talab qiladigan yangilari.',
+      allStatuses: 'Barcha holatlar',
+      statusLabel: 'Holat',
+      listingIdLabel: 'E’lon ID',
+      listingIdPlaceholder: 'E’lon bo‘yicha filtr',
+      colComplaint: 'Shikoyat',
+      colListing: 'E’lon',
+      colAuthor: 'Muallif',
+      colStatus: 'Holat',
+      colCreated: 'Yaratilgan',
+      colHandled: 'Ko‘rib chiqilgan',
+      anonymous: 'Anonim',
+      handle: 'Ko‘rib chiqish',
+      empty: 'Tanlangan filtrlar bo‘yicha shikoyatlar yo‘q.',
+      loadError: 'Shikoyatlarni yuklab bo‘lmadi.',
+      dialogTitle: 'Shikoyatni ko‘rib chiqish',
+      fieldReason: 'Sabab',
+      fieldDetails: 'Tafsilotlar',
+      fieldListing: 'E’lon',
+      openListing: '{id} ochish',
+      fieldCurrentStatus: 'Joriy holat',
+      newStatusLabel: 'Yangi holat',
+      updated: 'Shikoyat yangilandi: {status}.',
+    },
+  },
+  en: {
+    complaints: {
+      title: 'Complaints',
+      subtitle: 'Complaints about listings. New ones requiring handling by default.',
+      allStatuses: 'All statuses',
+      statusLabel: 'Status',
+      listingIdLabel: 'Listing ID',
+      listingIdPlaceholder: 'Filter by listing',
+      colComplaint: 'Complaint',
+      colListing: 'Listing',
+      colAuthor: 'Author',
+      colStatus: 'Status',
+      colCreated: 'Created',
+      colHandled: 'Handled',
+      anonymous: 'Anonymous',
+      handle: 'Handle',
+      empty: 'No complaints match the current filters.',
+      loadError: "Couldn't load complaints.",
+      dialogTitle: 'Handle complaint',
+      fieldReason: 'Reason',
+      fieldDetails: 'Details',
+      fieldListing: 'Listing',
+      openListing: 'Open {id}',
+      fieldCurrentStatus: 'Current status',
+      newStatusLabel: 'New status',
+      updated: 'Complaint updated: {status}.',
+    },
+  },
+};

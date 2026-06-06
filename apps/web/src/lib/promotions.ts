@@ -22,26 +22,14 @@ import type {
 } from '@/store/api/adminTypes';
 import { getApiError } from '@/store/api/apiError';
 import { formatPrice } from './format';
+import { translate } from '@/lib/i18n/t';
+import type { Locale } from '@/lib/i18n/config';
 
 /** Тиры, которые админ может активировать вручную (без `NORMAL` = «нет промо»). */
 export const ACTIVATABLE_TYPES: ActivatablePromotionType[] = ['TOP', 'VIP'];
 
 /** Допустимые периоды промо (§15, DB-чек `period_days IN (7,14,30)`). */
 export const PROMOTION_PERIODS: PromotionPeriodDays[] = [7, 14, 30];
-
-export const PROMOTION_TYPE_LABELS: Record<PromotionType, string> = {
-  NORMAL: 'Без промо',
-  TOP: 'TOP',
-  VIP: 'VIP',
-};
-
-export const PROMOTION_STATUS_LABELS: Record<PromotionStatus, string> = {
-  PENDING_PAYMENT: 'Ожидает оплаты',
-  ACTIVE: 'Активна',
-  EXPIRED: 'Истекла',
-  CANCELLED: 'Отменена',
-  REFUNDED: 'Возврат',
-};
 
 /** Tailwind-классы badge статуса промо (TailAdmin-палитра). */
 export const PROMOTION_STATUS_BADGE: Record<PromotionStatus, string> = {
@@ -94,15 +82,19 @@ export function planPriceLabel(
   return plan ? formatPrice(plan.price, plan.currency) : null;
 }
 
-/** RU-подпись периода (`«7 дней»`, с правильным числительным). */
-export function periodLabel(days: number): string {
-  const plural =
-    days % 10 === 1 && days % 100 !== 11
-      ? 'день'
-      : [2, 3, 4].includes(days % 10) && ![12, 13, 14].includes(days % 100)
-        ? 'дня'
-        : 'дней';
-  return `${days} ${plural}`;
+/** Локализованная подпись периода (`«7 дней»` / `«7 kun»` / `«7 days»`). */
+export function periodLabel(days: number, locale: Locale): string {
+  if (locale === 'ru') {
+    const plural =
+      days % 10 === 1 && days % 100 !== 11
+        ? 'день'
+        : [2, 3, 4].includes(days % 10) && ![12, 13, 14].includes(days % 100)
+          ? 'дня'
+          : 'дней';
+    return `${days} ${plural}`;
+  }
+  if (locale === 'uz') return `${days} kun`;
+  return `${days} ${days === 1 ? 'day' : 'days'}`;
 }
 
 /** Активная промо листинга из истории ledger (или `null`). */
@@ -120,23 +112,26 @@ export function newIdempotencyKey(): string {
   return crypto.randomUUID();
 }
 
-/** RU-сообщения по стабильному `error.code` мутаций промо (§15/§17). */
-const PROMOTION_ERROR_MESSAGES: Record<string, string> = {
-  ACTIVE_PROMOTION_EXISTS: 'У объявления уже есть активная промо.',
-  INVALID_PERIOD: 'Недопустимый период. Выберите 7, 14 или 30 дней.',
-  PROMOTION_NOT_ACTIVE: 'Промо не активна — действие недоступно.',
-  NOT_FOUND: 'Объявление или промо не найдены.',
-  FORBIDDEN: 'Недостаточно прав для этого действия.',
-  VALIDATION_ERROR: 'Проверьте корректность данных действия.',
-};
-
-/** RU-сообщение по ошибке мутации промо (по стабильному `error.code`). */
+/** Локализованное сообщение по ошибке мутации промо (по `error.code`, §15/§17). */
 export function promotionErrorMessage(
   error: FetchBaseQueryError | SerializedError | undefined,
+  locale: Locale,
 ): string {
   const code = getApiError(error)?.code;
-  return (
-    (code && PROMOTION_ERROR_MESSAGES[code]) ??
-    'Не удалось выполнить действие. Попробуйте ещё раз.'
-  );
+  switch (code) {
+    case 'ACTIVE_PROMOTION_EXISTS':
+      return translate(locale, 'errors.promotions.ACTIVE_PROMOTION_EXISTS');
+    case 'INVALID_PERIOD':
+      return translate(locale, 'errors.promotions.INVALID_PERIOD');
+    case 'PROMOTION_NOT_ACTIVE':
+      return translate(locale, 'errors.promotions.PROMOTION_NOT_ACTIVE');
+    case 'NOT_FOUND':
+      return translate(locale, 'errors.promotions.NOT_FOUND');
+    case 'FORBIDDEN':
+      return translate(locale, 'errors.forbidden');
+    case 'VALIDATION_ERROR':
+      return translate(locale, 'errors.validationAction');
+    default:
+      return translate(locale, 'errors.promotions.generic');
+  }
 }

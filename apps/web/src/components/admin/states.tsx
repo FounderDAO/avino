@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 
+import { useT } from "@/lib/i18n";
+
 /**
  * ADMIN-16 — единые состояния страниц/карточек админки.
  *
@@ -44,6 +46,7 @@ export function ErrorState({
   message: string;
   onRetry?: () => void;
 }) {
+  const { t } = useT();
   return (
     <StateCard>
       <p className="text-theme-sm text-error-600 dark:text-error-500">
@@ -55,7 +58,7 @@ export function ErrorState({
           onClick={onRetry}
           className="rounded-lg border border-gray-300 px-4 py-2 text-theme-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
         >
-          Повторить
+          {t("common.retry")}
         </button>
       )}
     </StateCard>

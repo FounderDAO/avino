@@ -5,10 +5,11 @@
 // Avino wordmark, RU labels, sections for the future admin areas. The collapse /
 // hover / mobile-drawer behaviour and submenu machinery are kept from TailAdmin.
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "@/context/SidebarContext";
+import { useT } from "@/lib/i18n";
 import {
   ChevronDownIcon,
   DocsIcon,
@@ -26,20 +27,25 @@ type NavItem = {
   subItems?: { name: string; path: string; new?: boolean }[];
 };
 
-// Avino admin sections (routes are filled in by ADMIN-08..15).
-const navItems: NavItem[] = [
-  { icon: <GridIcon />, name: "Дашборд", path: "/admin" },
-  { icon: <ListIcon />, name: "Модерация", path: "/admin/listings" },
-  { icon: <FlagIcon />, name: "Жалобы", path: "/admin/complaints" },
-  { icon: <UsersIcon />, name: "Пользователи", path: "/admin/users" },
-  // Промо привязано к листингу — управляется в карточке объявления
-  // (Модерация → объявление → PromotionsPanel), отдельной страницы нет (ADMIN-13/ADR-0052).
-  { icon: <DocsIcon />, name: "Логи", path: "/admin/logs" },
-];
-
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { t } = useT();
   const pathname = usePathname();
+
+  // Avino admin sections (routes are filled in by ADMIN-08..15). Промо привязано
+  // к листингу — управляется в карточке объявления, отдельной страницы нет
+  // (ADMIN-13/ADR-0052). Мемоизируем, чтобы эффект подсветки подменю не
+  // пересоздавался на каждый рендер (зависит только от языка интерфейса).
+  const navItems: NavItem[] = useMemo(
+    () => [
+      { icon: <GridIcon />, name: t("nav.dashboard"), path: "/admin" },
+      { icon: <ListIcon />, name: t("nav.listings"), path: "/admin/listings" },
+      { icon: <FlagIcon />, name: t("nav.complaints"), path: "/admin/complaints" },
+      { icon: <UsersIcon />, name: t("nav.users"), path: "/admin/users" },
+      { icon: <DocsIcon />, name: t("nav.logs"), path: "/admin/logs" },
+    ],
+    [t],
+  );
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main";
@@ -170,7 +176,7 @@ const AppSidebar: React.FC = () => {
     if (!submenuMatched) {
       setOpenSubmenu(null);
     }
-  }, [pathname, isActive]);
+  }, [pathname, isActive, navItems]);
 
   useEffect(() => {
     if (openSubmenu !== null) {
@@ -224,7 +230,7 @@ const AppSidebar: React.FC = () => {
                 Avino
               </span>
               <span className="text-theme-xs font-medium uppercase tracking-wide text-gray-400">
-                admin
+                {t("nav.brandAdmin")}
               </span>
             </span>
           )}
@@ -239,7 +245,7 @@ const AppSidebar: React.FC = () => {
                   !showLabels ? "lg:justify-center" : "justify-start"
                 }`}
               >
-                {showLabels ? "Меню" : <HorizontaLDots />}
+                {showLabels ? t("nav.menu") : <HorizontaLDots />}
               </h2>
               {renderMenuItems(navItems, "main")}
             </div>

@@ -7,6 +7,7 @@
 
 import type { ReactNode } from "react";
 import type { Column } from "@/lib/table";
+import { useT } from "@/lib/i18n";
 
 type DataTableProps<Row> = {
   columns: Column<Row>[];
@@ -49,9 +50,10 @@ export function DataTable<Row>({
   isError = false,
   errorMessage,
   onRetry,
-  emptyMessage = "Ничего не найдено.",
+  emptyMessage,
   skeletonRows = 8,
 }: DataTableProps<Row>) {
+  const { t } = useT();
   const showSkeleton = isLoading && !rows;
   const isEmpty = !isLoading && !isError && rows && rows.length === 0;
 
@@ -106,7 +108,7 @@ export function DataTable<Row>({
       {isError && (
         <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
           <p className="text-theme-sm text-error-600 dark:text-error-500">
-            {errorMessage ?? "Не удалось загрузить данные."}
+            {errorMessage ?? t("table.loadError")}
           </p>
           {onRetry && (
             <button
@@ -114,7 +116,7 @@ export function DataTable<Row>({
               onClick={onRetry}
               className="rounded-lg border border-gray-300 px-4 py-2 text-theme-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
             >
-              Повторить
+              {t("common.retry")}
             </button>
           )}
         </div>
@@ -122,7 +124,7 @@ export function DataTable<Row>({
 
       {isEmpty && (
         <div className="px-5 py-12 text-center text-theme-sm text-gray-500 dark:text-gray-400">
-          {emptyMessage}
+          {emptyMessage ?? t("table.empty")}
         </div>
       )}
     </div>

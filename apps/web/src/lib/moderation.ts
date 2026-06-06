@@ -15,6 +15,8 @@ import type {
 import { getApiError } from '@/store/api/apiError';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
 import type { SerializedError } from '@reduxjs/toolkit';
+import { translate } from '@/lib/i18n/t';
+import type { Locale } from '@/lib/i18n/config';
 
 /** Целевой статус для каждого действия (API.md §16). */
 export const ACTION_TO_STATUS: Record<ModerationAction, ListingStatus> = {
@@ -39,13 +41,6 @@ export const MODERATION_ACTIONS: ModerationAction[] = [
   'REJECT',
   'DELETE',
 ];
-
-export const MODERATION_ACTION_LABELS: Record<ModerationAction, string> = {
-  APPROVE: 'Одобрить',
-  SEND_TO_DRAFT: 'В черновик',
-  REJECT: 'Отклонить',
-  DELETE: 'Удалить',
-};
 
 /** Tailwind-классы кнопки действия (intent-палитра TailAdmin). */
 export const MODERATION_ACTION_INTENT: Record<ModerationAction, string> = {
@@ -80,20 +75,22 @@ export function canApplyAction(
   );
 }
 
-const MODERATION_ERROR_MESSAGES: Record<string, string> = {
-  INVALID_STATUS_TRANSITION: 'Недопустимый переход статуса для этого объявления.',
-  FORBIDDEN: 'Недостаточно прав для этого действия.',
-  NOT_FOUND: 'Объявление не найдено.',
-  VALIDATION_ERROR: 'Проверьте корректность данных действия.',
-};
-
-/** RU-сообщение по ошибке мутации модерации (по стабильному `error.code`). */
+/** Локализованное сообщение по ошибке мутации модерации (по `error.code`). */
 export function moderationErrorMessage(
   error: FetchBaseQueryError | SerializedError | undefined,
+  locale: Locale,
 ): string {
   const code = getApiError(error)?.code;
-  return (
-    (code && MODERATION_ERROR_MESSAGES[code]) ??
-    'Не удалось выполнить действие. Попробуйте ещё раз.'
-  );
+  switch (code) {
+    case 'INVALID_STATUS_TRANSITION':
+      return translate(locale, 'errors.moderation.INVALID_STATUS_TRANSITION');
+    case 'FORBIDDEN':
+      return translate(locale, 'errors.forbidden');
+    case 'NOT_FOUND':
+      return translate(locale, 'errors.moderation.NOT_FOUND');
+    case 'VALIDATION_ERROR':
+      return translate(locale, 'errors.validationAction');
+    default:
+      return translate(locale, 'errors.moderation.generic');
+  }
 }

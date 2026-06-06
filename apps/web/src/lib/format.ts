@@ -3,10 +3,11 @@
  *
  * Цена/площадь приходят Decimal-строкой (ADR-002, никогда float) — форматируем
  * как строку, не приводя к `number`, чтобы не терять точность. Даты — ISO-8601
- * UTC; показываем в локали ru-RU. Хелперы общие для ADMIN-08..15.
+ * UTC; показываем в локали интерфейса (ADMIN-17). Хелперы общие для ADMIN-08..15.
  */
 
 import type { Currency } from '@/store/api/adminTypes';
+import { LOCALE_META, type Locale } from '@/lib/i18n/config';
 
 const PRICE_GROUPING = /\B(?=(\d{3})+(?!\d))/g;
 
@@ -18,12 +19,15 @@ export function formatPrice(price: string, currency: Currency): string {
   return `${body} ${currency}`;
 }
 
-/** ISO-строка → `"02.06.2026, 13:10"` (ru-RU). Пустые/битые даты → `"—"`. */
-export function formatDateTime(iso: string | null | undefined): string {
+/** ISO-строка → дата-время в локали интерфейса. Пустые/битые даты → `"—"`. */
+export function formatDateTime(
+  iso: string | null | undefined,
+  locale: Locale,
+): string {
   if (!iso) return '—';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('ru-RU', {
+  return date.toLocaleString(LOCALE_META[locale].bcp47, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

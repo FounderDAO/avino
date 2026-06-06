@@ -12,6 +12,8 @@ import {
 } from "@/store/api/authApi";
 import { getApiError, getApiErrorCode } from "@/store/api/apiError";
 import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
+import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
+import { useT } from "@/lib/i18n";
 
 /**
  * ADMIN-05 — страница логина админа (passwordless OTP по EMAIL).
@@ -26,29 +28,28 @@ import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OTP_LENGTH = 6;
 
-/** Человекочитаемый текст по стабильному коду ошибки API (§17). */
-function messageForCode(code: string | null, fallback?: string): string {
-  switch (code) {
-    case "VALIDATION_ERROR":
-      return "Проверьте правильность введённых данных.";
-    case "RATE_LIMITED":
-      return "Слишком много запросов. Подождите немного и попробуйте снова.";
-    case "OTP_INVALID":
-      return "Неверный код. Проверьте и попробуйте ещё раз.";
-    case "OTP_EXPIRED":
-      return "Код подтверждения истёк. Запросите новый.";
-    case "OTP_ATTEMPTS_EXCEEDED":
-      return "Превышено число попыток ввода. Запросите новый код.";
-    case "USER_BLOCKED":
-      return "Аккаунт заблокирован. Обратитесь к администратору.";
-    default:
-      return fallback ?? "Не удалось выполнить запрос. Попробуйте ещё раз.";
-  }
-}
+/** Стабильные коды ошибок OTP с собственным текстом (API.md §17). */
+const LOGIN_ERROR_CODES = [
+  "VALIDATION_ERROR",
+  "RATE_LIMITED",
+  "OTP_INVALID",
+  "OTP_EXPIRED",
+  "OTP_ATTEMPTS_EXCEEDED",
+  "USER_BLOCKED",
+] as const;
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
+  const { t } = useT();
+
+  /** Локализованный текст по стабильному коду ошибки API (§17). */
+  function messageForCode(code: string | null, fallback?: string): string {
+    if (code && (LOGIN_ERROR_CODES as readonly string[]).includes(code)) {
+      return t(`errors.login.${code}`);
+    }
+    return fallback ?? t("errors.generic");
+  }
 
   const [requestOtp, requestState] = useRequestOtpMutation();
   const [verifyOtp, verifyState] = useVerifyOtpMutation();
@@ -82,7 +83,7 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setError(null);
     if (!emailValid) {
-      setError("Введите корректный email.");
+      setError(t("login.invalidEmail"));
       return;
     }
     try {
@@ -120,7 +121,7 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setError(null);
     if (!codeValid) {
-      setError(`Код состоит из ${OTP_LENGTH} цифр.`);
+      setError(t("login.codeLength", { length: OTP_LENGTH }));
       return;
     }
     try {
@@ -150,7 +151,8 @@ export default function AdminLoginPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 dark:bg-gray-900">
-      <div className="absolute right-4 top-4">
+      <div className="absolute right-4 top-4 flex items-center gap-2">
+        <LanguageSwitcher />
         <ThemeToggleButton />
       </div>
 
@@ -167,12 +169,12 @@ export default function AdminLoginPage() {
 
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-sm dark:border-gray-800 dark:bg-white/[0.03] sm:p-8">
           <h1 className="text-title-sm font-bold text-gray-900 dark:text-white">
-            Вход в админку
+            {t("login.title")}
           </h1>
           <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
             {step === "email"
-              ? "Введите email — отправим код подтверждения."
-              : `Код отправлен на ${email.trim().toLowerCase()}.`}
+              ? t("login.emailHint")
+              : t("login.codeHint", { email: email.trim().toLowerCase() })}
           </p>
 
           {error && (
@@ -191,7 +193,7 @@ export default function AdminLoginPage() {
                   htmlFor="email"
                   className="mb-1.5 block text-theme-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                  Email
+                  {t("login.emailLabel")}
                 </label>
                 <input
                   id="email"
@@ -212,7 +214,9 @@ export default function AdminLoginPage() {
                 disabled={requestState.isLoading || !emailValid}
                 className="flex h-11 w-full cursor-pointer items-center justify-center rounded-lg bg-brand-500 text-theme-sm font-medium text-white shadow-theme-xs transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {requestState.isLoading ? "Отправляем…" : "Получить код"}
+                {requestState.isLoading
+                  ? t("login.sending")
+                  : t("login.getCode")}
               </button>
             </form>
           ) : (
@@ -222,7 +226,7 @@ export default function AdminLoginPage() {
                   htmlFor="code"
                   className="mb-1.5 block text-theme-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                  Код из письма
+                  {t("login.codeLabel")}
                 </label>
                 <input
                   id="code"
@@ -249,7 +253,9 @@ export default function AdminLoginPage() {
                 disabled={verifyState.isLoading || !codeValid}
                 className="flex h-11 w-full cursor-pointer items-center justify-center rounded-lg bg-brand-500 text-theme-sm font-medium text-white shadow-theme-xs transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {verifyState.isLoading ? "Проверяем…" : "Войти"}
+                {verifyState.isLoading
+                  ? t("login.verifying")
+                  : t("login.signIn")}
               </button>
 
               <div className="flex items-center justify-between text-theme-sm">
@@ -258,7 +264,7 @@ export default function AdminLoginPage() {
                   onClick={backToEmail}
                   className="cursor-pointer font-medium text-gray-500 transition hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 >
-                  ← Изменить email
+                  {t("login.changeEmail")}
                 </button>
                 <button
                   type="button"
@@ -267,8 +273,8 @@ export default function AdminLoginPage() {
                   className="cursor-pointer font-medium text-brand-500 transition hover:text-brand-600 disabled:cursor-not-allowed disabled:text-gray-400 dark:disabled:text-gray-500"
                 >
                   {resendIn > 0
-                    ? `Отправить повторно (${resendIn})`
-                    : "Отправить повторно"}
+                    ? t("login.resendIn", { seconds: resendIn })
+                    : t("login.resend")}
                 </button>
               </div>
             </form>
@@ -276,7 +282,7 @@ export default function AdminLoginPage() {
         </div>
 
         <p className="mt-6 text-center text-theme-xs text-gray-400 dark:text-gray-500">
-          Доступ только для администраторов Avino.
+          {t("login.footer")}
         </p>
       </div>
     </main>

@@ -1,44 +1,16 @@
 /**
- * RU-подписи для enum-значений админ-панели (MVP RU-only, i18n — ADMIN-17).
+ * Badge-классы для enum-значений листингов (TailAdmin-палитра).
  *
- * Источник значений — `store/api/adminTypes.ts` (зеркало DB_SCHEMA §3). Подписи
- * и badge-классы переиспользуются страницами модерации/жалоб/пользователей
- * (ADMIN-08..12), поэтому держим их в одном месте, а не в каждой странице.
+ * Источник значений — `store/api/adminTypes.ts` (зеркало DB_SCHEMA §3). Текстовые
+ * подписи статусов/типов вынесены в i18n (`lib/i18n/enums.ts`, ADMIN-17) — здесь
+ * остаются только CSS-классы badge, не зависящие от языка.
  */
 
-import type {
-  ListingStatus,
-  PropertyType,
-  TransactionType,
-} from '@/store/api/adminTypes';
-
-export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {
-  NEW: 'На модерации',
-  ACTIVE: 'Активно',
-  DRAFT: 'Черновик',
-  REJECTED: 'Отклонено',
-  DELETED: 'Удалено',
-  ARCHIVED: 'В архиве',
-  SOLD: 'Продано',
-  RENTED: 'Сдано',
-};
-
-export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
-  APARTMENT: 'Квартира',
-  HOUSE: 'Дом',
-  NEW_BUILDING: 'Новостройка',
-  LAND: 'Участок',
-  COMMERCIAL: 'Коммерческая',
-};
-
-export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
-  SALE: 'Продажа',
-  RENT: 'Аренда',
-};
+import type { ListingStatus } from '@/store/api/adminTypes';
 
 /**
- * Tailwind-классы badge статуса (TailAdmin-палитра). Дефолт — серый, чтобы
- * новый статус не ломал рендер до добавления своего цвета.
+ * Tailwind-классы badge статуса. Дефолт — серый, чтобы новый статус не ломал
+ * рендер до добавления своего цвета.
  */
 export const LISTING_STATUS_BADGE: Record<ListingStatus, string> = {
   NEW: 'bg-warning-50 text-warning-600 dark:bg-warning-500/[0.15] dark:text-warning-500',

@@ -9,6 +9,8 @@ import {
   useState,
 } from "react";
 
+import { useT } from "@/lib/i18n";
+
 /**
  * ADMIN-16 — единый toast-механизм для уведомлений об успехе/ошибке мутаций.
  *
@@ -115,6 +117,7 @@ function Toaster({
   toasts: ToastItem[];
   onDismiss: (id: number) => void;
 }) {
+  const { t } = useT();
   return (
     <div className="pointer-events-none fixed right-4 top-4 z-[100] flex w-full max-w-sm flex-col gap-2.5">
       {toasts.map((toast) => (
@@ -134,7 +137,7 @@ function Toaster({
           <button
             type="button"
             onClick={() => onDismiss(toast.id)}
-            aria-label="Закрыть уведомление"
+            aria-label={t("common.closeNotification")}
             className="-mr-1 -mt-0.5 shrink-0 rounded p-1 text-theme-sm opacity-60 transition hover:opacity-100"
           >
             ✕

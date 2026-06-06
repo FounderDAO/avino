@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useGetMeQuery, type MeResponse } from "@/store/api/authApi";
 import { useLogout } from "@/hooks/useLogout";
+import { useT } from "@/lib/i18n";
 
 /**
  * UserMenu (ADMIN-06) — заменяет статичную заглушку «AD / Администратор» в шапке.
@@ -15,17 +16,17 @@ import { useLogout } from "@/hooks/useLogout";
  * фоллбэки имени и инициалов.
  */
 
-function displayName(me?: MeResponse): string {
-  if (!me) return "Администратор";
+function displayName(me: MeResponse | undefined, fallback: string): string {
+  if (!me) return fallback;
   const p = me.profile;
   if (p?.display_name) return p.display_name;
   const full = [p?.first_name, p?.last_name].filter(Boolean).join(" ");
   if (full) return full;
-  return me.email ?? me.phone ?? "Администратор";
+  return me.email ?? me.phone ?? fallback;
 }
 
-function initialsFrom(me?: MeResponse): string {
-  const name = displayName(me);
+function initialsFrom(me: MeResponse | undefined, fallback: string): string {
+  const name = displayName(me, fallback);
   const parts = name.trim().split(/\s+/);
   const letters = (parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "");
   return (letters || "AD").toUpperCase();
@@ -34,6 +35,8 @@ function initialsFrom(me?: MeResponse): string {
 export function UserMenu() {
   const { data: me } = useGetMeQuery();
   const logout = useLogout();
+  const { t } = useT();
+  const fallbackName = t("userMenu.fallbackName");
 
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -57,7 +60,7 @@ export function UserMenu() {
     };
   }, [open]);
 
-  const name = displayName(me);
+  const name = displayName(me, fallbackName);
   const subtitle = me?.email ?? me?.phone ?? "Avino";
 
   return (
@@ -67,11 +70,11 @@ export function UserMenu() {
         onClick={() => setOpen((prev) => !prev)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Меню пользователя"
+        aria-label={t("userMenu.trigger")}
         className="flex cursor-pointer items-center gap-3 rounded-lg px-1.5 py-1 transition hover:bg-gray-100 dark:hover:bg-gray-800"
       >
         <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400">
-          {initialsFrom(me)}
+          {initialsFrom(me, fallbackName)}
         </span>
         <span className="hidden text-left lg:block">
           <span className="block max-w-[160px] truncate text-theme-sm font-medium text-gray-700 dark:text-gray-300">
@@ -104,7 +107,7 @@ export function UserMenu() {
       {open && (
         <div
           role="menu"
-          aria-label="Действия пользователя"
+          aria-label={t("userMenu.actions")}
           className="absolute right-0 mt-2 w-60 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-lg dark:border-gray-800 dark:bg-gray-900"
         >
           <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-800">
@@ -139,7 +142,7 @@ export function UserMenu() {
                 strokeLinejoin="round"
               />
             </svg>
-            Выйти
+            {t("common.signOut")}
           </button>
         </div>
       )}
