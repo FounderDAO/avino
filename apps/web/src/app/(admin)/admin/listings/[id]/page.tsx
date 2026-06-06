@@ -18,6 +18,7 @@ import type {
 } from "@/store/api/adminTypes";
 import { getApiError, getApiErrorCode } from "@/store/api/apiError";
 import { DataTable } from "@/components/admin/DataTable";
+import { PromotionsPanel } from "@/components/admin/PromotionsPanel";
 import type { Column } from "@/lib/table";
 import {
   LISTING_STATUS_BADGE,
@@ -244,6 +245,7 @@ export default function AdminListingDetailPage() {
       )}
 
       {listing && (
+        <>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Данные + медиа + история */}
           <div className="space-y-6 lg:col-span-2">
@@ -405,6 +407,8 @@ export default function AdminListingDetailPage() {
             </div>
           </aside>
         </div>
+        <PromotionsPanel listingId={id} />
+        </>
       )}
 
       {/* Диалог подтверждения действия */}
