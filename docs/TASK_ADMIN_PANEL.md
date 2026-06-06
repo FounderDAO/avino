@@ -475,7 +475,7 @@ Suggested commit: `feat(web): add admin dashboard overview`
 
 ### ADMIN-16 — Полиш (skeleton/error/empty + toasts)
 
-Status: `REVIEW` (PR pending) — ADR-0055
+Status: `DONE` (PR #94 merged 2026-06-06) — ADR-0055
 Branch: `feat/admin-web-polish`
 Depends: `ADMIN-08..15`
 
@@ -536,5 +536,5 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-13 | DONE | #89 |
 | ADMIN-14 | DONE | #90 |
 | ADMIN-15 | DONE | #93 |
-| ADMIN-16 | REVIEW | pending |
+| ADMIN-16 | DONE | #94 |
 | ADMIN-17 | TODO | — |

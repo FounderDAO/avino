@@ -41,9 +41,9 @@ Related ADR:
 
 ### ADMIN-16 — Полиш: единые состояния + toasts (web)
 
-Status: REVIEW (PR pending) — flips to DONE on merge
+Status: DONE (2026-06-06)
 Branch: feat/admin-web-polish
-PR: pending
+PR: #94
 
 Files changed:
 - apps/web/src/components/admin/toast/ToastProvider.tsx (new)
