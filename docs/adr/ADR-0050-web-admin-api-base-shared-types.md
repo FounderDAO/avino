@@ -79,6 +79,17 @@ Negative / trade-offs:
 - `lib/table.ts` фиксирует структуру таблиц до появления самих таблиц — при
   необходимости уточняется в ADMIN-08.
 
+## Обновление (ADMIN-08, 2026-06-06)
+
+Первая фича-задача (очередь модерации) выполнила обещанную live-сверку DTO против
+`apps/api`. `AdminListingRow` приведён к реальной форме `AdminListingListItem`
+(`apps/api/src/moderation`): список — компактная карточка, поэтому добавлены
+`title`/`original_language`/`published_at`, `city_id` стал nullable, а полей
+`area`/`rooms`/`promotion_type`/`promotion_expires_at` в списке нет (они есть
+только в `ListingDetail`, §7). Остальные DTO базы пока не трогались — они
+сверяются при реализации своих фич (ADMIN-09..15). Решение хранить общие DTO в
+одном месте подтвердило себя: правка формы — в одном файле.
+
 ## Related files
 
 - apps/web/src/store/api/pagination.ts

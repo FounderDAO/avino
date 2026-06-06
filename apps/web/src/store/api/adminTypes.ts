@@ -82,7 +82,15 @@ export type RoleCode =
 
 // ─── DTO: листинги (API.md §7/§16) ──────────────────────────────────────────
 
-/** Строка очереди модерации/админ-списка (`GET /admin/listings`, §16). */
+/**
+ * Строка очереди модерации/админ-списка (`GET /admin/listings`, §16).
+ *
+ * Форма выверена live против бэкенда в ADMIN-08 (ADR-0050 откладывал сверку):
+ * это зеркало `AdminListingListItem` из `apps/api/src/moderation`. Список —
+ * компактная карточка: `title` берётся на `original_language` (исходный
+ * авторский текст), `city_id` может быть `null`. Полей `area`/`rooms`/
+ * `promotion_*` в списке нет — они приходят только в `ListingDetail` (§7).
+ */
 export interface AdminListingRow {
   id: string;
   status: ListingStatus;
@@ -91,14 +99,13 @@ export interface AdminListingRow {
   /** Decimal-строка (никогда float, ADR-002). */
   price: string;
   currency: Currency;
-  /** Decimal-строка. */
-  area: string;
-  rooms: number | null;
-  city_id: string;
+  city_id: string | null;
   district_id: string | null;
   owner_id: string;
-  promotion_type: PromotionType;
-  promotion_expires_at: string | null;
+  /** Язык исходного (авторского) текста — на нём отдан `title` (§7, ADR-012). */
+  original_language: Language;
+  title: string;
+  published_at: string | null;
   created_at: string;
 }
 

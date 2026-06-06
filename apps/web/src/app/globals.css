@@ -131,6 +131,17 @@
   --color-brand-900: #002876;
   --color-brand-950: #001a4d;
 
+  /* Semantic status scales (TailAdmin) — badges, toasts (ADMIN-08/16) */
+  --color-success-50: #ecfdf3;
+  --color-success-500: #12b76a;
+  --color-success-600: #039855;
+  --color-warning-50: #fffaeb;
+  --color-warning-500: #f79009;
+  --color-warning-600: #dc6803;
+  --color-error-50: #fef3f2;
+  --color-error-500: #f04438;
+  --color-error-600: #d92d20;
+
   /* Neutral gray scale (TailAdmin) */
   --color-gray-25: #fcfcfd;
   --color-gray-50: #f9fafb;
