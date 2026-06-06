@@ -12,6 +12,8 @@ import type { ComplaintStatus } from '@/store/api/adminTypes';
 import { getApiError } from '@/store/api/apiError';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
 import type { SerializedError } from '@reduxjs/toolkit';
+import { translate } from '@/lib/i18n/t';
+import type { Locale } from '@/lib/i18n/config';
 
 /** Все статусы жалобы в порядке жизненного цикла (API.md §16). */
 export const COMPLAINT_STATUSES: ComplaintStatus[] = [
@@ -20,13 +22,6 @@ export const COMPLAINT_STATUSES: ComplaintStatus[] = [
   'RESOLVED',
   'REJECTED',
 ];
-
-export const COMPLAINT_STATUS_LABELS: Record<ComplaintStatus, string> = {
-  NEW: 'Новая',
-  IN_REVIEW: 'В работе',
-  RESOLVED: 'Решена',
-  REJECTED: 'Отклонена',
-};
 
 /**
  * Tailwind-классы badge статуса (TailAdmin-палитра): NEW — warning (требует
@@ -42,19 +37,20 @@ export const COMPLAINT_STATUS_BADGE: Record<ComplaintStatus, string> = {
   REJECTED: 'bg-gray-100 text-gray-600 dark:bg-gray-700/40 dark:text-gray-300',
 };
 
-const COMPLAINT_ERROR_MESSAGES: Record<string, string> = {
-  FORBIDDEN: 'Недостаточно прав для этого действия.',
-  NOT_FOUND: 'Жалоба не найдена.',
-  VALIDATION_ERROR: 'Проверьте корректность статуса.',
-};
-
-/** RU-сообщение по ошибке смены статуса жалобы (по стабильному `error.code`). */
+/** Локализованное сообщение по ошибке смены статуса жалобы (по `error.code`). */
 export function complaintErrorMessage(
   error: FetchBaseQueryError | SerializedError | undefined,
+  locale: Locale,
 ): string {
   const code = getApiError(error)?.code;
-  return (
-    (code && COMPLAINT_ERROR_MESSAGES[code]) ??
-    'Не удалось обновить статус. Попробуйте ещё раз.'
-  );
+  switch (code) {
+    case 'FORBIDDEN':
+      return translate(locale, 'errors.forbidden');
+    case 'NOT_FOUND':
+      return translate(locale, 'errors.complaints.NOT_FOUND');
+    case 'VALIDATION_ERROR':
+      return translate(locale, 'errors.complaints.VALIDATION_ERROR');
+    default:
+      return translate(locale, 'errors.complaints.generic');
+  }
 }

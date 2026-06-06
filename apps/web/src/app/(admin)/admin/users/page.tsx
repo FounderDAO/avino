@@ -15,13 +15,8 @@ import { DataTable } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
 import type { Column, SelectOption } from "@/lib/table";
 import { formatDateTime, shortId } from "@/lib/format";
-import {
-  USER_STATUSES,
-  USER_STATUS_BADGE,
-  USER_STATUS_LABELS,
-  languageLabel,
-  roleLabel,
-} from "@/lib/users";
+import { USER_STATUSES, USER_STATUS_BADGE } from "@/lib/users";
+import { useT, useEnumLabels } from "@/lib/i18n";
 
 /**
  * ADMIN-11 — пользователи (`/admin/users`, API.md §6).
@@ -30,15 +25,10 @@ import {
  * контакту/имени) и page-based пагинацией. Опции фильтра по роли берутся из
  * справочника `GET /roles`. Поиск дебаунсится; любая смена фильтра сбрасывает
  * страницу на 1. Контакт ведёт в карточку (`/admin/users/[id]`). Данные — только
- * через RTK Query (CLAUDE.md §4). RU-only (i18n — ADMIN-17).
+ * через RTK Query (CLAUDE.md §4). Локализовано (i18n — ADMIN-17).
  */
 
 const SEARCH_DEBOUNCE_MS = 300;
-
-const STATUS_OPTIONS: SelectOption<UserStatus | "">[] = [
-  { value: "", label: "Все статусы" },
-  ...USER_STATUSES.map((s) => ({ value: s, label: USER_STATUS_LABELS[s] })),
-];
 
 /** Дебаунс значения (для поля поиска). */
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -51,12 +41,12 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 }
 
 /** Бейдж статуса пользователя. */
-function StatusBadge({ status }: { status: UserStatus }) {
+function StatusBadge({ status, label }: { status: UserStatus; label: string }) {
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium ${USER_STATUS_BADGE[status]}`}
     >
-      {USER_STATUS_LABELS[status]}
+      {label}
     </span>
   );
 }
@@ -94,6 +84,9 @@ function FilterSelect<T extends string>({
 }
 
 export default function AdminUsersPage() {
+  const { t, locale } = useT();
+  const enums = useEnumLabels();
+
   const [status, setStatus] = useState<UserStatus | "">("");
   const [role, setRole] = useState<RoleCode | "">("");
   const [searchInput, setSearchInput] = useState("");
@@ -101,17 +94,25 @@ export default function AdminUsersPage() {
 
   const q = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
 
+  const statusOptions = useMemo<SelectOption<UserStatus | "">[]>(
+    () => [
+      { value: "", label: t("users.allStatuses") },
+      ...USER_STATUSES.map((s) => ({ value: s, label: enums.userStatus[s] })),
+    ],
+    [t, enums],
+  );
+
   // Справочник ролей — источник опций фильтра (API.md §6).
   const rolesQuery = useListRolesQuery();
   const roleOptions = useMemo<SelectOption<RoleCode | "">[]>(
     () => [
-      { value: "", label: "Все роли" },
+      { value: "", label: t("users.allRoles") },
       ...(rolesQuery.data ?? []).map((r) => ({
         value: r.code,
-        label: roleLabel(r.code),
+        label: enums.role[r.code],
       })),
     ],
-    [rolesQuery.data],
+    [rolesQuery.data, t, enums],
   );
 
   // Любая смена фильтров возвращает к первой странице.
@@ -132,14 +133,14 @@ export default function AdminUsersPage() {
     () => [
       {
         key: "contact",
-        header: "Пользователь",
+        header: t("users.colUser"),
         render: (row) => (
           <div className="flex flex-col">
             <Link
               href={`/admin/users/${row.id}`}
               className="font-medium text-gray-800 transition hover:text-brand-500 dark:text-white/90"
             >
-              {row.phone || row.email || "Без контакта"}
+              {row.phone || row.email || t("users.noContact")}
             </Link>
             <span className="text-theme-xs text-gray-400">
               {shortId(row.id)}
@@ -149,7 +150,7 @@ export default function AdminUsersPage() {
       },
       {
         key: "roles",
-        header: "Роли",
+        header: t("users.colRoles"),
         render: (row) =>
           row.roles.length === 0 ? (
             <span className="text-theme-xs text-gray-400">—</span>
@@ -160,7 +161,7 @@ export default function AdminUsersPage() {
                   key={code}
                   className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs font-medium text-gray-600 dark:bg-gray-700/40 dark:text-gray-300"
                 >
-                  {roleLabel(code)}
+                  {enums.role[code]}
                 </span>
               ))}
             </div>
@@ -168,13 +169,15 @@ export default function AdminUsersPage() {
       },
       {
         key: "status",
-        header: "Статус",
+        header: t("users.colStatus"),
         align: "center",
-        render: (row) => <StatusBadge status={row.status} />,
+        render: (row) => (
+          <StatusBadge status={row.status} label={enums.userStatus[row.status]} />
+        ),
       },
       {
         key: "language",
-        header: "Язык",
+        header: t("users.colLanguage"),
         align: "center",
         render: (row) => (
           <span className="text-theme-xs text-gray-500 dark:text-gray-400">
@@ -184,30 +187,30 @@ export default function AdminUsersPage() {
       },
       {
         key: "last_login_at",
-        header: "Последний вход",
+        header: t("users.colLastLogin"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.last_login_at)}
+            {formatDateTime(row.last_login_at, locale)}
           </span>
         ),
       },
       {
         key: "created_at",
-        header: "Создан",
+        header: t("users.colCreated"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.created_at)}
+            {formatDateTime(row.created_at, locale)}
           </span>
         ),
       },
     ],
-    [],
+    [t, enums, locale],
   );
 
   const errorMessage = isError
-    ? (getApiError(error)?.message ?? "Не удалось загрузить пользователей.")
+    ? (getApiError(error)?.message ?? t("users.loadError"))
     : undefined;
 
   return (
@@ -215,40 +218,42 @@ export default function AdminUsersPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-title-sm font-bold text-gray-900 dark:text-white">
-            Пользователи
+            {t("users.title")}
           </h1>
           <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-            Все аккаунты платформы. Фильтры по статусу, роли и контакту/имени.
+            {t("users.subtitle")}
           </p>
         </div>
         {isFetching && (
-          <span className="text-theme-xs text-gray-400">Обновление…</span>
+          <span className="text-theme-xs text-gray-400">
+            {t("common.updating")}
+          </span>
         )}
       </div>
 
       {/* Фильтры */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <FilterSelect
-          label="Статус"
+          label={t("users.statusLabel")}
           value={status}
-          options={STATUS_OPTIONS}
+          options={statusOptions}
           onChange={setStatus}
         />
         <FilterSelect
-          label="Роль"
+          label={t("users.roleLabel")}
           value={role}
           options={roleOptions}
           onChange={setRole}
         />
         <label className="flex flex-col gap-1.5">
           <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-            Поиск
+            {t("users.searchLabel")}
           </span>
           <input
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Телефон, email или имя"
+            placeholder={t("users.searchPlaceholder")}
             className="h-11 rounded-lg border border-gray-300 bg-transparent px-3 text-theme-sm text-gray-900 shadow-theme-xs outline-none transition placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white"
           />
         </label>
@@ -262,7 +267,7 @@ export default function AdminUsersPage() {
         isError={isError}
         errorMessage={errorMessage}
         onRetry={refetch}
-        emptyMessage="По заданным фильтрам пользователей нет."
+        emptyMessage={t("users.empty")}
       />
 
       <Pagination meta={data?.meta} page={page} onPageChange={setPage} />

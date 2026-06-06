@@ -22,22 +22,17 @@ import { PromotionsPanel } from "@/components/admin/PromotionsPanel";
 import { DetailSkeleton, ErrorState, InfoState } from "@/components/admin/states";
 import { useToast } from "@/components/admin/toast/ToastProvider";
 import type { Column } from "@/lib/table";
-import {
-  LISTING_STATUS_BADGE,
-  LISTING_STATUS_LABELS,
-  PROPERTY_TYPE_LABELS,
-  TRANSACTION_TYPE_LABELS,
-} from "@/lib/labels";
+import { LISTING_STATUS_BADGE } from "@/lib/labels";
 import { formatDateTime, formatPrice, shortId } from "@/lib/format";
 import {
   ACTION_REQUIRES_REASON,
   ACTION_TO_STATUS,
   MODERATION_ACTIONS,
   MODERATION_ACTION_INTENT,
-  MODERATION_ACTION_LABELS,
   canApplyAction,
   moderationErrorMessage,
 } from "@/lib/moderation";
+import { useT, useEnumLabels } from "@/lib/i18n";
 
 /**
  * ADMIN-09 — карточка модерации (`/admin/listings/[id]`, API.md §7/§16).
@@ -52,11 +47,12 @@ import {
 
 /** Бейдж статуса листинга. */
 function StatusBadge({ status }: { status: ListingStatus }) {
+  const enums = useEnumLabels();
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium ${LISTING_STATUS_BADGE[status]}`}
     >
-      {LISTING_STATUS_LABELS[status]}
+      {enums.listingStatus[status]}
     </span>
   );
 }
@@ -81,6 +77,8 @@ function floorText(listing: ListingDetail): string {
 }
 
 export default function AdminListingDetailPage() {
+  const { t, locale } = useT();
+  const enums = useEnumLabels();
   const params = useParams<{ id: string }>();
   const id = params.id;
 
@@ -114,7 +112,7 @@ export default function AdminListingDetailPage() {
     if (!pendingAction) return;
     const trimmed = reason.trim();
     if (ACTION_REQUIRES_REASON[pendingAction] && !trimmed) {
-      setActionError("Укажите причину отклонения.");
+      setActionError(t("listings.reasonMissing"));
       return;
     }
     try {
@@ -122,7 +120,11 @@ export default function AdminListingDetailPage() {
         id,
         body: { action: pendingAction, reason: trimmed || null },
       }).unwrap();
-      toast.success(`Статус изменён: ${LISTING_STATUS_LABELS[result.status]}.`);
+      toast.success(
+        t("listings.statusChanged", {
+          status: enums.listingStatus[result.status],
+        }),
+      );
       setPendingAction(null);
       setReason("");
       setActionError(null);
@@ -130,6 +132,7 @@ export default function AdminListingDetailPage() {
       toast.error(
         moderationErrorMessage(
           err as Parameters<typeof moderationErrorMessage>[0],
+          locale,
         ),
       );
     }
@@ -139,12 +142,12 @@ export default function AdminListingDetailPage() {
     () => [
       {
         key: "action",
-        header: "Действие",
-        render: (row) => MODERATION_ACTION_LABELS[row.action],
+        header: t("listings.colAction"),
+        render: (row) => enums.moderationAction[row.action],
       },
       {
         key: "transition",
-        header: "Переход",
+        header: t("listings.colTransition"),
         render: (row) => (
           <span className="flex items-center gap-2">
             {row.old_status ? <StatusBadge status={row.old_status} /> : "—"}
@@ -155,7 +158,7 @@ export default function AdminListingDetailPage() {
       },
       {
         key: "moderator_id",
-        header: "Модератор",
+        header: t("listings.colModerator"),
         render: (row) => (
           <span className="text-theme-xs text-gray-500 dark:text-gray-400">
             {row.moderator_id ? shortId(row.moderator_id) : "—"}
@@ -164,21 +167,21 @@ export default function AdminListingDetailPage() {
       },
       {
         key: "reason",
-        header: "Причина",
+        header: t("listings.colReason"),
         render: (row) => row.reason || "—",
       },
       {
         key: "created_at",
-        header: "Когда",
+        header: t("listings.colWhen"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.created_at)}
+            {formatDateTime(row.created_at, locale)}
           </span>
         ),
       },
     ],
-    [],
+    [t, enums, locale],
   );
 
   // ─── Состояния загрузки/ошибки карточки ─────────────────────────────────
@@ -193,14 +196,16 @@ export default function AdminListingDetailPage() {
             href="/admin/listings"
             className="text-theme-xs font-medium text-gray-500 transition hover:text-brand-500 dark:text-gray-400"
           >
-            ← К очереди модерации
+            {t("listings.backToQueue")}
           </Link>
           <h1 className="text-title-sm font-bold text-gray-900 dark:text-white">
-            {listing?.title || "Карточка объявления"}
+            {listing?.title || t("listings.cardTitle")}
           </h1>
           <span className="text-theme-xs text-gray-400">
             {shortId(id)}
-            {listing ? ` · язык: ${listing.language}` : ""}
+            {listing
+              ? t("listings.languageSuffix", { language: listing.language })
+              : ""}
           </span>
         </div>
         {listing && <StatusBadge status={listing.status} />}
@@ -208,15 +213,13 @@ export default function AdminListingDetailPage() {
 
       {listingQuery.isLoading && <DetailSkeleton />}
 
-      {notFound && (
-        <InfoState message="Объявление недоступно — удалено или скрыто из выдачи." />
-      )}
+      {notFound && <InfoState message={t("listings.notFound")} />}
 
       {listingQuery.isError && !notFound && (
         <ErrorState
           message={
             getApiError(listingQuery.error)?.message ??
-            "Не удалось загрузить объявление."
+            t("listings.detailLoadError")
           }
           onRetry={() => listingQuery.refetch()}
         />
@@ -229,33 +232,45 @@ export default function AdminListingDetailPage() {
           <div className="space-y-6 lg:col-span-2">
             <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
               <h2 className="mb-2 text-theme-sm font-semibold text-gray-800 dark:text-white/90">
-                Данные объявления
+                {t("listings.sectionData")}
               </h2>
               <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
-                <Field label="Тип недвижимости">
-                  {PROPERTY_TYPE_LABELS[listing.property_type]}
+                <Field label={t("listings.fieldPropertyType")}>
+                  {enums.propertyType[listing.property_type]}
                 </Field>
-                <Field label="Тип сделки">
-                  {TRANSACTION_TYPE_LABELS[listing.transaction_type]}
+                <Field label={t("listings.fieldTransactionType")}>
+                  {enums.transactionType[listing.transaction_type]}
                 </Field>
-                <Field label="Цена">
+                <Field label={t("listings.fieldPrice")}>
                   {formatPrice(listing.price, listing.currency)}
                 </Field>
-                <Field label="Площадь">
-                  {listing.area ? `${listing.area} м²` : "—"}
+                <Field label={t("listings.fieldArea")}>
+                  {listing.area
+                    ? t("listings.areaValue", { area: listing.area })
+                    : "—"}
                 </Field>
-                <Field label="Комнаты">{listing.rooms ?? "—"}</Field>
-                <Field label="Этаж / этажность">{floorText(listing)}</Field>
-                <Field label="Год постройки">{listing.year_built ?? "—"}</Field>
-                <Field label="Промо">{listing.promotion_type}</Field>
-                <Field label="Город (id)">
+                <Field label={t("listings.fieldRooms")}>
+                  {listing.rooms ?? "—"}
+                </Field>
+                <Field label={t("listings.fieldFloor")}>
+                  {floorText(listing)}
+                </Field>
+                <Field label={t("listings.fieldYearBuilt")}>
+                  {listing.year_built ?? "—"}
+                </Field>
+                <Field label={t("listings.fieldPromotion")}>
+                  {listing.promotion_type}
+                </Field>
+                <Field label={t("listings.fieldCity")}>
                   {listing.city_id ? shortId(listing.city_id) : "—"}
                 </Field>
-                <Field label="Район (id)">
+                <Field label={t("listings.fieldDistrict")}>
                   {listing.district_id ? shortId(listing.district_id) : "—"}
                 </Field>
-                <Field label="Адрес">{listing.address || "—"}</Field>
-                <Field label="Координаты">
+                <Field label={t("listings.fieldAddress")}>
+                  {listing.address || "—"}
+                </Field>
+                <Field label={t("listings.fieldCoordinates")}>
                   {listing.latitude && listing.longitude
                     ? `${listing.latitude}, ${listing.longitude}`
                     : "—"}
@@ -263,25 +278,29 @@ export default function AdminListingDetailPage() {
               </div>
 
               <div className="mt-2">
-                <Field label="Описание">{listing.description || "—"}</Field>
+                <Field label={t("listings.fieldDescription")}>
+                  {listing.description || "—"}
+                </Field>
                 {listing.address_note && (
-                  <Field label="Примечание к адресу">
+                  <Field label={t("listings.fieldAddressNote")}>
                     {listing.address_note}
                   </Field>
                 )}
                 {listing.features_text && (
-                  <Field label="Дополнительно">{listing.features_text}</Field>
+                  <Field label={t("listings.fieldFeatures")}>
+                    {listing.features_text}
+                  </Field>
                 )}
               </div>
             </section>
 
             <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
               <h2 className="mb-3 text-theme-sm font-semibold text-gray-800 dark:text-white/90">
-                Фотографии ({listing.media.length})
+                {t("listings.sectionPhotos", { count: listing.media.length })}
               </h2>
               {listing.media.length === 0 ? (
                 <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-                  Фотографий нет.
+                  {t("listings.noPhotos")}
                 </p>
               ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -307,7 +326,7 @@ export default function AdminListingDetailPage() {
 
             <section className="space-y-3">
               <h2 className="text-theme-sm font-semibold text-gray-800 dark:text-white/90">
-                История модерации
+                {t("listings.sectionHistory")}
               </h2>
               <DataTable
                 columns={logColumns}
@@ -315,9 +334,9 @@ export default function AdminListingDetailPage() {
                 getRowKey={(row) => row.id}
                 isLoading={logsQuery.isLoading}
                 isError={logsQuery.isError}
-                errorMessage="Не удалось загрузить историю модерации."
+                errorMessage={t("listings.historyLoadError")}
                 onRetry={logsQuery.refetch}
-                emptyMessage="Действий модерации ещё не было."
+                emptyMessage={t("listings.historyEmpty")}
                 skeletonRows={4}
               />
             </section>
@@ -327,10 +346,11 @@ export default function AdminListingDetailPage() {
           <aside className="lg:col-span-1">
             <div className="sticky top-6 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
               <h2 className="text-theme-sm font-semibold text-gray-800 dark:text-white/90">
-                Действия модерации
+                {t("listings.sectionActions")}
               </h2>
               <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                Текущий статус: <StatusBadge status={listing.status} />
+                {t("listings.currentStatus")}
+                <StatusBadge status={listing.status} />
               </p>
               <div className="flex flex-col gap-2.5">
                 {MODERATION_ACTIONS.map((action) => {
@@ -343,12 +363,10 @@ export default function AdminListingDetailPage() {
                       onClick={() => openDialog(action)}
                       className={`rounded-lg px-4 py-2.5 text-theme-sm font-medium transition disabled:cursor-not-allowed ${MODERATION_ACTION_INTENT[action]}`}
                       title={
-                        enabled
-                          ? undefined
-                          : "Действие недоступно для текущего статуса"
+                        enabled ? undefined : t("listings.actionUnavailable")
                       }
                     >
-                      {MODERATION_ACTION_LABELS[action]}
+                      {enums.moderationAction[action]}
                     </button>
                   );
                 })}
@@ -356,29 +374,33 @@ export default function AdminListingDetailPage() {
 
               <dl className="mt-2 space-y-2 border-t border-gray-100 pt-3 text-theme-xs dark:border-gray-800">
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-400">Автор</dt>
+                  <dt className="text-gray-400">{t("listings.fieldAuthor")}</dt>
                   <dd className="text-gray-600 dark:text-gray-300">
                     {shortId(listing.owner_id)}
                   </dd>
                 </div>
                 {listing.agency_id && (
                   <div className="flex justify-between gap-2">
-                    <dt className="text-gray-400">Агентство</dt>
+                    <dt className="text-gray-400">
+                      {t("listings.fieldAgency")}
+                    </dt>
                     <dd className="text-gray-600 dark:text-gray-300">
                       {shortId(listing.agency_id)}
                     </dd>
                   </div>
                 )}
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-400">Создано</dt>
+                  <dt className="text-gray-400">{t("listings.fieldCreated")}</dt>
                   <dd className="text-gray-600 dark:text-gray-300">
-                    {formatDateTime(listing.created_at)}
+                    {formatDateTime(listing.created_at, locale)}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-400">Опубликовано</dt>
+                  <dt className="text-gray-400">
+                    {t("listings.fieldPublished")}
+                  </dt>
                   <dd className="text-gray-600 dark:text-gray-300">
-                    {formatDateTime(listing.published_at)}
+                    {formatDateTime(listing.published_at, locale)}
                   </dd>
                 </div>
               </dl>
@@ -400,26 +422,28 @@ export default function AdminListingDetailPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-theme-lg font-semibold text-gray-900 dark:text-white">
-              {MODERATION_ACTION_LABELS[pendingAction]} объявление?
+              {t("listings.confirmTitle", {
+                action: enums.moderationAction[pendingAction],
+              })}
             </h3>
             <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-              Новый статус:{" "}
+              {t("listings.newStatus")}
               <StatusBadge status={ACTION_TO_STATUS[pendingAction]} />
             </p>
 
             <label className="mt-4 flex flex-col gap-1.5">
               <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                Причина
+                {t("listings.reasonLabel")}
                 {ACTION_REQUIRES_REASON[pendingAction]
-                  ? " (обязательно)"
-                  : " (необязательно)"}
+                  ? t("listings.reasonRequired")
+                  : t("listings.reasonOptional")}
               </span>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={3}
                 maxLength={1000}
-                placeholder="Например: недостаточно фото"
+                placeholder={t("listings.reasonPlaceholder")}
                 className="rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-theme-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white"
               />
             </label>
@@ -437,7 +461,7 @@ export default function AdminListingDetailPage() {
                 disabled={moderation.isLoading}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-theme-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
               >
-                Отмена
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -446,8 +470,8 @@ export default function AdminListingDetailPage() {
                 className={`rounded-lg px-4 py-2 text-theme-sm font-medium transition disabled:cursor-not-allowed ${MODERATION_ACTION_INTENT[pendingAction]}`}
               >
                 {moderation.isLoading
-                  ? "Применяем…"
-                  : MODERATION_ACTION_LABELS[pendingAction]}
+                  ? t("common.applying")
+                  : enums.moderationAction[pendingAction]}
               </button>
             </div>
           </div>

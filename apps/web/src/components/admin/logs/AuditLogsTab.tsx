@@ -10,6 +10,7 @@ import { DataTable } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
 import type { Column } from "@/lib/table";
 import { formatDateTime, shortId } from "@/lib/format";
+import { useT } from "@/lib/i18n";
 import {
   FilterGrid,
   TextFilter,
@@ -27,6 +28,7 @@ import {
 const SEARCH_DEBOUNCE_MS = 300;
 
 export function AuditLogsTab() {
+  const { t, locale } = useT();
   const [actionInput, setActionInput] = useState("");
   const [entityTypeInput, setEntityTypeInput] = useState("");
   const [actorIdInput, setActorIdInput] = useState("");
@@ -59,7 +61,7 @@ export function AuditLogsTab() {
     () => [
       {
         key: "action",
-        header: "Действие",
+        header: t("logs.cols.action"),
         render: (row) => (
           <span className="inline-flex rounded-md bg-gray-100 px-2 py-0.5 font-mono text-theme-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300">
             {row.action}
@@ -68,7 +70,7 @@ export function AuditLogsTab() {
       },
       {
         key: "entity",
-        header: "Сущность",
+        header: t("logs.cols.entity"),
         render: (row) => (
           <div className="flex flex-col">
             <span className="text-gray-700 dark:text-gray-300">
@@ -87,19 +89,19 @@ export function AuditLogsTab() {
       },
       {
         key: "actor_id",
-        header: "Актор",
+        header: t("logs.cols.actor"),
         render: (row) => (
           <span
             className="text-theme-xs text-gray-500 dark:text-gray-400"
             title={row.actor_id ?? undefined}
           >
-            {row.actor_id ? shortId(row.actor_id) : "Система"}
+            {row.actor_id ? shortId(row.actor_id) : t("logs.system")}
           </span>
         ),
       },
       {
         key: "ip",
-        header: "IP",
+        header: t("logs.cols.ip"),
         render: (row) => (
           <span className="font-mono text-theme-xs text-gray-500 dark:text-gray-400">
             {row.ip ?? "—"}
@@ -108,51 +110,53 @@ export function AuditLogsTab() {
       },
       {
         key: "created_at",
-        header: "Когда",
+        header: t("logs.cols.when"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.created_at)}
+            {formatDateTime(row.created_at, locale)}
           </span>
         ),
       },
     ],
-    [],
+    [t, locale],
   );
 
   const errorMessage = isError
-    ? (getApiError(error)?.message ?? "Не удалось загрузить журнал аудита.")
+    ? (getApiError(error)?.message ?? t("logs.errors.audit"))
     : undefined;
 
   return (
     <div className="space-y-5">
       {isFetching && (
-        <span className="text-theme-xs text-gray-400">Обновление…</span>
+        <span className="text-theme-xs text-gray-400">
+          {t("common.updating")}
+        </span>
       )}
 
       <FilterGrid>
         <TextFilter
-          label="Действие"
+          label={t("logs.filters.action")}
           value={actionInput}
-          placeholder="ROLE_CHANGE, LISTING_STATUS_CHANGE…"
+          placeholder={t("logs.filters.actionPlaceholder")}
           onChange={setActionInput}
         />
         <TextFilter
-          label="Тип сущности"
+          label={t("logs.filters.entityType")}
           value={entityTypeInput}
-          placeholder="user, listing…"
+          placeholder={t("logs.filters.entityTypePlaceholder")}
           onChange={setEntityTypeInput}
         />
         <TextFilter
-          label="ID актора"
+          label={t("logs.filters.actorId")}
           value={actorIdInput}
-          placeholder="UUID"
+          placeholder={t("logs.filters.uuidPlaceholder")}
           onChange={setActorIdInput}
         />
         <TextFilter
-          label="ID сущности"
+          label={t("logs.filters.entityId")}
           value={entityIdInput}
-          placeholder="UUID"
+          placeholder={t("logs.filters.uuidPlaceholder")}
           onChange={setEntityIdInput}
         />
       </FilterGrid>
@@ -165,7 +169,7 @@ export function AuditLogsTab() {
         isError={isError}
         errorMessage={errorMessage}
         onRetry={refetch}
-        emptyMessage="По заданным фильтрам записей нет."
+        emptyMessage={t("logs.empty")}
       />
 
       <Pagination meta={data?.meta} page={page} onPageChange={setPage} />

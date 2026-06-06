@@ -2,6 +2,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { SidebarProvider } from "@/context/SidebarContext";
 import { ToastProvider } from "@/components/admin/toast/ToastProvider";
 import { ConditionalShell } from "@/layout/ConditionalShell";
+import { LanguageProvider } from "@/lib/i18n";
 
 // Route group `(admin)` keeps the admin shell separate from the public site.
 // Providers wrap the content so AppSidebar/AppHeader can consume the contexts;
@@ -14,12 +15,14 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ThemeProvider>
-      <SidebarProvider>
-        <ToastProvider>
-          <ConditionalShell>{children}</ConditionalShell>
-        </ToastProvider>
-      </SidebarProvider>
-    </ThemeProvider>
+    <LanguageProvider>
+      <ThemeProvider>
+        <SidebarProvider>
+          <ToastProvider>
+            <ConditionalShell>{children}</ConditionalShell>
+          </ToastProvider>
+        </SidebarProvider>
+      </ThemeProvider>
+    </LanguageProvider>
   );
 }

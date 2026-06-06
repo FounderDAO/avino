@@ -15,12 +15,8 @@ import { DataTable } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
 import type { Column } from "@/lib/table";
 import { formatDateTime, shortId } from "@/lib/format";
-import {
-  NOTIFICATION_CHANNEL_LABELS,
-  NOTIFICATION_STATUS_BADGE,
-  NOTIFICATION_STATUS_LABELS,
-  NOTIFICATION_TYPE_LABELS,
-} from "@/lib/logs";
+import { NOTIFICATION_STATUS_BADGE } from "@/lib/logs";
+import { useT, useEnumLabels } from "@/lib/i18n";
 import {
   FilterGrid,
   FilterSelect,
@@ -38,11 +34,25 @@ import {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-const TYPE_OPTIONS = filterOptions(NOTIFICATION_TYPE_LABELS, "Все типы");
-const CHANNEL_OPTIONS = filterOptions(NOTIFICATION_CHANNEL_LABELS, "Все каналы");
-const STATUS_OPTIONS = filterOptions(NOTIFICATION_STATUS_LABELS, "Все статусы");
-
 export function NotificationLogsTab() {
+  const { t, locale } = useT();
+  const enums = useEnumLabels();
+
+  const typeOptions = useMemo(
+    () => filterOptions(enums.notificationType, t("logs.filters.allTypes")),
+    [enums, t],
+  );
+  const channelOptions = useMemo(
+    () =>
+      filterOptions(enums.notificationChannel, t("logs.filters.allChannels")),
+    [enums, t],
+  );
+  const statusOptions = useMemo(
+    () =>
+      filterOptions(enums.notificationStatus, t("logs.filters.allStatuses")),
+    [enums, t],
+  );
+
   const [userIdInput, setUserIdInput] = useState("");
   const [type, setType] = useState<NotificationType | "">("");
   const [channel, setChannel] = useState<NotificationChannel | "">("");
@@ -69,11 +79,11 @@ export function NotificationLogsTab() {
     () => [
       {
         key: "type",
-        header: "Тип",
+        header: t("logs.cols.type"),
         render: (row) => (
           <div className="flex flex-col">
             <span className="text-gray-700 dark:text-gray-300">
-              {NOTIFICATION_TYPE_LABELS[row.type]}
+              {enums.notificationType[row.type]}
             </span>
             {row.title && (
               <span className="line-clamp-1 max-w-xs text-theme-xs text-gray-400">
@@ -85,7 +95,7 @@ export function NotificationLogsTab() {
       },
       {
         key: "user_id",
-        header: "Пользователь",
+        header: t("logs.cols.user"),
         render: (row) => (
           <span
             className="text-theme-xs text-gray-500 dark:text-gray-400"
@@ -97,83 +107,85 @@ export function NotificationLogsTab() {
       },
       {
         key: "channel",
-        header: "Канал",
+        header: t("logs.cols.channel"),
         align: "center",
         render: (row) => (
           <span className="text-theme-xs text-gray-600 dark:text-gray-400">
-            {NOTIFICATION_CHANNEL_LABELS[row.channel]}
+            {enums.notificationChannel[row.channel]}
           </span>
         ),
       },
       {
         key: "status",
-        header: "Статус",
+        header: t("logs.cols.status"),
         align: "center",
         render: (row) => (
           <span
             className={`inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium ${NOTIFICATION_STATUS_BADGE[row.status]}`}
           >
-            {NOTIFICATION_STATUS_LABELS[row.status]}
+            {enums.notificationStatus[row.status]}
           </span>
         ),
       },
       {
         key: "sent_at",
-        header: "Отправлено",
+        header: t("logs.cols.sentAt"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.sent_at)}
+            {formatDateTime(row.sent_at, locale)}
           </span>
         ),
       },
       {
         key: "created_at",
-        header: "Создано",
+        header: t("logs.cols.createdAt"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.created_at)}
+            {formatDateTime(row.created_at, locale)}
           </span>
         ),
       },
     ],
-    [],
+    [t, locale, enums],
   );
 
   const errorMessage = isError
-    ? (getApiError(error)?.message ?? "Не удалось загрузить журнал уведомлений.")
+    ? (getApiError(error)?.message ?? t("logs.errors.notification"))
     : undefined;
 
   return (
     <div className="space-y-5">
       {isFetching && (
-        <span className="text-theme-xs text-gray-400">Обновление…</span>
+        <span className="text-theme-xs text-gray-400">
+          {t("common.updating")}
+        </span>
       )}
 
       <FilterGrid>
         <TextFilter
-          label="ID пользователя"
+          label={t("logs.filters.userId")}
           value={userIdInput}
-          placeholder="UUID"
+          placeholder={t("logs.filters.uuidPlaceholder")}
           onChange={setUserIdInput}
         />
         <FilterSelect
-          label="Тип"
+          label={t("logs.filters.type")}
           value={type}
-          options={TYPE_OPTIONS}
+          options={typeOptions}
           onChange={setType}
         />
         <FilterSelect
-          label="Канал"
+          label={t("logs.filters.channel")}
           value={channel}
-          options={CHANNEL_OPTIONS}
+          options={channelOptions}
           onChange={setChannel}
         />
         <FilterSelect
-          label="Статус"
+          label={t("logs.filters.status")}
           value={status}
-          options={STATUS_OPTIONS}
+          options={statusOptions}
           onChange={setStatus}
         />
       </FilterGrid>
@@ -186,7 +198,7 @@ export function NotificationLogsTab() {
         isError={isError}
         errorMessage={errorMessage}
         onRetry={refetch}
-        emptyMessage="По заданным фильтрам записей нет."
+        emptyMessage={t("logs.empty")}
       />
 
       <Pagination meta={data?.meta} page={page} onPageChange={setPage} />

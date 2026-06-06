@@ -11,6 +11,7 @@ import {
 import { useGetMeQuery } from "@/store/api/authApi";
 import { useLogout } from "@/hooks/useLogout";
 import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
+import { useT } from "@/lib/i18n";
 
 /**
  * RoleGuard (ADMIN-06) — гард доступа к разделам админки.
@@ -34,6 +35,7 @@ const LOGIN_ROUTE = "/admin/login";
 
 export function RoleGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { t } = useT();
   const initialized = useSelector(selectAuthInitialized);
   const isAuthenticated = useSelector(selectIsAuthenticated);
 
@@ -55,15 +57,15 @@ export function RoleGuard({ children }: { children: React.ReactNode }) {
   }, [ready, isAuthenticated, router]);
 
   if (!ready) {
-    return <StatusScreen>Загрузка…</StatusScreen>;
+    return <StatusScreen>{t("common.loading")}</StatusScreen>;
   }
 
   if (!isAuthenticated) {
-    return <StatusScreen>Перенаправление на вход…</StatusScreen>;
+    return <StatusScreen>{t("guard.redirecting")}</StatusScreen>;
   }
 
   if (isLoading) {
-    return <StatusScreen>Проверяем доступ…</StatusScreen>;
+    return <StatusScreen>{t("guard.checkingAccess")}</StatusScreen>;
   }
 
   if (me) {
@@ -78,7 +80,7 @@ export function RoleGuard({ children }: { children: React.ReactNode }) {
     return <ErrorScreen onRetry={() => refetch()} />;
   }
 
-  return <StatusScreen>Проверяем доступ…</StatusScreen>;
+  return <StatusScreen>{t("guard.checkingAccess")}</StatusScreen>;
 }
 
 // ─── Экраны состояний ────────────────────────────────────────────────────────
@@ -127,6 +129,7 @@ function ScreenShell({ children }: { children: React.ReactNode }) {
 /** 403 — пользователь авторизован, но без роли ADMIN. */
 function ForbiddenScreen({ email }: { email: string | null }) {
   const logout = useLogout();
+  const { t } = useT();
   return (
     <ScreenShell>
       <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-error/10 text-error">
@@ -141,25 +144,26 @@ function ForbiddenScreen({ email }: { email: string | null }) {
         </svg>
       </span>
       <h1 className="mt-5 text-title-sm font-bold text-gray-900 dark:text-white">
-        Нет доступа
+        {t("guard.forbiddenTitle")}
       </h1>
       <p className="mt-2 text-theme-sm text-gray-500 dark:text-gray-400">
         {email ? (
           <>
-            Аккаунт <span className="font-medium">{email}</span> не имеет прав
-            администратора.
+            {t("guard.forbiddenNamedPre")}{" "}
+            <span className="font-medium">{email}</span>{" "}
+            {t("guard.forbiddenNamedPost")}
           </>
         ) : (
-          "У этого аккаунта нет прав администратора."
+          t("guard.forbiddenAnon")
         )}{" "}
-        Войдите под учётной записью с ролью ADMIN.
+        {t("guard.forbiddenHint")}
       </p>
       <button
         type="button"
         onClick={logout}
         className="mt-6 flex h-11 w-full cursor-pointer items-center justify-center rounded-lg bg-brand-500 text-theme-sm font-medium text-white shadow-theme-xs transition hover:bg-brand-600"
       >
-        Войти другим аккаунтом
+        {t("guard.signInAnother")}
       </button>
     </ScreenShell>
   );
@@ -168,27 +172,28 @@ function ForbiddenScreen({ email }: { email: string | null }) {
 /** Ошибка загрузки профиля (не 401): сеть / 5xx — даём повторить или выйти. */
 function ErrorScreen({ onRetry }: { onRetry: () => void }) {
   const logout = useLogout();
+  const { t } = useT();
   return (
     <ScreenShell>
       <h1 className="text-title-sm font-bold text-gray-900 dark:text-white">
-        Не удалось проверить доступ
+        {t("guard.errorTitle")}
       </h1>
       <p className="mt-2 text-theme-sm text-gray-500 dark:text-gray-400">
-        Сервис временно недоступен. Проверьте соединение и попробуйте снова.
+        {t("guard.errorBody")}
       </p>
       <button
         type="button"
         onClick={onRetry}
         className="mt-6 flex h-11 w-full cursor-pointer items-center justify-center rounded-lg bg-brand-500 text-theme-sm font-medium text-white shadow-theme-xs transition hover:bg-brand-600"
       >
-        Повторить
+        {t("common.retry")}
       </button>
       <button
         type="button"
         onClick={logout}
         className="mt-3 flex h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-gray-300 text-theme-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
       >
-        Выйти
+        {t("common.signOut")}
       </button>
     </ScreenShell>
   );

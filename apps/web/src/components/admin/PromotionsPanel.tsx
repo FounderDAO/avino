@@ -19,13 +19,12 @@ import { DataTable } from "@/components/admin/DataTable";
 import { useToast } from "@/components/admin/toast/ToastProvider";
 import type { Column } from "@/lib/table";
 import { formatDateTime } from "@/lib/format";
+import { useT, useEnumLabels } from "@/lib/i18n";
 import {
   ACTIVATABLE_TYPES,
   PROMOTION_PERIODS,
   PROMOTION_STATUS_BADGE,
-  PROMOTION_STATUS_LABELS,
   PROMOTION_TYPE_BADGE,
-  PROMOTION_TYPE_LABELS,
   findActivePromotion,
   newIdempotencyKey,
   periodLabel,
@@ -43,27 +42,29 @@ import {
  * Ошибки мапятся по стабильному `error.code` (`409 ACTIVE_PROMOTION_EXISTS`,
  * `422 INVALID_PERIOD`, `422 PROMOTION_NOT_ACTIVE`). После мутации кэш `Admin`
  * инвалидируется — история и read-cache карточки перечитываются. Данные —
- * только через RTK Query (CLAUDE.md §4). RU-only (i18n — ADMIN-17).
+ * только через RTK Query (CLAUDE.md §4). i18n — ADMIN-17.
  */
 
 /** Бейдж тира промо. */
 function TypeBadge({ type }: { type: PromotionType }) {
+  const enums = useEnumLabels();
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium ${PROMOTION_TYPE_BADGE[type]}`}
     >
-      {PROMOTION_TYPE_LABELS[type]}
+      {enums.promotionType[type]}
     </span>
   );
 }
 
 /** Бейдж статуса промо. */
 function StatusBadge({ status }: { status: PromotionStatus }) {
+  const enums = useEnumLabels();
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-0.5 text-theme-xs font-medium ${PROMOTION_STATUS_BADGE[status]}`}
     >
-      {PROMOTION_STATUS_LABELS[status]}
+      {enums.promotionStatus[status]}
     </span>
   );
 }
@@ -76,6 +77,8 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
   const [cancel, cancellation] = useCancelPromotionMutation();
   const [extend, extension] = useExtendPromotionMutation();
   const toast = useToast();
+  const { t, locale } = useT();
+  const enums = useEnumLabels();
 
   // Форма активации.
   const [activateType, setActivateType] =
@@ -102,14 +105,16 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
         idempotencyKey: newIdempotencyKey(),
       }).unwrap();
       toast.success(
-        `Промо активирована: ${PROMOTION_TYPE_LABELS[result.type]}, ${periodLabel(
-          result.period_days,
-        )}.`,
+        t("promotions.activated", {
+          type: enums.promotionType[result.type],
+          period: periodLabel(result.period_days, locale),
+        }),
       );
     } catch (err) {
       toast.error(
         promotionErrorMessage(
           err as Parameters<typeof promotionErrorMessage>[0],
+          locale,
         ),
       );
     }
@@ -123,13 +128,14 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
         id: active.id,
         body: { reason: trimmed || null },
       }).unwrap();
-      toast.success("Промо отменена.");
+      toast.success(t("promotions.cancelled"));
       setCancelOpen(false);
       setCancelReason("");
     } catch (err) {
       toast.error(
         promotionErrorMessage(
           err as Parameters<typeof promotionErrorMessage>[0],
+          locale,
         ),
       );
     }
@@ -142,12 +148,17 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
         id: active.id,
         body: { period_days: extendPeriod },
       }).unwrap();
-      toast.success(`Промо продлена до ${formatDateTime(result.expires_at)}.`);
+      toast.success(
+        t("promotions.extended", {
+          date: formatDateTime(result.expires_at, locale),
+        }),
+      );
       setExtendOpen(false);
     } catch (err) {
       toast.error(
         promotionErrorMessage(
           err as Parameters<typeof promotionErrorMessage>[0],
+          locale,
         ),
       );
     }
@@ -157,53 +168,53 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
     () => [
       {
         key: "type",
-        header: "Тир",
+        header: t("promotions.tier"),
         render: (row) => <TypeBadge type={row.type} />,
       },
       {
         key: "status",
-        header: "Статус",
+        header: t("promotions.colStatus"),
         render: (row) => <StatusBadge status={row.status} />,
       },
       {
         key: "period_days",
-        header: "Период",
-        render: (row) => periodLabel(row.period_days),
+        header: t("promotions.period"),
+        render: (row) => periodLabel(row.period_days, locale),
       },
       {
         key: "starts_at",
-        header: "Начало",
+        header: t("promotions.startsAt"),
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.starts_at)}
+            {formatDateTime(row.starts_at, locale)}
           </span>
         ),
       },
       {
         key: "expires_at",
-        header: "Окончание",
+        header: t("promotions.expiresAt"),
         align: "right",
         render: (row) => (
           <span className="whitespace-nowrap text-theme-xs text-gray-500 dark:text-gray-400">
-            {formatDateTime(row.expires_at)}
+            {formatDateTime(row.expires_at, locale)}
           </span>
         ),
       },
     ],
-    [],
+    [t, locale],
   );
 
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
       <h2 className="mb-3 text-theme-sm font-semibold text-gray-800 dark:text-white/90">
-        Промо VIP/TOP
+        {t("promotions.title")}
       </h2>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Активная промо */}
         <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-800">
           <h3 className="mb-2 text-theme-xs font-semibold uppercase tracking-wide text-gray-400">
-            Текущая промо
+            {t("promotions.current")}
           </h3>
           {active ? (
             <div className="space-y-3">
@@ -213,21 +224,21 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
               </div>
               <dl className="space-y-1.5 text-theme-xs">
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-400">Период</dt>
+                  <dt className="text-gray-400">{t("promotions.period")}</dt>
                   <dd className="text-gray-600 dark:text-gray-300">
-                    {periodLabel(active.period_days)}
+                    {periodLabel(active.period_days, locale)}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-400">Начало</dt>
+                  <dt className="text-gray-400">{t("promotions.startsAt")}</dt>
                   <dd className="text-gray-600 dark:text-gray-300">
-                    {formatDateTime(active.starts_at)}
+                    {formatDateTime(active.starts_at, locale)}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-400">Окончание</dt>
+                  <dt className="text-gray-400">{t("promotions.expiresAt")}</dt>
                   <dd className="text-gray-600 dark:text-gray-300">
-                    {formatDateTime(active.expires_at)}
+                    {formatDateTime(active.expires_at, locale)}
                   </dd>
                 </div>
               </dl>
@@ -241,7 +252,7 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
                   }}
                   className="rounded-lg bg-brand-500 px-4 py-2 text-theme-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-brand-500/40"
                 >
-                  Продлить
+                  {t("promotions.extend")}
                 </button>
                 <button
                   type="button"
@@ -252,13 +263,13 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
                   }}
                   className="rounded-lg bg-error-500 px-4 py-2 text-theme-sm font-medium text-white transition hover:bg-error-600 disabled:cursor-not-allowed disabled:bg-error-500/40"
                 >
-                  Отменить
+                  {t("promotions.cancel")}
                 </button>
               </div>
             </div>
           ) : (
             <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-              Активной промо нет.
+              {t("promotions.none")}
             </p>
           )}
         </div>
@@ -266,12 +277,14 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
         {/* Активация */}
         <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-800">
           <h3 className="mb-2 text-theme-xs font-semibold uppercase tracking-wide text-gray-400">
-            {active ? "Заменить промо" : "Активировать промо"}
+            {active
+              ? t("promotions.replaceHeading")
+              : t("promotions.activateHeading")}
           </h3>
           <div className="space-y-3">
             <label className="flex flex-col gap-1.5">
               <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                Тир
+                {t("promotions.tier")}
               </span>
               <select
                 value={activateType}
@@ -283,14 +296,14 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
               >
                 {ACTIVATABLE_TYPES.map((type) => (
                   <option key={type} value={type}>
-                    {PROMOTION_TYPE_LABELS[type]}
+                    {enums.promotionType[type]}
                   </option>
                 ))}
               </select>
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                Период
+                {t("promotions.period")}
               </span>
               <select
                 value={activatePeriod}
@@ -304,19 +317,19 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
               >
                 {PROMOTION_PERIODS.map((days) => (
                   <option key={days} value={days}>
-                    {periodLabel(days)}
+                    {periodLabel(days, locale)}
                   </option>
                 ))}
               </select>
             </label>
             {priceLabel && (
               <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                Стоимость тарифа: {priceLabel}
+                {t("promotions.cost", { price: priceLabel })}
               </p>
             )}
             {active && (
               <p className="text-theme-xs text-warning-600 dark:text-warning-500">
-                Активация заменит текущую активную промо.
+                {t("promotions.replaceWarning")}
               </p>
             )}
             <button
@@ -325,7 +338,9 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
               onClick={handleActivate}
               className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-theme-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-brand-500/40"
             >
-              {activation.isLoading ? "Активируем…" : "Активировать"}
+              {activation.isLoading
+                ? t("promotions.activating")
+                : t("promotions.activate")}
             </button>
           </div>
         </div>
@@ -334,7 +349,7 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
       {/* История */}
       <div className="mt-6 space-y-3">
         <h3 className="text-theme-xs font-semibold uppercase tracking-wide text-gray-400">
-          История промо
+          {t("promotions.historyTitle")}
         </h3>
         <DataTable
           columns={historyColumns}
@@ -342,9 +357,9 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
           getRowKey={(row) => row.id}
           isLoading={historyQuery.isLoading}
           isError={historyQuery.isError}
-          errorMessage="Не удалось загрузить историю промо."
+          errorMessage={t("promotions.historyError")}
           onRetry={historyQuery.refetch}
-          emptyMessage="Промо ещё не активировалась."
+          emptyMessage={t("promotions.historyEmpty")}
           skeletonRows={3}
         />
       </div>
@@ -360,22 +375,23 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-theme-lg font-semibold text-gray-900 dark:text-white">
-              Отменить промо?
+              {t("promotions.cancelTitle")}
             </h3>
             <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-              <TypeBadge type={active.type} /> будет переведена в статус
-              «Отменена».
+              {t("promotions.cancelDescription", {
+                type: enums.promotionType[active.type],
+              })}
             </p>
             <label className="mt-4 flex flex-col gap-1.5">
               <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                Причина (необязательно)
+                {t("promotions.cancelReasonLabel")}
               </span>
               <textarea
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 rows={3}
                 maxLength={500}
-                placeholder="Например: по запросу владельца"
+                placeholder={t("promotions.cancelReasonPlaceholder")}
                 className="rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-theme-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white"
               />
             </label>
@@ -386,7 +402,7 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
                 disabled={cancellation.isLoading}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-theme-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
               >
-                Отмена
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -394,7 +410,9 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
                 disabled={cancellation.isLoading}
                 className="rounded-lg bg-error-500 px-4 py-2 text-theme-sm font-medium text-white transition hover:bg-error-600 disabled:cursor-not-allowed disabled:bg-error-500/40"
               >
-                {cancellation.isLoading ? "Отменяем…" : "Отменить промо"}
+                {cancellation.isLoading
+                  ? t("promotions.cancelling")
+                  : t("promotions.cancelConfirm")}
               </button>
             </div>
           </div>
@@ -412,14 +430,16 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-theme-lg font-semibold text-gray-900 dark:text-white">
-              Продлить промо
+              {t("promotions.extendTitle")}
             </h3>
             <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-              Текущее окончание: {formatDateTime(active.expires_at)}.
+              {t("promotions.extendCurrentExpiry", {
+                date: formatDateTime(active.expires_at, locale),
+              })}
             </p>
             <label className="mt-4 flex flex-col gap-1.5">
               <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-                На сколько продлить
+                {t("promotions.extendPeriodLabel")}
               </span>
               <select
                 value={extendPeriod}
@@ -430,7 +450,7 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
               >
                 {PROMOTION_PERIODS.map((days) => (
                   <option key={days} value={days}>
-                    {periodLabel(days)}
+                    {periodLabel(days, locale)}
                   </option>
                 ))}
               </select>
@@ -442,7 +462,7 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
                 disabled={extension.isLoading}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-theme-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
               >
-                Отмена
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -450,7 +470,9 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
                 disabled={extension.isLoading}
                 className="rounded-lg bg-brand-500 px-4 py-2 text-theme-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-brand-500/40"
               >
-                {extension.isLoading ? "Продлеваем…" : "Продлить"}
+                {extension.isLoading
+                  ? t("promotions.extending")
+                  : t("promotions.extend")}
               </button>
             </div>
           </div>

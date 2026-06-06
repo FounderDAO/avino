@@ -504,7 +504,7 @@ Suggested commit: `feat(web): add admin loading/error/empty states`
 
 ### ADMIN-17 — i18n админки (uz/ru/en)
 
-Status: `TODO`
+Status: `REVIEW`
 Branch: `feat/admin-web-i18n`
 Depends: `ADMIN-08..15`
 
@@ -537,4 +537,4 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-14 | DONE | #90 |
 | ADMIN-15 | DONE | #93 |
 | ADMIN-16 | DONE | #94 |
-| ADMIN-17 | TODO | — |
+| ADMIN-17 | REVIEW | pending |
