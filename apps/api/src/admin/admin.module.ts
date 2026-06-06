@@ -9,6 +9,8 @@ import { AdminListingsController } from './admin-listings.controller';
 import { AdminLogsController } from './admin-logs.controller';
 import { AdminLogsService } from './admin-logs.service';
 import { AdminPromotionsController } from './admin-promotions.controller';
+import { AdminStatsController } from './admin-stats.controller';
+import { AdminStatsService } from './admin-stats.service';
 import { AdminUsersController } from './admin-users.controller';
 import { AdminUsersService } from './admin-users.service';
 
@@ -42,7 +44,8 @@ import { AdminUsersService } from './admin-users.service';
     AdminUsersController,
     AdminLogsController,
     AdminComplaintsController,
+    AdminStatsController,
   ],
-  providers: [AdminUsersService, AdminLogsService],
+  providers: [AdminUsersService, AdminLogsService, AdminStatsService],
 })
 export class AdminModule {}
