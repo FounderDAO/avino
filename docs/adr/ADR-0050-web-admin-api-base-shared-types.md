@@ -167,6 +167,36 @@ ADMIN-12. RU-подписи/badge статусов и подписи ролей/
 `q=e2e`→1, `status=BLOCKED`→0); невалидный `status` → `400`, без токена → `401`,
 битый uuid → `400`.
 
+## Обновление (ADMIN-12, 2026-06-06)
+
+В `adminUsersApi` добавлены три **мутации** поверх той же базы (закрывают write-часть
+TASK-130, API.md §6): `updateAdminUserStatus` (`PATCH /admin/users/:id`),
+`assignAdminUserRole` (`POST /admin/users/:id/roles`), `removeAdminUserRole`
+(`DELETE /admin/users/:id/roles/:role`). Все инвалидируют тег `Admin` — карточка
+(и список) перечитываются после действия, как и было заложено в ADMIN-11. Карточка
+`/admin/users/[id]` получила панель управления: смена статуса через диалог с
+причиной (обязательной для `BLOCKED`/`DELETED`) и назначение/снятие ролей (select
+из `/roles` минус уже выданные + `✕` на чипах).
+
+DTO-контракт сверен с живым бэкендом (`apps/api/src/admin/admin-users.{controller,service}.ts`):
+- `PATCH` и `POST` возвращают **полный** `AdminUserDetail` (не пустой `200` / не
+  «список ролей»), поэтому типы мутаций — `AdminUserDetail`; `DELETE` → `204`
+  (тип `void`);
+- новые request-DTO `UpdateAdminUserStatusRequest { status, reason? }` и
+  `AssignRoleRequest { role }` добавлены в `adminTypes.ts`.
+
+Хелпер `userActionErrorMessage` (`lib/users.ts`) мапит стабильные коды ошибок в
+RU-текст (`ROLE_ALREADY_GRANTED`, `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN`).
+Фронтовый гард самоблокировки: ADMIN не может заблокировать/удалить себя и снять у
+себя роль `ADMIN` (бэкенд это допускает — гард чисто UX, чтобы не потерять доступ).
+
+**Live-verify 2026-06-06** против стека (docker compose, ADMIN-OTP токен) на тест-
+пользователе: `PATCH BLOCKED`+reason → `200` (полный `AdminUserDetail`); невалидный
+`status` → `400`; `POST AGENT` → `201` (`roles:[AGENT]`); повтор → `409
+ROLE_ALREADY_GRANTED`; `GUEST` → `400 VALIDATION_ERROR`; `DELETE AGENT` → `204`;
+повторный `DELETE` → `404 NOT_FOUND`; восстановление `ACTIVE` → `200`. Коды ошибок
+совпали 1:1 с картой `userActionErrorMessage`.
+
 ## Related files
 
 - apps/web/src/store/api/pagination.ts
