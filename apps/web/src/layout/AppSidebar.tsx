@@ -16,7 +16,6 @@ import {
   GridIcon,
   HorizontaLDots,
   ListIcon,
-  StarIcon,
   UsersIcon,
 } from "@/icons";
 
@@ -33,7 +32,8 @@ const navItems: NavItem[] = [
   { icon: <ListIcon />, name: "Модерация", path: "/admin/listings" },
   { icon: <FlagIcon />, name: "Жалобы", path: "/admin/complaints" },
   { icon: <UsersIcon />, name: "Пользователи", path: "/admin/users" },
-  { icon: <StarIcon />, name: "Промо", path: "/admin/promotions" },
+  // Промо привязано к листингу — управляется в карточке объявления
+  // (Модерация → объявление → PromotionsPanel), отдельной страницы нет (ADMIN-13/ADR-0052).
   { icon: <DocsIcon />, name: "Логи", path: "/admin/logs" },
 ];
 

@@ -69,8 +69,17 @@ Negative / trade-offs:
 - Активная промо вычисляется на клиенте из истории (`status === 'ACTIVE'`),
   завязка на корректность ledger (одна `ACTIVE` на листинг — гарантирует БД).
 
+### Дополнение (2026-06-06, TASK-185)
+
+Подтверждено: **отдельной страницы `/admin/promotions` нет** — из двух вариантов
+scope (карточка листинга / отдельный раздел) выбрана карточка листинга. Мёртвый
+пункт сайдбара «Промо» → `/admin/promotions` (вёл на несуществующий маршрут,
+рендерил пустую страницу) удалён из `AppSidebar.tsx`. Управление промо
+доступно через Модерация → карточка листинга → `PromotionsPanel`.
+
 ## Related files
 
+- `apps/web/src/layout/AppSidebar.tsx` (удалён мёртвый пункт «Промо»)
 - `apps/web/src/components/admin/PromotionsPanel.tsx`
 - `apps/web/src/store/api/adminPromotionsApi.ts`
 - `apps/web/src/store/api/adminTypes.ts` (промо-DTO: запросы + nullable даты)
