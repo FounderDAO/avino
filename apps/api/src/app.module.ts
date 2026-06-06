@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat';
+import { ComplaintsModule } from './complaints';
 import { AppConfigModule } from './config';
 import { FavoritesModule } from './favorites';
 import { HealthModule } from './health/health.module';
@@ -38,6 +39,7 @@ import { UsersModule } from './users/users.module';
     PromotionsModule,
     NotificationsModule,
     ChatModule,
+    ComplaintsModule,
     AdminModule,
     UploadsModule,
   ],

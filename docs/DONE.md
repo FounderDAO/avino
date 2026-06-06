@@ -39,6 +39,59 @@ Related ADR:
 
 ## 2026-06-06
 
+### TASK-132 — Complaints backend (table + module + routes)
+
+Status: DONE
+Branch: feat/api-complaints-module
+PR: #85
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260606120000_add_complaints/migration.sql
+- apps/api/src/complaints/complaints.module.ts
+- apps/api/src/complaints/complaints.controller.ts
+- apps/api/src/complaints/admin-complaints.controller.ts
+- apps/api/src/complaints/complaints.service.ts
+- apps/api/src/complaints/complaints.service.spec.ts
+- apps/api/src/complaints/dto/create-complaint.dto.ts
+- apps/api/src/complaints/dto/list-complaints.dto.ts
+- apps/api/src/complaints/dto/update-complaint-status.dto.ts
+- apps/api/src/complaints/index.ts
+- apps/api/src/admin/admin.module.ts
+- apps/api/src/app.module.ts
+- docs/DB_SCHEMA.md
+- docs/adr/ADR-0051-complaints-module.md
+- docs/TASKS.md
+- docs/DONE.md
+
+Summary:
+- Реализован отсутствовавший complaints-бэкенд (API.md §16, DB_SCHEMA.md §7):
+  модель `Complaint` + enum `complaint_status` (`NEW|IN_REVIEW|RESOLVED|REJECTED`)
+  и миграция `add_complaints`. Разблокирует ADMIN-10 (PR #84), смерженный
+  contract-only.
+- `POST /api/v1/complaints` (USER) — пожаловаться на листинг → `201 { id, status }`;
+  `404` если листинг отсутствует/`DELETED` (как в FavoritesService).
+- `GET /api/v1/admin/complaints?status&listing_id&page&limit` и
+  `PATCH /api/v1/admin/complaints/:id { status }` (MODERATOR/ADMIN); PATCH
+  проставляет `handled_by`/`handled_at` (модератор из токена + текущее время).
+- Page-based пагинация (limit default 20 / max 100, `meta.total`), сорт
+  `created_at DESC, id DESC`, AND-фильтры, snake_case-контракт. Колонка
+  `reporter_id` отдаётся как `user_id` — совпадает с FE-типом `Complaint`.
+- `listing_id` NOT NULL + `ON DELETE CASCADE`; `reporter_id`/`handled_by` →
+  `users` `ON DELETE SET NULL` (DB_SCHEMA §7, поправлен с противоречивого
+  `ON DELETE CASCADE NULL`). Админ-роут подключён в `AdminModule`,
+  переиспользует паттерны moderation / admin-logs.
+- Unit-тесты ComplaintsService (Prisma мокается, 9 тестов); `tsc`/eslint чистые.
+  Миграцию нужно применить на dev/live (`prisma migrate deploy`) перед
+  live-verify ADMIN-10.
+
+Commit messages:
+- feat(api): add complaints module and migration
+- docs(api): add ADR-0051 and finalize TASK-132 tracking
+
+Related ADR:
+- docs/adr/ADR-0051-complaints-module.md
+
 ### ADMIN-10 — Жалобы (web, contract-only)
 
 Status: FE merged (PR #84, 2026-06-06); задача BLOCKED до TASK-132 — бэкенд жалоб не реализован, см. ниже

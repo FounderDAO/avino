@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit';
+import { AdminComplaintsController, ComplaintsModule } from '../complaints';
 import { ModerationModule } from '../moderation';
 import { PromotionsModule } from '../promotions';
 import { RolesModule } from '../roles';
@@ -23,16 +24,24 @@ import { AdminUsersService } from './admin-users.service';
  * — управление пользователями и ролями (TASK-130, API.md §6).
  * {@link AdminLogsController}/{@link AdminLogsService} + `AuditModule` — read-only
  * журналы (audit/moderation/promotion/notification, TASK-131, ADMIN-only).
- * Дальнейшие админ-роуты (complaints) подключаются сюда же по мере реализации.
+ * {@link AdminComplaintsController} + `ComplaintsModule` — разбор жалоб
+ * (MODERATOR/ADMIN, TASK-132); бизнес-логика живёт в {@link ComplaintsService}.
  */
 @Module({
-  imports: [RolesModule, ModerationModule, PromotionsModule, AuditModule],
+  imports: [
+    RolesModule,
+    ModerationModule,
+    PromotionsModule,
+    AuditModule,
+    ComplaintsModule,
+  ],
   controllers: [
     AdminListingsController,
     AdminPromotionsController,
     AdminListingPromotionsController,
     AdminUsersController,
     AdminLogsController,
+    AdminComplaintsController,
   ],
   providers: [AdminUsersService, AdminLogsService],
 })
