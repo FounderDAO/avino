@@ -219,9 +219,10 @@ Suggested commit: `feat(web): add ADMIN role guard and logout`
 
 ### ADMIN-07 — adminApi база + общие типы
 
-Status: `TODO`
+Status: `REVIEW` (PR pending) — ADR-0050
 Branch: `feat/admin-web-admin-api`
 Depends: `ADMIN-04`
+ADR: `docs/adr/ADR-0050-web-admin-api-base-shared-types.md`
 
 Scope:
 - `src/store/api/adminApi.ts` (через `injectEndpoints`) + общие типы:
@@ -230,6 +231,19 @@ Scope:
 - Хелперы пагинации/query-string, общие табличные типы для UI.
 
 Acceptance: база и типы готовы, используются следующими задачами.
+
+> Реализовано: 4 модуля базы (бизнес-эндпоинтов нет — это scope ADMIN-08..15).
+> `store/api/pagination.ts` — `Paginated<T>`/`PageMeta` (один тип на оба режима
+> §4: page-based + keyset), хелперы `toQueryParams` (чистит пустые фильтры),
+> `clampLimit`, `totalPages`. `store/api/adminTypes.ts` — enum-юнионы (зеркало
+> DB_SCHEMA §3), snake_case DTO (`AdminListingRow`, `ListingDetail`,
+> `AdminUserRow/Detail`, `RoleDict`, `ListingPromotion`, `Complaint`, `AuditLog`,
+> `ModerationLog`, `PromotionLog`, `NotificationLog`) + per-list фильтр-типы.
+> `store/api/adminApi.ts` — `adminApi = baseApi.injectEndpoints({})` (точка
+> инъекции для ADMIN-08..15) + реэкспорт типов/хелперов + шаблон. `lib/table.ts`
+> — UI-примитивы таблиц (`Column<Row>`, `SelectOption`, `PaginationState`).
+> Gates `lint`+`build` (включает type-check) зелёные. DTO зафиксированы по
+> API.md/DB_SCHEMA, live-сверка форм — при реализации фич (база не вызывает сеть).
 
 Suggested commit: `feat(web): add adminApi base and shared types`
 
@@ -433,7 +447,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-04 | DONE | #75 |
 | ADMIN-05 | TODO | — |
 | ADMIN-06 | DONE | #79 |
-| ADMIN-07 | TODO | — |
+| ADMIN-07 | REVIEW | pending |
 | ADMIN-08 | TODO | — |
 | ADMIN-09 | TODO | — |
 | ADMIN-10 | TODO | — |
