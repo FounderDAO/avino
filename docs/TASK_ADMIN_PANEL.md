@@ -454,7 +454,7 @@ Suggested commit: `feat(web): add admin logs viewer`
 
 ### ADMIN-15 — Дашборд (счётчики)
 
-Status: `REVIEW`
+Status: `DONE` (PR #93 merged 2026-06-06) — ADR-0054
 Branch: `feat/admin-web-dashboard`
 Depends: `ADMIN-08`, `ADMIN-11`
 
@@ -521,6 +521,6 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-12 | DONE | #88 |
 | ADMIN-13 | DONE | #89 |
 | ADMIN-14 | DONE | #90 |
-| ADMIN-15 | REVIEW | pending |
+| ADMIN-15 | DONE | #93 |
 | ADMIN-16 | TODO | — |
 | ADMIN-17 | TODO | — |

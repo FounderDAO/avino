@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE (2026-06-06) — live-verified против стека
 Branch: feat/admin-web-dashboard
-PR: pending
+PR: #93
 
 Files changed:
 - apps/api/src/admin/admin-stats.service.ts
