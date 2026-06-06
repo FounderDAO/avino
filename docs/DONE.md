@@ -41,9 +41,9 @@ Related ADR:
 
 ### ADMIN-08 — Модерация: очередь листингов
 
-Status: REVIEW (PR не смержен — финальная сверка/мерж за Team Lead)
+Status: DONE
 Branch: feat/admin-web-moderation-list
-PR: pending
+PR: #82
 
 Files changed:
 - apps/web/src/store/api/adminListingsApi.ts
@@ -65,7 +65,8 @@ Summary:
 - Страница `/admin/listings`: фильтры (status=NEW по умолчанию, тип недвижимости, тип сделки, дебаунс-поиск по заголовку), смена любого фильтра сбрасывает страницу на 1, page-based пагинация, ссылка с заголовка на карточку модерации (ADMIN-09).
 - Переиспользуемые примитивы для ADMIN-09..14: `components/admin/DataTable` (рендер по контракту `Column<Row>` из ADMIN-07, базовые loading/error/empty), `components/admin/Pagination` (page-based по `meta`), `lib/labels` (RU-подписи enum + badge-классы статуса), `lib/format` (Decimal-строка цены без потери точности, даты ru-RU).
 - `globals.css`: добавлены семантические шкалы `success`/`warning`/`error-*` (значения TailAdmin) — нужны для badge статусов и тостов (ADMIN-16).
-- Gates: `pnpm --filter @avino/web lint` — без ошибок; `pnpm --filter @avino/web build` — чистая сборка + type-check (Next 15), маршрут `/admin/listings` собран. Контракт выверен против исходников `apps/api` (источник истины); HTTP round-trip против запущенного бэкенда — финальная приёмка за Team Lead.
+- Gates: `pnpm --filter @avino/web lint` — без ошибок; `pnpm --filter @avino/web build` — чистая сборка + type-check (Next 15), маршрут `/admin/listings` собран.
+- **Live-прогон против запущенного стека** (`docker compose --profile app up`): залогинился ADMIN'ом (OTP-flow, dev-код из логов), прогнал `GET /api/v1/admin/listings` на сид-данных (25 листингов). Подтверждено: дефолт `status=NEW` → 13 строк; пагинация `limit=5` → стр.1/2/3 = 5/5/3 при `total=13`; фильтры `status=ACTIVE`(4)/`property_type=LAND`(5)/`transaction_type=RENT`(13)/combined `NEW+COMMERCIAL`(3); поиск `q=Участок`(5); пустой результат `q=zzz`(0). Форма строки — ровно 13 ключей `AdminListingRow` (`price` decimal-строкой, `city_id` nullable), без лишних/недостающих полей. Без токена → `401`.
 
 Commit messages:
 - feat(web): add admin moderation queue page
