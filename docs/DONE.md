@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE (2026-06-06) — live-verified против стека
 Branch: feat/admin-web-users-actions
-PR: pending
+PR: #88
 
 Files changed:
 - apps/web/src/store/api/adminTypes.ts (request-DTO статуса/роли)

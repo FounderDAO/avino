@@ -356,7 +356,7 @@ Suggested commit: `feat(web): add admin users list and detail`
 
 ### ADMIN-12 — Пользователи: статус + роли
 
-Status: `DONE` (PR pending, 2026-06-06) — ADR-0050 (обновление)
+Status: `DONE` (PR #88, 2026-06-06) — ADR-0050 (обновление)
 Branch: `feat/admin-web-users-actions`
 Depends: `ADMIN-11`
 
@@ -490,7 +490,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-09 | DONE | #83 |
 | ADMIN-10 | DONE | #84 (FE) + #85 (BE) |
 | ADMIN-11 | DONE | #87 |
-| ADMIN-12 | DONE | pending |
+| ADMIN-12 | DONE | #88 |
 | ADMIN-13 | TODO | — |
 | ADMIN-14 | TODO | — |
 | ADMIN-15 | TODO | — |
