@@ -39,6 +39,34 @@ Related ADR:
 
 ## 2026-06-06
 
+### TASK-185 — Fix: мёртвая ссылка «Промо» в сайдбаре админки
+
+Status: DONE (2026-06-06)
+Branch: fix/admin-sidebar-dead-promo-link
+PR: pending
+
+Files changed:
+- apps/web/src/layout/AppSidebar.tsx
+- docs/adr/ADR-0052-web-admin-promotions.md
+- docs/DONE.md
+
+Summary:
+- Bugfix: страница `/admin/promotions` открывалась пустой. Причина — пункт
+  сайдбара «Промо» (`AppSidebar.tsx:36`) вёл на маршрут `/admin/promotions`,
+  которого не существует (его никогда не делали). По ADMIN-13/ADR-0052 из двух
+  вариантов scope («карточка листинга или /admin/promotions») реализована
+  карточка листинга: управление промо — панель `PromotionsPanel` внутри
+  `/admin/listings/<id>`, отдельного раздела нет.
+- Удалён мёртвый пункт сайдбара и ставший неиспользуемым импорт `StarIcon`
+  (иначе lint). ADR-0052 дополнен: подтверждено отсутствие standalone-страницы
+  промо. ESLint по `AppSidebar.tsx` чистый.
+
+Commit messages:
+- fix(web): remove dead promo link from admin sidebar
+
+Related ADR:
+- docs/adr/ADR-0052-web-admin-promotions.md (дополнен)
+
 ### TASK-184 — Fix: активация промо блокировалась CORS-preflight'ом
 
 Status: DONE (2026-06-06)
