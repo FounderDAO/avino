@@ -387,7 +387,7 @@ Suggested commit: `feat(web): add admin user status and role management`
 
 ### ADMIN-13 — Промо VIP/TOP
 
-Status: `TODO`
+Status: `DONE` (PR #89) — ADR-0052
 Branch: `feat/admin-web-promotions`
 Depends: `ADMIN-09`
 
@@ -401,6 +401,19 @@ Scope: в карточке листинга (или `/admin/promotions`) — а�
 `409 ACTIVE_PROMOTION_EXISTS`, `422 INVALID_PERIOD`, `422 PROMOTION_NOT_ACTIVE`.
 
 Acceptance: активация/cancel/extend работают, история обновляется.
+
+> ✅ **Реализовано и live-verified 2026-06-06** против стека (docker compose) с
+> ADMIN-OTP токеном. Промо вынесено в карточку листинга
+> (`components/admin/PromotionsPanel.tsx`), API — слайс `adminPromotionsApi`
+> (4 эндпоинта, все мутации инвалидируют тег `Admin`). Активация шлёт свежий
+> `Idempotency-Key` (UUID) на попытку. End-to-end проверено: активация VIP/30 →
+> `201` ACTIVE; повтор того же ключа → тот же `id` (идемпотентно); `extend +14` →
+> `200` (expires сдвинулся); `period_days:10` → `422 INVALID_PERIOD`; `cancel` →
+> `200` CANCELLED; `extend` отменённой → `422 PROMOTION_NOT_ACTIVE`; история
+> обновляется. Авто-замещение активной промо (бэкенд закрывает предыдущую в той
+> же транзакции) → форма активации видна всегда с пометкой о замене. Ошибки
+> маппятся по стабильному `error.code` (`lib/promotions.ts`). Gates: `lint` +
+> `build` зелёные. ADR-0052.
 
 Suggested commit: `feat(web): add admin promotions management`
 
@@ -491,7 +504,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-10 | DONE | #84 (FE) + #85 (BE) |
 | ADMIN-11 | DONE | #87 |
 | ADMIN-12 | DONE | #88 |
-| ADMIN-13 | TODO | — |
+| ADMIN-13 | DONE | #89 |
 | ADMIN-14 | TODO | — |
 | ADMIN-15 | TODO | — |
 | ADMIN-16 | TODO | — |

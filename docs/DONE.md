@@ -39,6 +39,56 @@ Related ADR:
 
 ## 2026-06-06
 
+### ADMIN-13 — Промо VIP/TOP (web)
+
+Status: DONE (2026-06-06) — live-verified против стека
+Branch: feat/admin-web-promotions
+PR: #89
+
+Files changed:
+- apps/web/src/store/api/adminTypes.ts (промо request-DTO + nullable даты ledger)
+- apps/web/src/store/api/adminPromotionsApi.ts (4 эндпоинта + хуки)
+- apps/web/src/lib/promotions.ts (подписи/badge тиров и статусов, каталог-превью, маппер ошибок)
+- apps/web/src/components/admin/PromotionsPanel.tsx (панель управления промо)
+- apps/web/src/app/(admin)/admin/listings/[id]/page.tsx (встраивание панели)
+- docs/adr/ADR-0052-web-admin-promotions.md
+- docs/TASK_ADMIN_PANEL.md
+- docs/DONE.md
+
+Summary:
+- Реализован фронтенд ручного управления промо VIP/TOP (TASK-120/121/122,
+  API.md §15) в карточке листинга `/admin/listings/[id]` поверх ADMIN-09. Панель
+  (`PromotionsPanel`): активация тарифа (тир `TOP|VIP` × период `7|14|30`,
+  превью цены из зеркала каталога), продление и отмена активной промо (диалоги),
+  история ledger таблицей. Только RTK Query (CLAUDE.md §4), RU-only (i18n —
+  ADMIN-17).
+- `adminPromotionsApi`: `listListingPromotions` (`GET .../promotions`),
+  `activatePromotion` (`POST .../promotions`, заголовок `Idempotency-Key` —
+  свежий UUID на попытку), `cancelPromotion`/`extendPromotion`
+  (`PATCH /admin/listing-promotions/:id/cancel|extend`). Асимметрия роутов
+  (активация/история по листингу, cancel/extend по `id` промо) сохранена как на
+  бэкенде. Все мутации инвалидируют тег `Admin` → история и read-cache карточки
+  перечитываются.
+- Активная промо вычисляется из истории (`status === 'ACTIVE'`); форма активации
+  видна всегда с пометкой «заменит текущую» (бэкенд авто-замещает в одной
+  транзакции). Ошибки мапятся по стабильному `error.code` через
+  `promotionErrorMessage` (`ACTIVE_PROMOTION_EXISTS`/`INVALID_PERIOD`/
+  `PROMOTION_NOT_ACTIVE`/`NOT_FOUND`/`FORBIDDEN`/`VALIDATION_ERROR`).
+- **Live-verify 2026-06-06** против стека (docker compose, ADMIN-OTP токен) на
+  существующем листинге: активация VIP/30→`201` ACTIVE; повтор того же
+  `Idempotency-Key`→тот же `id` (идемпотентно, `201`); `extend +14`→`200`
+  (expires `07-06`→`07-20`); `period_days:10`→`422 INVALID_PERIOD`;
+  `cancel`→`200` CANCELLED; `extend` отменённой→`422 PROMOTION_NOT_ACTIVE`;
+  история отражает изменения. Коды совпали 1:1 с картой.
+- Gates: `next lint` — без ошибок; `next build` — чистая сборка, маршрут
+  `/admin/listings/[id]` (dynamic, 8.73 kB) собран.
+
+Commit messages:
+- feat(web): add admin promotions management
+
+Related ADR:
+- docs/adr/ADR-0052-web-admin-promotions.md
+
 ### ADMIN-12 — Пользователи: статус + роли (web)
 
 Status: DONE (2026-06-06) — live-verified против стека
