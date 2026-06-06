@@ -92,6 +92,38 @@ Commit messages:
 Related ADR:
 - docs/adr/ADR-0051-complaints-module.md
 
+### ADMIN-11 — Пользователи: список + карточка (web)
+
+Status: DONE (2026-06-06) — PR #87, live-verified против стека
+Branch: feat/admin-web-users-list
+PR: #87
+
+Files changed:
+- apps/web/src/store/api/adminTypes.ts (сверка user/role-типов с бэкендом)
+- apps/web/src/store/api/adminUsersApi.ts (new)
+- apps/web/src/lib/users.ts (new)
+- apps/web/src/app/(admin)/admin/users/page.tsx (new)
+- apps/web/src/app/(admin)/admin/users/[id]/page.tsx (new)
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md (обновление ADMIN-11)
+- docs/TASK_ADMIN_PANEL.md
+- docs/DONE.md
+
+Summary:
+- Реализовал веб-страницы пользователей (read-only часть TASK-130, API.md §6) поверх базы ADMIN-07. `/admin/users` — таблица с фильтрами (статус, роль, поиск `q` по контакту/имени) + page-based пагинация; опции фильтра по роли берутся из `GET /roles`; контакт ведёт в карточку. `/admin/users/[id]` — карточка: аккаунт (телефон/email + верификация, статус, язык), профиль, роли, аудит-таймстемпы; `404` → «недоступен». Только RTK Query (CLAUDE.md §4), RU-only.
+- `adminUsersApi.ts`: `listAdminUsers` (`GET /admin/users`), `getAdminUser` (`GET /admin/users/:id`), `listRoles` (`GET /roles`) — все с тегом `Admin`, чтобы ADMIN-12 инвалидировал список/карточку после мутаций. `lib/users.ts`: подписи/badge статусов пользователя, подписи ролей/языков. Смена статуса и управление ролями — **ADMIN-12**.
+- **Live-сверка DTO выполнена** (как ADMIN-08/09): спекулятивные типы ADMIN-07 приведены 1:1 к живому контракту — `AdminUserRow` +`is_phone_verified`/`is_email_verified`/`last_login_at`; `AdminUserDetail` теперь `extends AdminUserRow` + `deleted_at` и nullable `profile`, `updated_at` non-null; `AdminUserProfile.preferred_language` nullable; `RoleDict` без `id` (бэкенд отдаёт `{code, description}`).
+- **Live-verify 2026-06-06** против стека (docker compose) с ADMIN-OTP токеном (EMAIL OTP для `admin@avino.uz`, dev-код из логов api): `GET /admin/users` → строка = `AdminUserRow` 1:1, `meta {page,limit,total}`; `GET /admin/users/:id` → `AdminUserDetail` 1:1 (`profile:null`); `GET /roles` → `{code, description}` ×8; фильтры `role=ADMIN`→1, `q=e2e`→1, `status=BLOCKED`→0; невалидный `status` → `400`, без токена → `401`, битый uuid → `400`.
+- Gates: `next lint` — без ошибок; `tsc --noEmit` — чисто; `next build` — чистая сборка, маршруты `/admin/users` (static, 2.58 kB) и `/admin/users/[id]` (dynamic, 4.16 kB) собраны.
+
+Commit messages:
+- feat(web): add admin users list and detail
+- docs(admin): record ADMIN-11 (PR #87)
+
+Related ADR:
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md (обновлён — слайс пользователей/ролей, live-сверка DTO)
+
+---
+
 ### ADMIN-10 — Жалобы (web)
 
 Status: DONE (2026-06-06) — FE PR #84 + backend TASK-132 PR #85, live-verified E2E

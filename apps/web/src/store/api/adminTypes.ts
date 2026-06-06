@@ -193,29 +193,15 @@ export interface ListingModerationLogEntry {
 
 // ─── DTO: пользователи (API.md §6) ──────────────────────────────────────────
 
-/** Строка админ-списка пользователей (`GET /admin/users`, §6). */
+/**
+ * Строка админ-списка пользователей (`GET /admin/users`, §6).
+ *
+ * Зеркало `AdminUserListItem` (`apps/api/src/admin`): тот же базовый набор, что
+ * и `users/me`, плюс верификация контактов и таймстемпы. Профиль в списке не
+ * отдаётся — только в карточке ({@link AdminUserDetail}). `roles` — коды ролей
+ * (бэкенд отдаёт `string[]`; здесь сужаем до известного словаря).
+ */
 export interface AdminUserRow {
-  id: string;
-  phone: string | null;
-  email: string | null;
-  status: UserStatus;
-  default_language: Language;
-  roles: RoleCode[];
-  created_at: string;
-}
-
-/** Профиль пользователя (`user_profiles`, §5). */
-export interface AdminUserProfile {
-  first_name: string | null;
-  last_name: string | null;
-  display_name: string | null;
-  avatar_url: string | null;
-  contact_phone: string | null;
-  preferred_language: Language;
-}
-
-/** Карточка пользователя (`GET /admin/users/:id`, §6). */
-export interface AdminUserDetail {
   id: string;
   phone: string | null;
   email: string | null;
@@ -224,14 +210,40 @@ export interface AdminUserDetail {
   is_phone_verified: boolean;
   is_email_verified: boolean;
   roles: RoleCode[];
-  profile: AdminUserProfile;
+  last_login_at: string | null;
   created_at: string;
-  updated_at: string | null;
 }
 
-/** Элемент справочника ролей (`GET /roles`, §6; таблица `roles`). */
+/**
+ * Профиль пользователя (`user_profiles`, §5) — зеркало `ProfileResponse`
+ * (`apps/api/src/profiles`). `preferred_language` nullable: профиль может быть
+ * создан без явного выбора языка.
+ */
+export interface AdminUserProfile {
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  contact_phone: string | null;
+  preferred_language: Language | null;
+}
+
+/**
+ * Карточка пользователя (`GET /admin/users/:id`, §6) — зеркало `AdminUserDetail`
+ * (`apps/api/src/admin`): список + профиль и аудит-таймстемпы. `profile` может
+ * быть `null` (профиль не заполнен). `deleted_at` — для soft-deleted (DELETED).
+ */
+export interface AdminUserDetail extends AdminUserRow {
+  updated_at: string;
+  deleted_at: string | null;
+  profile: AdminUserProfile | null;
+}
+
+/**
+ * Элемент справочника ролей (`GET /roles`, §6; таблица `roles`). Бэкенд
+ * (`RoleResponse`) отдаёт только `code` + `description` — без `id`.
+ */
 export interface RoleDict {
-  id: string;
   code: RoleCode;
   description: string | null;
 }

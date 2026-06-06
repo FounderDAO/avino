@@ -139,6 +139,34 @@ future-флоу. Эндпоинты есть только в `docs/API.md §16` 
 **`TASK-132 — Complaints backend`** (`docs/TASKS.md`). Полный E2E ADMIN-10 и
 live-сверка `Complaint` — после TASK-132.
 
+## Обновление (ADMIN-11, 2026-06-06)
+
+Страницы пользователей (`/admin/users`, `/admin/users/[id]`) добавили в `adminApi`
+слайс `adminUsersApi` поверх той же базы: `listAdminUsers`
+(`GET /admin/users?status&role&q&page&limit`), `getAdminUser`
+(`GET /admin/users/:id`) и `listRoles` (`GET /roles` — источник опций фильтра по
+роли). Все три помечены тегом `Admin`, поэтому ADMIN-12 (смена статуса /
+управление ролями) сможет инвалидировать список и карточку после мутаций. Этот PR
+— **read-only**; мутации (`PATCH /admin/users/:id`, `POST|DELETE .../roles`) —
+ADMIN-12. RU-подписи/badge статусов и подписи ролей/языков вынесены в
+`lib/users.ts`.
+
+**Live-сверка DTO выполнена** (как ADMIN-08/09, в отличие от отложенной ADMIN-10):
+спекулятивные типы ADMIN-07 приведены 1:1 к живому контракту (`apps/api/src/admin`,
+`apps/api/src/roles`, `apps/api/src/profiles`):
+- `AdminUserRow` — добавлены `is_phone_verified`, `is_email_verified`,
+  `last_login_at` (бэкенд-`AdminUserListItem` богаче исходного черновика);
+- `AdminUserDetail` теперь `extends AdminUserRow` + `deleted_at` и **nullable**
+  `profile` (профиль может быть не заполнен), `updated_at` — non-null;
+- `AdminUserProfile.preferred_language` стал nullable (зеркало `ProfileResponse`);
+- `RoleDict` потерял `id` — `GET /roles` (`RoleResponse`) отдаёт только
+  `{ code, description }`.
+
+Проверено against стека (docker compose) с ADMIN-OTP токеном: формы строки/карточки/
+справочника совпали 1:1; фильтры `status`/`role`/`q` работают (`role=ADMIN`→1,
+`q=e2e`→1, `status=BLOCKED`→0); невалидный `status` → `400`, без токена → `401`,
+битый uuid → `400`.
+
 ## Related files
 
 - apps/web/src/store/api/pagination.ts
@@ -146,13 +174,17 @@ live-сверка `Complaint` — после TASK-132.
 - apps/web/src/store/api/adminApi.ts
 - apps/web/src/store/api/adminListingsApi.ts
 - apps/web/src/store/api/adminComplaintsApi.ts
+- apps/web/src/store/api/adminUsersApi.ts
 - apps/web/src/lib/table.ts
 - apps/web/src/lib/moderation.ts
 - apps/web/src/lib/complaints.ts
+- apps/web/src/lib/users.ts
 - apps/web/src/app/(admin)/admin/listings/[id]/page.tsx
 - apps/web/src/app/(admin)/admin/complaints/page.tsx
+- apps/web/src/app/(admin)/admin/users/page.tsx
+- apps/web/src/app/(admin)/admin/users/[id]/page.tsx
 
 ## Related task
 
-- ADMIN-07 / ADMIN-08 / ADMIN-09 / ADMIN-10 (docs/TASK_ADMIN_PANEL.md)
+- ADMIN-07 / ADMIN-08 / ADMIN-09 / ADMIN-10 / ADMIN-11 (docs/TASK_ADMIN_PANEL.md)
 - TASK-132 (complaints backend, docs/TASKS.md) — разблокирует ADMIN-10 E2E
