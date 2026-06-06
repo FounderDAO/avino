@@ -31,6 +31,79 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Приложения под профилем `app` ───────────────────────────────────────────
+  # `docker compose up -d`            → только postgres + redis (для host-dev).
+  # `docker compose --profile app up` → весь стек (миграции + api + web).
+  # Сетевые URL (postgres/redis) задаются здесь и переопределяют localhost из
+  # .env; секреты (JWT_*) приходят из .env через env_file.
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: avino-api
+    profiles: ["app"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-avino}:${POSTGRES_PASSWORD:-avino}@postgres:5432/${POSTGRES_DB:-avino}?schema=public
+    working_dir: /repo/apps/api
+    # Накат миграций → справочник ролей → локальный ADMIN для входа.
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed && node prisma/seed-admin.cjs"
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: avino-api
+    container_name: avino-api
+    profiles: ["app"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      API_PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-avino}:${POSTGRES_PASSWORD:-avino}@postgres:5432/${POSTGRES_DB:-avino}?schema=public
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "${API_PORT:-4000}:4000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Инлайнится в бандл и используется БРАУЗЕРОМ → host-порт api, не сервис-имя.
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:${API_PORT:-4000}
+    image: avino-web
+    container_name: avino-web
+    profiles: ["app"]
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
 volumes:
   avino-postgres-data:
   avino-redis-data:

@@ -1,8 +1,9 @@
 {
   "extends": "@avino/config/tsconfig.base.json",
   "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "declaration": true,
     "outDir": "dist"
   },
   "include": ["src"]
