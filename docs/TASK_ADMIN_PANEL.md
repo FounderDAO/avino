@@ -449,7 +449,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-06 | DONE | #79 |
 | ADMIN-07 | DONE | #81 |
 | ADMIN-08 | DONE | #82 |
-| ADMIN-09 | REVIEW | pending |
+| ADMIN-09 | REVIEW | #83 |
 | ADMIN-10 | TODO | — |
 | ADMIN-11 | TODO | — |
 | ADMIN-12 | TODO | — |

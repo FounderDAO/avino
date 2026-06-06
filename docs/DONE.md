@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/admin-web-moderation-detail
-PR: pending
+PR: #83
 
 Files changed:
 - apps/web/src/store/api/adminTypes.ts
