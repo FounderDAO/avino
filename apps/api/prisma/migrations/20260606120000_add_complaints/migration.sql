@@ -5,9 +5,10 @@
 -- processed the complaint last and when. status follows
 -- NEW → IN_REVIEW → RESOLVED | REJECTED.
 --
--- listing_id is nullable + ON DELETE CASCADE (DB_SCHEMA §7): a complaint does not
--- outlive physical deletion of the listing. reporter_id and handled_by are
--- ON DELETE SET NULL and nullable so the complaint survives deletion of the
+-- listing_id is NOT NULL + ON DELETE CASCADE (DB_SCHEMA §7): a complaint is
+-- always about a listing and does not outlive its physical deletion (same pattern
+-- as moderation_logs/favorites/listing_translations). reporter_id and handled_by
+-- are ON DELETE SET NULL and nullable so the complaint survives deletion of the
 -- reporter's or the handling moderator's account (history is preserved).
 
 -- CreateEnum
@@ -16,7 +17,7 @@ CREATE TYPE "ComplaintStatus" AS ENUM ('NEW', 'IN_REVIEW', 'RESOLVED', 'REJECTED
 -- CreateTable
 CREATE TABLE "complaints" (
     "id" UUID NOT NULL,
-    "listing_id" UUID,
+    "listing_id" UUID NOT NULL,
     "reporter_id" UUID,
     "reason" VARCHAR(120) NOT NULL,
     "details" TEXT,

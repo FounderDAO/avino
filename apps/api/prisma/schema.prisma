@@ -588,13 +588,15 @@ model ModerationLog {
 /// /admin/complaints`). handled_by/handled_at проставляются при первой и
 /// последующих сменах статуса (кто и когда обработал последним).
 ///
-/// listing_id nullable + ON DELETE CASCADE (DB_SCHEMA §7): жалоба не переживает
-/// физическое удаление объявления; на чтении DELETED-листинги уже не существуют.
-/// reporter_id / handled_by → users ON DELETE SET NULL, nullable: жалоба
-/// остаётся в истории, даже если аккаунт автора или обработавшего удалён.
+/// listing_id NOT NULL + ON DELETE CASCADE (DB_SCHEMA §7): жалоба всегда про
+/// листинг и не переживает его физическое удаление (как moderation_logs/favorites/
+/// listing_translations — единый паттерн дочерних таблиц листинга). На чтении
+/// DELETED-листинги уже не существуют. reporter_id / handled_by → users ON DELETE
+/// SET NULL, nullable: жалоба остаётся в истории, даже если аккаунт автора или
+/// обработавшего удалён.
 model Complaint {
   id         String          @id @default(uuid()) @db.Uuid
-  listingId  String?         @map("listing_id") @db.Uuid
+  listingId  String          @map("listing_id") @db.Uuid
   reporterId String?         @map("reporter_id") @db.Uuid
   reason     String          @db.VarChar(120)
   details    String?
@@ -604,9 +606,9 @@ model Complaint {
   createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  listing  Listing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  reporter User?    @relation("ComplaintReporter", fields: [reporterId], references: [id], onDelete: SetNull)
-  handler  User?    @relation("ComplaintHandler", fields: [handledBy], references: [id], onDelete: SetNull)
+  listing  Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporter User?   @relation("ComplaintReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  handler  User?   @relation("ComplaintHandler", fields: [handledBy], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([listingId])

@@ -59,6 +59,7 @@ Files changed:
 - apps/api/src/complaints/index.ts
 - apps/api/src/admin/admin.module.ts
 - apps/api/src/app.module.ts
+- docs/DB_SCHEMA.md
 - docs/adr/ADR-0051-complaints-module.md
 - docs/TASKS.md
 - docs/DONE.md
@@ -76,8 +77,9 @@ Summary:
 - Page-based пагинация (limit default 20 / max 100, `meta.total`), сорт
   `created_at DESC, id DESC`, AND-фильтры, snake_case-контракт. Колонка
   `reporter_id` отдаётся как `user_id` — совпадает с FE-типом `Complaint`.
-- `listing_id` nullable + `ON DELETE CASCADE`; `reporter_id`/`handled_by` →
-  `users` `ON DELETE SET NULL` (DB_SCHEMA §7). Админ-роут подключён в `AdminModule`,
+- `listing_id` NOT NULL + `ON DELETE CASCADE`; `reporter_id`/`handled_by` →
+  `users` `ON DELETE SET NULL` (DB_SCHEMA §7, поправлен с противоречивого
+  `ON DELETE CASCADE NULL`). Админ-роут подключён в `AdminModule`,
   переиспользует паттерны moderation / admin-logs.
 - Unit-тесты ComplaintsService (Prisma мокается, 9 тестов); `tsc`/eslint чистые.
   Миграцию нужно применить на dev/live (`prisma migrate deploy`) перед

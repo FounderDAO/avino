@@ -34,8 +34,11 @@ snake_case-контракт и raw-SQL Prisma-миграции под PostgreSQL
 1. **Схема.** Новый Postgres enum `complaint_status`
    (`NEW|IN_REVIEW|RESOLVED|REJECTED`) и таблица `complaints` (модель `Complaint`),
    миграция `20260606120000_add_complaints`. Связи по DB_SCHEMA §7:
-   - `listing_id` nullable, `ON DELETE CASCADE` — жалоба не переживает физическое
-     удаление объявления;
+   - `listing_id` **NOT NULL**, `ON DELETE CASCADE` — жалоба всегда про листинг и
+     не переживает его физическое удаление. Единый паттерн дочерних таблиц
+     листинга (`moderation_logs`/`favorites`/`listing_translations`); DB_SCHEMA §7
+     поправлен с `ON DELETE CASCADE NULL` на `NOT NULL ON DELETE CASCADE`
+     (исходная формулировка противоречива — `CASCADE` удаляет строку, а не зануляет FK);
    - `reporter_id` и `handled_by` → `users`, `ON DELETE SET NULL`, nullable —
      жалоба остаётся в истории даже после удаления аккаунта автора/обработавшего;
    - индексы `(status)`, `(listing_id)`.

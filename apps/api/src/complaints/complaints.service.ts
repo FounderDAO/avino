@@ -23,7 +23,7 @@ export interface CreateComplaintResponse {
  */
 export interface ComplaintResponse {
   id: string;
-  listing_id: string | null;
+  listing_id: string;
   user_id: string | null;
   reason: string;
   details: string | null;

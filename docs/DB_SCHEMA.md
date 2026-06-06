@@ -363,7 +363,7 @@ Indexes:
 ```text
 complaints
 - id                  uuid PK
-- listing_id          uuid FK -> listings(id) ON DELETE CASCADE NULL
+- listing_id          uuid FK -> listings(id) NOT NULL ON DELETE CASCADE
 - reporter_id         uuid FK -> users(id) ON DELETE SET NULL
 - reason              varchar(120) NOT NULL
 - details             text NULL
