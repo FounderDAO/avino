@@ -219,7 +219,7 @@ Suggested commit: `feat(web): add ADMIN role guard and logout`
 
 ### ADMIN-07 — adminApi база + общие типы
 
-Status: `REVIEW` (PR pending) — ADR-0050
+Status: `DONE` (PR #81 merged) — ADR-0050
 Branch: `feat/admin-web-admin-api`
 Depends: `ADMIN-04`
 ADR: `docs/adr/ADR-0050-web-admin-api-base-shared-types.md`
@@ -447,7 +447,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-04 | DONE | #75 |
 | ADMIN-05 | TODO | — |
 | ADMIN-06 | DONE | #79 |
-| ADMIN-07 | REVIEW | pending |
+| ADMIN-07 | DONE | #81 |
 | ADMIN-08 | TODO | — |
 | ADMIN-09 | TODO | — |
 | ADMIN-10 | TODO | — |

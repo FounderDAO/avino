@@ -39,6 +39,37 @@ Related ADR:
 
 ## 2026-06-06
 
+### ADMIN-07 — adminApi base + shared admin types & pagination
+
+Status: DONE
+Branch: feat/admin-web-admin-api
+PR: #81
+
+Files changed:
+- apps/web/src/store/api/pagination.ts
+- apps/web/src/store/api/adminTypes.ts
+- apps/web/src/store/api/adminApi.ts
+- apps/web/src/lib/table.ts
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md
+- docs/TASK_ADMIN_PANEL.md
+- docs/DONE.md
+
+Summary:
+- Заложил базовый слой админ-API для `apps/web`, который потребляют задачи ADMIN-08..15. Бизнес-эндпоинты намеренно **не** реализованы (это их scope) — здесь только точка инъекции RTK Query, переиспользуемые DTO/enum и хелперы пагинации/таблиц.
+- `store/api/pagination.ts`: единый `Paginated<T> = { data, meta }` с `PageMeta`, где cursor- и page-поля опциональны, так что один тип покрывает оба режима пагинации API.md §4 (page-based для админ-списков + keyset для публичного поиска). Хелперы: `toQueryParams()` (отбрасывает `undefined`/`null`/пустые строки перед отправкой фильтров — forward-compatible §4), `clampLimit()` (зажим в `[1,100]`), `totalPages()`; константы `DEFAULT_PAGE/DEFAULT_LIMIT/MAX_LIMIT`.
+- `store/api/adminTypes.ts`: enum-юнионы как зеркало DB_SCHEMA §3 (значения = часть контракта: `ListingStatus`, `PropertyType`, `TransactionType`, `PromotionType/Status`, `PaymentStatus`, `ModerationAction`, `PromotionAdminAction`, `ComplaintStatus`, `Notification*`, `RoleCode`, …), snake_case DTO (`AdminListingRow`, `ListingDetail`, `AdminUserRow/Detail`, `RoleDict`, `ListingPromotion`, `Complaint`, `AuditLog`, `ModerationLog`, `PromotionLog`, `NotificationLog`) и per-list фильтр-типы, наследующие `PageParams`. `Language`/`UserStatus` импортируются из `authApi` (единый источник, без дублей).
+- `store/api/adminApi.ts`: `adminApi = baseApi.injectEndpoints({ endpoints: () => ({}) })` — точка роста, в которую ADMIN-08..15 добавляют эндпоинты (тег кэша `Admin` уже в `baseApi.tagTypes`); реэкспорт `pagination`+`adminTypes` как единый импорт-сурфейс + шаблон добавления эндпоинта в комментарии.
+- `lib/table.ts`: структурные UI-примитивы таблиц без стилей (`Column<Row>`, `SelectOption<T>`, `PaginationState`, `SortDirection`, хелперы `optionsFromLabels`/`hasNextPage`) — контракт данных между страницами и TailAdmin-таблицами.
+- Gates: `pnpm --filter @avino/web lint` — без ошибок; `pnpm --filter @avino/web build` — чистая сборка + type-check (Next 15). DTO зафиксированы по API.md/DB_SCHEMA и **не прогнаны live против `apps/api`** в этой сессии (база не вызывает сеть) — расхождение формы вскроется и поправится в ADMIN-08..15 при первом реальном запросе.
+
+Commit messages:
+- feat(web): add adminApi base and shared types
+
+Related ADR:
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md
+
+---
+
 ### ADMIN-06 — Web admin ADMIN role guard and logout
 
 Status: DONE
