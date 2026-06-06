@@ -445,3 +445,13 @@ export interface NotificationLogFilters extends PageParams {
   channel?: NotificationChannel;
   status?: NotificationStatus;
 }
+
+// ─── Дашборд (ADMIN-15, §16) ─────────────────────────────────────────────────
+
+/** `GET /admin/stats` — сводные счётчики дашборда (ADMIN-15). */
+export interface AdminStats {
+  listings_new: number;
+  complaints_new: number;
+  users_total: number;
+  promotions_active: number;
+}

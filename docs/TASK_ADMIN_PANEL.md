@@ -421,7 +421,7 @@ Suggested commit: `feat(web): add admin promotions management`
 
 ### ADMIN-14 — Логи (4 вкладки)
 
-Status: `TODO`
+Status: `DONE` (PR #90 merged 2026-06-06) — ADR-0053
 Branch: `feat/admin-web-logs`
 Depends: `ADMIN-07`
 
@@ -454,20 +454,22 @@ Suggested commit: `feat(web): add admin logs viewer`
 
 ### ADMIN-15 — Дашборд (счётчики)
 
-Status: `TODO`
+Status: `REVIEW`
 Branch: `feat/admin-web-dashboard`
 Depends: `ADMIN-08`, `ADMIN-11`
 
-Scope: `/admin` (главная) — карточки-метрики TailAdmin. Источник для MVP —
-`meta.total` из существующих списков (листинги NEW, жалобы NEW, пользователи,
-активные промо). Без нового бэкенд-эндпоинта.
+Scope: `/admin` (главная) — карточки-метрики TailAdmin: листинги NEW, жалобы NEW,
+пользователи (всего), активные промо (VIP/TOP).
 
-Acceptance: дашборд показывает живые счётчики.
+Решение по scope (Team Lead, 2026-06-06): счётчик «активные промо» нельзя собрать
+из `meta.total` существующих списков — глобального списка промо нет (промо
+адресуется только по листингу). Поэтому заведён `GET /api/v1/admin/stats`
+(MODERATOR/ADMIN) — один запрос отдаёт все четыре числа. Подробности — ADR-0054.
+
+Acceptance: дашборд показывает живые счётчики. Контракт выверен live (`401` без
+токена, `200` с ADMIN-токеном, значения совпадают с `COUNT` в БД).
 
 Suggested commit: `feat(web): add admin dashboard overview`
-
-> Backlog-идея: отдельный `GET /admin/stats` на бэкенде, если счётчиков станет
-> много (завести как новый бэкенд-таск при необходимости).
 
 ---
 
@@ -519,6 +521,6 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-12 | DONE | #88 |
 | ADMIN-13 | DONE | #89 |
 | ADMIN-14 | DONE | #90 |
-| ADMIN-15 | TODO | — |
+| ADMIN-15 | REVIEW | pending |
 | ADMIN-16 | TODO | — |
 | ADMIN-17 | TODO | — |

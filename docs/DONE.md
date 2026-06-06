@@ -39,6 +39,54 @@ Related ADR:
 
 ## 2026-06-06
 
+### ADMIN-15 — Дашборд (живые счётчики, web + API)
+
+Status: DONE (2026-06-06) — live-verified против стека
+Branch: feat/admin-web-dashboard
+PR: pending
+
+Files changed:
+- apps/api/src/admin/admin-stats.service.ts
+- apps/api/src/admin/admin-stats.controller.ts
+- apps/api/src/admin/admin-stats.service.spec.ts
+- apps/api/src/admin/admin.module.ts
+- apps/web/src/store/api/adminStatsApi.ts
+- apps/web/src/store/api/adminTypes.ts (тип `AdminStats`)
+- apps/web/src/components/admin/DashboardOverview.tsx
+- apps/web/src/app/(admin)/admin/page.tsx
+- docs/API.md (§16 — `GET /admin/stats`)
+- docs/adr/ADR-0054-admin-dashboard-stats.md
+- docs/TASK_ADMIN_PANEL.md
+- docs/DONE.md
+
+Summary:
+- Главная `/admin` теперь показывает четыре живых счётчика TailAdmin: листинги
+  NEW, жалобы NEW, пользователи (всего), активные промо (VIP/TOP).
+- Отклонение от карты задачи (с подтверждением Team Lead, ADR-0054): счётчики
+  нельзя было собрать из `meta.total` существующих списков — глобального списка
+  промо нет (промо адресуется только по листингу, `AdminListingFilters` не
+  фильтрует по промо). Заведён один лёгкий read-only `GET /api/v1/admin/stats`
+  (MODERATOR/ADMIN): `prisma.*.count` по статусам параллельно (`Promise.all`),
+  ответ snake_case `{ listings_new, complaints_new, users_total, promotions_active }`.
+- Frontend: отдельный RTK Query-слайс `adminStatsApi` (инъекция в `adminApi`,
+  `providesTags: ['Admin']` → счётчики освежаются после любой админ-мутации).
+  `page.tsx` остался серверным (metadata) и рендерит клиентский
+  `DashboardOverview`; три карточки кликабельны (ведут в разделы), «активные
+  промо» — без ссылки (отдельной страницы-списка нет). Loading `…` / error `—`
+  точечно (единый UX состояний — ADMIN-16); админка RU-only (i18n — ADMIN-17).
+- Верифицировано: API `tsc` чисто; web `tsc` чисто; ESLint чисто в обоих
+  приложениях; 23/23 unit-теста админ-модуля зелёные (вкл. 2 новых для
+  `AdminStatsService`). Live против пересобранного стека: `401` без токена,
+  `200` с ADMIN-токеном → `{"listings_new":8,"complaints_new":0,"users_total":2,
+  "promotions_active":1}`, значения совпали с прямым `COUNT` в Postgres (8/0/2/1).
+
+Commit messages:
+- feat(api): add admin dashboard stats endpoint
+- feat(web): add admin dashboard overview
+
+Related ADR:
+- docs/adr/ADR-0054-admin-dashboard-stats.md
+
 ### TASK-185 — Fix: мёртвая ссылка «Промо» в сайдбаре админки
 
 Status: DONE (2026-06-06)

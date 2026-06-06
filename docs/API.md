@@ -884,6 +884,15 @@ Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
 200 → список (`id`, `user_id`, `type`, `channel`, `status`, `title`, `body`,
 `data_json`, `read_at`, `sent_at`, `created_at`).
 
+#### GET /api/v1/admin/stats
+Сводные счётчики дашборда админ-панели (ADMIN-15). Auth: **MODERATOR / ADMIN**.
+Без query-параметров.
+200 → `{ listings_new, complaints_new, users_total, promotions_active }`:
+- `listings_new` — листинги в очереди модерации (`ListingStatus.NEW`);
+- `complaints_new` — необработанные жалобы (`ComplaintStatus.NEW`);
+- `users_total` — все пользователи (как `meta.total` в `/admin/users` без фильтра);
+- `promotions_active` — активные промо VIP/TOP (`PromotionStatus.ACTIVE`).
+
 ---
 
 ## 17. Error catalog
