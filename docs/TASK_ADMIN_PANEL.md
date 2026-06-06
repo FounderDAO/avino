@@ -291,7 +291,7 @@ Suggested commit: `feat(web): add admin moderation detail and actions`
 
 ### ADMIN-10 — Жалобы
 
-Status: `BLOCKED` (FE merged PR #84; ждёт TASK-132 backend) — ADR-0050
+Status: `DONE` (FE PR #84 + backend TASK-132 PR #85; live-verified 2026-06-06) — ADR-0050
 Branch: `feat/admin-web-complaints`
 Depends: `ADMIN-07`, `TASK-132` (backend — для E2E)
 
@@ -303,11 +303,20 @@ Scope: страница `/admin/complaints` — список с фильтром
 
 Acceptance: список и обработка жалоб работают.
 
-> ⚠️ **Бэкенд жалоб не реализован.** Нет модели `Complaint` в Prisma, нет
-> миграции/модуля (`admin.module.ts` помечает complaints как future). Эндпоинты
-> есть только в API.md §16 / DB_SCHEMA.md. По решению Team Lead FE мёрджится
-> contract-only (по образцу ADMIN-07); бэкенд заведён как **TASK-132** в
-> `docs/TASKS.md`. Live-verify и полный E2E ADMIN-10 — после TASK-132.
+> ✅ **Бэкенд жалоб реализован (TASK-132, PR #85)** и **live-verified 2026-06-06**
+> против запущенного стека (docker compose). Миграция
+> `20260606120000_add_complaints` применена; модуль `complaints` (модель
+> `Complaint` + enum `ComplaintStatus`) поднят. Проверено end-to-end с ADMIN-OTP
+> токеном:
+> - `POST /api/v1/complaints {listing_id, reason, details?}` → `201 {id, status:NEW}`;
+> - `GET /api/v1/admin/complaints?status=NEW` → отдаёт новую жалобу, `{data, meta}`;
+> - `PATCH /api/v1/admin/complaints/:id {status:IN_REVIEW}` → статус сменился,
+>   `handled_by`/`handled_at` проставляет сервер;
+> - фильтр `?listing_id=…` работает; невалидный статус → `400`; без токена → `401`.
+>
+> FE-тип `Complaint` и `ComplaintFilters` (ADMIN-07) **совпадают 1:1** с живым
+> ответом (`user_id`/`handled_by`/`handled_at`, nullable-поля); страница
+> `/admin/complaints` рендерится. Прежняя заметка «бэкенд не реализован» снята.
 
 Suggested commit: `feat(web): add admin complaints page`
 
@@ -451,12 +460,12 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-02 | DONE | #73 |
 | ADMIN-03 | DONE | #74 |
 | ADMIN-04 | DONE | #75 |
-| ADMIN-05 | TODO | — |
+| ADMIN-05 | DONE | #76 |
 | ADMIN-06 | DONE | #79 |
 | ADMIN-07 | DONE | #81 |
 | ADMIN-08 | DONE | #82 |
 | ADMIN-09 | DONE | #83 |
-| ADMIN-10 | BLOCKED | #84 (FE) |
+| ADMIN-10 | DONE | #84 (FE) + #85 (BE) |
 | ADMIN-11 | TODO | — |
 | ADMIN-12 | TODO | — |
 | ADMIN-13 | TODO | — |
