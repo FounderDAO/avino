@@ -435,6 +435,19 @@ Scope: `/admin/logs` с 4 вкладками, в каждой — таблица
 
 Acceptance: все 4 журнала грузятся и фильтруются.
 
+> ✅ **Реализовано и live-verified 2026-06-06** против стека (docker compose) с
+> ADMIN-OTP токеном. Страница `/admin/logs` — переключатель из 4 вкладок (Аудит /
+> Модерация / Промо / Уведомления); рендерится только активная вкладка (один
+> RTK-запрос за раз, кэш на переключении). Read-only слайс `adminLogsApi`
+> (4 query, `providesTags: ['Admin']`). Каждая вкладка — таблица на общих
+> `DataTable`/`Pagination` + свои фильтры (UUID — текст с дебаунсом, enum —
+> селект) + page-based пагинация. Общие фильтр-примитивы —
+> `components/admin/logs/filters.tsx`; подписи — `lib/logs.ts` (с переиспользованием
+> существующих `MODERATION_ACTION_LABELS` / `PROMOTION_TYPE_*`). End-to-end:
+> все 4 эндпоинта отдают данные в форме фронт-типов; `moderation-logs?action=APPROVE`
+> → только APPROVE; невалидный enum → `400`; без токена → `401` (ADMIN guard).
+> Gates: `lint` + `tsc` + `build` зелёные. ADR-0053.
+
 Suggested commit: `feat(web): add admin logs viewer`
 
 ---
@@ -505,7 +518,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-11 | DONE | #87 |
 | ADMIN-12 | DONE | #88 |
 | ADMIN-13 | DONE | #89 |
-| ADMIN-14 | TODO | — |
+| ADMIN-14 | DONE | #90 |
 | ADMIN-15 | TODO | — |
 | ADMIN-16 | TODO | — |
 | ADMIN-17 | TODO | — |
