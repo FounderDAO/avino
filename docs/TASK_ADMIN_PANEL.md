@@ -324,7 +324,7 @@ Suggested commit: `feat(web): add admin complaints page`
 
 ### ADMIN-11 — Пользователи: список + карточка
 
-Status: `TODO`
+Status: `DONE` (PR #87, 2026-06-06)
 Branch: `feat/admin-web-users-list`
 Depends: `ADMIN-07`
 
@@ -337,6 +337,18 @@ Scope: `/admin/users` — таблица (фильтры status/role/q, паги
 `/admin/users/[id]` — карточка (профиль, роли, статус, таймстемпы).
 
 Acceptance: список и карточка грузятся, фильтры работают.
+
+> ✅ **Реализовано и live-verified 2026-06-06** (PR #87) против стека (docker
+> compose) с ADMIN-OTP токеном. Бэкенд (`/admin/users`, `/admin/users/:id`,
+> `/roles`, TASK-130) поднят. FE-типы `AdminUserRow`/`AdminUserDetail`/`RoleDict`
+> (ADMIN-07) приведены **1:1** к живому контракту. Проверено:
+> - `GET /admin/users` → `{data, meta:{page,limit,total}}`, строка = `AdminUserRow`;
+> - `GET /admin/users/:id` → `AdminUserDetail` (`profile` nullable, `deleted_at`);
+> - `GET /roles` → `{code, description}` ×8 (без `id`);
+> - фильтры `status`/`role`/`q` работают; невалидный `status` → `400`, без токена
+>   → `401`, битый uuid → `400`.
+>
+> Смена статуса и управление ролями — **ADMIN-12**.
 
 Suggested commit: `feat(web): add admin users list and detail`
 
@@ -466,7 +478,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-08 | DONE | #82 |
 | ADMIN-09 | DONE | #83 |
 | ADMIN-10 | DONE | #84 (FE) + #85 (BE) |
-| ADMIN-11 | TODO | — |
+| ADMIN-11 | DONE | #87 |
 | ADMIN-12 | TODO | — |
 | ADMIN-13 | TODO | — |
 | ADMIN-14 | TODO | — |
