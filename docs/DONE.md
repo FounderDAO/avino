@@ -41,9 +41,9 @@ Related ADR:
 
 ### ADMIN-10 — Жалобы (web, contract-only)
 
-Status: REVIEW (PR open; не DONE — бэкенд жалоб не реализован, см. ниже)
+Status: FE merged (PR #84, 2026-06-06); задача BLOCKED до TASK-132 — бэкенд жалоб не реализован, см. ниже
 Branch: feat/admin-web-complaints
-PR: #84
+PR: #84 (merged)
 
 Files changed:
 - apps/web/src/store/api/adminComplaintsApi.ts (new)

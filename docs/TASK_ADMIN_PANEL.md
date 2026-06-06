@@ -291,9 +291,9 @@ Suggested commit: `feat(web): add admin moderation detail and actions`
 
 ### ADMIN-10 — Жалобы
 
-Status: `REVIEW` (PR #84) — ADR-0050
+Status: `BLOCKED` (FE merged PR #84; ждёт TASK-132 backend) — ADR-0050
 Branch: `feat/admin-web-complaints`
-Depends: `ADMIN-07`
+Depends: `ADMIN-07`, `TASK-132` (backend — для E2E)
 
 Backend (API.md §16):
 - `GET /admin/complaints?status&listing_id&page&limit`
@@ -456,7 +456,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-07 | DONE | #81 |
 | ADMIN-08 | DONE | #82 |
 | ADMIN-09 | DONE | #83 |
-| ADMIN-10 | REVIEW | #84 |
+| ADMIN-10 | BLOCKED | #84 (FE) |
 | ADMIN-11 | TODO | — |
 | ADMIN-12 | TODO | — |
 | ADMIN-13 | TODO | — |
