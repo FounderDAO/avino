@@ -39,6 +39,55 @@ Related ADR:
 
 ## 2026-06-06
 
+### ADMIN-12 — Пользователи: статус + роли (web)
+
+Status: DONE (2026-06-06) — live-verified против стека
+Branch: feat/admin-web-users-actions
+PR: #88
+
+Files changed:
+- apps/web/src/store/api/adminTypes.ts (request-DTO статуса/роли)
+- apps/web/src/store/api/adminUsersApi.ts (3 мутации + хуки)
+- apps/web/src/lib/users.ts (подписи/intent статус-действий, маппер ошибок)
+- apps/web/src/app/(admin)/admin/users/[id]/page.tsx (панель управления)
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md (обновление ADMIN-12)
+- docs/TASK_ADMIN_PANEL.md
+- docs/DONE.md
+
+Summary:
+- Реализовал write-часть TASK-130 (API.md §6): смена статуса пользователя и
+  управление ролями в карточке `/admin/users/[id]` поверх read-only ADMIN-11.
+  Смена статуса — через диалог подтверждения с причиной (обязательной для
+  `BLOCKED`/`DELETED`, попадает в аудит `ADMIN_USER_UPDATE`); роли —
+  назначение из `/roles` (минус уже выданные) и снятие через `✕` на чипах.
+  Только RTK Query (CLAUDE.md §4), RU-only (i18n — ADMIN-17).
+- `adminUsersApi`: добавлены мутации `updateAdminUserStatus`
+  (`PATCH /admin/users/:id`), `assignAdminUserRole` (`POST .../roles`),
+  `removeAdminUserRole` (`DELETE .../roles/:role`) — все инвалидируют тег
+  `Admin`, поэтому карточка/список перечитываются после действия (как заложено
+  в ADMIN-11). `PATCH`/`POST` типизированы возвратом полного `AdminUserDetail`
+  (сверено с контроллером — бэкенд отдаёт обновлённую карточку, не пустой 200),
+  `DELETE` → `void` (`204`).
+- Гард самоблокировки на фронте: ADMIN не может заблокировать/удалить себя и
+  снять у себя роль `ADMIN` (бэкенд это допускает — гард UX-уровня, чтобы не
+  потерять доступ). Ошибки мапятся по стабильному `error.code` через
+  `userActionErrorMessage` (`ROLE_ALREADY_GRANTED`/`VALIDATION_ERROR`/
+  `NOT_FOUND`/`FORBIDDEN`).
+- **Live-verify 2026-06-06** против стека (docker compose, ADMIN-OTP токен) на
+  тест-пользователе: `PATCH BLOCKED`+reason→`200` (полный `AdminUserDetail`),
+  невалидный статус→`400`, `POST AGENT`→`201` (`roles:[AGENT]`), повтор→`409
+  ROLE_ALREADY_GRANTED`, `GUEST`→`400 VALIDATION_ERROR`, `DELETE AGENT`→`204`,
+  повтор→`404 NOT_FOUND`, restore `ACTIVE`→`200`. Коды совпали 1:1 с картой.
+- Gates: `next lint` — без ошибок; `next build` — чистая сборка, маршрут
+  `/admin/users/[id]` (dynamic, 6.11 kB) собран.
+
+Commit messages:
+- feat(web): add admin user status and role management
+
+Related ADR:
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md (обновлён — мутации
+  статуса/ролей, live-сверка контракта)
+
 ### TASK-132 — Complaints backend (table + module + routes)
 
 Status: DONE

@@ -248,6 +248,25 @@ export interface RoleDict {
   description: string | null;
 }
 
+/**
+ * Тело `PATCH /admin/users/:id` (§6, ADMIN-12) — смена статуса. `reason`
+ * опционален и попадает в `metadata` аудита `ADMIN_USER_UPDATE`. Бэкенд
+ * возвращает обновлённый {@link AdminUserDetail} (а не пустой 200).
+ */
+export interface UpdateAdminUserStatusRequest {
+  status: UserStatus;
+  reason?: string | null;
+}
+
+/**
+ * Тело `POST /admin/users/:id/roles` (§6, ADMIN-12) — назначение роли. Бэкенд
+ * возвращает обновлённый {@link AdminUserDetail} (`201`). GUEST не сидируется
+ * (ADR-0011) → `400 VALIDATION_ERROR`; повтор → `409 ROLE_ALREADY_GRANTED`.
+ */
+export interface AssignRoleRequest {
+  role: RoleCode;
+}
+
 // ─── DTO: промо (API.md §15) ────────────────────────────────────────────────
 
 /** Запись ledger `listing_promotions` (§15). */

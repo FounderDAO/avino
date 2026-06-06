@@ -356,7 +356,7 @@ Suggested commit: `feat(web): add admin users list and detail`
 
 ### ADMIN-12 — Пользователи: статус + роли
 
-Status: `TODO`
+Status: `DONE` (PR #88, 2026-06-06) — ADR-0050 (обновление)
 Branch: `feat/admin-web-users-actions`
 Depends: `ADMIN-11`
 
@@ -369,6 +369,17 @@ Scope: в карточке — смена статуса (блок/удален�
 ролей (выбор из `/roles`). Обработка `409 ROLE_ALREADY_GRANTED`, `404`, `400`.
 
 Acceptance: блок/удаление и управление ролями работают, аудит на бэкенде пишется.
+
+> ✅ **Реализовано и live-verified 2026-06-06** против стека (docker compose) с
+> ADMIN-OTP токеном. Три мутации в `adminUsersApi` (`updateAdminUserStatus`,
+> `assignAdminUserRole`, `removeAdminUserRole`, все инвалидируют тег `Admin`).
+> Карточка `/admin/users/[id]` получила панель: смена статуса через диалог с
+> reason (обяз. для `BLOCKED`/`DELETED`) + назначение/снятие ролей. `PATCH`/`POST`
+> отдают полный `AdminUserDetail`, `DELETE` → `204`. Проверено end-to-end:
+> `BLOCKED`+reason→`200`, невалидный статус→`400`, `POST AGENT`→`201`, повтор→`409
+> ROLE_ALREADY_GRANTED`, `GUEST`→`400`, `DELETE`→`204`, повтор→`404`, restore→`200`.
+> Гард самоблокировки на фронте (нельзя заблокировать/удалить себя и снять свою
+> роль `ADMIN`). Gates: `lint` + `build` зелёные.
 
 Suggested commit: `feat(web): add admin user status and role management`
 
@@ -479,7 +490,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-09 | DONE | #83 |
 | ADMIN-10 | DONE | #84 (FE) + #85 (BE) |
 | ADMIN-11 | DONE | #87 |
-| ADMIN-12 | TODO | — |
+| ADMIN-12 | DONE | #88 |
 | ADMIN-13 | TODO | — |
 | ADMIN-14 | TODO | — |
 | ADMIN-15 | TODO | — |
