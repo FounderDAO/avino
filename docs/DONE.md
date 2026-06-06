@@ -92,11 +92,11 @@ Commit messages:
 Related ADR:
 - docs/adr/ADR-0051-complaints-module.md
 
-### ADMIN-10 — Жалобы (web, contract-only)
+### ADMIN-10 — Жалобы (web)
 
-Status: FE merged (PR #84, 2026-06-06); задача BLOCKED до TASK-132 — бэкенд жалоб не реализован, см. ниже
+Status: DONE (2026-06-06) — FE PR #84 + backend TASK-132 PR #85, live-verified E2E
 Branch: feat/admin-web-complaints
-PR: #84 (merged)
+PR: #84 (FE) + #85 (backend, TASK-132)
 
 Files changed:
 - apps/web/src/store/api/adminComplaintsApi.ts (new)
@@ -110,8 +110,8 @@ Files changed:
 Summary:
 - Реализовал веб-страницу жалоб `/admin/complaints` (API.md §16) поверх базы ADMIN-07: список с фильтрами (status=NEW по умолчанию, listing_id) + page-based пагинация, диалог обработки жалобы со сменой статуса. Ссылка на листинг ведёт в карточку модерации (ADMIN-09). Только RTK Query (CLAUDE.md §4), RU-only.
 - `adminComplaintsApi.ts`: `listAdminComplaints` (`GET /admin/complaints`) + мутация `updateComplaintStatus` (`PATCH /admin/complaints/:id { status }`), инвалидирует тег `Admin` → список перечитывается после действия. `lib/complaints.ts`: подписи/badge статусов, маппинг кодов ошибок в RU. DTO `Complaint`/`ComplaintStatus`/`ComplaintFilters` — из базы ADMIN-07 как есть.
-- **Бэкенд жалоб НЕ реализован** — нет модели `Complaint` в Prisma, нет миграции/модуля (`admin.module.ts` помечает complaints как future); эндпоинты есть только в API.md §16 / DB_SCHEMA.md. По решению Team Lead FE мёрджится contract-only (по образцу ADMIN-07: типы по докам, live-verify отложен). Бэкенд заведён как **TASK-132** в `docs/TASKS.md`.
-- **Live-сверка DTO и E2E НЕ выполнены** — заблокированы отсутствием бэкенда; будут сделаны после TASK-132. Сейчас запросы вернут 404.
+- Бэкенд жалоб реализован отдельной задачей **TASK-132** (PR #85): модель `Complaint`, enum `complaint_status`, миграция `add_complaints`, роуты `POST /complaints` + `GET|PATCH /admin/complaints`. FE мёрджился contract-only (по образцу ADMIN-07), затем разблокирован.
+- **Live-verify E2E выполнен 2026-06-06** против поднятого стека (docker compose) с ADMIN-OTP токеном: миграция `20260606120000_add_complaints` применена; `POST /complaints` → `201 {id, status:NEW}`; `GET /admin/complaints?status=NEW` отдаёт жалобу `{data, meta}`; `PATCH /admin/complaints/:id {status:IN_REVIEW}` меняет статус, сервер проставляет `handled_by`/`handled_at`; фильтр `?listing_id` работает; невалидный статус → `400`, без токена → `401`. FE-тип `Complaint`/`ComplaintFilters` совпал 1:1 с живым контрактом (`user_id`/`handled_by`/`handled_at`); страница `/admin/complaints` рендерится.
 - Gates: `pnpm --filter @avino/web lint` — без ошибок; `tsc --noEmit` — чисто; `next build` — чистая сборка, маршрут `/admin/complaints` собран (static, 5.45 kB).
 
 Commit messages:
