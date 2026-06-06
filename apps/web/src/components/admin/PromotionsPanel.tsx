@@ -16,6 +16,7 @@ import type {
   PromotionType,
 } from "@/store/api/adminTypes";
 import { DataTable } from "@/components/admin/DataTable";
+import { useToast } from "@/components/admin/toast/ToastProvider";
 import type { Column } from "@/lib/table";
 import { formatDateTime } from "@/lib/format";
 import {
@@ -74,6 +75,7 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
   const [activate, activation] = useActivatePromotionMutation();
   const [cancel, cancellation] = useCancelPromotionMutation();
   const [extend, extension] = useExtendPromotionMutation();
+  const toast = useToast();
 
   // Форма активации.
   const [activateType, setActivateType] =
@@ -86,35 +88,26 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
   const [extendOpen, setExtendOpen] = useState(false);
   const [extendPeriod, setExtendPeriod] = useState<PromotionPeriodDays>(7);
 
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
   const active = findActivePromotion(historyQuery.data);
   const priceLabel = planPriceLabel(activateType, activatePeriod);
 
   const busy =
     activation.isLoading || cancellation.isLoading || extension.isLoading;
 
-  function resetFeedback() {
-    setError(null);
-    setSuccessMessage(null);
-  }
-
   async function handleActivate() {
-    resetFeedback();
     try {
       const result = await activate({
         listingId,
         body: { type: activateType, period_days: activatePeriod },
         idempotencyKey: newIdempotencyKey(),
       }).unwrap();
-      setSuccessMessage(
+      toast.success(
         `Промо активирована: ${PROMOTION_TYPE_LABELS[result.type]}, ${periodLabel(
           result.period_days,
         )}.`,
       );
     } catch (err) {
-      setError(
+      toast.error(
         promotionErrorMessage(
           err as Parameters<typeof promotionErrorMessage>[0],
         ),
@@ -124,18 +117,17 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
 
   async function handleCancel() {
     if (!active) return;
-    resetFeedback();
     const trimmed = cancelReason.trim();
     try {
       await cancel({
         id: active.id,
         body: { reason: trimmed || null },
       }).unwrap();
-      setSuccessMessage("Промо отменена.");
+      toast.success("Промо отменена.");
       setCancelOpen(false);
       setCancelReason("");
     } catch (err) {
-      setError(
+      toast.error(
         promotionErrorMessage(
           err as Parameters<typeof promotionErrorMessage>[0],
         ),
@@ -145,18 +137,15 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
 
   async function handleExtend() {
     if (!active) return;
-    resetFeedback();
     try {
       const result = await extend({
         id: active.id,
         body: { period_days: extendPeriod },
       }).unwrap();
-      setSuccessMessage(
-        `Промо продлена до ${formatDateTime(result.expires_at)}.`,
-      );
+      toast.success(`Промо продлена до ${formatDateTime(result.expires_at)}.`);
       setExtendOpen(false);
     } catch (err) {
-      setError(
+      toast.error(
         promotionErrorMessage(
           err as Parameters<typeof promotionErrorMessage>[0],
         ),
@@ -210,17 +199,6 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
         Промо VIP/TOP
       </h2>
 
-      {successMessage && (
-        <div className="mb-4 rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-theme-sm text-success-700 dark:border-success-500/30 dark:bg-success-500/[0.12] dark:text-success-400">
-          {successMessage}
-        </div>
-      )}
-      {error && (
-        <div className="mb-4 rounded-lg border border-error-200 bg-error-50 px-4 py-3 text-theme-sm text-error-600 dark:border-error-500/30 dark:bg-error-500/[0.12] dark:text-error-500">
-          {error}
-        </div>
-      )}
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Активная промо */}
         <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-800">
@@ -258,7 +236,6 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
                   type="button"
                   disabled={busy}
                   onClick={() => {
-                    resetFeedback();
                     setExtendPeriod(7);
                     setExtendOpen(true);
                   }}
@@ -270,7 +247,6 @@ export function PromotionsPanel({ listingId }: { listingId: string }) {
                   type="button"
                   disabled={busy}
                   onClick={() => {
-                    resetFeedback();
                     setCancelReason("");
                     setCancelOpen(true);
                   }}

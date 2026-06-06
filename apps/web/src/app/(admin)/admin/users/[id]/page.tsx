@@ -17,6 +17,8 @@ import type { AdminUserDetail, RoleCode } from "@/store/api/adminTypes";
 import type { UserStatus } from "@/store/api/authApi";
 import { selectCurrentUser } from "@/store/slices/authSlice";
 import { getApiError, getApiErrorCode } from "@/store/api/apiError";
+import { DetailSkeleton, ErrorState, InfoState } from "@/components/admin/states";
+import { useToast } from "@/components/admin/toast/ToastProvider";
 import { formatDateTime, shortId } from "@/lib/format";
 import {
   USER_STATUSES,
@@ -120,6 +122,7 @@ export default function AdminUserDetailPage() {
   const [updateStatus, statusMutation] = useUpdateAdminUserStatusMutation();
   const [assignRole, assignMutation] = useAssignAdminUserRoleMutation();
   const [removeRole, removeMutation] = useRemoveAdminUserRoleMutation();
+  const toast = useToast();
 
   // Смена статуса (подтверждение + причина).
   const [pendingStatus, setPendingStatus] = useState<UserStatus | null>(null);
@@ -128,10 +131,7 @@ export default function AdminUserDetailPage() {
 
   // Управление ролями.
   const [roleToAdd, setRoleToAdd] = useState<RoleCode | "">("");
-  const [roleError, setRoleError] = useState<string | null>(null);
   const [removingRole, setRemovingRole] = useState<RoleCode | null>(null);
-
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const notFound =
     userQuery.isError && getApiErrorCode(userQuery.error) === "NOT_FOUND";
@@ -141,7 +141,6 @@ export default function AdminUserDetailPage() {
     setPendingStatus(status);
     setReason("");
     setStatusError(null);
-    setSuccessMessage(null);
   }
 
   function closeStatusDialog() {
@@ -163,12 +162,12 @@ export default function AdminUserDetailPage() {
         id,
         body: { status: pendingStatus, reason: trimmed || null },
       }).unwrap();
-      setSuccessMessage(`Статус изменён: ${USER_STATUS_LABELS[pendingStatus]}.`);
+      toast.success(`Статус изменён: ${USER_STATUS_LABELS[pendingStatus]}.`);
       setPendingStatus(null);
       setReason("");
       setStatusError(null);
     } catch (err) {
-      setStatusError(
+      toast.error(
         userActionErrorMessage(
           err as Parameters<typeof userActionErrorMessage>[0],
         ),
@@ -183,14 +182,12 @@ export default function AdminUserDetailPage() {
 
   async function handleAssignRole() {
     if (!roleToAdd) return;
-    setRoleError(null);
-    setSuccessMessage(null);
     try {
       await assignRole({ id, body: { role: roleToAdd } }).unwrap();
-      setSuccessMessage(`Роль назначена: ${roleLabel(roleToAdd)}.`);
+      toast.success(`Роль назначена: ${roleLabel(roleToAdd)}.`);
       setRoleToAdd("");
     } catch (err) {
-      setRoleError(
+      toast.error(
         userActionErrorMessage(
           err as Parameters<typeof userActionErrorMessage>[0],
         ),
@@ -199,14 +196,12 @@ export default function AdminUserDetailPage() {
   }
 
   async function handleRemoveRole(role: RoleCode) {
-    setRoleError(null);
-    setSuccessMessage(null);
     setRemovingRole(role);
     try {
       await removeRole({ id, role }).unwrap();
-      setSuccessMessage(`Роль снята: ${roleLabel(role)}.`);
+      toast.success(`Роль снята: ${roleLabel(role)}.`);
     } catch (err) {
-      setRoleError(
+      toast.error(
         userActionErrorMessage(
           err as Parameters<typeof userActionErrorMessage>[0],
         ),
@@ -234,45 +229,20 @@ export default function AdminUserDetailPage() {
         {user && <StatusBadge status={user.status} />}
       </div>
 
-      {successMessage && (
-        <div className="rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-theme-sm text-success-700 dark:border-success-500/30 dark:bg-success-500/[0.12] dark:text-success-400">
-          {successMessage}
-        </div>
-      )}
-
-      {userQuery.isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-5 w-full max-w-md animate-pulse rounded bg-gray-100 dark:bg-gray-800"
-            />
-          ))}
-        </div>
-      )}
+      {userQuery.isLoading && <DetailSkeleton />}
 
       {notFound && (
-        <div className="rounded-2xl border border-gray-200 bg-white px-5 py-12 text-center dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-            Пользователь недоступен — не найден или удалён.
-          </p>
-        </div>
+        <InfoState message="Пользователь недоступен — не найден или удалён." />
       )}
 
       {userQuery.isError && !notFound && (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-12 text-center dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-theme-sm text-error-600 dark:text-error-500">
-            {getApiError(userQuery.error)?.message ??
-              "Не удалось загрузить пользователя."}
-          </p>
-          <button
-            type="button"
-            onClick={() => userQuery.refetch()}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-theme-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
-          >
-            Повторить
-          </button>
-        </div>
+        <ErrorState
+          message={
+            getApiError(userQuery.error)?.message ??
+            "Не удалось загрузить пользователя."
+          }
+          onRetry={() => userQuery.refetch()}
+        />
       )}
 
       {user && (
@@ -451,11 +421,6 @@ export default function AdminUserDetailPage() {
                 {rolesQuery.isError && (
                   <p className="mt-2 text-theme-xs text-error-600 dark:text-error-500">
                     Не удалось загрузить справочник ролей.
-                  </p>
-                )}
-                {roleError && (
-                  <p className="mt-2 text-theme-sm text-error-600 dark:text-error-500">
-                    {roleError}
                   </p>
                 )}
               </div>

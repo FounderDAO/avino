@@ -12,6 +12,7 @@ import { getApiError } from "@/store/api/apiError";
 import { DEFAULT_LIMIT } from "@/store/api/pagination";
 import { DataTable } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
+import { useToast } from "@/components/admin/toast/ToastProvider";
 import type { Column, SelectOption } from "@/lib/table";
 import { formatDateTime, shortId } from "@/lib/format";
 import {
@@ -119,17 +120,15 @@ export default function AdminComplaintsPage() {
     });
 
   const [updateStatus, update] = useUpdateComplaintStatusMutation();
+  const toast = useToast();
 
   // Диалог обработки жалобы.
   const [active, setActive] = useState<Complaint | null>(null);
   const [target, setTarget] = useState<ComplaintStatus>("NEW");
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   function closeDialog() {
     if (update.isLoading) return;
     setActive(null);
-    setActionError(null);
   }
 
   async function confirmAction() {
@@ -139,13 +138,12 @@ export default function AdminComplaintsPage() {
         id: active.id,
         status: target,
       }).unwrap();
-      setSuccessMessage(
+      toast.success(
         `Жалоба обновлена: ${COMPLAINT_STATUS_LABELS[updated.status]}.`,
       );
       setActive(null);
-      setActionError(null);
     } catch (err) {
-      setActionError(
+      toast.error(
         complaintErrorMessage(
           err as Parameters<typeof complaintErrorMessage>[0],
         ),
@@ -238,8 +236,6 @@ export default function AdminComplaintsPage() {
             onClick={() => {
               setActive(row);
               setTarget(row.status);
-              setActionError(null);
-              setSuccessMessage(null);
             }}
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-theme-xs font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
           >
@@ -270,12 +266,6 @@ export default function AdminComplaintsPage() {
           <span className="text-theme-xs text-gray-400">Обновление…</span>
         )}
       </div>
-
-      {successMessage && (
-        <div className="rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-theme-sm text-success-700 dark:border-success-500/30 dark:bg-success-500/[0.12] dark:text-success-400">
-          {successMessage}
-        </div>
-      )}
 
       {/* Фильтры */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -384,12 +374,6 @@ export default function AdminComplaintsPage() {
                 ))}
               </select>
             </label>
-
-            {actionError && (
-              <p className="mt-2 text-theme-sm text-error-600 dark:text-error-500">
-                {actionError}
-              </p>
-            )}
 
             <div className="mt-5 flex justify-end gap-2.5">
               <button

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useGetAdminStatsQuery } from "@/store/api/adminStatsApi";
 import type { AdminStats } from "@/store/api/adminTypes";
 import { getApiError } from "@/store/api/apiError";
+import { InlineAlert } from "@/components/admin/states";
 
 /**
  * DashboardOverview (ADMIN-15) — живые счётчики дашборда из `GET /admin/stats`.
@@ -12,8 +13,7 @@ import { getApiError } from "@/store/api/apiError";
  * Один запрос отдаёт четыре числа; карточки кликабельны и ведут в
  * соответствующие разделы (листинги/жалобы/пользователи). «Активные промо» —
  * без своей страницы-списка (промо управляются из карточки листинга), поэтому
- * это карточка без ссылки. Состояния loading/error решаются здесь точечно;
- * единый UX состояний по всей админке появится в ADMIN-16.
+ * это карточка без ссылки. Состояние ошибки — единый `InlineAlert` (ADMIN-16).
  */
 type StatCard = {
   key: keyof AdminStats;
@@ -65,12 +65,7 @@ export function DashboardOverview() {
   return (
     <div className="space-y-4">
       {apiError ? (
-        <div
-          role="alert"
-          className="rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-theme-sm text-error"
-        >
-          Не удалось загрузить счётчики: {apiError.message}
-        </div>
+        <InlineAlert>Не удалось загрузить счётчики: {apiError.message}</InlineAlert>
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
