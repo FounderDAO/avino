@@ -269,16 +269,56 @@ export interface AssignRoleRequest {
 
 // ─── DTO: промо (API.md §15) ────────────────────────────────────────────────
 
-/** Запись ledger `listing_promotions` (§15). */
+/**
+ * Тиры, активируемые вручную (`NORMAL` = «нет промо», не тариф; §15). Зеркало
+ * `ActivatePromotionDto.ACTIVATABLE_TYPES` на бэкенде.
+ */
+export type ActivatablePromotionType = 'TOP' | 'VIP';
+
+/**
+ * Запись ledger `listing_promotions` (§15) — зеркало `PromotionResponse`
+ * (`apps/api/src/promotions`). Ответ и `POST` (201, активация), и истории `GET`,
+ * и `PATCH` cancel/extend. `starts_at`/`expires_at` nullable (бэкенд допускает
+ * `null` для не-`ACTIVE` строк).
+ */
 export interface ListingPromotion {
   id: string;
   listing_id: string;
   type: PromotionType;
   status: PromotionStatus;
   period_days: number;
-  starts_at: string;
-  expires_at: string;
+  starts_at: string | null;
+  expires_at: string | null;
   payment_status: PaymentStatus;
+}
+
+/**
+ * Тело `POST /admin/listings/:id/promotions` (§15, ADMIN-13) — ручная активация.
+ * `type` — платный тариф (`TOP|VIP`); `period_days` ∈ {7,14,30} (иначе бэкенд →
+ * `422 INVALID_PERIOD`). Идемпотентность — через заголовок `Idempotency-Key`
+ * (а не тело). Бэкенд закрывает предыдущую `ACTIVE`-промо и возвращает новую (201).
+ */
+export interface ActivatePromotionRequest {
+  type: ActivatablePromotionType;
+  period_days: PromotionPeriodDays;
+}
+
+/**
+ * Тело `PATCH /admin/listing-promotions/:id/cancel` (§15, ADMIN-13). `reason`
+ * опционален (пишется в `promotion_logs.reason`). Ответ — обновлённая промо
+ * (`status = CANCELLED`).
+ */
+export interface CancelPromotionRequest {
+  reason?: string | null;
+}
+
+/**
+ * Тело `PATCH /admin/listing-promotions/:id/extend` (§15, ADMIN-13). `period_days`
+ * ∈ {7,14,30}; продлевает `expires_at`. Ошибки: `422 INVALID_PERIOD`,
+ * `422 PROMOTION_NOT_ACTIVE`.
+ */
+export interface ExtendPromotionRequest {
+  period_days: PromotionPeriodDays;
 }
 
 // ─── DTO: жалобы (API.md §16) ───────────────────────────────────────────────
