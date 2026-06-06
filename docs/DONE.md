@@ -39,6 +39,59 @@ Related ADR:
 
 ## 2026-06-06
 
+### ADMIN-14 — Логи (4 вкладки, web)
+
+Status: DONE (2026-06-06) — live-verified против стека
+Branch: feat/admin-web-logs
+PR: #90
+
+Files changed:
+- apps/web/src/store/api/adminLogsApi.ts (4 read-only query + хуки)
+- apps/web/src/lib/logs.ts (вкладки + подписи журналов и badge статуса уведомления)
+- apps/web/src/components/admin/logs/filters.tsx (общие FilterSelect/TextFilter/FilterGrid + useDebouncedValue)
+- apps/web/src/components/admin/logs/AuditLogsTab.tsx
+- apps/web/src/components/admin/logs/ModerationLogsTab.tsx
+- apps/web/src/components/admin/logs/PromotionLogsTab.tsx
+- apps/web/src/components/admin/logs/NotificationLogsTab.tsx
+- apps/web/src/app/(admin)/admin/logs/page.tsx
+- docs/adr/ADR-0053-web-admin-logs.md
+- docs/TASK_ADMIN_PANEL.md
+- docs/DONE.md
+
+Summary:
+- Реализован фронтенд просмотра журналов (TASK-131, API.md §16) — страница
+  `/admin/logs` с переключателем из 4 вкладок: Аудит (`GET /admin/audit-logs`),
+  Модерация (`GET /admin/moderation-logs`), Промо (`GET /admin/promotion-logs`),
+  Уведомления (`GET /admin/notification-logs`). В каждой вкладке — таблица на
+  общих `DataTable`/`Pagination` (ADMIN-08), свои фильтры и page-based пагинация.
+  Только RTK Query (CLAUDE.md §4), RU-only (i18n — ADMIN-17).
+- `adminLogsApi` — 4 read-only `query`-эндпоинта (инъекция в `adminApi`), все
+  `providesTags: ['Admin']`: журнал перечитывается после любой админ-мутации.
+  `toQueryParams` отбрасывает пустые фильтры (forward-compatible, §4).
+- Рендерится только активная вкладка → один RTK-запрос за раз; при возврате
+  RTK Query отдаёт данные из кэша. Фильтры по UUID (actor/entity/listing/
+  moderator/admin/user) — текстовые с дебаунсом; по enum — селекты. Подписи
+  `MODERATION_ACTION_LABELS` и `PROMOTION_TYPE_*` переиспользованы; новые
+  справочники журналов — в `lib/logs.ts`. Общие фильтр-контролы вынесены в
+  `components/admin/logs/filters.tsx` (страницы модерации/жалоб не трогались —
+  одна задача, один PR; унификация копий — ADMIN-16).
+- Контракт выверен live против стека (docker compose) с ADMIN-OTP токеном:
+  все 4 эндпоинта отдают данные ровно в форме фронт-типов (`AuditLog`/
+  `ModerationLog`/`PromotionLog`/`NotificationLog`, snake_case, nullable-поля);
+  фильтр `moderation-logs?action=APPROVE` → только APPROVE-строки; невалидный
+  enum (`notification-logs?status=BOGUS`) → `400 VALIDATION_ERROR`; запрос без
+  токена → `401` (ADMIN-only RolesGuard). Gates: `lint` + `tsc --noEmit` +
+  `next build` зелёные, роут `/admin/logs` присутствует в сборке.
+
+Commit messages:
+- feat(web): add admin logs viewer
+- docs(admin): record ADMIN-14 (ADR-0053, tracker, DONE)
+
+Related ADR:
+- docs/adr/ADR-0053-web-admin-logs.md
+
+---
+
 ### ADMIN-13 — Промо VIP/TOP (web)
 
 Status: DONE (2026-06-06) — live-verified против стека
