@@ -90,13 +90,43 @@ Negative / trade-offs:
 сверяются при реализации своих фич (ADMIN-09..15). Решение хранить общие DTO в
 одном месте подтвердило себя: правка формы — в одном файле.
 
+## Обновление (ADMIN-09, 2026-06-06)
+
+Карточка модерации (`/admin/listings/[id]`) добавила в `adminListingsApi` три
+эндпоинта поверх той же базы: `getAdminListing` (`GET /listings/:id` —
+MODERATOR/ADMIN видят непубличные статусы через публичный роут с
+`OptionalJwtAuthGuard`), `listingModerationLogs` (`GET /admin/listings/:id/
+moderation-logs`) и мутацию `moderateListing` (`PATCH /admin/listings/:id/status`).
+Мутация инвалидирует тег `Admin`, поэтому карточка, история и очередь (ADMIN-08)
+перечитываются после действия — единая coarse-grained схема тегов оправдала себя.
+
+**Live-сверка DTO (обещание базы) против запущенного стека:**
+- `ListingDetail` приведён к реальной форме `ListingDetailResponse`
+  (`apps/api/src/listings`): `area` и `city_id` стали nullable, а спекулятивного
+  `features: ListingFeature[]` из чернового типа ADMIN-07 в detail-ответе **нет**
+  (бэкенд отдаёт только `features_text`) — поле и неиспользуемый интерфейс
+  `ListingFeature` удалены.
+- Добавлены `ModerateListingRequest`/`ModerationResult` и `ListingModerationLogEntry`.
+  Per-listing лог-ответ **без `listing_id`** (в отличие от глобального
+  `ModerationLog`, §16) — подтверждено live: ключи `action/old_status/new_status/
+  moderator_id/reason/created_at`.
+
+Гейтинг переходов вынесен в `lib/moderation.ts` зеркалом бэкенда
+(`MODERATABLE_STATUSES`+`ACTION_TO_STATUS`): недопустимые действия задизейблены в
+UI, `422 INVALID_STATUS_TRANSITION` обрабатывается как fallback. Прогон live:
+`NEW → SEND_TO_DRAFT` → `{id,status:DRAFT,published_at:null}`, история обновилась,
+повтор того же действия → `INVALID_STATUS_TRANSITION`.
+
 ## Related files
 
 - apps/web/src/store/api/pagination.ts
 - apps/web/src/store/api/adminTypes.ts
 - apps/web/src/store/api/adminApi.ts
+- apps/web/src/store/api/adminListingsApi.ts
 - apps/web/src/lib/table.ts
+- apps/web/src/lib/moderation.ts
+- apps/web/src/app/(admin)/admin/listings/[id]/page.tsx
 
 ## Related task
 
-- ADMIN-07 (docs/TASK_ADMIN_PANEL.md)
+- ADMIN-07 / ADMIN-08 / ADMIN-09 (docs/TASK_ADMIN_PANEL.md)

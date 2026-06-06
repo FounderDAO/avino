@@ -39,6 +39,38 @@ Related ADR:
 
 ## 2026-06-06
 
+### ADMIN-09 — Модерация: карточка + действия + история
+
+Status: DONE
+Branch: feat/admin-web-moderation-detail
+PR: #83
+
+Files changed:
+- apps/web/src/store/api/adminTypes.ts
+- apps/web/src/store/api/adminListingsApi.ts
+- apps/web/src/lib/moderation.ts
+- apps/web/src/app/(admin)/admin/listings/[id]/page.tsx
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md
+- docs/TASK_ADMIN_PANEL.md
+- docs/DONE.md
+
+Summary:
+- Реализовал карточку модерации `/admin/listings/[id]` (API.md §7/§16) поверх базы ADMIN-07/08: данные листинга, действия модерации с reason, история.
+- `adminListingsApi.ts`: добавлены `getAdminListing` (`GET /listings/:id` — MODERATOR/ADMIN видят непубличные статусы через публичный роут с `OptionalJwtAuthGuard`), `listingModerationLogs` (`GET /admin/listings/:id/moderation-logs`) и мутация `moderateListing` (`PATCH /admin/listings/:id/status`). Мутация инвалидирует тег `Admin` → карточка/история/очередь (ADMIN-08) перечитываются после действия. Хуки `useGetAdminListingQuery`/`useListingModerationLogsQuery`/`useModerateListingMutation`.
+- **Live-сверка DTO против запущенного стека** (обещание базы ADR-0050): `ListingDetail` приведён к реальной форме `ListingDetailResponse` — `area`/`city_id` стали nullable, спекулятивного `features: ListingFeature[]` из черновика ADMIN-07 в detail-ответе нет (только `features_text`), поле и неиспользуемый интерфейс удалены. Добавлены `ModerateListingRequest`/`ModerationResult` и `ListingModerationLogEntry` (per-listing лог **без `listing_id`**, в отличие от глобального `ModerationLog`).
+- `lib/moderation.ts`: гейтинг переходов зеркалом бэкенда (`MODERATABLE_STATUSES`+`ACTION_TO_STATUS`) — недопустимые для текущего статуса действия задизейблены; подписи/intent-цвета кнопок; маппинг кодов ошибок (`INVALID_STATUS_TRANSITION`/`FORBIDDEN`/`NOT_FOUND`/`VALIDATION_ERROR`) в RU-сообщения.
+- Страница: данные листинга (поля + галерея медиа), панель действий (APPROVE/SEND_TO_DRAFT/REJECT/DELETE) с диалогом подтверждения и reason (обязателен для REJECT), таблица истории через переиспользуемый `DataTable`. Состояния loading/error/not-found (удалён/скрыт → дружелюбный текст). Данные — только RTK Query (CLAUDE.md §4), RU-only (i18n — ADMIN-17).
+- Gates: `tsc --noEmit` чисто; `next lint` без ошибок; `next build` — чистая сборка, маршрут `/admin/listings/[id]` собран (dynamic).
+- **Live-прогон против стека** (ADMIN OTP-flow, dev-код из логов api): `GET /listings/:id` под ADMIN на NEW-листинге → форма ровно совпала с `ListingDetail` (без `features`, `city_id=null`, `area` decimal-строкой, `media[]`). `PATCH .../status` `NEW → SEND_TO_DRAFT` → `{id,status:DRAFT,published_at:null}`; история обновилась (запись без `listing_id`, ключи `action/old_status/new_status/moderator_id/reason/created_at`); повтор того же действия → `INVALID_STATUS_TRANSITION` (fallback в UI).
+
+Commit messages:
+- feat(web): add admin moderation detail and actions
+
+Related ADR:
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md (обновлён — live-сверка `ListingDetail` + эндпоинты карточки/действий)
+
+---
+
 ### ADMIN-08 — Модерация: очередь листингов
 
 Status: DONE
