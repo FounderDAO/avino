@@ -476,6 +476,67 @@ _TASK-130 completed — see docs/DONE.md._
 
 _TASK-131 completed — see docs/DONE.md._
 
+### TASK-132 — Complaints backend (table + module + routes)
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+feat/api-complaints-module
+```
+
+Scope:
+
+```text
+Implement the complaints backend documented in API.md §16 and DB_SCHEMA.md but
+currently missing (admin.module.ts marks complaints as a future flow; no Prisma
+model / migration / module exists). Add Prisma model Complaint + complaint_status
+enum (NEW|IN_REVIEW|RESOLVED|REJECTED) + migration, and a complaints module:
+- POST /api/v1/complaints (USER — пожаловаться на листинг)
+- GET /api/v1/admin/complaints?status&listing_id&page&limit (MODERATOR/ADMIN)
+- PATCH /api/v1/admin/complaints/:id { status } (MODERATOR/ADMIN; set
+  handled_by/handled_at)
+Page-based pagination (meta.total обязателен, §4). Reuse moderation patterns.
+```
+
+Files expected:
+
+```text
+apps/api/prisma/schema.prisma
+apps/api/prisma/migrations/<ts>_add_complaints/migration.sql
+apps/api/src/complaints/
+apps/api/src/admin/admin.module.ts
+```
+
+Acceptance criteria:
+
+```text
+Endpoints match API.md §16 contract
+USER can report a listing; MODERATOR/ADMIN can list/filter and change status
+Statuses NEW|IN_REVIEW|RESOLVED|REJECTED enforced
+Unblocks ADMIN-10 web page (live-verify + E2E acceptance)
+```
+
+Suggested commits:
+
+```text
+feat(api): add complaints module and migration
+```
+
+Dependencies:
+
+```text
+TASK-050
+TASK-051
+```
+
+---
+
 ## 18. M14 — Web frontend foundation
 
 ### TASK-140 — Initialize Next.js web app

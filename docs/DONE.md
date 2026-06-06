@@ -39,6 +39,37 @@ Related ADR:
 
 ## 2026-06-06
 
+### ADMIN-10 — Жалобы (web, contract-only)
+
+Status: REVIEW (PR open; не DONE — бэкенд жалоб не реализован, см. ниже)
+Branch: feat/admin-web-complaints
+PR: #84
+
+Files changed:
+- apps/web/src/store/api/adminComplaintsApi.ts (new)
+- apps/web/src/lib/complaints.ts (new)
+- apps/web/src/app/(admin)/admin/complaints/page.tsx (new)
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md (обновление ADMIN-10)
+- docs/TASK_ADMIN_PANEL.md
+- docs/TASKS.md (новый TASK-132 — complaints backend)
+- docs/DONE.md
+
+Summary:
+- Реализовал веб-страницу жалоб `/admin/complaints` (API.md §16) поверх базы ADMIN-07: список с фильтрами (status=NEW по умолчанию, listing_id) + page-based пагинация, диалог обработки жалобы со сменой статуса. Ссылка на листинг ведёт в карточку модерации (ADMIN-09). Только RTK Query (CLAUDE.md §4), RU-only.
+- `adminComplaintsApi.ts`: `listAdminComplaints` (`GET /admin/complaints`) + мутация `updateComplaintStatus` (`PATCH /admin/complaints/:id { status }`), инвалидирует тег `Admin` → список перечитывается после действия. `lib/complaints.ts`: подписи/badge статусов, маппинг кодов ошибок в RU. DTO `Complaint`/`ComplaintStatus`/`ComplaintFilters` — из базы ADMIN-07 как есть.
+- **Бэкенд жалоб НЕ реализован** — нет модели `Complaint` в Prisma, нет миграции/модуля (`admin.module.ts` помечает complaints как future); эндпоинты есть только в API.md §16 / DB_SCHEMA.md. По решению Team Lead FE мёрджится contract-only (по образцу ADMIN-07: типы по докам, live-verify отложен). Бэкенд заведён как **TASK-132** в `docs/TASKS.md`.
+- **Live-сверка DTO и E2E НЕ выполнены** — заблокированы отсутствием бэкенда; будут сделаны после TASK-132. Сейчас запросы вернут 404.
+- Gates: `pnpm --filter @avino/web lint` — без ошибок; `tsc --noEmit` — чисто; `next build` — чистая сборка, маршрут `/admin/complaints` собран (static, 5.45 kB).
+
+Commit messages:
+- feat(web): add admin complaints page
+- docs(admin): record ADMIN-10 (PR #84) + TASK-132 complaints backend
+
+Related ADR:
+- docs/adr/ADR-0050-web-admin-api-base-shared-types.md (обновлён — слайс жалоб, backend-гэп, TASK-132)
+
+---
+
 ### ADMIN-09 — Модерация: карточка + действия + история
 
 Status: DONE

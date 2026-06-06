@@ -117,16 +117,42 @@ UI, `422 INVALID_STATUS_TRANSITION` обрабатывается как fallback
 `NEW → SEND_TO_DRAFT` → `{id,status:DRAFT,published_at:null}`, история обновилась,
 повтор того же действия → `INVALID_STATUS_TRANSITION`.
 
+## Обновление (ADMIN-10, 2026-06-06)
+
+Страница жалоб (`/admin/complaints`) добавила в `adminApi` отдельный слайс
+`adminComplaintsApi` поверх той же базы: `listAdminComplaints`
+(`GET /admin/complaints?status&listing_id&page&limit`) и мутацию
+`updateComplaintStatus` (`PATCH /admin/complaints/:id` `{ status }`). Мутация
+инвалидирует тег `Admin` → список перечитывается после обработки жалобы (та же
+coarse-grained схема тегов). Гейтинг переходов вынесен в `lib/complaints.ts`, но,
+в отличие от модерации листингов, контракт **не накладывает ограничений переходов**
+жалоб (в каталоге ошибок §17 нет complaint-specific transition-кода) — допустим
+любой статус, кроме текущего (no-op гейтится в UI). DTO `Complaint`/`ComplaintStatus`
+/`ComplaintFilters` использованы как есть из базы ADMIN-07.
+
+**Live-сверка DTO НЕ выполнена — намеренно.** В отличие от ADMIN-08/09, бэкенд
+жалоб **не реализован**: нет модели `Complaint` в `apps/api/prisma/schema.prisma`,
+нет миграции/модуля; `apps/api/src/admin/admin.module.ts` помечает complaints как
+future-флоу. Эндпоинты есть только в `docs/API.md §16` и `docs/DB_SCHEMA.md`. По
+решению Team Lead веб-страница мёрджится contract-only (по образцу базы ADMIN-07:
+типы по докам, live-verify отложен), а бэкенд заведён отдельной задачей
+**`TASK-132 — Complaints backend`** (`docs/TASKS.md`). Полный E2E ADMIN-10 и
+live-сверка `Complaint` — после TASK-132.
+
 ## Related files
 
 - apps/web/src/store/api/pagination.ts
 - apps/web/src/store/api/adminTypes.ts
 - apps/web/src/store/api/adminApi.ts
 - apps/web/src/store/api/adminListingsApi.ts
+- apps/web/src/store/api/adminComplaintsApi.ts
 - apps/web/src/lib/table.ts
 - apps/web/src/lib/moderation.ts
+- apps/web/src/lib/complaints.ts
 - apps/web/src/app/(admin)/admin/listings/[id]/page.tsx
+- apps/web/src/app/(admin)/admin/complaints/page.tsx
 
 ## Related task
 
-- ADMIN-07 / ADMIN-08 / ADMIN-09 (docs/TASK_ADMIN_PANEL.md)
+- ADMIN-07 / ADMIN-08 / ADMIN-09 / ADMIN-10 (docs/TASK_ADMIN_PANEL.md)
+- TASK-132 (complaints backend, docs/TASKS.md) — разблокирует ADMIN-10 E2E
