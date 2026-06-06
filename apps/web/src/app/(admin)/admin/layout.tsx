@@ -1,10 +1,13 @@
 import { ThemeProvider } from "@/context/ThemeContext";
 import { SidebarProvider } from "@/context/SidebarContext";
+import { ToastProvider } from "@/components/admin/toast/ToastProvider";
 import { ConditionalShell } from "@/layout/ConditionalShell";
 
 // Route group `(admin)` keeps the admin shell separate from the public site.
 // Providers wrap the content so AppSidebar/AppHeader can consume the contexts;
-// ConditionalShell renders the full-screen login (/admin/login) without chrome.
+// ToastProvider mounts the shared toast viewport (ADMIN-16) above the shell and
+// dialogs; ConditionalShell renders the full-screen login (/admin/login) without
+// chrome.
 export default function AdminLayout({
   children,
 }: {
@@ -13,7 +16,9 @@ export default function AdminLayout({
   return (
     <ThemeProvider>
       <SidebarProvider>
-        <ConditionalShell>{children}</ConditionalShell>
+        <ToastProvider>
+          <ConditionalShell>{children}</ConditionalShell>
+        </ToastProvider>
       </SidebarProvider>
     </ThemeProvider>
   );

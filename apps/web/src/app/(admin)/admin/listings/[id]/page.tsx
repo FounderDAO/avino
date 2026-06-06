@@ -19,6 +19,8 @@ import type {
 import { getApiError, getApiErrorCode } from "@/store/api/apiError";
 import { DataTable } from "@/components/admin/DataTable";
 import { PromotionsPanel } from "@/components/admin/PromotionsPanel";
+import { DetailSkeleton, ErrorState, InfoState } from "@/components/admin/states";
+import { useToast } from "@/components/admin/toast/ToastProvider";
 import type { Column } from "@/lib/table";
 import {
   LISTING_STATUS_BADGE,
@@ -85,13 +87,13 @@ export default function AdminListingDetailPage() {
   const listingQuery = useGetAdminListingQuery(id, { skip: !id });
   const logsQuery = useListingModerationLogsQuery(id, { skip: !id });
   const [moderate, moderation] = useModerateListingMutation();
+  const toast = useToast();
 
   const [pendingAction, setPendingAction] = useState<ModerationAction | null>(
     null,
   );
   const [reason, setReason] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const listing = listingQuery.data;
 
@@ -99,7 +101,6 @@ export default function AdminListingDetailPage() {
     setPendingAction(action);
     setReason("");
     setActionError(null);
-    setSuccessMessage(null);
   }
 
   function closeDialog() {
@@ -121,14 +122,16 @@ export default function AdminListingDetailPage() {
         id,
         body: { action: pendingAction, reason: trimmed || null },
       }).unwrap();
-      setSuccessMessage(
-        `Статус изменён: ${LISTING_STATUS_LABELS[result.status]}.`,
-      );
+      toast.success(`Статус изменён: ${LISTING_STATUS_LABELS[result.status]}.`);
       setPendingAction(null);
       setReason("");
       setActionError(null);
     } catch (err) {
-      setActionError(moderationErrorMessage(err as Parameters<typeof moderationErrorMessage>[0]));
+      toast.error(
+        moderationErrorMessage(
+          err as Parameters<typeof moderationErrorMessage>[0],
+        ),
+      );
     }
   }
 
@@ -203,45 +206,20 @@ export default function AdminListingDetailPage() {
         {listing && <StatusBadge status={listing.status} />}
       </div>
 
-      {successMessage && (
-        <div className="rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-theme-sm text-success-700 dark:border-success-500/30 dark:bg-success-500/[0.12] dark:text-success-400">
-          {successMessage}
-        </div>
-      )}
-
-      {listingQuery.isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-5 w-full max-w-md animate-pulse rounded bg-gray-100 dark:bg-gray-800"
-            />
-          ))}
-        </div>
-      )}
+      {listingQuery.isLoading && <DetailSkeleton />}
 
       {notFound && (
-        <div className="rounded-2xl border border-gray-200 bg-white px-5 py-12 text-center dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-            Объявление недоступно — удалено или скрыто из выдачи.
-          </p>
-        </div>
+        <InfoState message="Объявление недоступно — удалено или скрыто из выдачи." />
       )}
 
       {listingQuery.isError && !notFound && (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-12 text-center dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-theme-sm text-error-600 dark:text-error-500">
-            {getApiError(listingQuery.error)?.message ??
-              "Не удалось загрузить объявление."}
-          </p>
-          <button
-            type="button"
-            onClick={() => listingQuery.refetch()}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-theme-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
-          >
-            Повторить
-          </button>
-        </div>
+        <ErrorState
+          message={
+            getApiError(listingQuery.error)?.message ??
+            "Не удалось загрузить объявление."
+          }
+          onRetry={() => listingQuery.refetch()}
+        />
       )}
 
       {listing && (
