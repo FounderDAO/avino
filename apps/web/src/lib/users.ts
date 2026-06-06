@@ -8,8 +8,12 @@
  * (i18n — ADMIN-17).
  */
 
+import type { FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
+import type { SerializedError } from '@reduxjs/toolkit';
+
 import type { Language, UserStatus } from '@/store/api/authApi';
 import type { RoleCode } from '@/store/api/adminTypes';
+import { getApiError } from '@/store/api/apiError';
 
 /** Все статусы пользователя в порядке жизненного цикла (API.md §6). */
 export const USER_STATUSES: UserStatus[] = ['ACTIVE', 'BLOCKED', 'DELETED'];
@@ -71,4 +75,54 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
 export function languageLabel(lang: Language | null | undefined): string {
   if (!lang) return '—';
   return LANGUAGE_LABELS[lang] ?? lang;
+}
+
+// ─── Управление статусом и ролями (ADMIN-12, API.md §6) ──────────────────────
+
+/** Глагольная подпись кнопки перехода в статус (в карточке — «сделать …»). */
+export const USER_STATUS_ACTION_LABELS: Record<UserStatus, string> = {
+  ACTIVE: 'Активировать',
+  BLOCKED: 'Заблокировать',
+  DELETED: 'Удалить',
+};
+
+/** Tailwind-классы кнопки перехода (intent-палитра TailAdmin, как в модерации). */
+export const USER_STATUS_INTENT: Record<UserStatus, string> = {
+  ACTIVE:
+    'bg-success-500 text-white hover:bg-success-600 disabled:bg-success-500/40',
+  BLOCKED:
+    'bg-warning-500 text-white hover:bg-warning-600 disabled:bg-warning-500/40',
+  DELETED:
+    'bg-error-500 text-white hover:bg-error-600 disabled:bg-error-500/40',
+};
+
+/**
+ * Требуется ли причина при переходе. Блокировка/удаление — деструктивные
+ * действия, причину просим обязательно (попадает в аудит); активация
+ * (восстановление) — без причины. Бэкенд `reason` принимает опционально для
+ * всех — это UX-правило фронта.
+ */
+export const USER_STATUS_REQUIRES_REASON: Record<UserStatus, boolean> = {
+  ACTIVE: false,
+  BLOCKED: true,
+  DELETED: true,
+};
+
+/** RU-сообщения по стабильному `error.code` мутаций пользователя (§6/§17). */
+const USER_ACTION_ERROR_MESSAGES: Record<string, string> = {
+  ROLE_ALREADY_GRANTED: 'Эта роль уже назначена пользователю.',
+  VALIDATION_ERROR: 'Проверьте корректность данных действия.',
+  NOT_FOUND: 'Пользователь или роль не найдены.',
+  FORBIDDEN: 'Недостаточно прав для этого действия.',
+};
+
+/** RU-сообщение по ошибке мутации статуса/ролей (по стабильному `error.code`). */
+export function userActionErrorMessage(
+  error: FetchBaseQueryError | SerializedError | undefined,
+): string {
+  const code = getApiError(error)?.code;
+  return (
+    (code && USER_ACTION_ERROR_MESSAGES[code]) ??
+    'Не удалось выполнить действие. Попробуйте ещё раз.'
+  );
 }
