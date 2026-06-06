@@ -1,18 +1,30 @@
 import { adminApi } from './adminApi';
 import { toQueryParams } from './pagination';
 import type { Paginated } from './pagination';
-import type { AdminListingRow, AdminListingFilters } from './adminTypes';
+import type {
+  AdminListingRow,
+  AdminListingFilters,
+  ListingDetail,
+  ListingModerationLogEntry,
+  ModerateListingRequest,
+  ModerationResult,
+} from './adminTypes';
 
 /**
- * adminListingsApi (ADMIN-08) — очередь модерации листингов (API.md §16).
+ * adminListingsApi (ADMIN-08/09) — модерация листингов (API.md §7/§16).
  *
  * Инъекция в общий `adminApi` (CLAUDE.md §4: только RTK Query, без fetch/axios
- * в компонентах). Бизнес-эндпоинты карточки/действий (`PATCH .../status`,
- * `.../moderation-logs`) добавит ADMIN-09 в этот же файл.
+ * в компонентах). Все query-эндпоинты помечены тегом `Admin`; мутация статуса
+ * инвалидирует `Admin`, поэтому очередь, карточка и история перечитываются
+ * после действия (требование ADMIN-09 «инвалидация кэша списка»).
  *
- * - GET /api/v1/admin/listings?status&property_type&transaction_type&q&page&limit
- *   → page-based `Paginated<AdminListingRow>` (`meta.total` обязателен, §4).
- *   Пустые фильтры отбрасываются `toQueryParams` (forward-compatible, §4).
+ * - `GET /admin/listings?status&property_type&transaction_type&q&page&limit`
+ *   → page-based `Paginated<AdminListingRow>` (ADMIN-08).
+ * - `GET /listings/:id` → `ListingDetail`. Карточка для модерации: бэкенд отдаёт
+ *   непубличные статусы MODERATOR/ADMIN через тот же публичный роут
+ *   (`OptionalJwtAuthGuard`); Bearer ставит `baseQuery`. `DELETED` → `404`.
+ * - `GET /admin/listings/:id/moderation-logs` → история (свежие сверху).
+ * - `PATCH /admin/listings/:id/status` `{ action, reason? }` → `ModerationResult`.
  */
 export const adminListingsApi = adminApi.injectEndpoints({
   endpoints: (build) => ({
@@ -26,8 +38,35 @@ export const adminListingsApi = adminApi.injectEndpoints({
       }),
       providesTags: ['Admin'],
     }),
+
+    getAdminListing: build.query<ListingDetail, string>({
+      query: (id) => ({ url: `/listings/${id}` }),
+      providesTags: ['Admin'],
+    }),
+
+    listingModerationLogs: build.query<ListingModerationLogEntry[], string>({
+      query: (id) => ({ url: `/admin/listings/${id}/moderation-logs` }),
+      providesTags: ['Admin'],
+    }),
+
+    moderateListing: build.mutation<
+      ModerationResult,
+      { id: string; body: ModerateListingRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/admin/listings/${id}/status`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Admin'],
+    }),
   }),
   overrideExisting: false,
 });
 
-export const { useListAdminListingsQuery } = adminListingsApi;
+export const {
+  useListAdminListingsQuery,
+  useGetAdminListingQuery,
+  useListingModerationLogsQuery,
+  useModerateListingMutation,
+} = adminListingsApi;

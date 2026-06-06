@@ -118,14 +118,15 @@ export interface ListingMedia {
   type: 'IMAGE';
 }
 
-/** Признак/удобство листинга (§7). */
-export interface ListingFeature {
-  id: string;
-  code: string;
-  name: string;
-}
-
-/** Детали листинга (`GET /listings/:id`, §7) — для карточки модерации (ADMIN-09). */
+/**
+ * Детали листинга (`GET /listings/:id`, §7) — для карточки модерации (ADMIN-09).
+ *
+ * Форма выверена live против `ListingDetailResponse` (`apps/api/src/listings`):
+ * MODERATOR/ADMIN видят непубличные статусы через тот же публичный эндпоинт
+ * (`OptionalJwtAuthGuard`); `DELETED` → всегда `404`. Поправки vs первичный
+ * черновик ADMIN-07: `area`/`city_id` nullable, отдельного `features[]` в
+ * detail-ответе бэкенд не отдаёт (только `features_text`).
+ */
 export interface ListingDetail {
   id: string;
   status: ListingStatus;
@@ -133,12 +134,12 @@ export interface ListingDetail {
   property_type: PropertyType;
   price: string;
   currency: Currency;
-  area: string;
+  area: string | null;
   rooms: number | null;
   floor: number | null;
   total_floors: number | null;
   year_built: number | null;
-  city_id: string;
+  city_id: string | null;
   district_id: string | null;
   address: string | null;
   latitude: string | null;
@@ -153,9 +154,40 @@ export interface ListingDetail {
   description: string | null;
   address_note: string | null;
   features_text: string | null;
-  features: ListingFeature[];
   media: ListingMedia[];
   published_at: string | null;
+  created_at: string;
+}
+
+/**
+ * Тело `PATCH /admin/listings/:id/status` (§16). `action` маппится на статус
+ * сервисом (APPROVE→ACTIVE, SEND_TO_DRAFT→DRAFT, REJECT→REJECTED, DELETE→DELETED).
+ * `reason` опционален (пишется в moderation_logs/audit_logs).
+ */
+export interface ModerateListingRequest {
+  action: ModerationAction;
+  reason?: string | null;
+}
+
+/** Ответ `PATCH /admin/listings/:id/status` (§16). */
+export interface ModerationResult {
+  id: string;
+  status: ListingStatus;
+  published_at: string | null;
+}
+
+/**
+ * Запись истории модерации листинга (`GET /admin/listings/:id/moderation-logs`,
+ * §16). В отличие от глобального {@link ModerationLog}, per-listing ответ без
+ * `listing_id` (он и так известен из маршрута).
+ */
+export interface ListingModerationLogEntry {
+  id: string;
+  action: ModerationAction;
+  old_status: ListingStatus | null;
+  new_status: ListingStatus | null;
+  moderator_id: string | null;
+  reason: string | null;
   created_at: string;
 }
 
