@@ -37,6 +37,59 @@ Related ADR:
 
 ---
 
+## 2026-06-07
+
+### ADMIN-16 — Полиш: единые состояния + toasts (web)
+
+Status: REVIEW (PR pending) — flips to DONE on merge
+Branch: feat/admin-web-polish
+PR: pending
+
+Files changed:
+- apps/web/src/components/admin/toast/ToastProvider.tsx (new)
+- apps/web/src/components/admin/states.tsx (new)
+- apps/web/src/app/(admin)/admin/layout.tsx
+- apps/web/src/app/globals.css
+- apps/web/src/components/admin/DashboardOverview.tsx
+- apps/web/src/components/admin/PromotionsPanel.tsx
+- apps/web/src/app/(admin)/admin/complaints/page.tsx
+- apps/web/src/app/(admin)/admin/listings/[id]/page.tsx
+- apps/web/src/app/(admin)/admin/users/[id]/page.tsx
+- docs/adr/ADR-0055-web-admin-ui-states-toasts.md (new)
+- docs/TASK_ADMIN_PANEL.md
+- docs/DONE.md
+
+Summary:
+- Единый UX состояний по всей админке (ADMIN-08..15). Добавлен in-house
+  toast-механизм без сторонней зависимости (Context + `useToast()`,
+  авто-дисмисс 5 c, ручное закрытие, `role`/`aria-live`, viewport `z-[100]`
+  поверх модалок), смонтирован один раз в layout группы `(admin)`.
+- Все исходы мутаций (модерация листинга, статус/роли пользователя, статус
+  жалобы, активация/продление/отмена промо) переведены на toast: inline-баннеры
+  успеха удалены, серверные ошибки уходят в toast (диалог остаётся открытым),
+  клиентская валидация формы остаётся inline.
+- Состояния уровня страницы вынесены в общий `components/admin/states.tsx`
+  (`DetailSkeleton`, `ErrorState`, `InfoState`, `InlineAlert`); дубли
+  skeleton/not-found/error в детальных карточках заменены; дашборд переведён на
+  единую `error`-шкалу TailAdmin. `DataTable` остаётся владельцем табличных
+  состояний (ADMIN-08).
+- Почему: к концу ADMIN-15 состояния и обратная связь по мутациям сложились
+  неоднородно (копипаста skeleton/error, рассинхрон цветовых токенов, отсутствие
+  единого toast). ADMIN-16 закрывает acceptance «единый UX состояний».
+- Проверки: `lint` + `build` (type-check + prerender всех 10 маршрутов) зелёные;
+  dev-smoke — все admin-маршруты отдают 200 без ошибок компиляции/рантайма.
+  Live e2e toasts (успех/ошибка мутаций) требует поднятого `apps/api` + ADMIN-OTP.
+
+Commit messages:
+- feat(web): add admin toast system and shared state components
+- feat(web): route admin mutation feedback to toasts
+- docs: record ADMIN-16 (ADR-0055, tracker, DONE)
+
+Related ADR:
+- docs/adr/ADR-0055-web-admin-ui-states-toasts.md
+
+---
+
 ## 2026-06-06
 
 ### ADMIN-15 — Дашборд (живые счётчики, web + API)

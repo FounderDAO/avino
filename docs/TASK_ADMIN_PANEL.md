@@ -475,7 +475,7 @@ Suggested commit: `feat(web): add admin dashboard overview`
 
 ### ADMIN-16 — Полиш (skeleton/error/empty + toasts)
 
-Status: `TODO`
+Status: `REVIEW` (PR pending) — ADR-0055
 Branch: `feat/admin-web-polish`
 Depends: `ADMIN-08..15`
 
@@ -483,6 +483,20 @@ Scope: единые loading-skeletons для таблиц, error-states, empty-s
 toast-уведомления об успехе/ошибке мутаций.
 
 Acceptance: единый UX состояний по всем страницам админки.
+
+> Реализовано: in-house toast-механизм без сторонней зависимости
+> (`components/admin/toast/ToastProvider.tsx`, Context + `useToast()`, авто-дисмисс,
+> `role`/`aria-live`, viewport `z-[100]` поверх модалок), смонтирован в layout
+> группы `(admin)`. **Все исходы мутаций → toast** на четырёх экранах
+> (`complaints`, `listings/[id]`, `users/[id]`, `PromotionsPanel`): inline-баннеры
+> успеха удалены, серверные ошибки уходят в toast (диалог не закрывается),
+> клиентская валидация формы остаётся inline. Состояния уровня страницы вынесены
+> в `components/admin/states.tsx` (`DetailSkeleton`, `ErrorState`, `InfoState`,
+> `InlineAlert`) — дубли skeleton/not-found/error в детальных карточках заменены,
+> дашборд переведён на единую `error`-шкалу. `DataTable` остаётся владельцем
+> табличных состояний (ADMIN-08). Gates: `lint` + `build` (type-check + prerender
+> всех 10 маршрутов) зелёные; dev-smoke — все admin-маршруты отдают 200 без
+> ошибок компиляции/рантайма. ADR-0055.
 
 Suggested commit: `feat(web): add admin loading/error/empty states`
 
@@ -522,5 +536,5 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-13 | DONE | #89 |
 | ADMIN-14 | DONE | #90 |
 | ADMIN-15 | DONE | #93 |
-| ADMIN-16 | TODO | — |
+| ADMIN-16 | REVIEW | pending |
 | ADMIN-17 | TODO | — |
