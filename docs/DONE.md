@@ -92,6 +92,44 @@ Related ADR:
 
 ## 2026-06-08
 
+### TASK-141 — Add RTK Query API layer
+
+Status: DONE
+Branch: feat/client-rtk-query
+PR: pending
+
+Files changed:
+- apps/client/src/store/api/baseQuery.ts (new)
+- apps/client/src/store/api/baseApi.ts (new)
+- apps/client/src/store/store.ts (new)
+- apps/client/src/store/hooks.ts (new)
+- apps/client/src/store/StoreProvider.tsx (new)
+- apps/client/src/app/layout.tsx
+- apps/client/package.json
+
+Summary:
+- Заложен RTK Query-фундамент публичного портала `apps/client` по конвенциям
+  `apps/web` (ADR-0050): единый `baseApi` (`createApi`, reducerPath `api`) с
+  предзаданными tagTypes, `baseQuery` на versioned `/api/v1`, типобезопасный
+  store (`makeStore`/`RootState`/`AppDispatch`), типизированные хуки и
+  `StoreProvider`, подключённый в root layout.
+- Нужно как обязательный слой данных по CLAUDE.md §4 (никаких fetch/axios в
+  компонентах) перед бизнес-страницами портала (auth/поиск/объявления/чат).
+- Scope в TASKS.md указывал `apps/web/...` — относится к `apps/client`
+  (см. примечание M14–M15 в TASKS.md и ADR-0057).
+- Auth-слой (baseQueryWithReauth/authSlice/token storage) сознательно не
+  добавлялся — это TASK-150 (по образцу ADR-0045); baseQuery пока чистый.
+- Проверка: `pnpm --filter @avino/client build` — зелёная (tsc + lint + prerender
+  с StoreProvider в дереве).
+
+Commit messages:
+- feat(client): add RTK Query foundation
+
+Related ADR:
+- docs/adr/ADR-0058-client-rtk-query-foundation.md
+
+---
+
 ### TASK-140 — Initialize Next.js web app
 
 Status: DONE
