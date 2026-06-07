@@ -1,0 +1,22 @@
+@import 'tailwindcss';
+
+/* Dark-mode стратегия: class (`<html class="dark">`). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Дизайн-токены публичного портала Avino.
+ * Минимальный набор для TASK-140 (foundation). Полная дизайн-система
+ * (docs/AvinoWebPlan.md §3) добавляется по мере пользовательских страниц.
+ */
+@theme {
+  --color-primary: #0041d9;
+  --color-action: #006aff;
+  --color-bg-white: #ffffff;
+  --color-bg-muted: #f5f7fa;
+  --color-text-primary: #0f1724;
+  --color-text-secondary: #5b6675;
+}
+
+body {
+  min-height: 100dvh;
+}

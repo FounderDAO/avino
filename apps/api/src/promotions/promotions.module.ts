@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { NotificationsModule } from '../notifications';
 import { AdminPromotionsService } from './admin-promotions.service';
 import { PromotionExpiryService } from './promotion-expiry.service';
+import { PromotionPlansService } from './promotion-plans.service';
 import { PromotionWorker } from './promotion.worker';
 import { PromotionsController } from './promotions.controller';
 import { PromotionsService } from './promotions.service';
@@ -25,10 +26,16 @@ import { PromotionsService } from './promotions.service';
   controllers: [PromotionsController],
   providers: [
     PromotionsService,
+    PromotionPlansService,
     AdminPromotionsService,
     PromotionExpiryService,
     PromotionWorker,
   ],
-  exports: [PromotionsService, AdminPromotionsService, PromotionExpiryService],
+  exports: [
+    PromotionsService,
+    PromotionPlansService,
+    AdminPromotionsService,
+    PromotionExpiryService,
+  ],
 })
 export class PromotionsModule {}

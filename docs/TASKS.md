@@ -480,57 +480,11 @@ _TASK-132 completed — see docs/DONE.md._
 
 ## 18. M14 — Web frontend foundation
 
-### TASK-140 — Initialize Next.js web app
+> Решение Team Lead (ADR-0057): публичный пользовательский фронтенд живёт в
+> **`apps/client`** (`@avino/client`, порт 3001), `apps/web` остаётся админкой.
+> Все пути `apps/web/...` в задачах M14–M15 относятся к `apps/client`.
+> TASK-140 — DONE (см. docs/DONE.md).
 
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/web-foundation
-```
-
-Scope:
-
-```text
-Initialize Next.js frontend in apps/web.
-```
-
-Files expected:
-
-```text
-apps/web/package.json
-apps/web/src/app/
-apps/web/src/components/
-apps/web/src/lib/
-```
-
-Acceptance criteria:
-
-```text
-Next.js app starts
-TypeScript works
-Basic layout exists
-No business pages required yet
-```
-
-Suggested commits:
-
-```text
-feat(web): initialize Next.js app
-```
-
-Dependencies:
-
-```text
-TASK-010
-```
-
----
 
 ### TASK-141 — Add RTK Query API layer
 

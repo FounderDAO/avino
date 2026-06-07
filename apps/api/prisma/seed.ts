@@ -11,7 +11,7 @@
  * Seed идемпотентен: каждая роль создаётся через upsert по уникальному `code`,
  * поэтому повторный запуск не плодит дубликаты и обновляет описание.
  */
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, PromotionType, Currency } from '@prisma/client';
 import { UserRole } from '@avino/shared';
 
 const prisma = new PrismaClient();
@@ -47,6 +47,37 @@ async function main(): Promise<void> {
 
   // eslint-disable-next-line no-console
   console.log(`Seeded ${codes.length} roles: ${codes.join(', ')}`);
+
+  // Тарифы продвижения (TOP/VIP × 7/14/30) — значения совпадают с текущим
+  // хардкод-каталогом promotions.catalog.ts. Upsert по (type, periodDays)
+  // делает сид идемпотентным и не затирает отредактированные админом цены.
+  const PLAN_SEED = [
+    { type: PromotionType.TOP, periodDays: 7, price: '50000.00' },
+    { type: PromotionType.TOP, periodDays: 14, price: '90000.00' },
+    { type: PromotionType.TOP, periodDays: 30, price: '150000.00' },
+    { type: PromotionType.VIP, periodDays: 7, price: '120000.00' },
+    { type: PromotionType.VIP, periodDays: 14, price: '210000.00' },
+    { type: PromotionType.VIP, periodDays: 30, price: '350000.00' },
+  ];
+
+  for (const p of PLAN_SEED) {
+    await prisma.promotionPlan.upsert({
+      where: { type_periodDays: { type: p.type, periodDays: p.periodDays } },
+      update: {},
+      create: { ...p, currency: Currency.UZS, isActive: true },
+    });
+  }
+
+  await prisma.appSetting.upsert({
+    where: { key: 'promotion_expiry_cron' },
+    update: {},
+    create: { key: 'promotion_expiry_cron', value: '0 */12 * * *' },
+  });
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `Seeded ${PLAN_SEED.length} promotion plans + promotion_expiry_cron setting`,
+  );
 }
 
 main()

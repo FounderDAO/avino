@@ -104,6 +104,23 @@ services:
       - "3000:3000"
     restart: unless-stopped
 
+  client:
+    build:
+      context: .
+      dockerfile: apps/client/Dockerfile
+      args:
+        # Инлайнится в бандл и используется БРАУЗЕРОМ → host-порт api, не сервис-имя.
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:${API_PORT:-4000}
+    image: avino-client
+    container_name: avino-client
+    profiles: ["app"]
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+
 volumes:
   avino-postgres-data:
   avino-redis-data:
