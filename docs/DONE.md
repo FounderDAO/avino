@@ -90,6 +90,52 @@ Related ADR:
 
 ---
 
+## 2026-06-08
+
+### TASK-140 — Initialize Next.js web app
+
+Status: DONE
+Branch: feat/client-foundation
+PR: pending
+
+Files changed:
+- apps/client/package.json
+- apps/client/tsconfig.json
+- apps/client/next.config.mjs
+- apps/client/postcss.config.mjs
+- apps/client/.eslintrc.json
+- apps/client/next-env.d.ts
+- apps/client/Dockerfile
+- apps/client/src/app/layout.tsx
+- apps/client/src/app/page.tsx
+- apps/client/src/app/globals.css
+- apps/client/src/components/.gitkeep
+- apps/client/src/lib/.gitkeep
+- package.json
+- docker-compose.yml
+
+Summary:
+- Инициализирован публичный пользовательский фронтенд как отдельный
+  workspace-пакет `@avino/client` в `apps/client` (Next.js 15 + React 19 +
+  TypeScript + Tailwind 4).
+- По решению Team Lead публичный портал вынесен в отдельный app, а `apps/web`
+  остаётся только админкой (см. ADR-0057). Изначальный scope TASK-140 указывал
+  `apps/web` — изменён на `apps/client` сознательно.
+- Порт 3001 (3000 занят админкой). Подключён в root-скрипт `dev`, добавлены
+  `apps/client/Dockerfile` и сервис `client` в docker-compose (profile `app`).
+- Базовый layout + заглушка домашней страницы; бизнес-страниц нет (по AC).
+  RTK Query добавляется в TASK-141.
+- Проверка: `pnpm --filter @avino/client build` — зелёная (типы + lint + prerender).
+
+Commit messages:
+- feat(client): initialize Next.js public portal app
+- chore(client): wire @avino/client into workspace dev script and docker compose
+
+Related ADR:
+- docs/adr/ADR-0057-split-public-portal-and-admin-apps.md
+
+---
+
 ## 2026-06-06
 
 ### ADMIN-15 — Дашборд (живые счётчики, web + API)
