@@ -556,6 +556,33 @@ model PromotionLog {
   @@map("promotion_logs")
 }
 
+/// Редактируемая админом матрица тарифов продвижения (TOP/VIP × 7/14/30 дней).
+/// Фиксированный набор из 6 строк гарантируется unique-индексом и CHECK-ограничениями
+/// в миграции. Сидируется значениями текущего хардкод-каталога (promotions.catalog.ts).
+model PromotionPlan {
+  id         String        @id @default(uuid()) @db.Uuid
+  type       PromotionType
+  periodDays Int           @map("period_days") @db.SmallInt
+  price      Decimal       @db.Decimal(14, 2)
+  currency   Currency      @default(UZS)
+  isActive   Boolean       @default(true) @map("is_active")
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([type, periodDays])
+  @@map("promotion_plans")
+}
+
+/// Универсальный key/value-справочник настроек приложения. Первое значение —
+/// интервал cron для истечения продвижений (promotion_expiry_cron).
+model AppSetting {
+  key       String   @id @db.VarChar(80)
+  value     String   @db.VarChar(255)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("app_settings")
+}
+
 /// Журнал модерации объявлений (DB_SCHEMA.md §7, API.md §16, TASK-053). Каждое
 /// действие модератора над объявлением логируется здесь (доменный лог) — в
 /// дополнение к audit_logs(LISTING_STATUS_CHANGE). old_status/new_status
