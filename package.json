@@ -9,7 +9,7 @@
   },
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "dev": "pnpm --filter @avino/shared build && pnpm --filter @avino/api --filter @avino/web --parallel dev",
+    "dev": "pnpm --filter @avino/shared build && pnpm --filter @avino/api --filter @avino/web --filter @avino/client --parallel dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
@@ -19,7 +19,7 @@
     "infra:down": "docker compose down",
     "stack:up": "docker compose --profile app up --build",
     "stack:down": "docker compose --profile app down",
-    "stack:logs": "docker compose --profile app logs -f migrate api web"
+    "stack:logs": "docker compose --profile app logs -f migrate api web client"
   },
   "devDependencies": {
     "prettier": "^3.3.3",
