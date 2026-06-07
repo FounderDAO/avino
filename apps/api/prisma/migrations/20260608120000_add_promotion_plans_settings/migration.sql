@@ -1,15 +1,14 @@
 -- promotion_plans: admin-editable tariff matrix (fixed 6 rows enforced by CHECK)
 CREATE TABLE "promotion_plans" (
-  "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+  "id" UUID NOT NULL,
   "type" "PromotionType" NOT NULL,
   "period_days" SMALLINT NOT NULL,
   "price" DECIMAL(14,2) NOT NULL,
   "currency" "Currency" NOT NULL DEFAULT 'UZS',
   "is_active" BOOLEAN NOT NULL DEFAULT true,
-  "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+  "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" TIMESTAMPTZ(6) NOT NULL,
   CONSTRAINT "promotion_plans_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "promotion_plans_type_check" CHECK ("type" IN ('TOP','VIP')),
   CONSTRAINT "promotion_plans_period_check" CHECK ("period_days" IN (7,14,30))
 );
 CREATE UNIQUE INDEX "promotion_plans_type_period_days_key"
