@@ -6,6 +6,8 @@ import { PromotionsModule } from '../promotions';
 import { RolesModule } from '../roles';
 import { AdminListingPromotionsController } from './admin-listing-promotions.controller';
 import { AdminListingsController } from './admin-listings.controller';
+import { AdminPromotionPlansController } from './admin-promotion-plans.controller';
+import { AdminPromotionPlansService } from './admin-promotion-plans.service';
 import { AdminLogsController } from './admin-logs.controller';
 import { AdminLogsService } from './admin-logs.service';
 import { AdminPromotionsController } from './admin-promotions.controller';
@@ -41,11 +43,17 @@ import { AdminUsersService } from './admin-users.service';
     AdminListingsController,
     AdminPromotionsController,
     AdminListingPromotionsController,
+    AdminPromotionPlansController,
     AdminUsersController,
     AdminLogsController,
     AdminComplaintsController,
     AdminStatsController,
   ],
-  providers: [AdminUsersService, AdminLogsService, AdminStatsService],
+  providers: [
+    AdminUsersService,
+    AdminLogsService,
+    AdminStatsService,
+    AdminPromotionPlansService,
+  ],
 })
 export class AdminModule {}
