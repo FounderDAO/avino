@@ -610,8 +610,8 @@ Implement Yandex Maps listing marker search.
 Files expected:
 
 ```text
-apps/web/src/features/map/
-apps/web/src/store/api/searchApi.ts
+apps/client/src/features/map/
+apps/client/src/store/api/searchApi.ts
 ```
 
 Acceptance criteria:
@@ -619,21 +619,207 @@ Acceptance criteria:
 ```text
 Yandex Maps loads from env key
 Markers display listings
-Map bounds search calls /api/v1/search/map
+Map bounds search calls /api/v1/search/bounds
 Marker click shows listing preview
+```
+
+Note:
+
+```text
+Реальный backend route — GET /api/v1/search/bounds (см. API.md), не /search/map.
+UI публичного портала живёт в apps/client (apps/web = админка).
 ```
 
 Suggested commits:
 
 ```text
-feat(web): add Yandex map search
+feat(client): add Yandex map search
 ```
 
 Dependencies:
 
 ```text
-TASK-151
+TASK-190
 TASK-083
+```
+
+---
+
+### TASK-190 — Client public app shell & layout
+
+Status:
+
+```text
+IN_PROGRESS
+```
+
+Branch:
+
+```text
+feat/client-layout-shell
+```
+
+Scope:
+
+```text
+Поднять публичный портал apps/client (Next 15 / React 19 / TW4 / RTK Query) с нуля.
+Каркас layout по UX-референсу Zillow, но со своим брендом Avino: header (лого Avino,
+навигация Купить / Аренда / Продать / Помощь), общий контейнер, footer.
+БЕЗ ипотеки / Home Loans / BuyAbility (нет billing в MVP).
+Работаем ТОЛЬКО в apps/client. apps/web (админка) и apps/api не трогаем.
+```
+
+Files expected:
+
+```text
+apps/client/next.config.ts
+apps/client/tsconfig.json
+apps/client/postcss.config.mjs
+apps/client/src/app/layout.tsx
+apps/client/src/app/page.tsx
+apps/client/src/app/globals.css
+apps/client/src/components/layout/Header.tsx
+apps/client/src/components/layout/Footer.tsx
+apps/client/src/components/layout/Logo.tsx
+apps/client/src/store/store.ts
+apps/client/src/store/api/baseApi.ts
+apps/client/src/store/StoreProvider.tsx
+```
+
+Acceptance criteria:
+
+```text
+apps/client dev-сервер стартует на порту 3001
+Public layout: header с лого Avino + навигация, footer
+RTK Query baseApi сконфигурирован (baseUrl на /api/v1)
+Никаких fetch()/axios в компонентах
+Изменения только внутри apps/client
+```
+
+Suggested commits:
+
+```text
+chore(client): scaffold next app config
+feat(client): add public layout shell (header/footer/logo)
+```
+
+Dependencies:
+
+```text
+TASK-141
+```
+
+---
+
+### TASK-191 — Client home hero & search bar
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+feat/client-home-hero
+```
+
+Scope:
+
+```text
+Главная страница: hero-баннер ("Аренда. Дома. Агенты." в стиле Zillow hero)
+и строка поиска по городу/адресу/ZIP. Submit ведёт на страницу результатов поиска.
+Подключение к GET /api/v1/search через RTK Query searchApi.
+Только apps/client.
+```
+
+Files expected:
+
+```text
+apps/client/src/features/home/Hero.tsx
+apps/client/src/features/search/SearchBar.tsx
+apps/client/src/store/api/searchApi.ts
+apps/client/src/app/page.tsx
+```
+
+Acceptance criteria:
+
+```text
+Hero отображается на главной
+Search bar принимает ввод и переходит к результатам
+searchApi вызывает GET /api/v1/search
+i18n-ready строки (uz/ru/en), без хардкода user-facing текста
+```
+
+Suggested commits:
+
+```text
+feat(client): add home hero and search bar
+```
+
+Dependencies:
+
+```text
+TASK-190
+```
+
+---
+
+### TASK-192 — Client "Homes For You" listing sections
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+feat/client-home-listings
+```
+
+Scope:
+
+```text
+Секции главной по референсу Zillow: карусели карточек объявлений ("Homes For You")
+и блоки Купить / Аренда / Продать. Карточка: фото, цена, спальни/санузлы/площадь, адрес,
+статус. Данные через RTK Query listingsApi (GET /api/v1/listings).
+БЕЗ ипотечных блоков. Только apps/client.
+```
+
+Files expected:
+
+```text
+apps/client/src/features/listings/ListingCard.tsx
+apps/client/src/features/listings/ListingsCarousel.tsx
+apps/client/src/features/home/ActionTiles.tsx
+apps/client/src/store/api/listingsApi.ts
+apps/client/src/app/page.tsx
+```
+
+Acceptance criteria:
+
+```text
+Карусель карточек объявлений на главной
+listingsApi вызывает GET /api/v1/listings
+Карточка показывает цену, beds/baths/area, адрес, статус
+Блоки Купить/Аренда/Продать с CTA
+Только apps/client
+```
+
+Suggested commits:
+
+```text
+feat(client): add homes-for-you listing sections
+```
+
+Dependencies:
+
+```text
+TASK-190
+TASK-191
 ```
 
 ---
@@ -1575,6 +1761,7 @@ TASK-140 TASK-141 TASK-142
 TASK-150 TASK-151 TASK-152 TASK-153 TASK-154 TASK-155 TASK-156 TASK-157 TASK-158 TASK-159
 TASK-160 TASK-161 TASK-162
 TASK-170 TASK-180 TASK-181 TASK-182 TASK-183
+TASK-190 TASK-191 TASK-192
 ```
 
 ## 24. First task prompt for Claude
