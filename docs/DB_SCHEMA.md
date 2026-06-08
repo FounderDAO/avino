@@ -422,6 +422,43 @@ Indexes:
 - (listing_id), (listing_promotion_id), (admin_id)
 ```
 
+Tariff catalog — DB-backed (ADR-0060, supersedes the static in-code catalog of
+ADR-0032). The fixed 6-row matrix (type × period) lives in `promotion_plans` and
+is editable by ADMIN via audited endpoints (API.md §15); prices are no longer a
+code constant. The activation flow snapshots `promotion_plans.price` into
+`listing_promotions.price`, so editing a plan price does NOT change already
+active promotions.
+
+```text
+promotion_plans   (admin-editable tariff matrix — type × period × price)
+- id            uuid PK
+- type          promotion_type NOT NULL     (TOP | VIP only)
+- period_days   smallint NOT NULL           (7 | 14 | 30)
+- price         numeric(14,2) NOT NULL       (Decimal — never float)
+- currency      currency NOT NULL default 'UZS'
+- is_active     boolean NOT NULL default true
+- created_at    timestamptz NOT NULL
+- updated_at    timestamptz NOT NULL
+Constraints:
+- UNIQUE (type, period_days)        -> the matrix is fixed at 6 rows.
+- CHECK (period_days IN (7,14,30)).
+Seed (UZS):
+- TOP  7/14/30  -> 50000 / 90000 / 150000
+- VIP  7/14/30  -> 120000 / 210000 / 350000
+```
+
+```text
+app_settings   (key/value runtime settings)
+- key           varchar PK
+- value         text NOT NULL
+- created_at    timestamptz NOT NULL
+- updated_at    timestamptz NOT NULL
+Seed:
+- promotion_expiry_cron -> '0 */12 * * *'   (interval for the expiry sweep;
+    selectable 6h/12h from the admin panel — API.md §15. The env var
+    PROMOTION_EXPIRY_CRON remains a fallback default if the row is absent.)
+```
+
 Denormalization & priority rules (binding):
 
 ```text
