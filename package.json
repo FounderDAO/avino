@@ -10,6 +10,9 @@
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev": "pnpm --filter @avino/shared build && pnpm --filter @avino/api --filter @avino/web --filter @avino/client --parallel dev",
+    "dev:client": "pnpm --filter @avino/shared build && pnpm --filter @avino/client dev",
+    "dev:web": "pnpm --filter @avino/shared build && pnpm --filter @avino/web dev",
+    "dev:api": "pnpm --filter @avino/shared build && pnpm --filter @avino/api dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
