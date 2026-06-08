@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
+import { PrismaService } from '../prisma';
+import { PROMOTION_EXPIRY_CRON_KEY } from '../promotions/promotion-expiry.cron';
 import { buildBullConnection } from './bullmq-connection';
 import {
   EXPIRE_LISTING_PROMOTIONS_JOB,
@@ -31,9 +33,12 @@ const EXPIRY_SCHEDULER_ID = 'expire-listing-promotions';
 export class PromotionQueue implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PromotionQueue.name);
   private readonly queue: Queue;
-  private readonly cron: string;
+  private cron: string;
 
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     const url = configService.get<string>('redis.url');
     if (!url) {
       throw new Error('REDIS_URL is not configured');
@@ -44,11 +49,29 @@ export class PromotionQueue implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /** Зарегистрировать (idempotent) периодический sweep истечения промо. */
+  /**
+   * Зарегистрировать (idempotent) периодический sweep истечения промо.
+   * На старте интервал читается из app_settings (key `promotion_expiry_cron`),
+   * с фоллбэком на cron из конфигурации/дефолт.
+   */
   async onModuleInit(): Promise<void> {
+    const setting = await this.prisma.appSetting.findUnique({
+      where: { key: PROMOTION_EXPIRY_CRON_KEY },
+    });
+    if (setting?.value) this.cron = setting.value;
+    await this.rescheduleExpiry(this.cron);
+  }
+
+  /**
+   * Перерегистрировать repeatable-джобу истечения промо с новым cron.
+   * Idempotent (`upsertJobScheduler`) — используется и на старте, и при
+   * живой смене интервала из ADMIN-настроек.
+   */
+  async rescheduleExpiry(cron: string): Promise<void> {
+    this.cron = cron;
     await this.queue.upsertJobScheduler(
       EXPIRY_SCHEDULER_ID,
-      { pattern: this.cron },
+      { pattern: cron },
       {
         name: EXPIRE_LISTING_PROMOTIONS_JOB,
         data: {},
@@ -56,7 +79,7 @@ export class PromotionQueue implements OnModuleInit, OnModuleDestroy {
       },
     );
     this.logger.log(
-      `Scheduled ${EXPIRE_LISTING_PROMOTIONS_JOB} (cron="${this.cron}")`,
+      `Rescheduled ${EXPIRE_LISTING_PROMOTIONS_JOB} (cron="${cron}")`,
     );
   }
 

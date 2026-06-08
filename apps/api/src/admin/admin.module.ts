@@ -8,6 +8,8 @@ import { AdminListingPromotionsController } from './admin-listing-promotions.con
 import { AdminListingsController } from './admin-listings.controller';
 import { AdminPromotionPlansController } from './admin-promotion-plans.controller';
 import { AdminPromotionPlansService } from './admin-promotion-plans.service';
+import { AdminPromotionSettingsController } from './admin-promotion-settings.controller';
+import { AdminPromotionSettingsService } from './admin-promotion-settings.service';
 import { AdminLogsController } from './admin-logs.controller';
 import { AdminLogsService } from './admin-logs.service';
 import { AdminPromotionsController } from './admin-promotions.controller';
@@ -44,6 +46,7 @@ import { AdminUsersService } from './admin-users.service';
     AdminPromotionsController,
     AdminListingPromotionsController,
     AdminPromotionPlansController,
+    AdminPromotionSettingsController,
     AdminUsersController,
     AdminLogsController,
     AdminComplaintsController,
@@ -54,6 +57,7 @@ import { AdminUsersService } from './admin-users.service';
     AdminLogsService,
     AdminStatsService,
     AdminPromotionPlansService,
+    AdminPromotionSettingsService,
   ],
 })
 export class AdminModule {}
