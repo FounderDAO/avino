@@ -1,9 +1,11 @@
 import { adminApi } from './adminApi';
 import type {
   ActivatePromotionRequest,
+  AdminPromotionPlan,
   CancelPromotionRequest,
   ExtendPromotionRequest,
   ListingPromotion,
+  PromotionSettings,
 } from './adminTypes';
 
 /**
@@ -76,6 +78,37 @@ export const adminPromotionsApi = adminApi.injectEndpoints({
       }),
       invalidatesTags: ['Admin'],
     }),
+
+    getPromotionPlans: build.query<AdminPromotionPlan[], void>({
+      query: () => ({ url: '/admin/promotion-plans' }),
+      providesTags: ['Admin'],
+    }),
+    updatePromotionPlan: build.mutation<
+      AdminPromotionPlan,
+      { id: string; body: { price?: string; isActive?: boolean } }
+    >({
+      query: ({ id, body }) => ({
+        url: `/admin/promotion-plans/${id}`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Admin'],
+    }),
+    getPromotionSettings: build.query<PromotionSettings, void>({
+      query: () => ({ url: '/admin/promotion-settings' }),
+      providesTags: ['Admin'],
+    }),
+    updatePromotionSettings: build.mutation<
+      PromotionSettings,
+      { expiryIntervalHours: 6 | 12 }
+    >({
+      query: (body) => ({
+        url: '/admin/promotion-settings',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Admin'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -85,4 +118,8 @@ export const {
   useActivatePromotionMutation,
   useCancelPromotionMutation,
   useExtendPromotionMutation,
+  useGetPromotionPlansQuery,
+  useUpdatePromotionPlanMutation,
+  useGetPromotionSettingsQuery,
+  useUpdatePromotionSettingsMutation,
 } = adminPromotionsApi;

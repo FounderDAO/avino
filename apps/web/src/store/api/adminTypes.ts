@@ -455,3 +455,26 @@ export interface AdminStats {
   users_total: number;
   promotions_active: number;
 }
+
+// ─── DTO: тарифы и настройки промо (API.md §15) ─────────────────────────────
+
+/**
+ * Тариф промо (`GET /admin/promotion-plans`). `price` — decimal-строка (ADR-002).
+ * Редактируется через `PATCH /admin/promotion-plans/:id` (`price?`, `isActive?`).
+ */
+export interface AdminPromotionPlan {
+  id: string;
+  type: 'TOP' | 'VIP';
+  period_days: 7 | 14 | 30;
+  price: string;
+  currency: 'UZS' | 'USD';
+  isActive: boolean;
+}
+
+/**
+ * Настройки промо (`GET`/`PATCH /admin/promotion-settings`). `expiryIntervalHours`
+ * — интервал проверки истечения промо (6 или 12 часов).
+ */
+export interface PromotionSettings {
+  expiryIntervalHours: 6 | 12;
+}
