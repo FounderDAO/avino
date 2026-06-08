@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Currency, DealType } from '@avino/shared';
 import {
   DEFAULT_SORT,
@@ -22,10 +23,25 @@ import { DEAL_TYPE_LABELS } from './format';
  * страницы через `merge`.
  *
  * `transactionType` фиксируется страницей: `/sale` → SALE, `/rent` → RENT.
+ *
+ * Hero-поиск (TASK-191) передаёт запрос через URL `?q=...`: SearchPageInner
+ * читает его один раз при монтировании и сидит в начальные фильтры. Обёртка
+ * <Suspense> обязательна для `useSearchParams` (Next App Router CSR bailout).
  */
 export function SearchPage({ transactionType }: { transactionType: DealType }) {
-  const [filters, setFilters] = useState<FilterBarValue>({
-    currency: Currency.UZS,
+  return (
+    <Suspense fallback={null}>
+      <SearchPageInner transactionType={transactionType} />
+    </Suspense>
+  );
+}
+
+function SearchPageInner({ transactionType }: { transactionType: DealType }) {
+  const searchParams = useSearchParams();
+  // Сид `q` из URL — только начальное состояние (один раз), дальше владеет UI.
+  const [filters, setFilters] = useState<FilterBarValue>(() => {
+    const q = searchParams.get('q')?.trim();
+    return { currency: Currency.UZS, ...(q ? { q } : {}) };
   });
   const [sort, setSort] = useState<SearchSort>(DEFAULT_SORT);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
