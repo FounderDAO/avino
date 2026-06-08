@@ -592,7 +592,7 @@ TASK-042
 Status:
 
 ```text
-TODO
+REVIEW
 ```
 
 Branch:
