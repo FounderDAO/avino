@@ -39,6 +39,44 @@ Related ADR:
 
 ## 2026-06-08
 
+### TASK-151 — Add web listing search page
+
+Status: DONE
+Branch: feat/web-listing-search
+PR: #103
+
+Files changed:
+- apps/client/src/store/api/searchApi.ts (new)
+- apps/client/src/store/api/pagination.ts (new)
+- apps/client/src/features/search/SearchPage.tsx (new)
+- apps/client/src/features/search/FilterBar.tsx (new)
+- apps/client/src/features/search/SearchResults.tsx (new)
+- apps/client/src/features/search/PropertyCard.tsx (new)
+- apps/client/src/features/search/format.ts (new)
+- apps/client/src/app/sale/page.tsx (new)
+- apps/client/src/app/rent/page.tsx (new)
+- docs/adr/ADR-0061-client-search-keyset-merge-pagination.md (new)
+
+Summary:
+- Публичный поиск объявлений в `apps/client` на страницах `/sale` и `/rent`.
+- `searchApi` — RTK Query slice над `GET /api/v1/search` (API.md §9), отдаёт
+  только `ACTIVE`; keyset-пагинация с `serializeQueryArgs`+`merge`
+  («Показать ещё» накапливает страницы, смена фильтров сбрасывает курсор).
+- Фильтры (q, тип, комнаты, цена от/до, валюта) — через RTK Query, без
+  fetch/axios в компонентах (CLAUDE.md §4); сортировка по умолчанию
+  `promotion_priority_desc` (VIP > TOP > NORMAL) + селектор; бейджи VIP/TOP по
+  `effective_tier`.
+- Контракт-нейтрально к Flutter; только versioned `/api/v1`.
+
+Commit messages:
+- feat(web): add listing search page
+- docs(adr): record search keyset-merge pagination (TASK-151)
+
+Related ADR:
+- docs/adr/ADR-0061-client-search-keyset-merge-pagination.md
+
+---
+
 ### PROMO-EDIT — Editable promotion tariffs + expiry interval
 
 Status: DONE
