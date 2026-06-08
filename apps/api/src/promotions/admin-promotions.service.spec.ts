@@ -24,6 +24,7 @@ describe('AdminPromotionsService', () => {
   const PROMO_ID = '22222222-2222-2222-2222-222222222222';
 
   let prisma: any;
+  let plans: any;
   let service: AdminPromotionsService;
 
   const createdRow = {
@@ -54,7 +55,15 @@ describe('AdminPromotionsService', () => {
       auditLog: { create: jest.fn() },
       $transaction: jest.fn(async (cb: any) => cb(prisma)),
     };
-    service = new AdminPromotionsService(prisma);
+    plans = {
+      findPlan: jest.fn().mockResolvedValue({
+        type: PromotionType.VIP,
+        period_days: 30,
+        price: '350000.00',
+        currency: 'UZS',
+      }),
+    };
+    service = new AdminPromotionsService(prisma, plans);
   });
 
   async function expectCode(promise: Promise<unknown>, code: ApiErrorCode) {
@@ -184,6 +193,7 @@ describe('AdminPromotionsService', () => {
     });
 
     it('throws 422 INVALID_PERIOD for a period not in the catalog', async () => {
+      plans.findPlan.mockResolvedValue(null);
       await expectCode(
         service.activate(ADMIN_ID, LISTING_ID, {
           type: PromotionType.VIP,
@@ -408,6 +418,7 @@ describe('AdminPromotionsService', () => {
 
     it('throws 422 INVALID_PERIOD for a period not in the catalog', async () => {
       prisma.listingPromotion.findUnique.mockResolvedValue(activePromo);
+      plans.findPlan.mockResolvedValue(null);
       await expectCode(
         service.extend(ADMIN_ID, PROMO_ID, { period_days: 10 }),
         ApiErrorCode.INVALID_PERIOD,

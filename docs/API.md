@@ -733,7 +733,9 @@ Errors: `409 DEVICE_TOKEN_EXISTS`.
 NOT_REQUIRED`, активация вручную админом.
 
 ### GET /api/v1/promotions/plans
-Публичный каталог планов (тир × период × цена). Auth: **public**.
+Публичный каталог планов (тир × период × цена). Auth: **public**. Отдаёт **только
+активные** планы (`is_active = true`) из таблицы `promotion_plans` (DB-backed,
+ADR-0060). Ранее каталог был статической константой в коде (ADR-0032).
 200:
 ```json
 { "plans": [
@@ -788,6 +790,54 @@ Errors: `422 INVALID_PERIOD` (не 7/14/30), `409 ACTIVE_PROMOTION_EXISTS`
 > Истечение промо обрабатывается фоновой джобой `expire_listing_promotions`
 > (`promotion_queue`), но корректность сортировки не зависит от джобы — тир
 > time-guarded в SQL (ADR-006).
+
+### Admin: редактируемые тарифы и интервал истечения
+
+Тарифная матрица (`promotion_plans`) и интервал sweep-джобы (`app_settings`)
+редактируются админом без деплоя (ADR-0060, supersedes ADR-0032). Цена
+снапшотится в `listing_promotions.price` при активации, поэтому правка плана не
+меняет уже активные промо.
+
+#### GET /api/v1/admin/promotion-plans
+Все 6 планов матрицы (включая неактивные). Auth: **ADMIN**.
+200:
+```json
+{ "plans": [
+  { "id": "pp1", "type": "TOP", "period_days": 7,  "price": "50000.00",  "currency": "UZS", "is_active": true },
+  { "id": "pp2", "type": "TOP", "period_days": 14, "price": "90000.00",  "currency": "UZS", "is_active": true },
+  { "id": "pp3", "type": "TOP", "period_days": 30, "price": "150000.00", "currency": "UZS", "is_active": true },
+  { "id": "pp4", "type": "VIP", "period_days": 7,  "price": "120000.00", "currency": "UZS", "is_active": true },
+  { "id": "pp5", "type": "VIP", "period_days": 14, "price": "210000.00", "currency": "UZS", "is_active": true },
+  { "id": "pp6", "type": "VIP", "period_days": 30, "price": "350000.00", "currency": "UZS", "is_active": true }
+] }
+```
+
+#### PATCH /api/v1/admin/promotion-plans/:id
+Изменить цену и/или активность плана. Auth: **ADMIN**. Пишет
+`audit_logs(PROMOTION_PLAN_UPDATE)` (metadata: old/new `price` + `is_active`).
+```json
+{ "price": "99000.00", "isActive": true }
+```
+Оба поля опциональны (`price?: string`, `isActive?: boolean`).
+200 → обновлённый план (та же форма, что в списке). Errors: `404 NOT_FOUND`.
+
+#### GET /api/v1/admin/promotion-settings
+Текущий интервал истечения промо (preset). Auth: **ADMIN**.
+200:
+```json
+{ "expiryIntervalHours": 12 }
+```
+`expiryIntervalHours` — один из пресетов `6 | 12` (соответствует cron
+`0 */6 * * *` / `0 */12 * * *` в `app_settings.promotion_expiry_cron`).
+
+#### PATCH /api/v1/admin/promotion-settings
+Сменить интервал истечения промо. Auth: **ADMIN**. Маппит preset → cron,
+персистит в `app_settings`, перерегистрирует repeatable BullMQ-джобу в рантайме
+(`PromotionQueue.rescheduleExpiry`). Пишет `audit_logs(PROMOTION_SETTINGS_UPDATE)`.
+```json
+{ "expiryIntervalHours": 6 }
+```
+200 → `{ "expiryIntervalHours": 6 }`. Errors: `422` (значение вне `6 | 12`).
 
 ---
 

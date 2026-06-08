@@ -33,6 +33,7 @@ export const shared: Record<Locale, Dict> = {
       complaints: 'Жалобы',
       users: 'Пользователи',
       logs: 'Логи',
+      promotions: 'Тарифы',
       brandAdmin: 'admin',
     },
     header: {
@@ -162,6 +163,7 @@ export const shared: Record<Locale, Dict> = {
       complaints: 'Shikoyatlar',
       users: 'Foydalanuvchilar',
       logs: 'Jurnallar',
+      promotions: 'Tariflar',
       brandAdmin: 'admin',
     },
     header: {
@@ -291,6 +293,7 @@ export const shared: Record<Locale, Dict> = {
       complaints: 'Complaints',
       users: 'Users',
       logs: 'Logs',
+      promotions: 'Tariffs',
       brandAdmin: 'admin',
     },
     header: {

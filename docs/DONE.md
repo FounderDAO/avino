@@ -37,6 +37,55 @@ Related ADR:
 
 ---
 
+## 2026-06-08
+
+### PROMO-EDIT — Editable promotion tariffs + expiry interval
+
+Status: DONE
+Branch: feat/promo-tariffs
+PR: #TBD
+
+Files changed:
+- apps/api/prisma/schema.prisma (promotion_plans, app_settings)
+- apps/api/src/promotions/promotion-plans.service.ts (new)
+- apps/api/src/promotions/promotions.service.ts
+- apps/api/src/promotions/promotions.controller.ts
+- apps/api/src/admin/admin-promotion-plans.controller.ts (new)
+- apps/api/src/admin/admin-promotion-settings.controller.ts (new)
+- apps/api/src/promotions/promotion-expiry.service.ts
+- apps/api/src/queues/promotion.queue.ts
+- apps/web/src/app/(admin)/admin/promotions
+- docs/API.md (§15)
+- docs/DB_SCHEMA.md (§8)
+- docs/adr/ADR-0060-editable-promotion-plans.md (new)
+- docs/DONE.md
+
+Summary:
+- Тарифная матрица продвижения вынесена из код-константы (`promotions.catalog.ts`,
+  ADR-0032) в таблицу БД `promotion_plans` (6 строк, фикс через unique + CHECK).
+  Админ редактирует цену и активность плана через аудируемые эндпоинты
+  (`PROMOTION_PLAN_UPDATE`), без деплоя.
+- `GET /api/v1/promotions/plans` теперь отдаёт только активные планы из БД
+  (контракт не сломан). Цена снапшотится в `listing_promotions.price` при
+  активации — правка тарифа не меняет уже активные промо.
+- Интервал sweep-джобы истечения хранится в `app_settings`
+  (`promotion_expiry_cron`), выбирается 6h/12h из панели
+  (`PROMOTION_SETTINGS_UPDATE`), применяется в рантайме через
+  `PromotionQueue.rescheduleExpiry`. Env `PROMOTION_EXPIRY_CRON` — fallback.
+- Frontend `/admin/promotions`: редактируемая таблица тарифов + селектор
+  интервала, локализация RU/UZ/EN, ссылка в сайдбаре.
+
+Commit messages:
+- feat(promotions): move tariff catalog to DB-backed promotion_plans
+- feat(admin): editable promotion plans + expiry interval endpoints
+- feat(web): admin promotions tariffs editor + interval selector
+- docs(promo): API.md §15, DB_SCHEMA §8, ADR-0060
+
+Related ADR:
+- docs/adr/ADR-0060-editable-promotion-plans.md (supersedes ADR-0032)
+
+---
+
 ## 2026-06-07
 
 ### ADMIN-16 — Полиш: единые состояния + toasts (web)

@@ -17,6 +17,7 @@ import {
   GridIcon,
   HorizontaLDots,
   ListIcon,
+  StarIcon,
   UsersIcon,
 } from "@/icons";
 
@@ -32,16 +33,17 @@ const AppSidebar: React.FC = () => {
   const { t } = useT();
   const pathname = usePathname();
 
-  // Avino admin sections (routes are filled in by ADMIN-08..15). Промо привязано
-  // к листингу — управляется в карточке объявления, отдельной страницы нет
-  // (ADMIN-13/ADR-0052). Мемоизируем, чтобы эффект подсветки подменю не
-  // пересоздавался на каждый рендер (зависит только от языка интерфейса).
+  // Avino admin sections (routes are filled in by ADMIN-08..15). Промо в карточке
+  // листинга — управление конкретной промо; страница `/admin/promotions` — правка
+  // тарифов VIP/TOP и интервала проверки истечения (Task 7). Мемоизируем, чтобы
+  // эффект подсветки подменю не пересоздавался на каждый рендер.
   const navItems: NavItem[] = useMemo(
     () => [
       { icon: <GridIcon />, name: t("nav.dashboard"), path: "/admin" },
       { icon: <ListIcon />, name: t("nav.listings"), path: "/admin/listings" },
       { icon: <FlagIcon />, name: t("nav.complaints"), path: "/admin/complaints" },
       { icon: <UsersIcon />, name: t("nav.users"), path: "/admin/users" },
+      { icon: <StarIcon />, name: t("nav.promotions"), path: "/admin/promotions" },
       { icon: <DocsIcon />, name: t("nav.logs"), path: "/admin/logs" },
     ],
     [t],

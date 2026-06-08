@@ -18,7 +18,7 @@ import { PrismaService } from '../prisma';
 import { ActivatePromotionDto } from './dto/activate-promotion.dto';
 import { CancelPromotionDto } from './dto/cancel-promotion.dto';
 import { ExtendPromotionDto } from './dto/extend-promotion.dto';
-import { findPlan } from './promotions.catalog';
+import { PromotionPlansService } from './promotion-plans.service';
 
 /** Миллисекунд в сутках — для расчёта `expires_at = starts_at + period_days`. */
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -74,7 +74,10 @@ type PromotionRow = Prisma.ListingPromotionGetPayload<{
  */
 @Injectable()
 export class AdminPromotionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly plans: PromotionPlansService,
+  ) {}
 
   /**
    * `POST /api/v1/admin/listings/:id/promotions` — активировать VIP/TOP вручную.
@@ -96,7 +99,7 @@ export class AdminPromotionsService {
     idempotencyKey?: string,
   ): Promise<PromotionResponse> {
     // Период валидируется по каталогу: нет плана → 422 INVALID_PERIOD (а не 400).
-    const plan = findPlan(dto.type, dto.period_days);
+    const plan = await this.plans.findPlan(dto.type, dto.period_days);
     if (!plan) {
       throw new HttpException(
         {
@@ -311,7 +314,7 @@ export class AdminPromotionsService {
     const promotion = await this.requireActivePromotion(promotionId);
 
     // Период валидируется по каталогу тира: нет плана → 422 INVALID_PERIOD.
-    if (!findPlan(promotion.type, dto.period_days)) {
+    if (!(await this.plans.findPlan(promotion.type, dto.period_days))) {
       throw new HttpException(
         {
           code: ApiErrorCode.INVALID_PERIOD,

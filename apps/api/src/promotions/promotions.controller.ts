@@ -18,7 +18,7 @@ export class PromotionsController {
 
   /** `GET /api/v1/promotions/plans` — каталог TOP/VIP × 7/14/30 дней. */
   @Get('plans')
-  getPlans(): PromotionPlansResponse {
+  getPlans(): Promise<PromotionPlansResponse> {
     return this.promotionsService.getPlans();
   }
 }

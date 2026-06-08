@@ -33,6 +33,11 @@ describe('PromotionQueue', () => {
             : undefined,
     }) as unknown as ConfigService;
 
+  const prisma = (cron?: string) =>
+    ({
+      appSetting: { findUnique: jest.fn().mockResolvedValue(cron ? { value: cron } : null) },
+    }) as never;
+
   beforeEach(() => {
     upsertMock.mockReset();
     closeMock.mockReset();
@@ -40,7 +45,7 @@ describe('PromotionQueue', () => {
   });
 
   it('creates the promotion_queue with the resolved connection', () => {
-    new PromotionQueue(config('* * * * *'));
+    new PromotionQueue(config('* * * * *'), prisma());
     expect(Queue).toHaveBeenCalledWith(
       PROMOTION_QUEUE_NAME,
       expect.objectContaining({ connection: expect.any(Object) }),
@@ -48,7 +53,7 @@ describe('PromotionQueue', () => {
   });
 
   it('schedules the expire_listing_promotions job with the configured cron', async () => {
-    const queue = new PromotionQueue(config('*/5 * * * *'));
+    const queue = new PromotionQueue(config('*/5 * * * *'), prisma());
 
     await queue.onModuleInit();
 
@@ -60,7 +65,7 @@ describe('PromotionQueue', () => {
   });
 
   it('defaults to every-minute cron when not configured', async () => {
-    const queue = new PromotionQueue(config(undefined));
+    const queue = new PromotionQueue(config(undefined), prisma());
     await queue.onModuleInit();
     expect(upsertMock.mock.calls[0][1]).toEqual({ pattern: '* * * * *' });
   });
