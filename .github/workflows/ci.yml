@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Отменяем устаревшие прогоны при новых пушах в ту же ветку/PR.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: api (build + jest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Версия pnpm берётся из "packageManager" в package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # @avino/api импортирует @avino/shared из dist — собираем его первым.
+      - name: Build shared package
+        run: pnpm --filter @avino/shared build
+
+      # nest build и ts-jest требуют сгенерированный Prisma Client.
+      - name: Generate Prisma Client
+        run: pnpm --filter @avino/api exec prisma generate
+
+      - name: Build
+        run: pnpm --filter @avino/api build
+
+      - name: Test (jest)
+        run: pnpm --filter @avino/api test
+
+  web:
+    name: web + client (lint + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Версия pnpm берётся из "packageManager" в package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Next-приложения тоже зависят от собранного @avino/shared.
+      - name: Build shared package
+        run: pnpm --filter @avino/shared build
+
+      - name: Lint
+        run: pnpm --filter @avino/web --filter @avino/client lint
+
+      # next build выполняет типизацию (tsc) — это и есть tsc-гейт для web/client.
+      - name: Build (tsc + next build)
+        run: pnpm --filter @avino/web --filter @avino/client build
