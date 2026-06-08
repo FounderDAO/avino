@@ -587,58 +587,6 @@ TASK-042
 
 ---
 
-### TASK-151 — Add web listing search page
-
-Status:
-
-```text
-REVIEW
-```
-
-Branch:
-
-```text
-feat/web-listing-search
-```
-
-Scope:
-
-```text
-Implement listing search page with filters.
-```
-
-Files expected:
-
-```text
-apps/web/src/features/search/
-apps/web/src/store/api/searchApi.ts
-```
-
-Acceptance criteria:
-
-```text
-Search page loads ACTIVE listings
-Filters work through RTK Query
-Sorting supports promotion priority
-Pagination works
-```
-
-Suggested commits:
-
-```text
-feat(web): add listing search page
-```
-
-Dependencies:
-
-```text
-TASK-141
-TASK-080
-TASK-081
-```
-
----
-
 ### TASK-152 — Add web map search
 
 Status:
