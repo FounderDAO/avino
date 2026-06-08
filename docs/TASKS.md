@@ -486,57 +486,6 @@ _TASK-132 completed — see docs/DONE.md._
 > TASK-140 — DONE (см. docs/DONE.md).
 
 
-### TASK-141 — Add RTK Query API layer
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/web-rtk-query
-```
-
-Scope:
-
-```text
-Add Redux Toolkit and RTK Query foundation.
-```
-
-Files expected:
-
-```text
-apps/web/src/store/
-apps/web/src/store/api/baseApi.ts
-apps/web/src/store/provider.tsx
-```
-
-Acceptance criteria:
-
-```text
-RTK Query base API exists
-Base URL points to /api/v1
-Provider is wired into app
-No random fetch/axios pattern introduced
-```
-
-Suggested commits:
-
-```text
-feat(web): add RTK Query foundation
-```
-
-Dependencies:
-
-```text
-TASK-140
-```
-
----
-
 ### TASK-142 — Add i18n foundation
 
 Status:
