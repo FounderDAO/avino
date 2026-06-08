@@ -48,10 +48,11 @@ export enum ListingStatus {
   RENTED = 'RENTED',
 }
 
-/** Типы недвижимости. */
+/** Типы недвижимости (значения совпадают с фильтром `property_type`, API.md §9). */
 export enum PropertyType {
   APARTMENT = 'APARTMENT',
   HOUSE = 'HOUSE',
+  NEW_BUILDING = 'NEW_BUILDING',
   COMMERCIAL = 'COMMERCIAL',
   LAND = 'LAND',
 }
