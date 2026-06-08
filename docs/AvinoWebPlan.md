@@ -41,12 +41,16 @@ apps/api (NestJS + Prisma + PostGIS + Redis + BullMQ + S3)
 
 ## 1. Стек
 
+> **Таргет — `apps/client`** (публичный портал, ADR-0057), НЕ `apps/web` (та —
+> админка на TailAdmin). Структура путей в §2 читается как `apps/client/...`.
+
 | Слой | Технология |
 |---|---|
-| Framework | Next.js 14+ (App Router) |
+| App | `apps/client` (`@avino/client`), порт 3001 |
+| Framework | Next.js 15 + React 19 (App Router) — ADR-0043 |
 | Язык | TypeScript |
-| Стили | Tailwind CSS + CSS-переменные (дизайн-токены) |
-| Компоненты | собственные Avino UI + (опц.) headless-примитивы (Radix) |
+| Стили | Tailwind v4 (`@theme`) + CSS-переменные (дизайн-токены) — ADR-0043 |
+| Компоненты | **shadcn/ui** (Radix + Tailwind) — ADR-0059 |
 | Глобальное состояние | Redux Toolkit |
 | Серверные данные / API | **RTK Query** (`store/api/*`) |
 | UI-состояние (фильтры, карта, модалки) | RTK slices (`store/slices/*`) |
