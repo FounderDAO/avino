@@ -10,6 +10,7 @@ import type { SearchSort } from '@/store/api/searchApi';
 export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   [PropertyType.APARTMENT]: 'Квартира',
   [PropertyType.HOUSE]: 'Дом',
+  [PropertyType.NEW_BUILDING]: 'Новостройка',
   [PropertyType.COMMERCIAL]: 'Коммерция',
   [PropertyType.LAND]: 'Участок',
 };
