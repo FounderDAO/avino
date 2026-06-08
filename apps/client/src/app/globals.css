@@ -1,22 +1,152 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
 /* Dark-mode стратегия: class (`<html class="dark">`). */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Дизайн-токены публичного портала Avino.
- * Минимальный набор для TASK-140 (foundation). Полная дизайн-система
- * (docs/AvinoWebPlan.md §3) добавляется по мере пользовательских страниц.
+ * Палитра публичного портала Avino (ADR-0060): тёплая нейтраль + красный бренд.
+ * shadcn/ui semantic-токены (cssVariables: true, ADR-0059) маппятся на эти
+ * значения; дополнительно введены бренд-акценты teal / mint / green /
+ * segment-track как утилиты Tailwind.
  */
-@theme {
-  --color-primary: #0041d9;
-  --color-action: #006aff;
-  --color-bg-white: #ffffff;
-  --color-bg-muted: #f5f7fa;
-  --color-text-primary: #0f1724;
-  --color-text-secondary: #5b6675;
+:root {
+  --radius: 0.625rem;
+
+  /* shadcn semantic */
+  --background: #f7f4ef; /* warm cream */
+  --foreground: #1a1a1a; /* ink */
+  --card: #ffffff; /* surface */
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #e03c42; /* brand red */
+  --primary-foreground: #ffffff;
+  --secondary: #ece8df; /* segment-track */
+  --secondary-foreground: #1a1a1a;
+  --muted: #ece8df;
+  --muted-foreground: #6f6f6f;
+  --accent: #e4f2f2; /* mint */
+  --accent-foreground: #157e84; /* teal */
+  --destructive: #e03c42;
+  --destructive-foreground: #ffffff;
+  --border: #e4e0d8;
+  --input: #e4e0d8;
+  --ring: #e03c42;
+  --chart-1: #e03c42;
+  --chart-2: #157e84;
+  --chart-3: #1e8e3e;
+  --chart-4: #6f6f6f;
+  --chart-5: #e4f2f2;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-primary: #e03c42;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e4f2f2;
+  --sidebar-accent-foreground: #157e84;
+  --sidebar-border: #e4e0d8;
+  --sidebar-ring: #e03c42;
+
+  /* бренд-акценты Avino (extra utilities) */
+  --teal: #157e84;
+  --mint: #e4f2f2;
+  --green: #1e8e3e;
+  --segment-track: #ece8df;
 }
 
-body {
-  min-height: 100dvh;
+.dark {
+  --background: #14130f;
+  --foreground: #f2eee6; /* ink */
+  --card: #201e1a; /* surface */
+  --card-foreground: #f2eee6;
+  --popover: #201e1a;
+  --popover-foreground: #f2eee6;
+  --primary: #e03c42;
+  --primary-foreground: #ffffff;
+  --secondary: #2a2823; /* segment-track */
+  --secondary-foreground: #f2eee6;
+  --muted: #2a2823;
+  --muted-foreground: #9b958a;
+  --accent: #16302f; /* mint */
+  --accent-foreground: #3fb3b8; /* teal */
+  --destructive: #e03c42;
+  --destructive-foreground: #ffffff;
+  --border: #34322b;
+  --input: #34322b;
+  --ring: #e03c42;
+  --chart-1: #e03c42;
+  --chart-2: #3fb3b8;
+  --chart-3: #34c759;
+  --chart-4: #9b958a;
+  --chart-5: #16302f;
+  --sidebar: #201e1a;
+  --sidebar-foreground: #f2eee6;
+  --sidebar-primary: #e03c42;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #16302f;
+  --sidebar-accent-foreground: #3fb3b8;
+  --sidebar-border: #34322b;
+  --sidebar-ring: #e03c42;
+
+  --teal: #3fb3b8;
+  --mint: #16302f;
+  --green: #34c759;
+  --segment-track: #2a2823;
+}
+
+/* Маппинг токенов в Tailwind-утилиты (bg-background, text-primary, bg-teal, ...). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* бренд-акценты Avino */
+  --color-teal: var(--teal);
+  --color-mint: var(--mint);
+  --color-green: var(--green);
+  --color-segment-track: var(--segment-track);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100dvh;
+  }
 }
