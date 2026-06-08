@@ -5,94 +5,96 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Avino-специфичные дизайн-токены публичного портала (ADR-0043/0057).
- * shadcn/ui semantic-токены (ниже) — отдельный слой, но единый бренд-цвет:
- * `--primary` ссылается на бренд Avino, а не на нейтраль shadcn (ADR-0059).
- */
-@theme {
-  --color-action: #006aff;
-  --color-bg-white: #ffffff;
-  --color-bg-muted: #f5f7fa;
-  --color-text-primary: #0f1724;
-  --color-text-secondary: #5b6675;
-}
-
-/*
- * shadcn/ui semantic tokens (ADR-0059, cssVariables: true).
- * baseColor neutral; `--primary` переопределён на бренд Avino (#0041d9).
+ * Палитра публичного портала Avino (ADR-0060): тёплая нейтраль + красный бренд.
+ * shadcn/ui semantic-токены (cssVariables: true, ADR-0059) маппятся на эти
+ * значения; дополнительно введены бренд-акценты teal / mint / green /
+ * segment-track как утилиты Tailwind.
  */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #0041d9;
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #0041d9;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  /* shadcn semantic */
+  --background: #f7f4ef; /* warm cream */
+  --foreground: #1a1a1a; /* ink */
+  --card: #ffffff; /* surface */
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #e03c42; /* brand red */
+  --primary-foreground: #ffffff;
+  --secondary: #ece8df; /* segment-track */
+  --secondary-foreground: #1a1a1a;
+  --muted: #ece8df;
+  --muted-foreground: #6f6f6f;
+  --accent: #e4f2f2; /* mint */
+  --accent-foreground: #157e84; /* teal */
+  --destructive: #e03c42;
+  --destructive-foreground: #ffffff;
+  --border: #e4e0d8;
+  --input: #e4e0d8;
+  --ring: #e03c42;
+  --chart-1: #e03c42;
+  --chart-2: #157e84;
+  --chart-3: #1e8e3e;
+  --chart-4: #6f6f6f;
+  --chart-5: #e4f2f2;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-primary: #e03c42;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e4f2f2;
+  --sidebar-accent-foreground: #157e84;
+  --sidebar-border: #e4e0d8;
+  --sidebar-ring: #e03c42;
+
+  /* бренд-акценты Avino (extra utilities) */
+  --teal: #157e84;
+  --mint: #e4f2f2;
+  --green: #1e8e3e;
+  --segment-track: #ece8df;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: #006aff;
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: #006aff;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #14130f;
+  --foreground: #f2eee6; /* ink */
+  --card: #201e1a; /* surface */
+  --card-foreground: #f2eee6;
+  --popover: #201e1a;
+  --popover-foreground: #f2eee6;
+  --primary: #e03c42;
+  --primary-foreground: #ffffff;
+  --secondary: #2a2823; /* segment-track */
+  --secondary-foreground: #f2eee6;
+  --muted: #2a2823;
+  --muted-foreground: #9b958a;
+  --accent: #16302f; /* mint */
+  --accent-foreground: #3fb3b8; /* teal */
+  --destructive: #e03c42;
+  --destructive-foreground: #ffffff;
+  --border: #34322b;
+  --input: #34322b;
+  --ring: #e03c42;
+  --chart-1: #e03c42;
+  --chart-2: #3fb3b8;
+  --chart-3: #34c759;
+  --chart-4: #9b958a;
+  --chart-5: #16302f;
+  --sidebar: #201e1a;
+  --sidebar-foreground: #f2eee6;
+  --sidebar-primary: #e03c42;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #16302f;
+  --sidebar-accent-foreground: #3fb3b8;
+  --sidebar-border: #34322b;
+  --sidebar-ring: #e03c42;
+
+  --teal: #3fb3b8;
+  --mint: #16302f;
+  --green: #34c759;
+  --segment-track: #2a2823;
 }
 
-/* Маппинг semantic-токенов в Tailwind-утилиты (bg-background, text-primary, ...). */
+/* Маппинг токенов в Tailwind-утилиты (bg-background, text-primary, bg-teal, ...). */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -126,6 +128,13 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* бренд-акценты Avino */
+  --color-teal: var(--teal);
+  --color-mint: var(--mint);
+  --color-green: var(--green);
+  --color-segment-track: var(--segment-track);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

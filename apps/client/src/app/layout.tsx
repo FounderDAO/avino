@@ -21,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" className={inter.variable}>
-      <body className="bg-bg-white text-text-primary antialiased">
+      <body className="bg-background text-foreground antialiased">
         <StoreProvider>{children}</StoreProvider>
       </body>
     </html>
