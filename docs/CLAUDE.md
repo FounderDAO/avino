@@ -9,9 +9,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Целевая архитектура — **монорепо** (выводится из путей, на которые ссылаются правила ниже):
 
 ```
-apps/api/    — NestJS + Prisma + PostgreSQL/PostGIS + Redis + BullMQ + S3
-apps/web/    — Next.js + TypeScript, API-слой строго на RTK Query
+apps/api/     — NestJS + Prisma + PostgreSQL/PostGIS + Redis + BullMQ + S3  (backend)
+apps/web/     — Next.js + TypeScript, RTK Query  (ADMIN-панель, порт 3000)
+apps/client/  — Next.js + TypeScript, RTK Query  (ПУБЛИЧНЫЙ портал недвижимости, порт 3001)
+packages/shared/ — общие типы/контракты между api и фронтами
 ```
+
+### Границы приложений (ОБЯЗАТЕЛЬНО для каждой задачи)
+
+Каждая задача работает **строго в одной app-папке** и не трогает чужие:
+
+- Публичный портал (главная, поиск, карта, карточки объявлений, чат, избранное для пользователей) → **только `apps/client/`**.
+- Админка / модерация / дашборды → **только `apps/web/`**.
+- Backend / API → **только `apps/api/`**.
+- Общие контракты → **только `packages/shared/`**.
+
+Правила:
+- Нельзя в задаче по публичному порталу редактировать файлы внутри `apps/web/` (и наоборот).
+- Если задача требует изменений в нескольких app-папках — это **разные PR** (одна папка = один PR), кроме изменения общего контракта в `packages/shared/`.
+- `apps/web/` остаётся за админкой; новый публичный UI пишется с нуля в `apps/client/`.
 
 Ключевые архитектурные ограничения, требующие чтения нескольких разделов:
 - **Frontend API-слой централизован** (`apps/web/src/store/api/*`) — никаких `fetch()`/`axios` внутри компонентов (см. §4).
