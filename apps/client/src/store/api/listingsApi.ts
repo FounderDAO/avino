@@ -66,7 +66,12 @@ export interface ListingDetail {
   description: string | null;
   address_note: string | null;
   features_text: string | null;
-  features: ListingFeature[];
+  /**
+   * Структурированные удобства (chips). Бэкенд подключает их в M5 — модели в БД
+   * пока нет (см. `ListingDetailResponse` в listings.service.ts), поэтому до тех
+   * пор поле ОТСУТСТВУЕТ в ответе. Опционально; фолбэк — свободный `features_text`.
+   */
+  features?: ListingFeature[];
   media: ListingMedia[];
   published_at: string | null;
   created_at: string;
