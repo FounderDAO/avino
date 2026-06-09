@@ -10,6 +10,8 @@ import { usePathname } from 'next/navigation';
 import { IC } from './icons';
 import { AdminButton, IconButton } from './ui/button';
 import { useToast } from './toast';
+import { useGetMeQuery } from '@/store/api/authApi';
+import { useLogout } from '@/hooks/useLogout';
 
 const TITLES: Record<string, string> = {
   '/admin': 'Панель управления',
@@ -32,6 +34,8 @@ function titleFor(pathname: string): string {
 export function Topbar({ onBurger }: { onBurger: () => void }) {
   const pathname = usePathname();
   const toast = useToast();
+  const { data: me } = useGetMeQuery();
+  const logout = useLogout();
   return (
     <div className="a-topbar">
       <div className="row gap-12">
@@ -57,6 +61,19 @@ export function Topbar({ onBurger }: { onBurger: () => void }) {
         <AdminButton variant="outline" size="sm" asChild>
           <Link href="/">← На сайт</Link>
         </AdminButton>
+        {me && (
+          <div className="row gap-8" style={{ paddingLeft: 4 }}>
+            <span
+              className="max-[760px]:hidden"
+              style={{ fontSize: 13, color: 'var(--muted)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            >
+              {me.profile?.display_name || me.email}
+            </span>
+            <IconButton onClick={logout} title="Выйти">
+              <IC.LogOut size={19} />
+            </IconButton>
+          </div>
+        )}
       </div>
     </div>
   );
