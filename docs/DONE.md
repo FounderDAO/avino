@@ -37,6 +37,56 @@ Related ADR:
 
 ---
 
+## 2026-06-09
+
+### TASK-153 — Add web listing detail page
+
+Status: DONE
+Branch: feat/web-listing-detail
+PR: #110
+
+Files changed:
+- apps/client/src/store/api/listingsApi.ts (new)
+- apps/client/src/features/listings/ListingDetail.tsx (new)
+- apps/client/src/features/listings/Gallery.tsx (new)
+- apps/client/src/features/listings/DetailHeader.tsx (new)
+- apps/client/src/features/listings/FeaturesBlock.tsx (new)
+- apps/client/src/features/listings/MiniMap.tsx (new)
+- apps/client/src/features/listings/ContactCard.tsx (new)
+- apps/client/src/features/listings/SimilarListings.tsx (new)
+- apps/client/src/features/listings/LanguageSwitch.tsx (new)
+- apps/client/src/features/listings/format.ts (new)
+- apps/client/src/app/listings/[id]/page.tsx (new)
+- apps/client/src/features/search/PropertyCard.tsx (modified)
+
+Summary:
+- Публичная детальная страница объявления в `apps/client` на маршруте
+  `/listings/:id` (дизайн-спек §4.3). Задача исполнена в `apps/client`
+  (а не в `apps/web` из устаревшего "Files expected"): публичный портал
+  живёт в `apps/client` после client/web-разделения (CLAUDE.md §0).
+- `listingsApi.getListing` — RTK Query slice над `GET /api/v1/listings/:id?lang=…`
+  (API.md §7): полная карточка с `media[]`, `features[]`, метриками и переводом
+  по выбранному языку (ADR-012); без fetch/axios в компонентах (CLAUDE.md §4).
+- Раскладка: галерея с фуллскрин-лайтбоксом, шапка (цена/specs c dot-bullet/
+  адрес/действия), описание+удобства, мини-карта (заглушка до TASK-152),
+  sticky-карточка контакта, бейдж VIP/TOP (учёт истёкшего промо),
+  переключатель языка UZ/RU/EN, похожие объявления через `searchApi`.
+- CTA «Записаться»/«Написать» и избранное ведут на `/login` (авторизации в
+  публичном портале ещё нет — TASK-150). Карточки выдачи `PropertyCard` теперь
+  ведут на детальную страницу.
+- UI-копия русская — консистентно с текущим порталом; узбекская локаль вынесена
+  в отдельную задачу. favorite/chat/карта/оплата — заглушки до TASK-150/152/155/156.
+- Проверки: `tsc --noEmit`, `next lint`, `next build` — зелёные.
+
+Commit messages:
+- feat(client): add listing detail page
+
+Related ADR:
+- N/A — новый RTK Query slice под существующим правилом (CLAUDE.md §4, ADR-0059);
+  отдельный ADR не требуется.
+
+---
+
 ## 2026-06-08
 
 ### TASK-151 — Add web listing search page

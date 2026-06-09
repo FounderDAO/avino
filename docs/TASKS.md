@@ -840,58 +840,6 @@ TASK-191
 
 ---
 
-### TASK-153 — Add web listing detail page
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/web-listing-detail
-```
-
-Scope:
-
-```text
-Implement listing detail page.
-```
-
-Files expected:
-
-```text
-apps/web/src/features/listings/
-apps/web/src/store/api/listingsApi.ts
-```
-
-Acceptance criteria:
-
-```text
-Listing detail loads by id
-Photos are displayed
-Translations are displayed by selected language
-Promotion badge displays VIP/TOP where applicable
-Chat CTA exists for authenticated users
-```
-
-Suggested commits:
-
-```text
-feat(web): add listing detail page
-```
-
-Dependencies:
-
-```text
-TASK-141
-TASK-051
-```
-
----
-
 ### TASK-154 — Add web listing create flow
 
 Status:
