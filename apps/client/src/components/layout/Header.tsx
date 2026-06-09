@@ -18,9 +18,8 @@ import { NAV_ITEMS } from './Nav';
 import { Button } from '@/components/ui/button';
 import { useFavoritesCount } from '@/store/favorites';
 
-export function Header() {
+function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [scrolled, setScrolled] = React.useState(false);
   const [menu, setMenu] = React.useState(false);
   const [login, setLogin] = React.useState(false);
@@ -42,8 +41,8 @@ export function Header() {
     if (key === 'sell') return pathname.startsWith('/sell');
     if (key === 'help') return pathname.startsWith('/help');
     if (pathname === '/search') {
-      const tx = searchParams.get('tx');
-      const isNew = searchParams.get('type') === 'NEW_BUILDING';
+      const tx = searchParams?.get('tx');
+      const isNew = searchParams?.get('type') === 'NEW_BUILDING';
       if (key === 'new') return tx === 'SALE' && isNew;
       if (key === 'sale') return tx === 'SALE' && !isNew;
       if (key === 'rent') return tx === 'RENT';
@@ -166,5 +165,24 @@ export function Header() {
 
       <LoginModal open={login} onOpenChange={setLogin} />
     </header>
+  );
+}
+
+/** Изолирует useSearchParams (требует Suspense-границы при статической генерации). */
+function HeaderWithSearchParams() {
+  const searchParams = useSearchParams();
+  return <HeaderBody searchParams={searchParams} />;
+}
+
+/**
+ * Шапка портала. useSearchParams обёрнут в Suspense, чтобы статические страницы
+ * (включая /_not-found) пререндерились без CSR-bailout. Fallback — тот же шелл
+ * без подсветки на основе query (актуальна только на динамическом /search).
+ */
+export function Header() {
+  return (
+    <React.Suspense fallback={<HeaderBody searchParams={null} />}>
+      <HeaderWithSearchParams />
+    </React.Suspense>
   );
 }
