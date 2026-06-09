@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -9,7 +10,12 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { Currency, PropertyType, TransactionType } from '@prisma/client';
+import {
+  Currency,
+  PromotionType,
+  PropertyType,
+  TransactionType,
+} from '@prisma/client';
 
 /**
  * Денежные поля — строки-Decimal, никогда float (ADR-002). До 12 цифр целой
@@ -25,8 +31,13 @@ const DECIMAL_2 = /^\d{1,12}(\.\d{1,2})?$/;
  * keyset-пагинация. Promotion-приоритетная сортировка (`sort`), свободный текст
  * (`q`), area/rooms и гео-фильтры подключаются отдельными задачами (TASK-081/082).
  *
- * Неизвестные параметры игнорируются (forward-compatible, API.md §4). Числа из
- * query приводятся к `number` глобальным ValidationPipe (`enableImplicitConversion`).
+ * Forward-compatible (API.md §9): параметры этих будущих задач (`sort`, `q`,
+ * `rooms`, `area_min/max`, `promotion_type`) клиент уже шлёт. Глобальный
+ * ValidationPipe строгий (`forbidNonWhitelisted`), поэтому они объявлены ниже
+ * как опциональные поля — иначе 400 «property … should not exist». Сейчас
+ * валидируется только их форма; {@link buildWhereSql} их НЕ применяет —
+ * фильтрация/сортировка включаются в TASK-081/082. Числа из query приводятся к
+ * `number` глобальным ValidationPipe (`enableImplicitConversion`).
  */
 export class SearchListingsQueryDto {
   @IsOptional()
@@ -59,6 +70,47 @@ export class SearchListingsQueryDto {
   @IsOptional()
   @IsUUID()
   district_id?: string;
+
+  // ── Forward-compatible поля (API.md §9, TASK-081/082) ──────────────────────
+  // Клиент уже шлёт эти параметры; пока валидируется только форма, фильтрация/
+  // сортировка по ним НЕ применяется (см. SearchService.buildWhereSql). При
+  // реализации 081/082 — подключить в where/orderBy и убрать этот раздел.
+
+  /** Сортировка выдачи. Пока игнорируется — порядок promotion-priority. */
+  @IsOptional()
+  @IsString()
+  sort?: string;
+
+  /** Свободнотекстовый поиск. Пока игнорируется. */
+  @IsOptional()
+  @IsString()
+  q?: string;
+
+  /** Число комнат. Пока игнорируется. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  rooms?: number;
+
+  /** Нижняя граница площади (м²). Пока игнорируется. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  area_min?: number;
+
+  /** Верхняя граница площади (м²). Пока игнорируется. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  area_max?: number;
+
+  /** Фильтр по типу промо. Пока игнорируется. */
+  @IsOptional()
+  @IsEnum(PromotionType)
+  promotion_type?: PromotionType;
 
   /** Непрозрачный keyset-токен последней позиции предыдущей страницы. */
   @IsOptional()
