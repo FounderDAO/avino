@@ -1,10 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { baseApi } from './api/baseApi';
+import favoritesReducer from './favoritesSlice';
 
 export const makeStore = () =>
   configureStore({
     reducer: {
       [baseApi.reducerPath]: baseApi.reducer,
+      favorites: favoritesReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().concat(baseApi.middleware),

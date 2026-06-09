@@ -1,3 +1,6 @@
 packages:
   - "apps/*"
   - "packages/*"
+  # Старые версии клиента/админки выключены: сохранены на диске, но вне
+  # install/dev/build/docker. Источник правды дизайна — apps/claudeDesign.
+  - "!apps/*_old"

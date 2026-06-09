@@ -1,29 +1,26 @@
+/**
+ * Root layout админки Avino. Inter (latin + cyrillic), lang ru.
+ * Светлая тема (как в прототипе AvinoAdmin.html).
+ */
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { StoreProvider } from '@/store/StoreProvider';
 
 const inter = Inter({
   subsets: ['latin', 'cyrillic'],
-  display: 'swap',
   variable: '--font-inter',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'Avino',
-  description: 'Портал недвижимости для Узбекистана',
+  title: 'Avino Admin — панель управления',
+  description: 'Панель администрирования Avino',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" className={inter.variable}>
-      <body className="font-ui bg-bg-white text-text-primary">
-        <StoreProvider>{children}</StoreProvider>
-      </body>
+      <body className="font-sans antialiased">{children}</body>
     </html>
   );
 }
