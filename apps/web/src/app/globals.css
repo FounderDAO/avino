@@ -1,227 +1,598 @@
 @import 'tailwindcss';
 
-/* Dark-mode стратегия: class (`<html class="dark">`). */
-@custom-variant dark (&:where(.dark, .dark *));
-
 /*
- * Дизайн-токены Avino (docs/AvinoWebPlan.md §3).
- * Базис Zillow-подобный; бренд-цвета — placeholder, отстраиваются под Avino.
- * Токены в @theme генерируют Tailwind-утилиты (bg-*, text-*, rounded-*, …)
- * и одновременно доступны как CSS-переменные var(--color-*).
- */
-@theme {
-  /* ── Brand ── */
-  --color-primary: #0041d9;
-  --color-action: #006aff;
-  --color-primary-light: #65b4ff;
-
-  /* ── Text ── */
-  --color-text-primary: #2a2a33;
-  --color-text-dark: #11111a;
-  --color-text-secondary: #596b82;
-  --color-text-tertiary: #d1d1d5;
-  --color-text-link: #0d4599;
-
-  /* ── Backgrounds ── */
-  --color-bg-white: #ffffff;
-  --color-bg-gray: #f7f7f7;
-  --color-bg-gray-subtle: #f1f1f4;
-  --color-bg-filter-active: #f2faff;
-
-  /* ── Status / Promotion ── */
-  --color-error: #a3000b;
-  --color-vip: #8a5700; /* VIP бейдж */
-  --color-vip-bg: #fff8e1;
-  --color-top: #0041d9; /* TOP бейдж */
-
-  /* ── Borders ── */
-  --color-border: #d1d1d5;
-  --color-border-active: #006aff;
-  --color-separator: #eeeef0;
-
-  /* ── Radius ── */
-  --radius-card: 8px;
-  --radius-button: 12px;
-  --radius-pill: 999px;
-
-  /* ── Typography ── */
-  --font-ui: var(--font-inter), 'Inter', system-ui, sans-serif;
-  --text-hero: 60px;
-  --text-h1: 44px;
-  --text-h2: 32px;
-  --text-h3: 24px;
-  --text-h4: 20px;
-  --text-body: 16px;
-  --text-small: 14px;
-  --text-caption: 12px;
-}
-
-/*
- * Токены, не маппящиеся на namespace Tailwind (spacing-шкала и размеры
- * компонентов) — держим как обычные CSS-переменные для использования через var().
+ * Avino Admin (apps/web) — токены и chrome бэк-офиса.
+ * База палитры совпадает с публичным клиентом (apps/client/src/app/globals.css,
+ * ADR-0060: тёплая нейтраль + красный бренд). Дополнительно перенесены плотные
+ * admin-токены и стили из apps/claudeDesign/styles/{tokens.css,admin.css}.
+ * Визуал — 1:1 с прототипом AvinoAdmin.html. Светлая тема (как в прототипе).
  */
 :root {
-  /* ── Spacing (base 8px) ── */
-  --space-4: 4px;
-  --space-8: 8px;
-  --space-12: 12px;
-  --space-16: 16px;
-  --space-24: 24px;
-  --space-32: 32px;
-  --space-48: 48px;
+  --radius: 0.625rem;
 
-  /* ── Component dims ── */
-  --header-height: 72px;
-  --filter-bar-height: 56px;
-  --search-input-height: 64px;
-  --contact-sidebar-width: 320px;
+  /* ---- Avino raw brand tokens (design handoff: styles/tokens.css) ---- */
+  --bg: #f7f4ef; /* warm paper */
+  --surface: #ffffff; /* карточки, панели, топбар, инпуты */
+  --surface-2: #fbf9f5; /* приподнятая / альт-поверхность, hover строк */
+  --red: #e03c42; /* основной бренд */
+  --red-press: #c7333a; /* нажатие / затемнение */
+  --ink: #1a1a1a; /* тёмные поверхности: сайдбар, текст */
+  --ink-soft: #2a2823;
+  --teal: #157e84; /* ссылки, вторичный акцент */
+  --teal-deep: #0f636a;
+  --mint: #e4f2f2; /* мягкий info-фон */
+  --green: #1e8e3e; /* успех / опубликовано */
+  --green-bg: #e6f4ea;
+  --gold: #b8862a; /* VIP-акцент */
+  --gold-bg: #fbf1dc;
+  --muted: #6f6f6f; /* вторичный текст, плейсхолдеры */
+  --muted-2: #908a7e;
+  --border: #e4e0d8; /* хайрлайны, бордеры инпутов */
+  --photo-ph: #e7e2d8;
+
+  /* ---- admin-специфичные токены (styles/admin.css) ---- */
+  --canvas: #f4f1eb; /* фон .admin и шапок таблиц */
+  --row-hover: #fbf9f5; /* hover строк таблицы */
+  --warn: #c77a12; /* «на проверке» текст / акцент warn */
+  --warn-bg: #fbf0de; /* «на проверке» фон pill */
+  --red-bg: #fdeef0; /* «отклонено»/danger фон pill */
+  --archive-bg: #efede7; /* «в архиве»/ghost-hover фон */
+
+  /* ---- Радиусы ---- */
+  --r-feature: 22px;
+  --r-card: 16px;
+  --r-input: 14px;
+  --r-pill: 999px;
+  --r-badge: 7px;
+
+  /* ---- Тени ---- */
+  --sh-card: 0 4px 18px -6px rgba(40, 34, 24, 0.14);
+  --sh-card-hover: 0 14px 34px -10px rgba(40, 34, 24, 0.22);
+  --sh-raised: 0 18px 50px -12px rgba(40, 34, 24, 0.28);
+  --sh-header: 0 2px 12px rgba(40, 34, 24, 0.08);
+
+  /* ---- Layout ---- */
+  --header-h: 64px;
 }
 
-/*
- * Dark-mode переопределение семантических поверхностей. Класс `.dark`
- * вешается на html; токены меняют значение, и утилиты поверхностей/текста
- * адаптируются автоматически.
- */
-.dark {
-  --color-text-primary: #e4e4ea;
-  --color-text-dark: #f5f5f7;
-  --color-text-secondary: #9aa7ba;
-  --color-bg-white: #16181d;
-  --color-bg-gray: #1c1f26;
-  --color-bg-gray-subtle: #22252e;
-  --color-border: #2c303a;
-  --color-separator: #23262e;
+/* Маппинг токенов в Tailwind-утилиты (bg-red, text-teal, border-border, ...). */
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-border: var(--border);
+  --color-muted-foreground: var(--muted);
+
+  /* бренд-акценты Avino */
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-canvas: var(--canvas);
+  --color-row-hover: var(--row-hover);
+  --color-red: var(--red);
+  --color-red-press: var(--red-press);
+  --color-red-bg: var(--red-bg);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-teal: var(--teal);
+  --color-teal-deep: var(--teal-deep);
+  --color-mint: var(--mint);
+  --color-green: var(--green);
+  --color-green-bg: var(--green-bg);
+  --color-gold: var(--gold);
+  --color-gold-bg: var(--gold-bg);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-archive-bg: var(--archive-bg);
+  --color-photo-ph: var(--photo-ph);
+
+  /* радиусы */
+  --radius-feature: var(--r-feature);
+  --radius-card: var(--r-card);
+  --radius-input: var(--r-input);
+  --radius-pill: var(--r-pill);
+  --radius-badge: var(--r-badge);
+
+  /* тени */
+  --shadow-card: var(--sh-card);
+  --shadow-card-hover: var(--sh-card-hover);
+  --shadow-raised: var(--sh-raised);
+  --shadow-header: var(--sh-header);
+
+  /* Шрифт Inter (next/font) — для утилиты font-sans. */
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
 }
 
 @layer base {
+  * {
+    box-sizing: border-box;
+  }
   body {
-    font-family: var(--font-ui);
-    background-color: var(--color-bg-white);
-    color: var(--color-text-primary);
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  img {
+    display: block;
+    max-width: 100%;
+  }
+  /* Тяжёлые, плотно-трекинговые заголовки — фирменный стиль Avino. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  ::selection {
+    background: rgba(224, 60, 66, 0.18);
   }
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
- * TailAdmin support layer (MIT — see apps/web/NOTICE).
- *
- * The admin shell (ADMIN-02) is vendored from TailAdmin, whose components rely
- * on a `brand-*`/`gray-*` palette, `text-theme-*` / `text-title-*` sizes,
- * `shadow-theme-*` shadows and the `menu-*` utilities below. We add exactly what
- * the shell needs here so TailAdmin components drop in without per-component
- * porting (ADR-0043). The `brand` scale is re-anchored to Avino's blue
- * (`brand-500` = action #006AFF, `brand-600` = primary #0041D9) — this is the
- * "адаптировать бренд под Avino" requirement. The neutral `gray` scale is
- * TailAdmin's own. Further palettes (success/error/warning/…) are added as later
- * admin pages need them.
- * ────────────────────────────────────────────────────────────────────────── */
-@theme {
-  /* Brand — Avino blue */
-  --color-brand-25: #f2f8ff;
-  --color-brand-50: #ecf4ff;
-  --color-brand-100: #d8e8ff;
-  --color-brand-200: #b3d2ff;
-  --color-brand-300: #80b4ff;
-  --color-brand-400: #4d97ff;
-  --color-brand-500: #006aff; /* Avino action */
-  --color-brand-600: #0041d9; /* Avino primary */
-  --color-brand-700: #0036b0;
-  --color-brand-800: #002d8f;
-  --color-brand-900: #002876;
-  --color-brand-950: #001a4d;
+/* ============================================================
+   Admin chrome — порт styles/admin.css. Сложные структурные
+   селекторы (сайдбар, таблица, скроллбар) держим как CSS; layout
+   страниц собирается Tailwind-утилитами в TSX-компонентах.
+   ============================================================ */
+@layer components {
+  .admin {
+    display: flex;
+    min-height: 100vh;
+    background: var(--canvas);
+  }
 
-  /* Semantic status scales (TailAdmin) — badges, toasts (ADMIN-08/16) */
-  --color-success-50: #ecfdf3;
-  --color-success-500: #12b76a;
-  --color-success-600: #039855;
-  --color-warning-50: #fffaeb;
-  --color-warning-500: #f79009;
-  --color-warning-600: #dc6803;
-  --color-error-50: #fef3f2;
-  --color-error-500: #f04438;
-  --color-error-600: #d92d20;
+  /* ---- sidebar (dark) ---- */
+  .a-side {
+    width: 252px;
+    flex-shrink: 0;
+    background: var(--ink);
+    color: rgba(255, 255, 255, 0.72);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .a-side-head {
+    padding: 20px 20px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .a-side-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 12px;
+    scrollbar-width: thin;
+  }
+  .a-side-nav::-webkit-scrollbar {
+    width: 6px;
+  }
+  .a-side-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+  }
+  .a-navgroup {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.38);
+    padding: 14px 12px 6px;
+  }
+  .a-navitem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.72);
+    border-radius: 9px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    position: relative;
+    transition:
+      background 0.14s ease,
+      color 0.14s ease;
+  }
+  .a-navitem:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+  }
+  .a-navitem.active {
+    background: rgba(224, 60, 66, 0.16);
+    color: #fff;
+  }
+  .a-navitem.active::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 6px;
+    bottom: 6px;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: var(--red);
+  }
+  .a-navitem .badge-count {
+    margin-left: auto;
+    background: var(--red);
+    color: #fff;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 8px;
+  }
 
-  /* Neutral gray scale (TailAdmin) */
-  --color-gray-25: #fcfcfd;
-  --color-gray-50: #f9fafb;
-  --color-gray-100: #f2f4f7;
-  --color-gray-200: #e4e7ec;
-  --color-gray-300: #d0d5dd;
-  --color-gray-400: #98a2b3;
-  --color-gray-500: #667085;
-  --color-gray-600: #475467;
-  --color-gray-700: #344054;
-  --color-gray-800: #1d2939;
-  --color-gray-900: #101828;
-  --color-gray-950: #0c111d;
+  /* ---- content ---- */
+  .a-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .a-topbar {
+    height: 64px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .a-content {
+    padding: 28px 32px 48px;
+  }
 
-  /* Theme typography */
-  --text-title-sm: 30px;
-  --text-title-sm--line-height: 38px;
-  --text-theme-sm: 14px;
-  --text-theme-sm--line-height: 20px;
-  --text-theme-xs: 12px;
-  --text-theme-xs--line-height: 18px;
+  /* ---- admin buttons (soft, radius 10) ---- */
+  .abtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition:
+      background 0.14s ease,
+      box-shadow 0.14s ease;
+    white-space: nowrap;
+  }
+  .abtn-primary {
+    background: var(--red);
+    color: #fff;
+  }
+  .abtn-primary:hover {
+    background: var(--red-press);
+  }
+  .abtn-dark {
+    background: var(--ink);
+    color: #fff;
+  }
+  .abtn-outline {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1.5px solid var(--border);
+  }
+  .abtn-outline:hover {
+    border-color: var(--ink);
+  }
+  .abtn-ghost {
+    background: transparent;
+    color: var(--muted);
+    padding: 8px 10px;
+  }
+  .abtn-ghost:hover {
+    color: var(--ink);
+    background: var(--archive-bg);
+  }
+  .abtn-ok {
+    background: var(--green);
+    color: #fff;
+  }
+  .abtn-danger {
+    background: var(--surface);
+    color: var(--red);
+    border: 1.5px solid var(--red);
+  }
+  .abtn-sm {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+  .aicon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .aicon-btn:hover {
+    border-color: var(--ink);
+  }
 
-  /* Theme shadows */
-  --shadow-theme-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
-  --shadow-theme-sm:
-    0px 1px 3px 0px rgba(16, 24, 40, 0.1),
-    0px 1px 2px 0px rgba(16, 24, 40, 0.06);
-  --shadow-theme-md:
-    0px 4px 8px -2px rgba(16, 24, 40, 0.1),
-    0px 2px 4px -2px rgba(16, 24, 40, 0.06);
-}
+  /* ---- card / panel ---- */
+  .a-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(40, 34, 24, 0.05);
+  }
 
-/* Sidebar menu-item utilities (vendored from TailAdmin globals.css) */
-@utility menu-item {
-  @apply relative flex items-center w-full gap-3 px-3 py-2 font-medium rounded-lg text-theme-sm;
-}
-@utility menu-item-active {
-  @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
-}
-@utility menu-item-inactive {
-  @apply text-gray-700 hover:bg-gray-100 group-hover:text-gray-700 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-gray-300;
-}
-@utility menu-item-icon-active {
-  @apply text-brand-500 dark:text-brand-400;
-}
-@utility menu-item-icon-inactive {
-  @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300;
-}
-@utility menu-item-text {
-  @apply text-theme-sm;
-}
-@utility menu-dropdown-item {
-  @apply relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-theme-sm font-medium;
-}
-@utility menu-dropdown-item-active {
-  @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
-}
-@utility menu-dropdown-item-inactive {
-  @apply text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5;
-}
+  /* ---- inputs ---- */
+  .a-field {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 13px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .a-field:focus {
+    outline: none;
+    border-color: var(--ink);
+  }
 
-@utility no-scrollbar {
-  &::-webkit-scrollbar {
+  /* ---- status pill ---- */
+  .a-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  /* ---- table ---- */
+  .a-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .a-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 13px 14px;
+    background: var(--canvas);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .a-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  .a-table tbody tr {
+    transition: background 0.12s ease;
+  }
+  .a-table tbody tr:hover {
+    background: var(--row-hover);
+  }
+  .a-table tbody tr.clickable {
+    cursor: pointer;
+  }
+  .a-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .a-table th:first-child,
+  .a-table td:first-child {
+    padding-left: 22px;
+  }
+  .a-table th:last-child,
+  .a-table td:last-child {
+    padding-right: 22px;
+  }
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  /* ---- kpi ---- */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .kpi-value {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-top: 8px;
+  }
+  .delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .delta-up {
+    background: var(--green-bg);
+    color: var(--green);
+  }
+  .delta-down {
+    background: var(--red-bg);
+    color: var(--red);
+  }
+
+  /* ---- logs ---- */
+  .log-tag {
+    display: inline-block;
+    font-family: 'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
+    background: var(--archive-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .mono {
+    font-family: 'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
+  }
+
+  /* ---- admin scrim + burger ---- */
+  .a-burger {
     display: none;
   }
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  .a-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 26, 26, 0.45);
+    z-index: 55;
+  }
+
+  /* чекбоксы таблиц (inline <style> прототипа) */
+  input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--red);
+    cursor: pointer;
+  }
 }
 
-/* Toast slide-in (ADMIN-16). */
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
+@layer utilities {
+  .muted {
+    color: var(--muted);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  /* плавное появление блоков (fade-up из tokens.css) */
+  @keyframes avino-fade-up {
+    from {
+      transform: translateY(8px);
+    }
+    to {
+      transform: none;
+    }
+  }
+  .fade-up {
+    animation: avino-fade-up 0.35s ease both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fade-up {
+      animation: none;
+    }
+  }
+
+  /* ---- responsive (admin.css) ---- */
+  @media (max-width: 1000px) {
+    .a-side {
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 60;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+    }
+    .a-side.open {
+      transform: none;
+      box-shadow: var(--sh-raised);
+    }
+    .a-burger {
+      display: flex;
+    }
+    .kpi-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .a-content {
+      padding: 20px 16px 40px;
+    }
+    .a-topbar {
+      padding: 0 16px;
+    }
+  }
+  @media (max-width: 560px) {
+    .kpi-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (min-width: 1001px) {
+    .a-scrim {
+      display: none;
+    }
+  }
+
+  /* сетки разделов схлопываются на узких экранах (inline <style> прототипа) */
+  @media (max-width: 860px) {
+    .dash-row,
+    .mod-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+  @media (max-width: 760px) {
+    .logs-filters {
+      grid-template-columns: 1fr 1fr !important;
+    }
+  }
+  @media (max-width: 480px) {
+    .logs-filters {
+      grid-template-columns: 1fr !important;
+    }
   }
 }
-@utility animate-toast-in {
-  animation: toast-in 0.18s ease-out;
+
+/* ============================================================
+   Layout-хелперы прототипа (tokens.css). ВНЕ @layer — чтобы
+   побеждать одноимённые Tailwind-утилиты (gap-12 у Tailwind = 3rem,
+   здесь = 12px). В админке gap-N всегда означает N пикселей.
+   ============================================================ */
+.row {
+  display: flex;
+  align-items: center;
 }
+.col {
+  display: flex;
+  flex-direction: column;
+}
+.center {
+  align-items: center;
+  justify-content: center;
+}
+.grow {
+  flex: 1;
+}
+.wrap {
+  flex-wrap: wrap;
+}
+.gap-4 { gap: 4px; }
+.gap-6 { gap: 6px; }
+.gap-8 { gap: 8px; }
+.gap-10 { gap: 10px; }
+.gap-12 { gap: 12px; }
+.gap-14 { gap: 14px; }
+.gap-16 { gap: 16px; }
+.gap-20 { gap: 20px; }
+.gap-24 { gap: 24px; }

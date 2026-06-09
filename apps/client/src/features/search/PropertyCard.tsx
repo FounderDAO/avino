@@ -1,67 +1,101 @@
-import Link from 'next/link';
-import { PromotionType } from '@avino/shared';
-import { cn } from '@/lib/utils';
-import type { ListingCard } from '@/store/api/searchApi';
-import {
-  PROMOTION_LABELS,
-  PROPERTY_TYPE_LABELS,
-  formatPrice,
-  formatRooms,
-} from './format';
-
 /**
- * Карточка объявления в выдаче поиска (TASK-151).
- * VIP/TOP получают цветной бейдж — визуальное отражение promotion-приоритета
- * (`effective_tier`, истёкшее промо уже трактуется бэкендом как NORMAL).
+ * PropertyCard — карточка объекта (общая для home/search/account).
+ * Перенос PropertyCard из ui.jsx. Вся карточка — ссылка на /listing/[id];
+ * поверх фото: PromoBadge/«Новое» и FavButton.
  */
-export function PropertyCard({ listing }: { listing: ListingCard }) {
-  const tier = listing.effective_tier;
-  const promoLabel = PROMOTION_LABELS[tier];
+'use client';
+
+import * as React from 'react';
+import Link from 'next/link';
+import { MapPin } from 'lucide-react';
+import { PhotoImg } from '@/components/ui/photo-img';
+import { PromoBadge, NewBadge } from '@/components/ui/promo-badge';
+import { FavButton } from '@/components/ui/fav-button';
+import { formatPrice, specs, txLabel, propertyTypeLabel, isFresh } from '@/lib/format';
+import type { Listing } from '@/lib/mock/types';
+
+export interface PropertyCardProps {
+  listing: Listing;
+  className?: string;
+}
+
+export function PropertyCard({ listing, className }: PropertyCardProps) {
+  const parts = specs(listing);
+  const fresh = isFresh(listing.created);
 
   return (
     <Link
-      href={`/listings/${listing.id}`}
-      className={cn(
-        'group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-shadow hover:shadow-md',
-        tier === PromotionType.VIP && 'ring-1 ring-primary/40',
-      )}
+      href={`/listing/${listing.id}`}
+      className={
+        'group flex h-full flex-col overflow-hidden rounded-card border border-border/60 bg-surface shadow-card transition-[box-shadow,transform] duration-200 hover:-translate-y-[3px] hover:shadow-card-hover ' +
+        (className ?? '')
+      }
     >
-      <div className="relative aspect-[4/3] bg-muted">
-        {listing.thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element -- произвольный CDN-хост; next/image требует remotePatterns
-          <img
-            src={listing.thumbnail_url}
-            alt={listing.title}
-            loading="lazy"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Без фото
-          </div>
-        )}
-        {promoLabel && (
-          <span
-            className={cn(
-              'absolute left-2 top-2 rounded-md px-2 py-0.5 text-xs font-semibold',
-              tier === PromotionType.VIP
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-accent text-accent-foreground',
-            )}
-          >
-            {promoLabel}
-          </span>
-        )}
+      {/* Фото */}
+      <div className="relative aspect-[16/11] shrink-0 overflow-hidden">
+        <PhotoImg
+          src={listing.photos[0]?.thumb ?? ''}
+          alt={listing.title}
+          className="h-full w-full transition-transform duration-[400ms] group-hover:scale-105"
+        />
+        <div className="absolute left-3 top-3 flex gap-1.5">
+          <PromoBadge promo={listing.promo} />
+          {fresh && listing.promo === 'NORMAL' && <NewBadge />}
+        </div>
+        <div className="absolute right-2.5 top-2.5">
+          <FavButton listingId={listing.id} />
+        </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-1 p-3">
-        <p className="text-base font-semibold text-foreground">
-          {formatPrice(listing.price, listing.currency)}
-        </p>
-        <h3 className="line-clamp-2 text-sm text-foreground">{listing.title}</h3>
-        <p className="mt-auto text-xs text-muted-foreground">
-          {PROPERTY_TYPE_LABELS[listing.property_type]} · {formatRooms(listing.rooms)}
-        </p>
+      {/* Тело */}
+      <div className="flex flex-1 flex-col px-4 pb-4 pt-3.5">
+        <span className="text-xs font-bold uppercase tracking-[0.03em] text-teal">
+          {txLabel(listing.tx)}
+        </span>
+        <div className="mt-0.5 truncate text-[23px] font-extrabold tracking-[-0.02em]">
+          {formatPrice(listing)}
+        </div>
+
+        {/* Характеристики */}
+        <div className="mt-2 flex flex-wrap items-center text-[14.5px] font-medium text-muted-foreground">
+          {parts.map((p, i) => {
+            const m = p.match(/^([\d/.,]+)\s*(.*)$/);
+            return (
+              <span key={i} className="inline-flex items-center">
+                {i > 0 && <span className="mx-[9px] text-border">•</span>}
+                {m ? (
+                  <>
+                    <b className="font-bold text-ink">{m[1]}</b>&nbsp;{m[2]}
+                  </>
+                ) : (
+                  p
+                )}
+              </span>
+            );
+          })}
+        </div>
+
+        {/* Заголовок */}
+        <div className="mt-2 truncate text-base font-bold leading-snug text-ink">
+          {listing.title}
+        </div>
+
+        {/* Локация */}
+        <div className="mt-[5px] flex items-center gap-1 text-[13.5px] text-muted-foreground">
+          <MapPin size={14} strokeWidth={1.8} className="shrink-0" />
+          <span className="truncate">
+            {listing.district} · {listing.address}
+          </span>
+        </div>
+
+        {/* Низ: тип + агентство */}
+        <div className="mt-auto flex items-center gap-1.5 border-t border-border pt-[11px] text-[12.5px] text-muted-foreground">
+          <span className={listing.agent.pro ? 'font-semibold text-teal' : 'font-semibold'}>
+            {propertyTypeLabel(listing.type)}
+          </span>
+          <span>·</span>
+          <span className="truncate">{listing.agent.agency}</span>
+        </div>
       </div>
     </Link>
   );

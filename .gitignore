@@ -30,3 +30,10 @@ coverage/
 
 # Prisma
 apps/api/prisma/*.db
+
+# Локальные источники дизайна и старые версии приложений — не пушим в GitHub.
+# Источник правды дизайна и legacy-код держим только на диске.
+apps/client_old/
+apps/web_old/
+apps/claudeDesign/
+apps/design_handoff_avino/

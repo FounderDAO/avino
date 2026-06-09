@@ -1,0 +1,84 @@
+/**
+ * Тёмный сайдбар админки (порт Sidebar из scripts/admin.jsx).
+ * Группы навигации, бейдж счётчика модерации, активный пункт через usePathname.
+ * На мобильных — выезжающая панель (управляется из AdminShell).
+ */
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { IC, type LucideIcon } from './icons';
+import { ADMIN } from '@/lib/mock';
+
+type NavItem = [href: string, label: string, Icon: LucideIcon, count?: number];
+
+const NAV: { group: string; items: NavItem[] }[] = [
+  { group: 'Обзор', items: [['/admin', 'Панель управления', IC.Building]] },
+  {
+    group: 'Контент',
+    items: [
+      ['/admin/listings', 'Объявления', IC.Home],
+      ['/admin/moderation', 'Модерация', IC.Check, ADMIN.moderation.length],
+      ['/admin/agents', 'Агенты', IC.User],
+    ],
+  },
+  { group: 'Люди', items: [['/admin/users', 'Пользователи', IC.User]] },
+  { group: 'Монетизация', items: [['/admin/promotions', 'Продвижение', IC.Sparkle]] },
+  {
+    group: 'Система',
+    items: [
+      ['/admin/logs', 'Логи', IC.ListIcon],
+      ['/admin/settings', 'Настройки', IC.Sliders],
+    ],
+  },
+];
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === '/admin') return pathname === '/admin';
+  return pathname === href || pathname.startsWith(href + '/');
+}
+
+export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const pathname = usePathname();
+  return (
+    <aside className={'a-side' + (open ? ' open' : '')}>
+      <div className="a-side-head row" style={{ justifyContent: 'space-between' }}>
+        <div className="row gap-12" style={{ gap: 10 }}>
+          <span style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 11 12 4l8 7M6 9.5V20h12V9.5" />
+              <path d="M10 20v-5h4v5" />
+            </svg>
+          </span>
+          <span style={{ fontSize: 19, fontWeight: 900, letterSpacing: '-.04em', color: '#fff' }}>avino</span>
+          <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', color: 'var(--red)', background: 'rgba(224,60,66,.16)', padding: '3px 7px', borderRadius: 6 }}>ADMIN</span>
+        </div>
+        <button className="a-burger" onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.6)' }}>
+          <IC.X size={22} />
+        </button>
+      </div>
+      <div className="a-side-nav">
+        {NAV.map((g) => (
+          <div key={g.group}>
+            <div className="a-navgroup">{g.group}</div>
+            {g.items.map(([href, label, Icon, count]) => (
+              <Link key={href} href={href} className={'a-navitem' + (isActive(pathname, href) ? ' active' : '')} onClick={onClose}>
+                <Icon size={19} strokeWidth={1.9} /> {label}
+                {count ? <span className="badge-count">{count}</span> : null}
+              </Link>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: 14, borderTop: '1px solid rgba(255,255,255,.1)' }}>
+        <div className="row gap-12" style={{ gap: 10 }}>
+          <span style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--teal)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14 }}>М</span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: '#fff', fontWeight: 600, fontSize: 14 }}>Модератор</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)' }}>admin@avino.uz</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}

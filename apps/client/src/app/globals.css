@@ -52,6 +52,37 @@
   --mint: #e4f2f2;
   --green: #1e8e3e;
   --segment-track: #ece8df;
+
+  /* ---- Avino raw brand tokens (design handoff: styles/tokens.css) ---- */
+  --surface: #ffffff; /* cards, panels, header, inputs */
+  --surface-2: #fbf9f5; /* subtle raised / alt surface */
+  --red: #e03c42; /* primary brand */
+  --red-press: #c7333a; /* pressed / darken */
+  --ink: #1a1a1a; /* фикс-бренд: тёмные поверхности (футер, CTA, сайдбар админки) */
+  --ink-soft: #2a2823;
+  --teal-deep: #0f636a; /* hover ссылок */
+  --green-bg: #e6f4ea; /* tint успеха */
+  --gold: #b8862a; /* VIP-акцент */
+  --gold-bg: #fbf1dc; /* VIP tint */
+  --muted-2: #908a7e; /* третичный текст */
+  --photo-ph: #e7e2d8; /* плейсхолдер фото */
+
+  /* ---- Радиусы ---- */
+  --r-feature: 22px;
+  --r-card: 16px;
+  --r-input: 14px;
+  --r-pill: 999px;
+  --r-badge: 7px;
+
+  /* ---- Тени ---- */
+  --sh-card: 0 4px 18px -6px rgba(40, 34, 24, 0.14);
+  --sh-card-hover: 0 14px 34px -10px rgba(40, 34, 24, 0.22);
+  --sh-raised: 0 18px 50px -12px rgba(40, 34, 24, 0.28);
+  --sh-header: 0 2px 12px rgba(40, 34, 24, 0.08);
+  --sh-search: 0 3px 12px rgba(0, 0, 0, 0.08);
+
+  /* ---- Layout ---- */
+  --header-h: 68px;
 }
 
 .dark {
@@ -92,6 +123,15 @@
   --mint: #16302f;
   --green: #34c759;
   --segment-track: #2a2823;
+
+  /* Avino raw tokens (dark). --ink/--red/--red-press/--gold — фикс-бренд, не меняются. */
+  --surface: #201e1a;
+  --surface-2: #262420;
+  --teal-deep: #2e9aa0;
+  --green-bg: #16302f;
+  --gold-bg: #3a2f17;
+  --muted-2: #7a746a;
+  --photo-ph: #2a2823;
 }
 
 /* Маппинг токенов в Tailwind-утилиты (bg-background, text-primary, bg-teal, ...). */
@@ -131,14 +171,43 @@
 
   /* бренд-акценты Avino */
   --color-teal: var(--teal);
+  --color-teal-deep: var(--teal-deep);
   --color-mint: var(--mint);
   --color-green: var(--green);
+  --color-green-bg: var(--green-bg);
   --color-segment-track: var(--segment-track);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-red: var(--red);
+  --color-red-press: var(--red-press);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-gold: var(--gold);
+  --color-gold-bg: var(--gold-bg);
+  --color-muted-2: var(--muted-2);
+  --color-photo-ph: var(--photo-ph);
+
+  /* радиусы дизайна */
+  --radius-feature: var(--r-feature);
+  --radius-card: var(--r-card);
+  --radius-input: var(--r-input);
+  --radius-pill: var(--r-pill);
+  --radius-badge: var(--r-badge);
+
+  /* тени дизайна */
+  --shadow-card: var(--sh-card);
+  --shadow-card-hover: var(--sh-card-hover);
+  --shadow-raised: var(--sh-raised);
+  --shadow-header: var(--sh-header);
+  --shadow-search: var(--sh-search);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* Шрифт Inter (next/font) — для утилиты font-sans. */
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
 }
 
 @layer base {
@@ -148,5 +217,59 @@
   body {
     @apply bg-background text-foreground;
     min-height: 100dvh;
+  }
+  /* Тяжёлые, плотно-трекинговые заголовки — фирменный стиль Avino. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  /* Усиленный «дисплейный» заголовок (hero). */
+  .display {
+    font-weight: 900;
+    letter-spacing: -0.035em;
+    line-height: 1.02;
+  }
+
+  /* Плавное появление блоков. */
+  @keyframes avino-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .fade-up {
+    animation: avino-fade-up 0.35s ease both;
+  }
+
+  /* Shimmer для скелетонов. */
+  @keyframes avino-shimmer {
+    0% {
+      background-position: -400px 0;
+    }
+    100% {
+      background-position: 400px 0;
+    }
+  }
+  .shimmer {
+    background: linear-gradient(90deg, #ece8df 25%, #f4f1eb 50%, #ece8df 75%);
+    background-size: 800px 100%;
+    animation: avino-shimmer 1.3s infinite linear;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fade-up,
+    .shimmer {
+      animation: none;
+    }
   }
 }

@@ -1,8 +1,22 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Provider } from 'react-redux';
 import { makeStore, type AppStore } from './store';
+import { hydrateFavorites, readFavoritesFromStorage } from './favoritesSlice';
+import { useAppDispatch } from './hooks';
+
+/**
+ * Гидратация избранного из localStorage после монтирования на клиенте.
+ * На сервере не выполняется — initialState остаётся пустым (нет рассинхрона SSR).
+ */
+function FavoritesHydrator() {
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    dispatch(hydrateFavorites(readFavoritesFromStorage()));
+  }, [dispatch]);
+  return null;
+}
 
 /**
  * Redux/RTK Query Provider публичного портала.
@@ -15,5 +29,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   if (!storeRef.current) {
     storeRef.current = makeStore();
   }
-  return <Provider store={storeRef.current}>{children}</Provider>;
+  return (
+    <Provider store={storeRef.current}>
+      <FavoritesHydrator />
+      {children}
+    </Provider>
+  );
 }
