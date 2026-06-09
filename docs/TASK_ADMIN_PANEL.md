@@ -538,3 +538,37 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-15 | DONE | #93 |
 | ADMIN-16 | DONE | #94 |
 | ADMIN-17 | DONE | #95 |
+
+---
+
+## Цикл 3 — подключение реального API через RTK Query (после редизайна)
+
+Визуальный редизайн (PR #114, commit `6ac138a`) пересобрал `apps/web` заново на
+**моках** (`src/lib/mock/*`), убрав прежний store/auth/RTK-слой (ADMIN-01..17, он
+сохранён в `apps/web_old`). Цикл 3 поэтапно возвращает реальное API в новую
+оболочку. Подход — **адаптер** (мапперы API DTO → UI-типы моков на этапе
+бизнес-страниц). Первый PR — только фундамент.
+
+- Spec: `docs/superpowers/specs/2026-06-10-admin-rtk-query-foundation-design.md`
+- Plan: `docs/superpowers/plans/2026-06-10-admin-rtk-query-foundation.md`
+
+### C3-01 — Фундамент: store + auth + login + guard
+
+Status: `REVIEW`
+Branch: `feat/admin-web-rtk-foundation`
+
+Scope: портирован RTK Query store-слой из `web_old` (baseApi, baseQuery с
+авто-refresh, authApi, apiError, authSlice, store, StoreProvider); `ConditionalShell`
++ `RoleGuard` (роль ADMIN) с экранами loading/403/error в новом дизайне; страница
+`/admin/login` (двухшаговый EMAIL-OTP, новый стиль, RU); `useLogout` + реальные
+имя/email и кнопка выхода в топбаре.
+
+Verify: `lint` + полный `build` зелёные (13 маршрутов, вкл. `/admin/login`).
+Live-контракт против запущенного `apps/api`: `GET /auth/me` без токена → `401`;
+`POST /auth/otp/request {channel:EMAIL}` → `200 {request_id, resend_after:60}`;
+`POST /auth/otp/verify` с неверным кодом → `400 {error:{code:OTP_INVALID}}`.
+Happy-path (ввод dev-OTP → токен → роль/403) в этой сессии не прогнан — нужен
+ручной smoke (dev-код логируется на стороне api).
+
+Следующие PR цикла 3: подключение бизнес-страниц (листинги/модерация/юзеры/жалобы/
+промо/логи/дашборд) к API + мапперы DTO→UI, поэтапная замена `lib/mock`.
