@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { PromotionType } from '@avino/shared';
 import { cn } from '@/lib/utils';
 import type { ListingCard } from '@/store/api/searchApi';
@@ -18,7 +19,8 @@ export function PropertyCard({ listing }: { listing: ListingCard }) {
   const promoLabel = PROMOTION_LABELS[tier];
 
   return (
-    <article
+    <Link
+      href={`/listings/${listing.id}`}
       className={cn(
         'group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-shadow hover:shadow-md',
         tier === PromotionType.VIP && 'ring-1 ring-primary/40',
@@ -61,6 +63,6 @@ export function PropertyCard({ listing }: { listing: ListingCard }) {
           {PROPERTY_TYPE_LABELS[listing.property_type]} · {formatRooms(listing.rooms)}
         </p>
       </div>
-    </article>
+    </Link>
   );
 }
