@@ -9,7 +9,10 @@ import type { ListingDetail } from '@/store/api/listingsApi';
  */
 export function FeaturesBlock({ listing }: { listing: ListingDetail }) {
   const hasDescription = Boolean(listing.description?.trim());
-  const hasFeatures = listing.features.length > 0;
+  // `features` опционально: бэкенд отдаёт структурные удобства только с M5,
+  // до тех пор поля нет в ответе (см. listingsApi.ts) → фолбэк на features_text.
+  const features = listing.features ?? [];
+  const hasFeatures = features.length > 0;
   const hasFeaturesText = Boolean(listing.features_text?.trim());
 
   if (!hasDescription && !hasFeatures && !hasFeaturesText) return null;
@@ -33,7 +36,7 @@ export function FeaturesBlock({ listing }: { listing: ListingDetail }) {
             Удобства
           </h2>
           <ul className="flex flex-wrap gap-2">
-            {listing.features.map((f) => (
+            {features.map((f) => (
               <li
                 key={f.id}
                 className="rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground"
