@@ -615,3 +615,19 @@ Status: `IN_PROGRESS`. Порт `adminPromotionsApi`; тарифы `GET/PATCH
 
 Status: `IN_PROGRESS`. Порт `adminLogsApi`; адаптеры 4 типов
 (audit/moderation/promotion/notification) → мок-типы логов; фильтры + пагинация.
+
+### Live-проверка C3-02..06 (2026-06-10) — ✅ 26/26
+
+Прогнано против стека (docker postgres/redis + `apps/api` на :4000, миграции +
+сид ролей/ADMIN) с ADMIN-OTP токеном (`admin@avino.uz`). Все контракты совпали 1:1
+с FE-типами:
+- `GET /admin/stats` → `{listings_new:3, complaints_new:0, users_total:5, promotions_active:0}`.
+- `GET /admin/listings` (+`?status=NEW`), `GET /listings/:id` (media), `…/moderation-logs`.
+- `GET /admin/users` (+`?role=AGENT`), `GET /roles`, `GET /admin/users/:id` (с `profile`).
+- `GET /admin/promotion-plans` (`period_days`), `GET /admin/promotion-settings` (`expiryIntervalHours`).
+- 4 журнала (`audit/moderation/promotion/notification-logs`) — `{data,meta}`.
+- Guard: `/auth/me` и `/admin/*` без токена → `401`; `/auth/me` с токеном содержит роль `ADMIN`.
+
+Осталось (ручной UI-smoke в браузере при желании): мутации (модерация
+approve/reject, смена статуса/ролей юзера, PATCH тарифа) — контракты эндпоинтов
+подтверждены в исходных ADMIN-08..14, здесь сверены GET-формы.
