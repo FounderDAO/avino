@@ -538,3 +538,96 @@ Suggested commit: `feat(web): add admin panel i18n`
 | ADMIN-15 | DONE | #93 |
 | ADMIN-16 | DONE | #94 |
 | ADMIN-17 | DONE | #95 |
+
+---
+
+## Цикл 3 — подключение реального API через RTK Query (после редизайна)
+
+Визуальный редизайн (PR #114, commit `6ac138a`) пересобрал `apps/web` заново на
+**моках** (`src/lib/mock/*`), убрав прежний store/auth/RTK-слой (ADMIN-01..17, он
+сохранён в `apps/web_old`). Цикл 3 поэтапно возвращает реальное API в новую
+оболочку. Подход — **адаптер** (мапперы API DTO → UI-типы моков на этапе
+бизнес-страниц). Первый PR — только фундамент.
+
+- Spec: `docs/superpowers/specs/2026-06-10-admin-rtk-query-foundation-design.md`
+- Plan: `docs/superpowers/plans/2026-06-10-admin-rtk-query-foundation.md`
+
+### C3-01 — Фундамент: store + auth + login + guard
+
+Status: `REVIEW`
+Branch: `feat/admin-web-rtk-foundation`
+
+Scope: портирован RTK Query store-слой из `web_old` (baseApi, baseQuery с
+авто-refresh, authApi, apiError, authSlice, store, StoreProvider); `ConditionalShell`
++ `RoleGuard` (роль ADMIN) с экранами loading/403/error в новом дизайне; страница
+`/admin/login` (двухшаговый EMAIL-OTP, новый стиль, RU); `useLogout` + реальные
+имя/email и кнопка выхода в топбаре.
+
+Verify: `lint` + полный `build` зелёные (13 маршрутов, вкл. `/admin/login`).
+Live-контракт против запущенного `apps/api`: `GET /auth/me` без токена → `401`;
+`POST /auth/otp/request {channel:EMAIL}` → `200 {request_id, resend_after:60}`;
+`POST /auth/otp/verify` с неверным кодом → `400 {error:{code:OTP_INVALID}}`.
+Happy-path (ввод dev-OTP → токен → роль/403) в этой сессии не прогнан — нужен
+ручной smoke (dev-код логируется на стороне api).
+
+Следующие PR цикла 3: подключение бизнес-страниц (листинги/модерация/юзеры/жалобы/
+промо/логи/дашборд) к API + мапперы DTO→UI, поэтапная замена `lib/mock`.
+
+### Аудит подключения (2026-06-10)
+
+Подключено к API: `/admin/login` (authApi), `/admin/listings` список + `[id]`
+данные (adminListingsApi + `lib/adapters/listings.ts`). Всё остальное — на моках
+(`lib/mock/*`). Бэкенд готов для всех доменов; RTK-слайсы есть в `web_old` для
+порта. `adminTypes.ts` (все DTO/фильтры) и паттерн адаптера уже на месте.
+
+Решения Team Lead (2026-06-10):
+- `/admin/agents` — бэкенда нет → **убрать из навигации** (страница отложена).
+- `CreateUserModal` (POST /admin/users отсутствует) → **оставить мок**.
+- Жалобы (`/admin/complaints`) — бэкенд есть, страницы в редизайне нет → **не сейчас**.
+- `/admin/settings` → **оставить статикой**.
+
+### C3-02 — Дашборд `/admin` → `GET /admin/stats`
+
+Status: `IN_PROGRESS`. Порт `adminStatsApi`, адаптер `AdminStats`→KPI; 4 карточки
+KPI на живых счётчиках (listings_new / complaints_new / users_total /
+promotions_active). Графики (за год / районы / покупка-аренда) и лента действий —
+бэкенда нет, остаются на моках с пометкой. Убрать `/admin/agents` из `Sidebar`.
+
+### C3-03 — Модерация `/admin/moderation` + действия/история в `/admin/listings/[id]`
+
+Status: `IN_PROGRESS`. Очередь = `GET /admin/listings?status=NEW` + адаптер
+`ModerationItem`; действия `PATCH /:id/status`; в карточке листинга — кнопки
+действий (`useModerateListingMutation`) + история (`useListingModerationLogsQuery`),
+снять mock.
+
+### C3-04 — Пользователи `/admin/users` + `[id]`
+
+Status: `IN_PROGRESS`. Порт `adminUsersApi`; адаптеры `AdminUserRow/Detail`→`AdminUser`;
+список (фильтры status/role/q + пагинация), карточка, мутации статуса и ролей
+(`/roles`, PATCH status, POST/DELETE role).
+
+### C3-05 — Промо `/admin/promotions`
+
+Status: `IN_PROGRESS`. Порт `adminPromotionsApi`; тарифы `GET/PATCH
+/admin/promotion-plans` → `PromoPricing`; история промо. cancel/extend per-listing.
+
+### C3-06 — Логи `/admin/logs` (4 вкладки)
+
+Status: `IN_PROGRESS`. Порт `adminLogsApi`; адаптеры 4 типов
+(audit/moderation/promotion/notification) → мок-типы логов; фильтры + пагинация.
+
+### Live-проверка C3-02..06 (2026-06-10) — ✅ 26/26
+
+Прогнано против стека (docker postgres/redis + `apps/api` на :4000, миграции +
+сид ролей/ADMIN) с ADMIN-OTP токеном (`admin@avino.uz`). Все контракты совпали 1:1
+с FE-типами:
+- `GET /admin/stats` → `{listings_new:3, complaints_new:0, users_total:5, promotions_active:0}`.
+- `GET /admin/listings` (+`?status=NEW`), `GET /listings/:id` (media), `…/moderation-logs`.
+- `GET /admin/users` (+`?role=AGENT`), `GET /roles`, `GET /admin/users/:id` (с `profile`).
+- `GET /admin/promotion-plans` (`period_days`), `GET /admin/promotion-settings` (`expiryIntervalHours`).
+- 4 журнала (`audit/moderation/promotion/notification-logs`) — `{data,meta}`.
+- Guard: `/auth/me` и `/admin/*` без токена → `401`; `/auth/me` с токеном содержит роль `ADMIN`.
+
+Осталось (ручной UI-smoke в браузере при желании): мутации (модерация
+approve/reject, смена статуса/ролей юзера, PATCH тарифа) — контракты эндпоинтов
+подтверждены в исходных ADMIN-08..14, здесь сверены GET-формы.

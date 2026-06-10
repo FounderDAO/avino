@@ -596,3 +596,4 @@
 .gap-16 { gap: 16px; }
 .gap-20 { gap: 20px; }
 .gap-24 { gap: 24px; }
+@keyframes spin { to { transform: rotate(360deg); } }
