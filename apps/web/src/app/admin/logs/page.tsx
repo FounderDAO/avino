@@ -1,22 +1,41 @@
 'use client';
 
 /**
- * Логи (порт Logs из scripts/admin-pages.jsx).
- * Табы Аудит / Модерация / Промо / Уведомления с фильтрами. Только просмотр. 1:1 с прототипом.
+ * Логи (порт Logs из scripts/admin-pages.jsx) — на реальном API (RTK Query).
+ * Табы Аудит / Модерация / Промо / Уведомления. Только просмотр. Рендерится
+ * один активный таб → один запрос за раз. Вёрстка 1:1 с прототипом; данные —
+ * GET /admin/{audit,moderation,promotion,notification}-logs. Фильтры: enum →
+ * селект, id/строка → текст с дебаунсом; серверная пагинация; loading/empty/error.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SectionTitle } from '@/components/admin/ui/section-title';
-import { ADMIN } from '@/lib/mock';
-import type { AuditLog, ModerationLog, PromoLog, NotificationLog } from '@/lib/mock';
+import { IC } from '@/components/admin/icons';
+import { DEFAULT_LIMIT, totalPages } from '@/store/api/adminApi';
+import {
+  useListAuditLogsQuery,
+  useListModerationLogsQuery,
+  useListPromotionLogsQuery,
+  useListNotificationLogsQuery,
+} from '@/store/api/adminLogsApi';
+import type {
+  ModerationAction,
+  NotificationChannel,
+  NotificationStatus,
+  NotificationType,
+} from '@/store/api/adminTypes';
+import type { PageMeta } from '@/store/api/pagination';
+import {
+  auditLogToRow,
+  moderationLogToRow,
+  promotionLogToRow,
+  notificationLogToRow,
+  MODERATION_ACTION_OPTIONS,
+  NOTIFICATION_TYPE_OPTIONS,
+  NOTIFICATION_CHANNEL_OPTIONS,
+  NOTIFICATION_STATUS_OPTIONS,
+} from '@/lib/adapters/logs';
 
 type TabKey = 'audit' | 'moderation' | 'promo' | 'notifications';
-
-interface FieldCfg<T> {
-  k: string;
-  l: string;
-  ph: string;
-  f: (r: T) => string;
-}
 
 const tabs: [TabKey, string][] = [
   ['audit', 'Аудит'],
@@ -25,52 +44,26 @@ const tabs: [TabKey, string][] = [
   ['notifications', 'Уведомления'],
 ];
 
-const cfgAudit: FieldCfg<AuditLog>[] = [
-  { k: 'action', l: 'Действие', ph: 'ROLE_CHANGE, LISTING_STATUS_CHANGE…', f: (r) => r.action },
-  { k: 'entity', l: 'Тип сущности', ph: 'user, listing…', f: (r) => r.entity },
-  { k: 'actor', l: 'ID актора', ph: 'UUID', f: (r) => r.actor },
-  { k: 'entityId', l: 'ID сущности', ph: 'UUID', f: (r) => r.entityId },
-];
+const DEBOUNCE_MS = 400;
 
-const cfgModeration: FieldCfg<ModerationLog>[] = [
-  { k: 'action', l: 'Действие', ph: 'APPROVE / REJECT', f: (r) => r.action },
-  { k: 'listing', l: 'Объявление', ph: 'название…', f: (r) => r.listing },
-  { k: 'moderator', l: 'Модератор', ph: 'ID', f: (r) => r.moderator },
-];
-
-const cfgPromo: FieldCfg<PromoLog>[] = [
-  { k: 'type', l: 'Тип', ph: 'TOP / VIP', f: (r) => r.type },
-  { k: 'buyer', l: 'Покупатель', ph: 'имя…', f: (r) => r.buyer },
-  { k: 'listing', l: 'Объявление', ph: 'название…', f: (r) => r.listing },
-];
-
-const cfgNotifications: FieldCfg<NotificationLog>[] = [
-  { k: 'type', l: 'Тип', ph: 'NEW_MESSAGE…', f: (r) => r.type },
-  { k: 'recipient', l: 'Получатель', ph: 'имя…', f: (r) => r.recipient },
-  { k: 'channel', l: 'Канал', ph: 'SMS / email / push', f: (r) => r.channel },
-  { k: 'status', l: 'Статус', ph: 'sent / failed', f: (r) => r.status },
-];
-
-/** Длина колонок текущего таба — для grid фильтров. */
-const cfgLen: Record<TabKey, number> = {
-  audit: cfgAudit.length,
-  moderation: cfgModeration.length,
-  promo: cfgPromo.length,
-  notifications: cfgNotifications.length,
-};
-
-/** Generic-фильтр строк по конфигу полей и значениям фильтров. */
-function filterRows<T>(list: T[], cfg: FieldCfg<T>[], filters: Record<string, string>): T[] {
-  return list.filter((r) =>
-    cfg.every((c) => !filters[c.k] || String(c.f(r)).toLowerCase().includes(filters[c.k].toLowerCase())),
-  );
+/** Дебаунс одного значения (как поиск в эталоне /admin/listings). */
+function useDebounced<T>(value: T, ms = DEBOUNCE_MS): T {
+  const [debounced, setDebounced] = useState<T>(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
 }
 
-const fmt = (n: number): string => Number(n).toLocaleString('ru-RU') + ' сум';
+// ─── UI-примитивы (1:1 с прототипом) ─────────────────────────────────────────
 
 function ActionPill({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
-    <span className="a-pill" style={{ background: ok ? 'var(--green-bg)' : 'var(--red-bg)', color: ok ? 'var(--green)' : 'var(--red)' }}>
+    <span
+      className="a-pill"
+      style={{ background: ok ? 'var(--green-bg)' : 'var(--red-bg)', color: ok ? 'var(--green)' : 'var(--red)' }}
+    >
       {children}
     </span>
   );
@@ -84,37 +77,432 @@ function Channel({ c }: { c: string }) {
   );
 }
 
+const fieldLabelStyle: React.CSSProperties = {
+  fontSize: 12.5,
+  fontWeight: 700,
+  color: 'var(--muted)',
+  display: 'block',
+  marginBottom: 6,
+};
+
+function TextFilter({ label, ph, value, onChange }: { label: string; ph: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label style={fieldLabelStyle}>{label}</label>
+      <input className="a-field" style={{ width: '100%' }} placeholder={ph} value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function SelectFilter<T extends string>({
+  label,
+  value,
+  options,
+  allLabel,
+  onChange,
+}: {
+  label: string;
+  value: T | '';
+  options: [T, string][];
+  allLabel: string;
+  onChange: (v: T | '') => void;
+}) {
+  return (
+    <div>
+      <label style={fieldLabelStyle}>{label}</label>
+      <select className="a-field" style={{ width: '100%' }} value={value} onChange={(e) => onChange(e.target.value as T | '')}>
+        <option value="">{allLabel}</option>
+        {options.map(([k, l]) => (
+          <option key={k} value={k}>
+            {l}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/** Состояния таблицы: ошибка/загрузка/пусто. `cols` — colSpan под текущий таб. */
+function TableStatus({
+  isLoading,
+  isError,
+  isEmpty,
+  cols,
+  onRetry,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+  isEmpty: boolean;
+  cols: number;
+  onRetry: () => void;
+}) {
+  if (isError) {
+    return (
+      <tr>
+        <td colSpan={cols} className="muted" style={{ textAlign: 'center', padding: 40 }}>
+          <div style={{ marginBottom: 12 }}>Не удалось загрузить журнал.</div>
+          <button className="abtn abtn-outline" onClick={onRetry}>
+            Повторить
+          </button>
+        </td>
+      </tr>
+    );
+  }
+  if (isLoading) {
+    return (
+      <tr>
+        <td colSpan={cols} className="muted" style={{ textAlign: 'center', padding: 40 }}>
+          Загрузка…
+        </td>
+      </tr>
+    );
+  }
+  if (isEmpty) {
+    return (
+      <tr>
+        <td colSpan={cols} className="muted" style={{ textAlign: 'center', padding: 40 }}>
+          Записей не найдено по заданным фильтрам.
+        </td>
+      </tr>
+    );
+  }
+  return null;
+}
+
+/** Грид фильтров под текущий таб. */
+function FilterGrid({ cols, children }: { cols: number; children: React.ReactNode }) {
+  return (
+    <div className="logs-filters" style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 14, marginBottom: 16 }}>
+      {children}
+    </div>
+  );
+}
+
+/** Пагинация + «Показано N из total» (как в эталоне /admin/listings). */
+function PageBar({ page, setPage, meta, isFetching, shown }: { page: number; setPage: (f: (p: number) => number) => void; meta: PageMeta | undefined; isFetching: boolean; shown: number }) {
+  const total = meta?.total ?? 0;
+  const pages = totalPages(meta);
+  return (
+    <div className="row" style={{ justifyContent: 'space-between', marginTop: 14, fontSize: 13.5, color: 'var(--muted)' }}>
+      <span>{isFetching ? 'Обновление…' : `Показано ${shown} из ${total}`}</span>
+      <div className="row gap-4">
+        <button className="aicon-btn" style={{ width: 32, height: 32 }} disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+          <IC.ChevronLeft size={16} />
+        </button>
+        <button className="abtn abtn-sm" style={{ background: 'var(--ink)', color: '#fff' }}>
+          {page}
+        </button>
+        <button className="aicon-btn" style={{ width: 32, height: 32 }} disabled={pages > 0 && page >= pages} onClick={() => setPage((p) => p + 1)}>
+          <IC.ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Таб: Аудит ──────────────────────────────────────────────────────────────
+
+function AuditTab() {
+  const [action, setAction] = useState('');
+  const [entityType, setEntityType] = useState('');
+  const [actorId, setActorId] = useState('');
+  const [entityId, setEntityId] = useState('');
+  const [page, setPage] = useState(1);
+
+  const dAction = useDebounced(action);
+  const dEntityType = useDebounced(entityType);
+  const dActorId = useDebounced(actorId);
+  const dEntityId = useDebounced(entityId);
+
+  useEffect(() => setPage(1), [dAction, dEntityType, dActorId, dEntityId]);
+
+  const { data, isLoading, isFetching, isError, refetch } = useListAuditLogsQuery({
+    action: dAction.trim() || undefined,
+    entity_type: dEntityType.trim() || undefined,
+    actor_id: dActorId.trim() || undefined,
+    entity_id: dEntityId.trim() || undefined,
+    page,
+    limit: DEFAULT_LIMIT,
+  });
+
+  const rows = (data?.data ?? []).map(auditLogToRow);
+
+  return (
+    <>
+      <FilterGrid cols={4}>
+        <TextFilter label="Действие" ph="ROLE_CHANGE, LISTING_STATUS_CHANGE…" value={action} onChange={setAction} />
+        <TextFilter label="Тип сущности" ph="user, listing…" value={entityType} onChange={setEntityType} />
+        <TextFilter label="ID актора" ph="UUID" value={actorId} onChange={setActorId} />
+        <TextFilter label="ID сущности" ph="UUID" value={entityId} onChange={setEntityId} />
+      </FilterGrid>
+      <div className="a-card table-scroll">
+        <table className="a-table">
+          <thead>
+            <tr>
+              <th>Действие</th>
+              <th>Сущность</th>
+              <th>Актор</th>
+              <th>IP</th>
+              <th style={{ textAlign: 'right' }}>Когда</th>
+            </tr>
+          </thead>
+          <tbody>
+            <TableStatus isLoading={isLoading} isError={isError} isEmpty={rows.length === 0} cols={5} onRetry={refetch} />
+            {!isLoading &&
+              !isError &&
+              rows.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <span className="log-tag">{r.action}</span>
+                  </td>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{r.entityType}</div>
+                    <div className="muted mono" style={{ fontSize: 12 }}>
+                      {r.entityId}
+                    </div>
+                  </td>
+                  <td className="muted mono" style={{ whiteSpace: 'nowrap' }}>
+                    {r.actor}
+                  </td>
+                  <td className="muted mono">{r.ip}</td>
+                  <td className="muted" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {r.when}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+      <PageBar page={page} setPage={setPage} meta={data?.meta} isFetching={isFetching} shown={rows.length} />
+    </>
+  );
+}
+
+// ─── Таб: Модерация ──────────────────────────────────────────────────────────
+
+function ModerationTab() {
+  const [listingId, setListingId] = useState('');
+  const [moderatorId, setModeratorId] = useState('');
+  const [action, setAction] = useState<ModerationAction | ''>('');
+  const [page, setPage] = useState(1);
+
+  const dListingId = useDebounced(listingId);
+  const dModeratorId = useDebounced(moderatorId);
+
+  useEffect(() => setPage(1), [dListingId, dModeratorId, action]);
+
+  const { data, isLoading, isFetching, isError, refetch } = useListModerationLogsQuery({
+    listing_id: dListingId.trim() || undefined,
+    moderator_id: dModeratorId.trim() || undefined,
+    action: action || undefined,
+    page,
+    limit: DEFAULT_LIMIT,
+  });
+
+  const rows = (data?.data ?? []).map(moderationLogToRow);
+
+  return (
+    <>
+      <FilterGrid cols={3}>
+        <TextFilter label="Объявление" ph="ID объявления" value={listingId} onChange={setListingId} />
+        <TextFilter label="Модератор" ph="ID модератора" value={moderatorId} onChange={setModeratorId} />
+        <SelectFilter label="Действие" value={action} options={MODERATION_ACTION_OPTIONS} allLabel="Все действия" onChange={setAction} />
+      </FilterGrid>
+      <div className="a-card table-scroll">
+        <table className="a-table">
+          <thead>
+            <tr>
+              <th>Действие</th>
+              <th>Объявление</th>
+              <th>Модератор</th>
+              <th>Причина</th>
+              <th style={{ textAlign: 'right' }}>Когда</th>
+            </tr>
+          </thead>
+          <tbody>
+            <TableStatus isLoading={isLoading} isError={isError} isEmpty={rows.length === 0} cols={5} onRetry={refetch} />
+            {!isLoading &&
+              !isError &&
+              rows.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <ActionPill ok={r.ok}>{r.actionLabel}</ActionPill>
+                  </td>
+                  <td style={{ fontWeight: 600, maxWidth: 260 }}>
+                    <div className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {r.listing}
+                    </div>
+                  </td>
+                  <td className="muted mono">{r.moderator}</td>
+                  <td className="muted">{r.reason}</td>
+                  <td className="muted" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {r.when}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+      <PageBar page={page} setPage={setPage} meta={data?.meta} isFetching={isFetching} shown={rows.length} />
+    </>
+  );
+}
+
+// ─── Таб: Промо ──────────────────────────────────────────────────────────────
+
+function PromoTab() {
+  const [listingId, setListingId] = useState('');
+  const [adminId, setAdminId] = useState('');
+  const [page, setPage] = useState(1);
+
+  const dListingId = useDebounced(listingId);
+  const dAdminId = useDebounced(adminId);
+
+  useEffect(() => setPage(1), [dListingId, dAdminId]);
+
+  const { data, isLoading, isFetching, isError, refetch } = useListPromotionLogsQuery({
+    listing_id: dListingId.trim() || undefined,
+    admin_id: dAdminId.trim() || undefined,
+    page,
+    limit: DEFAULT_LIMIT,
+  });
+
+  const rows = (data?.data ?? []).map(promotionLogToRow);
+
+  return (
+    <>
+      <FilterGrid cols={2}>
+        <TextFilter label="Объявление" ph="ID объявления" value={listingId} onChange={setListingId} />
+        <TextFilter label="Администратор" ph="ID администратора" value={adminId} onChange={setAdminId} />
+      </FilterGrid>
+      <div className="a-card table-scroll">
+        <table className="a-table">
+          <thead>
+            <tr>
+              <th>Действие</th>
+              <th>Объявление</th>
+              <th>Переход</th>
+              <th>Администратор</th>
+              <th style={{ textAlign: 'right' }}>Когда</th>
+            </tr>
+          </thead>
+          <tbody>
+            <TableStatus isLoading={isLoading} isError={isError} isEmpty={rows.length === 0} cols={5} onRetry={refetch} />
+            {!isLoading &&
+              !isError &&
+              rows.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <span
+                      className="a-pill"
+                      style={{ background: r.isVip ? 'var(--gold-bg)' : 'var(--red-bg)', color: r.isVip ? 'var(--gold)' : 'var(--red)' }}
+                    >
+                      {r.actionLabel}
+                    </span>
+                  </td>
+                  <td style={{ fontWeight: 600, maxWidth: 240 }}>
+                    <div className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {r.listing}
+                    </div>
+                  </td>
+                  <td className="muted" style={{ whiteSpace: 'nowrap' }}>
+                    {r.transition}
+                  </td>
+                  <td className="muted mono">{r.buyer}</td>
+                  <td className="muted" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {r.when}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+      <PageBar page={page} setPage={setPage} meta={data?.meta} isFetching={isFetching} shown={rows.length} />
+    </>
+  );
+}
+
+// ─── Таб: Уведомления ────────────────────────────────────────────────────────
+
+function NotificationsTab() {
+  const [userId, setUserId] = useState('');
+  const [type, setType] = useState<NotificationType | ''>('');
+  const [channel, setChannel] = useState<NotificationChannel | ''>('');
+  const [status, setStatus] = useState<NotificationStatus | ''>('');
+  const [page, setPage] = useState(1);
+
+  const dUserId = useDebounced(userId);
+
+  useEffect(() => setPage(1), [dUserId, type, channel, status]);
+
+  const { data, isLoading, isFetching, isError, refetch } = useListNotificationLogsQuery({
+    user_id: dUserId.trim() || undefined,
+    type: type || undefined,
+    channel: channel || undefined,
+    status: status || undefined,
+    page,
+    limit: DEFAULT_LIMIT,
+  });
+
+  const rows = (data?.data ?? []).map(notificationLogToRow);
+
+  return (
+    <>
+      <FilterGrid cols={4}>
+        <TextFilter label="Получатель" ph="ID пользователя" value={userId} onChange={setUserId} />
+        <SelectFilter label="Тип" value={type} options={NOTIFICATION_TYPE_OPTIONS} allLabel="Все типы" onChange={setType} />
+        <SelectFilter label="Канал" value={channel} options={NOTIFICATION_CHANNEL_OPTIONS} allLabel="Все каналы" onChange={setChannel} />
+        <SelectFilter label="Статус" value={status} options={NOTIFICATION_STATUS_OPTIONS} allLabel="Все статусы" onChange={setStatus} />
+      </FilterGrid>
+      <div className="a-card table-scroll">
+        <table className="a-table">
+          <thead>
+            <tr>
+              <th>Тип</th>
+              <th>Получатель</th>
+              <th>Канал</th>
+              <th>Статус</th>
+              <th style={{ textAlign: 'right' }}>Когда</th>
+            </tr>
+          </thead>
+          <tbody>
+            <TableStatus isLoading={isLoading} isError={isError} isEmpty={rows.length === 0} cols={5} onRetry={refetch} />
+            {!isLoading &&
+              !isError &&
+              rows.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{r.typeLabel}</div>
+                    {r.title !== '—' && (
+                      <div className="muted" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 240 }}>
+                        {r.title}
+                      </div>
+                    )}
+                  </td>
+                  <td className="muted mono" style={{ whiteSpace: 'nowrap' }}>
+                    {r.recipient}
+                  </td>
+                  <td>
+                    <Channel c={r.channelLabel} />
+                  </td>
+                  <td>
+                    <ActionPill ok={r.ok}>{r.statusLabel}</ActionPill>
+                  </td>
+                  <td className="muted" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {r.when}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+      <PageBar page={page} setPage={setPage} meta={data?.meta} isFetching={isFetching} shown={rows.length} />
+    </>
+  );
+}
+
 export default function LogsPage() {
   const [tab, setTab] = useState<TabKey>('audit');
-  const [filters, setFilters] = useState<Record<string, string>>({});
-
-  const setF = (k: string, v: string) => setFilters((p) => ({ ...p, [k]: v }));
-  const changeTab = (t: TabKey) => {
-    setTab(t);
-    setFilters({});
-  };
-
-  const auditRows = filterRows(ADMIN.logs.audit, cfgAudit, filters);
-  const moderationRows = filterRows(ADMIN.logs.moderation, cfgModeration, filters);
-  const promoRows = filterRows(ADMIN.logs.promo, cfgPromo, filters);
-  const notificationRows = filterRows(ADMIN.logs.notifications, cfgNotifications, filters);
-
-  const rowCount: Record<TabKey, number> = {
-    audit: auditRows.length,
-    moderation: moderationRows.length,
-    promo: promoRows.length,
-    notifications: notificationRows.length,
-  };
-  const count = rowCount[tab];
-
-  const cfg: FieldCfg<unknown>[] =
-    tab === 'audit'
-      ? (cfgAudit as FieldCfg<unknown>[])
-      : tab === 'moderation'
-        ? (cfgModeration as FieldCfg<unknown>[])
-        : tab === 'promo'
-          ? (cfgPromo as FieldCfg<unknown>[])
-          : (cfgNotifications as FieldCfg<unknown>[]);
 
   return (
     <div>
@@ -123,7 +511,7 @@ export default function LogsPage() {
         {tabs.map(([k, label]) => (
           <button
             key={k}
-            onClick={() => changeTab(k)}
+            onClick={() => setTab(k)}
             style={{
               background: 'none',
               border: 'none',
@@ -140,143 +528,11 @@ export default function LogsPage() {
           </button>
         ))}
       </div>
-      <div className="logs-filters" style={{ display: 'grid', gridTemplateColumns: `repeat(${cfgLen[tab]}, 1fr)`, gap: 14, marginBottom: 16 }}>
-        {cfg.map((c) => (
-          <div key={c.k}>
-            <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>{c.l}</label>
-            <input className="a-field" style={{ width: '100%' }} placeholder={c.ph} value={filters[c.k] || ''} onChange={(e) => setF(c.k, e.target.value)} />
-          </div>
-        ))}
-      </div>
-      <div className="a-card table-scroll">
-        <table className="a-table">
-          {tab === 'audit' && (
-            <>
-              <thead>
-                <tr>
-                  <th>Действие</th>
-                  <th>Сущность</th>
-                  <th>Актор</th>
-                  <th>IP</th>
-                  <th style={{ textAlign: 'right' }}>Когда</th>
-                </tr>
-              </thead>
-              <tbody>
-                {auditRows.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <span className="log-tag">{r.action}</span>
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{r.entity}</div>
-                      <div className="muted mono" style={{ fontSize: 12 }}>{r.entityId}</div>
-                    </td>
-                    <td className="muted mono" style={{ whiteSpace: 'nowrap' }}>{r.actor}</td>
-                    <td className="muted mono">{r.ip}</td>
-                    <td className="muted" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{r.when}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </>
-          )}
-          {tab === 'moderation' && (
-            <>
-              <thead>
-                <tr>
-                  <th>Действие</th>
-                  <th>Объявление</th>
-                  <th>Модератор</th>
-                  <th>Причина</th>
-                  <th style={{ textAlign: 'right' }}>Когда</th>
-                </tr>
-              </thead>
-              <tbody>
-                {moderationRows.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <ActionPill ok={r.action === 'APPROVE'}>{r.action === 'APPROVE' ? 'Одобрено' : 'Отклонено'}</ActionPill>
-                    </td>
-                    <td style={{ fontWeight: 600, maxWidth: 260 }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.listing}</div>
-                    </td>
-                    <td className="muted mono">{r.moderator}</td>
-                    <td className="muted">{r.reason}</td>
-                    <td className="muted" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{r.when}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </>
-          )}
-          {tab === 'promo' && (
-            <>
-              <thead>
-                <tr>
-                  <th>Тип</th>
-                  <th>Объявление</th>
-                  <th>Покупатель</th>
-                  <th>Срок</th>
-                  <th>Сумма</th>
-                  <th style={{ textAlign: 'right' }}>Когда</th>
-                </tr>
-              </thead>
-              <tbody>
-                {promoRows.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <span className="a-pill" style={{ background: r.type === 'VIP' ? 'var(--gold-bg)' : 'var(--red-bg)', color: r.type === 'VIP' ? 'var(--gold)' : 'var(--red)' }}>
-                        {r.type}
-                      </span>
-                    </td>
-                    <td style={{ fontWeight: 600, maxWidth: 240 }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.listing}</div>
-                    </td>
-                    <td className="muted" style={{ whiteSpace: 'nowrap' }}>{r.buyer}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{r.days} дн.</td>
-                    <td style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{fmt(r.amount)}</td>
-                    <td className="muted" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{r.when}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </>
-          )}
-          {tab === 'notifications' && (
-            <>
-              <thead>
-                <tr>
-                  <th>Тип</th>
-                  <th>Получатель</th>
-                  <th>Канал</th>
-                  <th>Статус</th>
-                  <th style={{ textAlign: 'right' }}>Когда</th>
-                </tr>
-              </thead>
-              <tbody>
-                {notificationRows.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <span className="log-tag">{r.type}</span>
-                    </td>
-                    <td className="muted" style={{ whiteSpace: 'nowrap' }}>{r.recipient}</td>
-                    <td>
-                      <Channel c={r.channel} />
-                    </td>
-                    <td>
-                      <ActionPill ok={r.status === 'sent'}>{r.status === 'sent' ? 'Доставлено' : 'Ошибка'}</ActionPill>
-                    </td>
-                    <td className="muted" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{r.when}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </>
-          )}
-        </table>
-        {count === 0 && (
-          <div className="muted" style={{ padding: '32px 22px', textAlign: 'center', fontSize: 14 }}>
-            Записей не найдено по заданным фильтрам.
-          </div>
-        )}
-      </div>
-      <div className="muted" style={{ fontSize: 13, marginTop: 12 }}>Показано {count} записей</div>
+      {/* Рендерим только активный таб → один запрос за раз. */}
+      {tab === 'audit' && <AuditTab />}
+      {tab === 'moderation' && <ModerationTab />}
+      {tab === 'promo' && <PromoTab />}
+      {tab === 'notifications' && <NotificationsTab />}
     </div>
   );
 }
