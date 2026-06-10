@@ -1,0 +1,29 @@
+# Avino — Caddy reverse-proxy + автоматический TLS (Let's Encrypt).
+# Домены и контактный e-mail для ACME приходят из окружения (docker-compose.prod.yml).
+#
+# Каждый блок ниже = отдельный сайт; Caddy сам выпускает и продлевает сертификат
+# на указанный домен (HTTP-01/TLS-ALPN), редиректит http→https и включает HTTP/3.
+
+{
+	email {$ACME_EMAIL}
+	# Для проверки конфигурации без расхода лимитов LE — раскомментируйте staging:
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# Публичный портал (apps/client)
+{$DOMAIN_CLIENT} {
+	encode zstd gzip
+	reverse_proxy client:3001
+}
+
+# Админка (apps/web)
+{$DOMAIN_ADMIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+# API (apps/api, NestJS)
+{$DOMAIN_API} {
+	encode zstd gzip
+	reverse_proxy api:4000
+}

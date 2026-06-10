@@ -1,0 +1,85 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Avino — production overlay поверх docker-compose.yml.
+#
+# Запуск (с пересборкой web/client под прод-URL API):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app up -d --build
+#
+# Что меняет overlay относительно базового (dev) compose:
+#   • NODE_ENV=production для всех Node-сервисов (migrate, api, web, client);
+#   • снимает публикацию портов postgres/redis/api/web/client на хост — наружу
+#     смотрит только Caddy (:80/:443). Тег `!reset` требует Docker Compose ≥ 2.24;
+#   • web/client пересобираются с публичным https-URL API — он инлайнится в
+#     браузерный бандл на этапе сборки (NEXT_PUBLIC_API_BASE_URL);
+#   • поднимает Caddy: автоматический TLS (Let's Encrypt) + reverse-proxy по доменам.
+#
+# Обязательные переменные в .env (шаблон — deploy/prod.env.example):
+#   DOMAIN_API, DOMAIN_ADMIN, DOMAIN_CLIENT, ACME_EMAIL,
+#   POSTGRES_PASSWORD, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  postgres:
+    # Не публикуем БД на хост — доступ только из compose-сети по имени `postgres`.
+    ports: !reset []
+    environment:
+      # Жёстко требуем сильный пароль в проде (никаких dev-дефолтов `avino`).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set a strong POSTGRES_PASSWORD in .env}
+
+  redis:
+    ports: !reset []
+
+  migrate:
+    environment:
+      NODE_ENV: production
+
+  api:
+    ports: !reset []
+    environment:
+      NODE_ENV: production
+      # Реальные origin'ы браузерных клиентов (админка + публичный портал).
+      CORS_ORIGINS: https://${DOMAIN_ADMIN},https://${DOMAIN_CLIENT}
+
+  web:
+    build:
+      args:
+        # Браузер ходит в API по публичному https-домену, не по localhost.
+        NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN_API}
+    ports: !reset []
+    environment:
+      NODE_ENV: production
+
+  client:
+    build:
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN_API}
+    ports: !reset []
+    environment:
+      NODE_ENV: production
+
+  # ── Reverse-proxy + автоматический TLS ──────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: avino-caddy
+    profiles: ["app"]
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+      - client
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3 (QUIC)
+    environment:
+      DOMAIN_API: ${DOMAIN_API}
+      DOMAIN_ADMIN: ${DOMAIN_ADMIN}
+      DOMAIN_CLIENT: ${DOMAIN_CLIENT}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data # сертификаты Let's Encrypt — обязательно персистить
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:
