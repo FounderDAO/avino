@@ -19,7 +19,6 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       ['/admin/listings', 'Объявления', IC.Home],
       ['/admin/moderation', 'Модерация', IC.Check, ADMIN.moderation.length],
-      ['/admin/agents', 'Агенты', IC.User],
     ],
   },
   { group: 'Люди', items: [['/admin/users', 'Пользователи', IC.User]] },

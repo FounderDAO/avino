@@ -1,16 +1,41 @@
 /**
  * Панель управления (порт P.Dashboard из scripts/admin-pages.jsx).
- * KPI-карточки, графики (объявления за год / покупка-аренда / по районам),
- * очередь модерации, последние действия. 1:1 с прототипом.
+ * KPI-карточки — на живых данных (`GET /admin/stats` через RTK Query + адаптер).
+ * Графики и лента действий ОСТАЮТСЯ на моках: у бэкенда нет эндпоинтов с
+ * историческими рядами (объявления за год / покупка-аренда / по районам) и ленты
+ * активности. Очередь модерации — на живых данных (`GET /admin/listings?status=NEW`).
+ * Вёрстка 1:1 с прототипом.
  */
+'use client';
+
 import Link from 'next/link';
 import { SectionTitle } from '@/components/admin/ui/section-title';
 import { AdminButton } from '@/components/admin/ui/button';
 import { LineArea, Bars, Donut } from '@/components/admin/charts';
 import { ADMIN } from '@/lib/mock';
+import { useGetAdminStatsQuery } from '@/store/api/adminStatsApi';
+import { useListAdminListingsQuery } from '@/store/api/adminListingsApi';
+import { statsToKpis, placeholderKpis } from '@/lib/adapters/stats';
+import { rowToAdminListing } from '@/lib/adapters/listings';
 
 export default function DashboardPage() {
-  const { kpis, listingsOverTime, months, buyRent, byDistrict, moderation, activity } = ADMIN;
+  // Графики и лента — мок (нет эндпоинтов исторических рядов/активности на бэке).
+  const { listingsOverTime, months, buyRent, byDistrict, activity } = ADMIN;
+
+  // KPI — живые счётчики дашборда. Loading → «…», error → «—».
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useGetAdminStatsQuery();
+  const kpis = stats
+    ? statsToKpis(stats)
+    : placeholderKpis(statsError ? '—' : statsLoading ? '…' : '—');
+
+  // Очередь модерации — первые NEW-листинги (read-only переиспользование адаптера).
+  const { data: queueData, isLoading: queueLoading } = useListAdminListingsQuery({
+    status: 'NEW',
+    page: 1,
+    limit: 4,
+  });
+  const moderation = (queueData?.data ?? []).map(rowToAdminListing);
+
   return (
     <div>
       <SectionTitle sub="Сводка по платформе Avino · Ташкент">Панель управления</SectionTitle>
@@ -20,9 +45,11 @@ export default function DashboardPage() {
           <div key={k.label} className="a-card" style={{ padding: 20 }}>
             <div className="kpi-label">{k.label}</div>
             <div className="kpi-value" style={{ color: k.accent === 'warn' ? '#C77A12' : 'var(--ink)' }}>{k.value}</div>
-            <span className={'delta ' + (k.up ? 'delta-up' : 'delta-down')} style={{ marginTop: 10 }}>
-              {k.up ? '↑' : '•'} {k.delta}
-            </span>
+            {k.delta ? (
+              <span className={'delta ' + (k.up ? 'delta-up' : 'delta-down')} style={{ marginTop: 10 }}>
+                {k.up ? '↑' : '•'} {k.delta}
+              </span>
+            ) : null}
           </div>
         ))}
       </div>
@@ -64,21 +91,27 @@ export default function DashboardPage() {
             </AdminButton>
           </div>
           <div className="col">
-            {moderation.map((m) => (
-              <div key={m.id} className="row gap-12" style={{ padding: '11px 0', borderTop: '1px solid var(--border)' }}>
-                <div style={{ width: 46, height: 38, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={m.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            {queueLoading ? (
+              <div className="muted" style={{ padding: '11px 0', fontSize: 13 }}>Загрузка…</div>
+            ) : moderation.length === 0 ? (
+              <div className="muted" style={{ padding: '11px 0', fontSize: 13 }}>Очередь пуста.</div>
+            ) : (
+              moderation.map((m) => (
+                <div key={m.id} className="row gap-12" style={{ padding: '11px 0', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ width: 46, height: 38, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={m.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
+                    <div className="muted" style={{ fontSize: 12 }}>{m.agent} · {m.created}</div>
+                  </div>
+                  <AdminButton variant="primary" size="sm" asChild>
+                    <Link href={`/admin/listings/${m.id}`}>Проверить</Link>
+                  </AdminButton>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>{m.agent} · {m.created}</div>
-                </div>
-                <AdminButton variant="primary" size="sm" asChild>
-                  <Link href="/admin/moderation">Проверить</Link>
-                </AdminButton>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
