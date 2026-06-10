@@ -1,7 +1,8 @@
 /**
- * Детальная объявления (порт функции ListingDetailAdmin из scripts/admin-pages.jsx).
- * Галерея, параметры, статистика, панель действий модератора (опубликовать /
- * отклонить / архив — локальный статус через useState + toast). 1:1 с прототипом.
+ * Детальная объявления на реальном API (GET /listings/:id через RTK Query).
+ * Галерея, параметры, статистика, панель действий модератора. Действия пока
+ * локальные (статус через useState + toast) — реальные мутации модерации (PATCH
+ * /admin/listings/:id/status) подключаются отдельной задачей. Вёрстка 1:1.
  */
 'use client';
 
@@ -12,19 +13,30 @@ import { StatusPill } from '@/components/admin/ui/pill';
 import { AdminButton } from '@/components/admin/ui/button';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
-import { ADMIN, getAdminListingById } from '@/lib/mock';
+import { useGetAdminListingQuery } from '@/store/api/adminListingsApi';
+import { detailToAdminListing } from '@/lib/adapters/listings';
+import { ADMIN } from '@/lib/mock';
 import type { AdminListingStatus } from '@/lib/mock';
 
 export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
-  const listing = getAdminListingById(id);
-  const [status, setStatus] = useState<AdminListingStatus>(listing?.status ?? 'ACTIVE');
+  const { data, isLoading, isError, error, refetch } = useGetAdminListingQuery(id);
+  const [override, setOverride] = useState<AdminListingStatus | null>(null);
 
-  if (!listing) {
+  const listing = data ? detailToAdminListing(data) : undefined;
+  const status: AdminListingStatus = override ?? listing?.status ?? 'ACTIVE';
+
+  if (isLoading) {
+    return <div className="a-card" style={{ padding: 40 }}>Загрузка…</div>;
+  }
+
+  if (isError || !listing) {
+    const notFound = (error as { status?: number } | undefined)?.status === 404;
     return (
       <div className="a-card" style={{ padding: 40 }}>
-        Объявление не найдено.{' '}
+        {notFound ? 'Объявление не найдено.' : 'Не удалось загрузить объявление.'}{' '}
+        {!notFound && <button className="abtn abtn-outline abtn-sm" style={{ marginRight: 8 }} onClick={() => refetch()}>Повторить</button>}
         <AdminButton variant="ghost" asChild>
           <Link href="/admin/listings">← Назад</Link>
         </AdminButton>
@@ -34,7 +46,7 @@ export default function ListingDetailPage() {
 
   const src = listing.priceRaw;
   const onSetStatus = (next: AdminListingStatus) => {
-    setStatus(next);
+    setOverride(next);
     if (next === 'ACTIVE') toast('Объявление опубликовано');
     else if (next === 'REJECTED') toast('Объявление отклонено');
     else if (next === 'ARCHIVED') toast('Перемещено в архив');
@@ -48,14 +60,16 @@ export default function ListingDetailPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }} className="dash-row">
         <div className="col gap-20">
           <div className="a-card" style={{ padding: 22 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-              {src.photos.slice(0, 4).map((p, i) => (
-                <div key={i} style={{ aspectRatio: '4/3', borderRadius: 10, overflow: 'hidden' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </div>
-              ))}
-            </div>
+            {src.photos.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+                {src.photos.slice(0, 4).map((p, i) => (
+                  <div key={i} style={{ aspectRatio: '4/3', borderRadius: 10, overflow: 'hidden' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="row gap-8" style={{ marginBottom: 8, flexWrap: 'wrap' }}>
               <StatusPill status={status} />
               {listing.promo !== 'NORMAL' && <span className="a-pill" style={{ background: listing.promo === 'VIP' ? 'var(--gold-bg)' : 'var(--red-bg)', color: listing.promo === 'VIP' ? 'var(--gold)' : 'var(--red)' }}>{listing.promo}</span>}
@@ -64,9 +78,9 @@ export default function ListingDetailPage() {
             <h2 style={{ fontSize: 24, lineHeight: 1.2 }}>{listing.title}</h2>
             <div style={{ fontSize: 26, fontWeight: 800, marginTop: 10 }}>{listing.price}</div>
             <div className="row gap-12 muted" style={{ fontSize: 14, marginTop: 8, flexWrap: 'wrap' }}>
-              <span>{listing.type}</span><span>·</span><span>{listing.rooms} комн</span><span>·</span><span>{src.area} м²</span><span>·</span><span>{listing.district}</span>
+              <span>{listing.type}</span><span>·</span><span>{listing.rooms} комн</span><span>·</span><span>{src.area ?? '—'} м²</span><span>·</span><span>{listing.district}</span>
             </div>
-            <p style={{ fontSize: 14.5, lineHeight: 1.6, marginTop: 14, color: 'var(--ink-soft)' }}>{src.desc}</p>
+            {src.desc && <p style={{ fontSize: 14.5, lineHeight: 1.6, marginTop: 14, color: 'var(--ink-soft)' }}>{src.desc}</p>}
             <div className="row wrap gap-8" style={{ marginTop: 14 }}>
               {src.features.map((f) => <span key={f} className="a-pill" style={{ background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--border)' }}>{f}</span>)}
             </div>

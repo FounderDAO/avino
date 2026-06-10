@@ -84,7 +84,8 @@ export interface AdminListing {
   district: string;
   agent: string;
   status: AdminListingStatus;
-  views: number;
+  /** Число просмотров; «—», когда источник (API) не отдаёт метрику. */
+  views: number | string;
   created: string;
   promo: PromotionType;
   /** «Аренда» / «Продажа». */
