@@ -1,8 +1,10 @@
 /**
  * Детальная объявления на реальном API (GET /listings/:id через RTK Query).
- * Галерея, параметры, статистика, панель действий модератора. Действия пока
- * локальные (статус через useState + toast) — реальные мутации модерации (PATCH
- * /admin/listings/:id/status) подключаются отдельной задачей. Вёрстка 1:1.
+ * Галерея, параметры, статистика, панель действий модератора и история
+ * модерации. Действия модерации — реальная мутация
+ * PATCH /admin/listings/:id/status (APPROVE/SEND_TO_DRAFT/REJECT/DELETE);
+ * история — GET /admin/listings/:id/moderation-logs. После действия тег `Admin`
+ * инвалидируется → карточка и история перечитываются. Вёрстка 1:1.
  */
 'use client';
 
@@ -13,19 +15,64 @@ import { StatusPill } from '@/components/admin/ui/pill';
 import { AdminButton } from '@/components/admin/ui/button';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
-import { useGetAdminListingQuery } from '@/store/api/adminListingsApi';
-import { detailToAdminListing } from '@/lib/adapters/listings';
-import { ADMIN } from '@/lib/mock';
+import {
+  useGetAdminListingQuery,
+  useModerateListingMutation,
+  useListingModerationLogsQuery,
+} from '@/store/api/adminListingsApi';
+import { detailToAdminListing, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
+import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import type { AdminListingStatus } from '@/lib/mock';
+import type { ModerationAction } from '@/store/api/adminTypes';
+
+/** Человекочитаемые подписи статусов (RU) — заменяет ADMIN.STATUS_MAP. */
+const STATUS_LABEL: Record<AdminListingStatus, string> = {
+  ACTIVE: 'Опубликовано',
+  PENDING: 'На проверке',
+  REJECTED: 'Отклонено',
+  DRAFT: 'Черновик',
+  ARCHIVED: 'В архиве',
+};
+
+const ACTION_LABEL: Record<ModerationAction, string> = {
+  APPROVE: 'Одобрено',
+  SEND_TO_DRAFT: 'В черновики',
+  REJECT: 'Отклонено',
+  DELETE: 'Удалено',
+};
+
+const logDateFmt = new Intl.DateTimeFormat('ru-RU', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+/** Человекочитаемый текст ошибки модерации (RU) по коду/статусу API. */
+function moderationErrorMessage(error: unknown): string {
+  const e = error as { status?: number } | undefined;
+  const code = getApiErrorCode(error as never);
+  const status = e?.status;
+  if (status === 422 || code === 'INVALID_STATUS_TRANSITION') {
+    return 'Недопустимый переход статуса для этого объявления.';
+  }
+  if (status === 403) return 'Недостаточно прав для этого действия.';
+  if (status === 404) return 'Объявление не найдено.';
+  return getApiError(error as never)?.message ?? 'Не удалось выполнить действие.';
+}
 
 export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
   const { data, isLoading, isError, error, refetch } = useGetAdminListingQuery(id);
-  const [override, setOverride] = useState<AdminListingStatus | null>(null);
+  const [reason, setReason] = useState('');
+  const [moderate, { isLoading: isActing }] = useModerateListingMutation();
+  const { data: logs, isLoading: logsLoading, isError: logsError } =
+    useListingModerationLogsQuery(id);
 
   const listing = data ? detailToAdminListing(data) : undefined;
-  const status: AdminListingStatus = override ?? listing?.status ?? 'ACTIVE';
+  const status: AdminListingStatus = listing?.status ?? 'ACTIVE';
 
   if (isLoading) {
     return <div className="a-card" style={{ padding: 40 }}>Загрузка…</div>;
@@ -45,11 +92,25 @@ export default function ListingDetailPage() {
   }
 
   const src = listing.priceRaw;
-  const onSetStatus = (next: AdminListingStatus) => {
-    setOverride(next);
-    if (next === 'ACTIVE') toast('Объявление опубликовано');
-    else if (next === 'REJECTED') toast('Объявление отклонено');
-    else if (next === 'ARCHIVED') toast('Перемещено в архив');
+
+  const act = async (action: ModerationAction) => {
+    if (action === 'REJECT' && !reason) {
+      toast('Выберите причину отклонения');
+      return;
+    }
+    try {
+      await moderate({
+        id,
+        body: { action, reason: action === 'REJECT' ? reason : undefined },
+      }).unwrap();
+      if (action === 'APPROVE') toast('Объявление опубликовано');
+      else if (action === 'SEND_TO_DRAFT') toast('Возвращено в черновики');
+      else if (action === 'REJECT') toast('Объявление отклонено');
+      else if (action === 'DELETE') toast('Объявление удалено');
+      setReason('');
+    } catch (err) {
+      toast(moderationErrorMessage(err));
+    }
   };
 
   return (
@@ -93,12 +154,38 @@ export default function ListingDetailPage() {
               ))}
             </div>
           </div>
+          <div className="a-card" style={{ padding: 22 }}>
+            <h3 style={{ fontSize: 16, marginBottom: 12 }}>История модерации</h3>
+            {logsLoading ? (
+              <p className="muted" style={{ fontSize: 13.5 }}>Загрузка…</p>
+            ) : logsError ? (
+              <p className="muted" style={{ fontSize: 13.5 }}>Не удалось загрузить историю.</p>
+            ) : !logs || logs.length === 0 ? (
+              <p className="muted" style={{ fontSize: 13.5 }}>Действий модерации пока нет.</p>
+            ) : (
+              <div className="table-scroll">
+                <table className="a-table">
+                  <thead><tr><th>Действие</th><th>Статус</th><th>Причина</th><th>Когда</th></tr></thead>
+                  <tbody>
+                    {logs.map((log) => (
+                      <tr key={log.id}>
+                        <td style={{ fontWeight: 600 }}>{ACTION_LABEL[log.action] ?? log.action}</td>
+                        <td className="muted">{log.old_status ?? '—'} → {log.new_status ?? '—'}</td>
+                        <td className="muted">{log.reason || '—'}</td>
+                        <td className="muted" style={{ whiteSpace: 'nowrap' }}>{Number.isNaN(new Date(log.created_at).getTime()) ? '—' : logDateFmt.format(new Date(log.created_at))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
         <div className="col gap-16">
           <div className="a-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 15, marginBottom: 6 }}>Статистика</h3>
             <div className="row" style={{ justifyContent: 'space-between' }}>
-              {([['Просмотры', listing.views], ['Статус', ADMIN.STATUS_MAP[status][0]]] as [string, string | number][]).map(([k, v]) => (
+              {([['Просмотры', listing.views], ['Статус', STATUS_LABEL[status]]] as [string, string | number][]).map(([k, v]) => (
                 <div key={k}><div style={{ fontWeight: 800, fontSize: 18 }}>{v}</div><div className="muted" style={{ fontSize: 11.5 }}>{k}</div></div>
               ))}
             </div>
@@ -106,13 +193,18 @@ export default function ListingDetailPage() {
           <div className="a-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 15, marginBottom: 14 }}>Действия модератора</h3>
             <div className="col gap-10">
-              {status !== 'ACTIVE' && <button className="abtn abtn-ok" style={{ width: '100%' }} onClick={() => onSetStatus('ACTIVE')}><IC.Check size={17} /> Опубликовать</button>}
-              {status !== 'REJECTED' && <button className="abtn abtn-danger" style={{ width: '100%' }} onClick={() => onSetStatus('REJECTED')}><IC.X size={17} /> Отклонить</button>}
-              {status !== 'ARCHIVED' && <button className="abtn abtn-outline" style={{ width: '100%' }} onClick={() => onSetStatus('ARCHIVED')}>В архив</button>}
+              <label style={{ fontSize: 13, fontWeight: 700 }}>Причина отклонения</label>
+              <select className="a-field" style={{ width: '100%' }} value={reason} onChange={(e) => setReason(e.target.value)}>
+                <option value="">— выберите причину —</option>
+                {REJECT_REASON_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              {status !== 'ACTIVE' && <button className="abtn abtn-ok" style={{ width: '100%' }} disabled={isActing} onClick={() => act('APPROVE')}><IC.Check size={17} /> Опубликовать</button>}
+              {status !== 'REJECTED' && <button className="abtn abtn-danger" style={{ width: '100%' }} disabled={isActing} onClick={() => act('REJECT')}><IC.X size={17} /> Отклонить</button>}
+              {status !== 'DRAFT' && <button className="abtn abtn-outline" style={{ width: '100%' }} disabled={isActing} onClick={() => act('SEND_TO_DRAFT')}>В черновики</button>}
               <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
               <button className="abtn abtn-outline" style={{ width: '100%' }} onClick={() => toast('Редактирование объявления')}>Редактировать</button>
               <button className="abtn abtn-outline" style={{ width: '100%' }} onClick={() => toast(listing.promo === 'NORMAL' ? 'Выдать VIP/TOP' : 'Снять продвижение')}>{listing.promo === 'NORMAL' ? 'Продвинуть (VIP/TOP)' : 'Снять продвижение'}</button>
-              <button className="abtn abtn-danger" style={{ width: '100%' }} onClick={() => toast('Удаление требует подтверждения')}>Удалить</button>
+              <button className="abtn abtn-danger" style={{ width: '100%' }} disabled={isActing} onClick={() => act('DELETE')}>Удалить</button>
             </div>
           </div>
         </div>
