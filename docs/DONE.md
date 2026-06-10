@@ -37,6 +37,46 @@ Related ADR:
 
 ---
 
+## 2026-06-10
+
+### C3-01..06 — Подключение редизайн-админки к реальному API (цикл 3)
+
+Status: DONE
+Branch: feat/admin-web-listings-api (+ feat/admin-web-{dashboard,moderation,users,promotions,logs}-api)
+PR: #115 (фундамент) · #116 · #117 · #118 · #119 · #120
+
+Files changed (ключевые):
+- apps/web/src/store/api/{baseApi,baseQuery,authApi,adminApi,adminListingsApi,adminUsersApi,adminPromotionsApi,adminLogsApi,adminStatsApi,adminTypes,pagination,apiError}.ts
+- apps/web/src/store/{store.ts,StoreProvider.tsx,slices/authSlice.ts}
+- apps/web/src/lib/adapters/{listings,stats,users,promotions,logs}.ts
+- apps/web/src/app/admin/{page,login/page,listings/page,listings/[id]/page,moderation/page,users/page,users/[id]/page,promotions/page,logs/page}.tsx
+- apps/web/src/components/admin/{ConditionalShell,RoleGuard,Sidebar,Topbar}.tsx, hooks/useLogout.ts
+- docs/TASK_ADMIN_PANEL.md
+
+Summary:
+- Редизайн (PR #114) пересобрал `apps/web` на моках (`lib/mock`), убрав прежний RTK/auth-слой. Цикл 3 вернул реальное API в новую оболочку через паттерн «адаптер» (API DTO snake_case → UI-типы моков), сохранив вёрстку.
+- C3-01 (PR #115): фундамент — store/baseQuery (Bearer+авто-refresh), authApi (EMAIL-OTP), ConditionalShell+RoleGuard (роль ADMIN), `/admin/login`, useLogout; листинги список + карточка.
+- C3-02 (#116): дашборд → `GET /admin/stats` (4 KPI) + превью очереди; убран `/admin/agents` из навигации.
+- C3-03 (#117): модерация — очередь `?status=NEW`, действия `PATCH /:id/status`, история `moderation-logs`.
+- C3-04 (#118): пользователи — список/карточка, `/roles`, смена статуса и ролей.
+- C3-05 (#119): промо — тарифы `GET/PATCH /admin/promotion-plans` + `promotion-settings`.
+- C3-06 (#120): логи — 4 журнала (audit/moderation/promotion/notification).
+- На моках намеренно (нет бэкенда): графики дашборда и лента активности, история промо, `/admin/agents`, CreateUserModal, `/admin/settings`, жалобы.
+- Gates: `lint` + `build` (13 маршрутов) зелёные; live-проверка против `apps/api` (docker-стек, ADMIN-OTP) — 26/26 (GET-контракты совпали 1:1 с FE-типами).
+
+Commit messages:
+- feat(web): admin RTK Query foundation + listings wiring (C3-01)
+- feat(web): wire admin dashboard to stats API + remove agents nav
+- feat(web): wire admin moderation queue, actions and history
+- feat(web): wire admin users list, detail, status and roles
+- feat(web): wire admin promotion tariffs and settings
+- feat(web): wire admin logs viewer (4 tabs)
+
+Related ADR:
+- Переиспользует ADR-0045 (auth baseQuery), ADR-0050 (adminApi/shared types), ADR-0054 (admin stats).
+
+---
+
 ## 2026-06-09
 
 ### TASK-153 — Add web listing detail page

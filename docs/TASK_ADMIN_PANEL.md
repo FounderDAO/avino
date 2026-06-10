@@ -554,7 +554,7 @@ Suggested commit: `feat(web): add admin panel i18n`
 
 ### C3-01 — Фундамент: store + auth + login + guard
 
-Status: `REVIEW`
+Status: `DONE` (PR #115, merged 2026-06-10)
 Branch: `feat/admin-web-rtk-foundation`
 
 Scope: портирован RTK Query store-слой из `web_old` (baseApi, baseQuery с
@@ -588,32 +588,32 @@ Happy-path (ввод dev-OTP → токен → роль/403) в этой сес
 
 ### C3-02 — Дашборд `/admin` → `GET /admin/stats`
 
-Status: `IN_PROGRESS`. Порт `adminStatsApi`, адаптер `AdminStats`→KPI; 4 карточки
+Status: `DONE` (PR #116, merged 2026-06-10). Порт `adminStatsApi`, адаптер `AdminStats`→KPI; 4 карточки
 KPI на живых счётчиках (listings_new / complaints_new / users_total /
 promotions_active). Графики (за год / районы / покупка-аренда) и лента действий —
 бэкенда нет, остаются на моках с пометкой. Убрать `/admin/agents` из `Sidebar`.
 
 ### C3-03 — Модерация `/admin/moderation` + действия/история в `/admin/listings/[id]`
 
-Status: `IN_PROGRESS`. Очередь = `GET /admin/listings?status=NEW` + адаптер
+Status: `DONE` (PR #117, merged 2026-06-10). Очередь = `GET /admin/listings?status=NEW` + адаптер
 `ModerationItem`; действия `PATCH /:id/status`; в карточке листинга — кнопки
 действий (`useModerateListingMutation`) + история (`useListingModerationLogsQuery`),
 снять mock.
 
 ### C3-04 — Пользователи `/admin/users` + `[id]`
 
-Status: `IN_PROGRESS`. Порт `adminUsersApi`; адаптеры `AdminUserRow/Detail`→`AdminUser`;
+Status: `DONE` (PR #118, merged 2026-06-10). Порт `adminUsersApi`; адаптеры `AdminUserRow/Detail`→`AdminUser`;
 список (фильтры status/role/q + пагинация), карточка, мутации статуса и ролей
 (`/roles`, PATCH status, POST/DELETE role).
 
 ### C3-05 — Промо `/admin/promotions`
 
-Status: `IN_PROGRESS`. Порт `adminPromotionsApi`; тарифы `GET/PATCH
+Status: `DONE` (PR #119, merged 2026-06-10). Порт `adminPromotionsApi`; тарифы `GET/PATCH
 /admin/promotion-plans` → `PromoPricing`; история промо. cancel/extend per-listing.
 
 ### C3-06 — Логи `/admin/logs` (4 вкладки)
 
-Status: `IN_PROGRESS`. Порт `adminLogsApi`; адаптеры 4 типов
+Status: `DONE` (PR #120, merged 2026-06-10). Порт `adminLogsApi`; адаптеры 4 типов
 (audit/moderation/promotion/notification) → мок-типы логов; фильтры + пагинация.
 
 ### Live-проверка C3-02..06 (2026-06-10) — ✅ 26/26
