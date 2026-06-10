@@ -17,10 +17,24 @@ import { FALLBACK_PHOTO, PROPERTY_TYPES, formatPrice } from '@/lib/mock';
 import type {
   AdminListing,
   AdminListingStatus,
+  ModerationItem,
   SourceListing,
 } from '@/lib/mock';
 
 const DASH = '—';
+
+/**
+ * Статичный список причин отклонения для очереди модерации (RU). В API причина —
+ * free-form `reason`, поэтому набор фиксируем на фронте (как в моке).
+ */
+export const REJECT_REASON_OPTIONS: string[] = [
+  'Некорректные фото',
+  'Подозрение на дубликат',
+  'Неверная цена',
+  'Запрещённый контент',
+  'Неполное описание',
+  'Недостоверная информация',
+];
 
 /** API-статус листинга → статус UI-pill (5 значений мок-модели). */
 export function apiToUiStatus(s: ListingStatus): AdminListingStatus {
@@ -170,5 +184,20 @@ export function detailToAdminListing(d: ListingDetail): AdminListing {
     created: fmtDate(d.created_at),
     promo: d.promotion_type,
     tx: TX_LABEL[d.transaction_type] ?? d.transaction_type,
+  };
+}
+
+/**
+ * Строка очереди `GET /admin/listings?status=NEW` → `ModerationItem` (карточка
+ * модерации). Переиспользует {@link rowToAdminListing}; список не отдаёт фото/
+ * площадь/комнаты/район/описание — они приходят только в `ListingDetail`, тут
+ * это пустой `photos`/«—»/пустое описание. `reasonOptions` — статичный RU-набор.
+ */
+export function rowToModerationItem(r: AdminListingRow): ModerationItem {
+  const base = rowToAdminListing(r);
+  return {
+    ...base,
+    full: base.priceRaw,
+    reasonOptions: REJECT_REASON_OPTIONS,
   };
 }
