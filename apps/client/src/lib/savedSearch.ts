@@ -1,0 +1,101 @@
+/**
+ * Хелперы для сохранённых поисков (TASK saved-searches).
+ *
+ * `filters` — это внутренний объект `filters_json.filters`, который использует
+ * ТЕ ЖЕ имена параметров, что и GET /search:
+ *   transaction_type, property_type, price_min, price_max, rooms, q,
+ *   currency, city_id, district_id.
+ *
+ * Здесь — два чистых хелпера:
+ *  - describeFilters → короткая человекочитаемая RU-сводка для заголовка/мета,
+ *  - filtersToSearchHref → ссылка `/search?...` для перехода в выдачу.
+ */
+import {
+  PROPERTY_TYPE_LABELS,
+  type PropertyType,
+} from '@/lib/mock/types';
+
+/** Внутренний объект фильтров (произвольные ключи API.md §12). */
+export type SavedSearchFilters = Record<string, unknown>;
+
+/** Человекочитаемая метка типа сделки. */
+const TX_LABELS: Record<string, string> = {
+  SALE: 'Покупка',
+  RENT: 'Аренда',
+};
+
+function asString(v: unknown): string | undefined {
+  if (typeof v === 'string' && v.trim() !== '') return v.trim();
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  return undefined;
+}
+
+function isPropertyType(v: unknown): v is PropertyType {
+  return typeof v === 'string' && v in PROPERTY_TYPE_LABELS;
+}
+
+/** Форматирует число с разделителями тысяч (RU non-breaking space). */
+function formatPrice(raw: string): string {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return raw;
+  return n.toLocaleString('ru-RU');
+}
+
+/**
+ * Короткая RU-сводка из внутренних фильтров.
+ * Пример: «Аренда · Квартира · до 5 000 000 UZS · 2 комн».
+ * Неизвестные/пустые поля пропускаются.
+ */
+export function describeFilters(filters: SavedSearchFilters): string {
+  const parts: string[] = [];
+
+  const tx = asString(filters.transaction_type);
+  if (tx && TX_LABELS[tx]) parts.push(TX_LABELS[tx]);
+
+  if (isPropertyType(filters.property_type)) {
+    parts.push(PROPERTY_TYPE_LABELS[filters.property_type]);
+  }
+
+  const currency = asString(filters.currency) ?? '';
+  const cur = currency ? ` ${currency}` : '';
+  const priceMin = asString(filters.price_min);
+  const priceMax = asString(filters.price_max);
+  if (priceMin && priceMax) {
+    parts.push(`${formatPrice(priceMin)}–${formatPrice(priceMax)}${cur}`);
+  } else if (priceMax) {
+    parts.push(`до ${formatPrice(priceMax)}${cur}`);
+  } else if (priceMin) {
+    parts.push(`от ${formatPrice(priceMin)}${cur}`);
+  }
+
+  const rooms = asString(filters.rooms);
+  if (rooms) parts.push(`${rooms} комн`);
+
+  const q = asString(filters.q);
+  if (q) parts.push(`«${q}»`);
+
+  return parts.join(' · ');
+}
+
+/**
+ * Строит ссылку `/search?...` из внутренних фильтров, мапя имена обратно
+ * в query-параметры страницы поиска:
+ *   transaction_type→tx, property_type→type, price_min→priceMin,
+ *   price_max→priceMax, rooms→rooms, q→query.
+ */
+export function filtersToSearchHref(filters: SavedSearchFilters): string {
+  const params = new URLSearchParams();
+  const set = (key: string, value: string | undefined): void => {
+    if (value) params.set(key, value);
+  };
+
+  set('tx', asString(filters.transaction_type));
+  set('type', asString(filters.property_type));
+  set('priceMin', asString(filters.price_min));
+  set('priceMax', asString(filters.price_max));
+  set('rooms', asString(filters.rooms));
+  set('query', asString(filters.q));
+
+  const qs = params.toString();
+  return qs ? `/search?${qs}` : '/search';
+}
