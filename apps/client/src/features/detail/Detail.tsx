@@ -13,7 +13,7 @@ import { PromoBadge } from '@/components/ui/promo-badge';
 import { SectionTitle } from '@/components/ui/section-title';
 import { Button } from '@/components/ui/button';
 import { formatPrice, specs, txLabel, propertyTypeLabel } from '@/lib/format';
-import { getSimilarListings } from '@/lib/mock';
+import { getSimilarListings } from '@/lib/api/listings';
 import type { Listing } from '@/lib/mock/types';
 import { PropertyCard } from '@/features/search/PropertyCard';
 import { Facts } from './Facts';
@@ -23,9 +23,9 @@ export interface DetailProps {
   listing: Listing;
 }
 
-export function Detail({ listing }: DetailProps) {
+export async function Detail({ listing }: DetailProps) {
   const parts = specs(listing);
-  const similar = getSimilarListings(listing, 4);
+  const similar = await getSimilarListings(listing, 4);
   // Ссылка «Назад к поиску» сохраняет тип сделки текущего объекта.
   const backHref = `/search?tx=${listing.tx}`;
 

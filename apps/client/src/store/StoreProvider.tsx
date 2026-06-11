@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 import { makeStore, type AppStore } from './store';
 import { hydrateFavorites, readFavoritesFromStorage } from './favoritesSlice';
 import { useAppDispatch } from './hooks';
+import { SessionBootstrap } from '@/components/SessionBootstrap';
 
 /**
  * Гидратация избранного из localStorage после монтирования на клиенте.
@@ -32,6 +33,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={storeRef.current}>
       <FavoritesHydrator />
+      <SessionBootstrap />
       {children}
     </Provider>
   );

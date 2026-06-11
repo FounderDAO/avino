@@ -1,58 +1,146 @@
 /**
- * Notifications — вкладка «Уведомления» (мок-лента).
- * Клик по карточке помечает прочитанным, «Прочитать все» — массово.
- * Непрочитанные подсвечены красной левой полосой и точкой.
+ * Notifications — вкладка «Уведомления» (auth-aware, серверная лента).
+ *
+ * - Авторизован: рендерим уведомления из GET /notifications
+ *   (useGetNotificationsQuery) с состояниями загрузки/пусто.
+ *   Клик по непрочитанной карточке → POST /notifications/:id/read.
+ *   «Прочитать все» → POST /notifications/read-all.
+ * - Гость: серверный эндпоинт защищён (401) — показываем подсказку войти.
+ *
+ * Непрочитанные подсвечены красной левой полосой и точкой (флаг read_at/status).
  */
 'use client';
 
 import * as React from 'react';
-import { Home, Bell, MessageCircle, Sparkles, type LucideIcon } from 'lucide-react';
+import Link from 'next/link';
+import {
+  Bell,
+  Home,
+  Mail,
+  MessageCircle,
+  Sparkles,
+  TrendingDown,
+  type LucideIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { formatRelativeDate } from '@/lib/format';
+import { useAppSelector } from '@/store/hooks';
+import { selectIsAuthenticated } from '@/store/slices/authSlice';
+import {
+  useGetNotificationsQuery,
+  useMarkAllNotificationsReadMutation,
+  useMarkNotificationReadMutation,
+  type NotificationType,
+} from '@/store/api/notificationsApi';
 
-/** Уведомление (мок). */
-interface Notification {
-  id: number;
-  icon: LucideIcon;
-  title: string;
-  text: string;
-  time: string;
-  read: boolean;
+/** Иконка по типу уведомления (Bell — безопасный дефолт). */
+const TYPE_ICON: Record<NotificationType, LucideIcon> = {
+  SAVED_SEARCH_NEW_LISTING: Bell,
+  FAVORITE_PRICE_DROP: TrendingDown,
+  NEW_CHAT_MESSAGE: MessageCircle,
+  LISTING_MODERATION_STATUS_CHANGED: Home,
+  NEW_LEAD: Mail,
+  PROMOTION_ACTIVATED: Sparkles,
+  PROMOTION_EXPIRED: Sparkles,
+};
+
+function iconFor(type: NotificationType): LucideIcon {
+  return TYPE_ICON[type] ?? Bell;
 }
 
-const INITIAL: Notification[] = [
-  { id: 1, icon: Home, title: 'Объявление одобрено', text: '«Просторная 3-комнатная у метро» прошло модерацию и опубликовано.', time: '2 ч назад', read: false },
-  { id: 2, icon: Bell, title: 'Новое по вашему поиску', text: '5 новых объявлений по запросу «Купить · Квартира · Юнусабад».', time: '5 ч назад', read: false },
-  { id: 3, icon: MessageCircle, title: 'Новое сообщение', text: 'Дилноза Каримова ответила в чате по объявлению.', time: 'Вчера', read: true },
-  { id: 4, icon: Sparkles, title: 'Скидка на продвижение', text: 'VIP-размещение со скидкой 20% до конца недели.', time: '2 дня назад', read: true },
-];
-
 export function Notifications() {
-  const [items, setItems] = React.useState<Notification[]>(INITIAL);
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
-  const markRead = (id: number) =>
-    setItems((p) => p.map((x) => (x.id === id ? { ...x, read: true } : x)));
-  const readAll = () => setItems((p) => p.map((x) => ({ ...x, read: true })));
+  const { data, isLoading } = useGetNotificationsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+
+  const [markRead] = useMarkNotificationReadMutation();
+  const [markAll, { isLoading: isMarkingAll }] =
+    useMarkAllNotificationsReadMutation();
+
+  const items = data?.items ?? [];
+  const unread = data?.unread ?? 0;
+
+  const header = (action?: React.ReactNode) => (
+    <div className="mb-[18px] flex items-center justify-between">
+      <h1 className="text-[28px]">Уведомления</h1>
+      {action}
+    </div>
+  );
+
+  if (!isAuthenticated) {
+    return (
+      <div>
+        {header()}
+        <EmptyState
+          icon={Bell}
+          title="Войдите, чтобы видеть уведомления"
+          text="Здесь появятся ответы в чатах, статусы модерации и новинки по сохранённым поискам."
+          action={
+            <Button asChild>
+              {/* Вход — модалка в Header; /login-маршрута нет. */}
+              <Link href="/">На главную</Link>
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div>
+        {header()}
+        <div className="flex flex-col gap-2.5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[78px] rounded-card" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div>
+        {header()}
+        <EmptyState icon={Bell} title="Уведомлений пока нет" />
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="mb-[18px] flex items-center justify-between">
-        <h1 className="text-[28px]">Уведомления</h1>
-        <Button variant="ghost" size="sm" onClick={readAll}>
-          Прочитать все
-        </Button>
-      </div>
+      {header(
+        unread > 0 ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={isMarkingAll}
+            onClick={() => void markAll()}
+          >
+            Прочитать все
+          </Button>
+        ) : null,
+      )}
 
       <div className="flex flex-col gap-2.5">
         {items.map((n) => {
-          const Icon = n.icon;
+          const read = n.read_at != null || n.status === 'READ';
+          const Icon = iconFor(n.type);
           return (
             <div
               key={n.id}
-              onClick={() => markRead(n.id)}
+              onClick={() => {
+                if (!read) void markRead(n.id);
+              }}
               className={cn(
                 'flex cursor-pointer items-start gap-3.5 rounded-card bg-surface px-4 py-3.5 shadow-card',
-                n.read ? 'border border-border/60' : 'border-l-[3px] border-red',
+                read ? 'border border-border/60' : 'border-l-[3px] border-red',
               )}
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint text-teal">
@@ -61,11 +149,13 @@ export function Notifications() {
               <div className="flex-1">
                 <div className="flex items-center justify-between gap-2.5">
                   <b className="text-[15px]">{n.title}</b>
-                  <span className="whitespace-nowrap text-xs text-muted-foreground">{n.time}</span>
+                  <span className="whitespace-nowrap text-xs text-muted-foreground">
+                    {formatRelativeDate(n.created_at)}
+                  </span>
                 </div>
-                <p className="mt-[3px] text-sm text-muted-foreground">{n.text}</p>
+                <p className="mt-[3px] text-sm text-muted-foreground">{n.body}</p>
               </div>
-              {!n.read && (
+              {!read && (
                 <span className="mt-1.5 h-[9px] w-[9px] shrink-0 rounded-full bg-red" />
               )}
             </div>

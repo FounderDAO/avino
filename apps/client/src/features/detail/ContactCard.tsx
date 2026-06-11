@@ -7,10 +7,18 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { MessageSquare, Phone, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FavButton } from '@/components/ui/fav-button';
 import type { Listing } from '@/lib/mock/types';
+import { useAppSelector } from '@/store/hooks';
+import { selectIsAuthenticated } from '@/store/slices/authSlice';
+import { useCreateThreadMutation } from '@/store/api/chatApi';
+import { getApiError } from '@/store/api/apiError';
+
+/** Дефолтное приветствие при создании диалога из карточки контакта. */
+const DEFAULT_GREETING = 'Здравствуйте! Объявление ещё актуально?';
 
 export interface ContactCardProps {
   listing: Listing;
@@ -19,8 +27,32 @@ export interface ContactCardProps {
 
 export function ContactCard({ listing, className }: ContactCardProps) {
   const { agent } = listing;
+  const router = useRouter();
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const [createThread, { isLoading: isCreatingThread }] = useCreateThreadMutation();
+  const [chatError, setChatError] = React.useState<string | null>(null);
   // Раскрытие телефона по клику (как в прототипе — номер из мока).
   const [phoneShown, setPhoneShown] = React.useState(false);
+
+  // «Написать»: гость → на главную (вход — модалка в Header, /login нет).
+  // Авторизован → создаём (идемпотентно) диалог по объявлению и переходим в инбокс.
+  const handleMessage = React.useCallback(async () => {
+    if (!isAuthenticated) {
+      router.push('/');
+      return;
+    }
+    setChatError(null);
+    try {
+      await createThread({
+        listing_id: listing.id,
+        body: DEFAULT_GREETING,
+      }).unwrap();
+      router.push('/account/inbox');
+    } catch (err) {
+      const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);
+      setChatError(apiErr?.message ?? 'Не удалось начать диалог');
+    }
+  }, [isAuthenticated, createThread, listing.id, router]);
 
   // Заглушка «Поделиться»: системный шэр, иначе копируем ссылку.
   const handleShare = React.useCallback(() => {
@@ -74,12 +106,12 @@ export function ContactCard({ listing, className }: ContactCardProps) {
           variant="outline"
           size="lg"
           className="w-full"
-          onClick={() => {
-            /* Заглушка чата (M5) */
-          }}
+          disabled={isCreatingThread}
+          onClick={() => void handleMessage()}
         >
           <MessageSquare size={18} /> Написать
         </Button>
+        {chatError && <div className="text-[12.5px] text-red">{chatError}</div>}
 
         {/* Нижний ряд: избранное + поделиться */}
         <div className="flex items-center gap-2.5">

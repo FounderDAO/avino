@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 export interface UploadPhoto {
   id: string;
   url: string;
+  /** Исходный File (для multipart-загрузки). Отсутствует у демо-фото. */
+  file?: File;
 }
 
 export interface PhotoUploaderProps {
@@ -40,7 +42,9 @@ export function PhotoUploader({ photos, setPhotos }: PhotoUploaderProps) {
   /** Добавить выбранные файлы (до 20 всего), создав blob-URL. */
   const onFiles = (files: FileList | null) => {
     if (!files) return;
-    const arr = [...files].slice(0, 20).map((f) => ({ id: uid(), url: URL.createObjectURL(f) }));
+    const arr = [...files]
+      .slice(0, 20)
+      .map((f) => ({ id: uid(), url: URL.createObjectURL(f), file: f }));
     setPhotos((p) => [...p, ...arr].slice(0, 20));
   };
 

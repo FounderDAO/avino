@@ -17,6 +17,13 @@ import { LoginModal } from './LoginModal';
 import { NAV_ITEMS } from './Nav';
 import { Button } from '@/components/ui/button';
 import { useFavoritesCount } from '@/store/favorites';
+import { useAppSelector } from '@/store/hooks';
+import {
+  selectIsAuthenticated,
+  selectCurrentUser,
+  selectRefreshToken,
+} from '@/store/slices/authSlice';
+import { useLogoutMutation } from '@/store/api/authApi';
 
 function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) {
   const pathname = usePathname();
@@ -24,6 +31,22 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
   const [menu, setMenu] = React.useState(false);
   const [login, setLogin] = React.useState(false);
   const favCount = useFavoritesCount();
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const currentUser = useAppSelector(selectCurrentUser);
+  const refreshToken = useAppSelector(selectRefreshToken);
+  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
+
+  // Имя для подписи аккаунта (display_name → имя → телефон → запасной текст).
+  const accountLabel =
+    currentUser?.profile?.display_name ??
+    currentUser?.profile?.first_name ??
+    currentUser?.phone ??
+    'Аккаунт';
+
+  const handleLogout = React.useCallback(() => {
+    // clearCredentials вызывается в onQueryStarted независимо от исхода.
+    void logout({ refresh_token: refreshToken ?? '' });
+  }, [logout, refreshToken]);
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -100,9 +123,25 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
               </span>
             )}
           </Link>
-          <Button variant="ghost" onClick={() => setLogin(true)} className="text-[15px]">
-            Войти
-          </Button>
+          {isAuthenticated ? (
+            <>
+              <Button variant="ghost" asChild className="text-[15px]">
+                <Link href="/account/profile">{accountLabel}</Link>
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="text-[15px]"
+              >
+                Выйти
+              </Button>
+            </>
+          ) : (
+            <Button variant="ghost" onClick={() => setLogin(true)} className="text-[15px]">
+              Войти
+            </Button>
+          )}
           <Button size="sm" asChild>
             <Link href="/sell">Разместить</Link>
           </Button>
@@ -145,16 +184,35 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
               <Button size="lg" asChild>
                 <Link href="/sell">Разместить объявление</Link>
               </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => {
-                  setMenu(false);
-                  setLogin(true);
-                }}
-              >
-                Войти
-              </Button>
+              {isAuthenticated ? (
+                <>
+                  <Button size="lg" variant="outline" asChild>
+                    <Link href="/account/profile">{accountLabel}</Link>
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="ghost"
+                    disabled={isLoggingOut}
+                    onClick={() => {
+                      setMenu(false);
+                      handleLogout();
+                    }}
+                  >
+                    Выйти
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => {
+                    setMenu(false);
+                    setLogin(true);
+                  }}
+                >
+                  Войти
+                </Button>
+              )}
               <div className="mt-2">
                 <LangSwitcher />
               </div>

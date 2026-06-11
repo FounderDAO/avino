@@ -3,7 +3,7 @@
  * Server component: собирает секции и тянет мок-данные синхронно через @/lib/mock.
  * Интерактив (поиск, карусель, FAQ) вынесен в дочерние 'use client' компоненты.
  */
-import { getFeaturedListings, getListings } from '@/lib/mock';
+import { getFeaturedListings, searchListings } from '@/lib/api/listings';
 import { Hero } from '@/features/home/Hero';
 import { Categories } from '@/features/home/Categories';
 import { FeaturedCarousel } from '@/features/home/FeaturedCarousel';
@@ -12,10 +12,12 @@ import { Agents } from '@/features/home/Agents';
 import { AgentCTA } from '@/features/home/AgentCTA';
 import { Faq } from '@/features/home/Faq';
 
-export default function HomePage() {
+export default async function HomePage() {
   // Рекомендованные (VIP/TOP в приоритете) и свежее в аренде.
-  const featured = getFeaturedListings(8);
-  const rent = getListings({ tx: 'RENT' });
+  const [featured, rent] = await Promise.all([
+    getFeaturedListings(8),
+    searchListings({ tx: 'RENT' }),
+  ]);
 
   return (
     <div className="fade-up pb-12">

@@ -19,6 +19,11 @@ import {
   DropdownContent,
 } from '@/components/ui/dropdown';
 import { cn } from '@/lib/utils';
+import { useAppSelector } from '@/store/hooks';
+import { selectIsAuthenticated } from '@/store/slices/authSlice';
+import { useCreateSavedSearchMutation } from '@/store/api/savedSearchesApi';
+import { describeFilters, type SavedSearchFilters } from '@/lib/savedSearch';
+import { getApiError } from '@/store/api/apiError';
 import {
   PROPERTY_TYPE_LABELS,
   type District,
@@ -91,6 +96,31 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     : 'Комнаты';
   const typeLabel = values.type ? PROPERTY_TYPE_LABELS[values.type] : 'Тип жилья';
   const districtLabel = values.district || 'Район';
+
+  // ─── Сохранить поиск ──────────────────────────────────────────────────────
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const [createSavedSearch, { isLoading: isSaving, isSuccess: isSaved, error: saveError }] =
+    useCreateSavedSearchMutation();
+
+  /** Собирает внутренний объект фильтров (param-имена GET /search). */
+  const buildFilters = React.useCallback((): SavedSearchFilters => {
+    const filters: SavedSearchFilters = { transaction_type: values.tx };
+    if (values.type) filters.property_type = values.type;
+    if (values.priceMin) filters.price_min = values.priceMin;
+    if (values.priceMax) filters.price_max = values.priceMax;
+    if (values.rooms != null) filters.rooms = values.rooms;
+    if (values.query) filters.q = values.query;
+    return filters;
+  }, [values]);
+
+  const handleSaveSearch = React.useCallback(() => {
+    if (!isAuthenticated || isSaving) return;
+    const filters = buildFilters();
+    const name = describeFilters(filters) || 'Мой поиск';
+    void createSavedSearch({ name, filters });
+  }, [isAuthenticated, isSaving, buildFilters, createSavedSearch]);
+
+  const saveApiError = getApiError(saveError);
 
   return (
     <div className="sticky top-[var(--header-h)] z-20 border-b border-border bg-surface">
@@ -267,13 +297,32 @@ export function FilterBar({ values, districts }: FilterBarProps) {
             <option value="date_desc">Сначала новые</option>
           </select>
 
-          {/* Сохранить поиск (мок) */}
-          <button
-            type="button"
-            className="inline-flex flex-shrink-0 items-center gap-2 rounded-pill border-[1.5px] border-border bg-surface px-4 py-[9px] text-sm font-bold text-teal transition-colors hover:border-teal"
-          >
-            <Bell size={16} strokeWidth={1.9} /> Сохранить поиск
-          </button>
+          {/* Сохранить поиск — только для авторизованных (POST /saved-searches). */}
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={handleSaveSearch}
+              disabled={isSaving}
+              title={saveApiError?.message}
+              className={cn(
+                'inline-flex flex-shrink-0 items-center gap-2 rounded-pill border-[1.5px] px-4 py-[9px] text-sm font-bold transition-colors disabled:opacity-60',
+                isSaved
+                  ? 'border-teal bg-mint text-teal'
+                  : saveApiError
+                    ? 'border-red-300 bg-surface text-red-600'
+                    : 'border-border bg-surface text-teal hover:border-teal',
+              )}
+            >
+              <Bell size={16} strokeWidth={1.9} />
+              {isSaving
+                ? 'Сохраняем…'
+                : isSaved
+                  ? 'Сохранено'
+                  : saveApiError
+                    ? 'Ошибка'
+                    : 'Сохранить поиск'}
+            </button>
+          )}
 
           {/* Переключатель Список / Карта — только на мобайле (десктоп — сплит). */}
           <div className="ml-auto flex-shrink-0 lg:hidden">
