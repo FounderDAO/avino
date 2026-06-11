@@ -1,12 +1,31 @@
 /**
- * Settings — вкладка «Настройки» (мок).
- * Язык и валюта чипами + тумблеры уведомлений. Состояние локальное, не сохраняется.
+ * Settings — вкладка «Настройки».
+ * Язык интерфейса синхронизируется с бэком (PATCH /users/me + /users/me/profile).
+ * Валюта и тумблеры уведомлений — пока локальное состояние: для них нет
+ * контракта на бэке (см. TODO ниже).
  */
 'use client';
 
 import * as React from 'react';
 import { Pill } from '@/components/ui/pill';
 import { cn } from '@/lib/utils';
+import { useAppSelector } from '@/store/hooks';
+import {
+  selectCurrentUser,
+  selectIsAuthenticated,
+} from '@/store/slices/authSlice';
+import type { Language } from '@/store/api/authApi';
+import {
+  useUpdateProfileMutation,
+  useUpdateUserMutation,
+} from '@/store/api/usersApi';
+import { getApiError } from '@/store/api/apiError';
+
+type LangChip = 'ru' | 'uz' | 'en';
+const LANG_UPPER: Record<LangChip, Language> = { ru: 'RU', uz: 'UZ', en: 'EN' };
+function toChip(lang: Language | undefined): LangChip {
+  return lang ? (lang.toLowerCase() as LangChip) : 'ru';
+}
 
 /** Простой тумблер (мок). */
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -46,8 +65,18 @@ const NOTIF_SETTINGS: NotifSetting[] = [
 ];
 
 export function Settings() {
-  const [lang, setLang] = React.useState<'ru' | 'uz' | 'en'>('ru');
+  const isAuthed = useAppSelector(selectIsAuthenticated);
+  const user = useAppSelector(selectCurrentUser);
+
+  const [updateProfile] = useUpdateProfileMutation();
+  const [updateUser, userState] = useUpdateUserMutation();
+
+  const [lang, setLang] = React.useState<LangChip>('ru');
+  const [langError, setLangError] = React.useState<string | null>(null);
+
+  // TODO(no-backend: currency-pref) — нет контракта, держим локально.
   const [currency, setCurrency] = React.useState<'UZS' | 'USD'>('USD');
+  // TODO(no-backend: notification-prefs) — нет контракта, держим локально.
   const [notifs, setNotifs] = React.useState<Record<string, boolean>>({
     searches: true,
     messages: true,
@@ -55,6 +84,27 @@ export function Settings() {
     promo: false,
   });
   const toggle = (k: string) => setNotifs((p) => ({ ...p, [k]: !p[k] }));
+
+  // Гидрация языка из текущего пользователя.
+  React.useEffect(() => {
+    if (user) setLang(toChip(user.default_language));
+  }, [user]);
+
+  const onLang = async (next: LangChip) => {
+    if (next === lang) return;
+    const prev = lang;
+    setLang(next);
+    setLangError(null);
+    const nextLang = LANG_UPPER[next];
+    try {
+      await updateUser({ default_language: nextLang }).unwrap();
+      await updateProfile({ preferred_language: nextLang }).unwrap();
+    } catch (err) {
+      setLang(prev); // откат при ошибке
+      const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);
+      setLangError(apiErr?.message ?? 'Не удалось сменить язык. Попробуйте ещё раз.');
+    }
+  };
 
   return (
     <div className="max-w-[640px]">
@@ -75,11 +125,24 @@ export function Settings() {
                   ['en', 'English'],
                 ] as const
               ).map(([k, v]) => (
-                <Pill key={k} active={lang === k} onClick={() => setLang(k)}>
+                <Pill
+                  key={k}
+                  active={lang === k}
+                  disabled={!isAuthed || userState.isLoading}
+                  onClick={() => onLang(k)}
+                >
                   {v}
                 </Pill>
               ))}
             </div>
+            {!isAuthed && (
+              <p className="mt-1.5 text-[13px] text-muted-foreground">
+                Войдите, чтобы сохранять язык интерфейса.
+              </p>
+            )}
+            {langError && (
+              <p className="mt-1.5 text-[13px] font-semibold text-red">{langError}</p>
+            )}
           </div>
 
           <div>
