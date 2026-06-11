@@ -11,6 +11,14 @@
 
 import { useReducer, useState } from 'react';
 import Link from 'next/link';
+import { useAppSelector } from '@/store/hooks';
+import { selectIsAuthenticated } from '@/store/slices/authSlice';
+import {
+  useCreateListingMutation,
+  useUploadListingMediaMutation,
+  type CreateListingBody,
+} from '@/store/api/createListingApi';
+import { getApiError } from '@/store/api/apiError';
 import {
   Building,
   Check,
@@ -150,6 +158,90 @@ export function ListingNew() {
   // У участка/коммерции нет комнат/этажей.
   const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
 
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const [createListing, { isLoading: creating, error: createError }] =
+    useCreateListingMutation();
+  const [uploadMedia, { isLoading: uploading }] = useUploadListingMediaMutation();
+  const submitting = creating || uploading;
+
+  // Сообщение об ошибке вне error-envelope (гость / частичный сбой медиа).
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  // Сколько фото не загрузилось (объявление при этом создано).
+  const [mediaFailures, setMediaFailures] = useState(0);
+
+  const apiError = getApiError(createError);
+
+  /** Очистить «сырое» число от пробелов/разделителей → decimal-строка. */
+  const cleanPrice = (raw: string): string => raw.replace(/[^\d.]/g, '');
+
+  /** Собрать тело POST /listings из FormState. */
+  const buildBody = (): CreateListingBody => {
+    const body: CreateListingBody = {
+      transaction_type: f.tx,
+      property_type: f.type,
+      original_language: f.lang,
+      price: cleanPrice(f.price),
+      currency: f.currency,
+      translation: {
+        title: f.title.trim(),
+        description: f.desc.trim() || undefined,
+        // Адрес — это введённый текст с районом, без resolvable uuid (geo-gap).
+        // Складываем в address_note как человекочитаемую подсказку.
+        address_note: f.address.trim() || undefined,
+      },
+    };
+
+    if (f.area) body.area = f.area;
+    if (!noRooms) {
+      if (f.rooms) {
+        // rooms — int; "Студия"/"5+" нормализуем (студия → 0, 5+ → 5).
+        const n =
+          f.rooms === 'Студия' ? 0 : Number.parseInt(f.rooms, 10);
+        if (Number.isFinite(n)) body.rooms = n;
+      }
+      if (f.floor) body.floor = Number.parseInt(f.floor, 10);
+      if (f.totalFloors) body.total_floors = Number.parseInt(f.totalFloors, 10);
+    }
+    if (f.year) body.year_built = Number.parseInt(f.year, 10);
+    if (f.address.trim()) body.address = f.address.trim();
+    if (f.coords) {
+      body.latitude = String(f.coords[0]);
+      body.longitude = String(f.coords[1]);
+    }
+    // name/phone — контакт владельца, не часть create-тела.
+    // TODO: опционально PATCH профиля contact_phone.
+    return body;
+  };
+
+  /** Реальная публикация: создать объявление → загрузить фото по одному. */
+  const handlePublish = async () => {
+    setSubmitError(null);
+    setMediaFailures(0);
+
+    if (!isAuthenticated) {
+      setSubmitError('Войдите, чтобы опубликовать объявление.');
+      return;
+    }
+
+    try {
+      const { id } = await createListing(buildBody()).unwrap();
+
+      let failures = 0;
+      for (const ph of f.photos) {
+        if (!ph.file) continue; // демо-фото без File пропускаем
+        try {
+          await uploadMedia({ listingId: id, file: ph.file }).unwrap();
+        } catch {
+          failures += 1;
+        }
+      }
+      setMediaFailures(failures);
+      setDone(true);
+    } catch {
+      // Ошибка создания — error-envelope покажется через apiError.
+    }
+  };
+
   /** Простая клиентская валидация: можно ли перейти дальше с текущего шага. */
   const canNext = (): boolean => {
     switch (step) {
@@ -190,12 +282,19 @@ export function ListingNew() {
           </span>
         </div>
         <p className="mx-auto mb-7 max-w-[460px] text-base text-muted-foreground">
-          Модератор проверит «{f.title}» обычно в течение нескольких часов. После одобрения оно
-          станет активным и появится в поиске. Автоперевод на другие языки выполнится автоматически.
+          Объявление «{f.title}» отправлено на модерацию. Модератор проверит его обычно в течение
+          нескольких часов. После одобрения оно станет активным и появится в поиске. Автоперевод на
+          другие языки выполнится автоматически.
         </p>
+        {mediaFailures > 0 && (
+          <p className="mx-auto mb-6 max-w-[460px] rounded-input bg-red/5 px-4 py-3 text-[13.5px] text-red">
+            Не удалось загрузить {mediaFailures} фото. Объявление создано — вы сможете добавить фото
+            позже в личном кабинете.
+          </p>
+        )}
         <div className="flex flex-wrap justify-center gap-3">
           <Button asChild size="lg">
-            <Link href="/sell">К размещению</Link>
+            <Link href="/account/listings">Мои объявления</Link>
           </Button>
           <Button asChild size="lg" variant="outline">
             <Link href="/">На главную</Link>
@@ -480,6 +579,18 @@ export function ListingNew() {
         )}
       </div>
 
+      {/* Ошибки публикации (валидация 400 / доступ 403 / гость / прочее) */}
+      {step === TOTAL && (apiError || submitError) && (
+        <p className="mt-4 rounded-input bg-red/5 px-4 py-3 text-[13.5px] text-red">
+          {apiError?.message ?? submitError}
+        </p>
+      )}
+      {step === TOTAL && !isAuthenticated && !submitError && !apiError && (
+        <p className="mt-4 rounded-input bg-surface-2 px-4 py-3 text-[13.5px] text-muted-foreground">
+          Чтобы опубликовать объявление, войдите в аккаунт (кнопка входа — в шапке).
+        </p>
+      )}
+
       {/* Навигация по шагам */}
       <div className="mt-5 flex justify-between">
         <Button
@@ -495,8 +606,8 @@ export function ListingNew() {
             Далее <ChevronRight size={18} />
           </Button>
         ) : (
-          <Button type="button" onClick={() => setDone(true)}>
-            Опубликовать
+          <Button type="button" disabled={submitting} onClick={handlePublish}>
+            {submitting ? 'Публикуем…' : 'Опубликовать'}
           </Button>
         )}
       </div>
