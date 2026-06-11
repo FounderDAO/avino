@@ -37,6 +37,64 @@ Related ADR:
 
 ---
 
+## 2026-06-12
+
+### TASK-193 — Подключение публичного портала к реальному API (mock → backend)
+
+Status: DONE
+Branch: feat/client-api-wiring
+PR: https://github.com/FounderDAO/avino/pull/125 (#125, merged)
+
+Files changed:
+- apps/client/src/store/api/baseQuery.ts (Bearer + single-flight refresh-ротация)
+- apps/client/src/store/api/authApi.ts, apps/client/src/store/api/apiError.ts
+- apps/client/src/store/slices/authSlice.ts, apps/client/src/store/store.ts
+- apps/client/src/components/layout/LoginModal.tsx, Header.tsx
+- apps/client/src/components/SessionBootstrap.tsx, src/store/StoreProvider.tsx
+- apps/client/src/lib/api/listings.ts (SSR fetch + mapListing + graceful degradation)
+- apps/client/src/lib/format.ts (formatRelativeDate), src/lib/savedSearch.ts
+- apps/client/src/app/page.tsx, src/app/search/page.tsx, src/app/listing/[id]/page.tsx
+- apps/client/src/store/api/{favoritesApi,savedSearchesApi,myListingsApi,notificationsApi,chatApi,usersApi,createListingApi,promotionsApi}.ts
+- apps/client/src/store/favorites.ts (auth-aware хуки)
+- apps/client/src/features/account/{Favorites,SavedSearches,MyListings,Notifications,Inbox,Profile,Settings}.tsx
+- apps/client/src/features/detail/{Detail,ContactCard}.tsx, src/features/search/FilterBar.tsx
+- apps/client/src/features/listing-new/{ListingNew,PhotoUploader}.tsx
+
+Summary:
+- Подключён весь публичный портал (`apps/client`) с мок-слоя к реальному `/api/v1`:
+  auth (OTP + Bearer/refresh-ротация), публичный поиск/листинги (SSR), favorites,
+  saved searches, my-listings, notifications, chat (polling), profile/settings,
+  создание объявления + загрузка медиа + промо-планы.
+- SEO-страницы (home/search/detail) тянут данные на сервере через `lib/api/listings.ts`
+  + маппер в UI-модель `Listing`; интерактив/защищённые операции — RTK Query поверх
+  `baseApi`. Auth-aware favorites-хуки (server при входе, localStorage у гостя).
+- Каждый эндпоинт live-проверен против локального стека реальным Bearer-токеном;
+  `tsc` 0 ошибок, `next build` 0/0. Списочные SSR-секции деградируют до пустого
+  при ошибке API (без 500 на всю страницу).
+- Задокументированы пробелы бэкенда (фронт корректен, помечено `// TODO`):
+  `/search` игнорирует q/rooms/sort/area/promotion_type; нет гео-справочника
+  (district uuid↔имя); контакт владельца не встроен в листинг; `features[]` не
+  отдаётся (берётся из `features_text`); `POST /listings` требует роль OWNER/AGENT;
+  dev-загрузка медиа требует `S3_*` конфиг.
+
+Commit messages:
+- feat(client): wire auth foundation to API (OTP + Bearer/refresh rotation)
+- feat(client): wire public search/listings to API (SSR data layer)
+- feat(client): wire OTP login UI + session bootstrap + auth-aware header
+- feat(client): wire favorites to API (auth-aware hooks + server list)
+- feat(client): wire saved searches to API (list/create/toggle/delete)
+- feat(client): wire my-listings tab to API (GET /listings/mine)
+- feat(client): wire notifications tab to API
+- feat(client): wire chat (Inbox) to API with polling
+- feat(client): wire profile + settings to API (users/me)
+- feat(client): wire create-listing flow + media upload + promo plans
+- feat(client): degrade SSR search sections to empty on API error
+
+Related ADR:
+- docs/adr/ADR-0062-client-api-integration-ssr-rtk-split.md
+
+---
+
 ## 2026-06-10
 
 ### C3-01..06 — Подключение редизайн-админки к реальному API (цикл 3)
