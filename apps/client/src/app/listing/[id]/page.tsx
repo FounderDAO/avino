@@ -5,7 +5,7 @@
  */
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getListingById } from '@/lib/mock';
+import { getListingById } from '@/lib/api/listings';
 import { formatPrice } from '@/lib/format';
 import { Detail } from '@/features/detail/Detail';
 
@@ -16,7 +16,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const listing = getListingById(id);
+  const listing = await getListingById(id);
   if (!listing) return { title: 'Объявление не найдено — Avino' };
   return {
     title: `${listing.title} — ${formatPrice(listing)} | Avino`,
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ListingPage({ params }: PageProps) {
   const { id } = await params;
-  const listing = getListingById(id);
+  const listing = await getListingById(id);
   if (!listing) notFound();
   return <Detail listing={listing} />;
 }

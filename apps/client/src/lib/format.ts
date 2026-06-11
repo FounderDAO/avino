@@ -98,3 +98,44 @@ export function propertyTypeLabel(type: PropertyType): string {
 export function isFresh(created: string): boolean {
   return /час|1 день|2 дня/.test(created);
 }
+
+/** Русская плюрализация: piece для (1, 2-4, 5+). */
+function plural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
+
+/**
+ * Относительная дата публикации на русском по ISO-строке: «только что»,
+ * «5 минут назад», «2 часа назад», «3 дня назад», «2 недели назад»,
+ * «4 месяца назад», «1 год назад». Невалидный/будущий ввод → «только что».
+ */
+export function formatRelativeDate(iso: string | null | undefined): string {
+  if (!iso) return 'только что';
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return 'только что';
+
+  const diffSec = Math.floor((Date.now() - then) / 1000);
+  if (diffSec < 60) return 'только что';
+
+  const min = Math.floor(diffSec / 60);
+  if (min < 60) return `${min} ${plural(min, 'минуту', 'минуты', 'минут')} назад`;
+
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour} ${plural(hour, 'час', 'часа', 'часов')} назад`;
+
+  const day = Math.floor(hour / 24);
+  if (day < 7) return `${day} ${plural(day, 'день', 'дня', 'дней')} назад`;
+
+  const week = Math.floor(day / 7);
+  if (day < 30) return `${week} ${plural(week, 'неделю', 'недели', 'недель')} назад`;
+
+  const month = Math.floor(day / 30);
+  if (month < 12) return `${month} ${plural(month, 'месяц', 'месяца', 'месяцев')} назад`;
+
+  const year = Math.floor(day / 365);
+  return `${year} ${plural(year, 'год', 'года', 'лет')} назад`;
+}

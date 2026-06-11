@@ -6,7 +6,8 @@
  * Фильтры — единственный источник истины в URL, поэтому страница
  * пересобирается при каждом изменении query (FilterBar → router.replace).
  */
-import { getListings, getDistricts } from '@/lib/mock';
+import { getDistricts } from '@/lib/mock';
+import { searchListings } from '@/lib/api/listings';
 import type {
   ListingFilter,
   PropertyType,
@@ -78,9 +79,10 @@ export default async function SearchPage({
   const priceMin = priceMinRaw && Number.isFinite(Number(priceMinRaw)) ? Number(priceMinRaw) : undefined;
   const priceMax = priceMaxRaw && Number.isFinite(Number(priceMaxRaw)) ? Number(priceMaxRaw) : undefined;
 
-  // ----- Данные из моков -----
+  // ----- Данные из реального API (district пока на бэк не уходит, см.
+  // TODO(geo-reference) в lib/api/listings) -----
   const filter: ListingFilter = { tx, type, district, rooms, priceMin, priceMax, query, sort };
-  const listings = getListings(filter);
+  const listings = await searchListings(filter);
   const districts = getDistricts();
 
   // Значения для FilterBar (цена — строкой, как в инпутах).
