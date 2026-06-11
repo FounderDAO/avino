@@ -4,7 +4,7 @@
  * красно-тёмным градиентом, белый дисплейный заголовок «Недвижимость
  * Узбекистана в одном месте», подзаголовок и поисковая панель поверх.
  * 'use client' — форма интерактивна (сегмент Купить/Снять, локация, тип),
- * по «Найти» ведёт на /search?tx=...&type=...&q=... через useRouter.
+ * по «Найти» ведёт на /search?tx=...&type=...&query=... через useRouter.
  */
 'use client';
 
@@ -33,7 +33,7 @@ function SearchPanel() {
     // Собираем query-строку для выдачи /search.
     const params = new URLSearchParams({ tx });
     if (type) params.set('type', type);
-    if (loc.trim()) params.set('q', loc.trim());
+    if (loc.trim()) params.set('query', loc.trim());
     router.push(`/search?${params.toString()}`);
   };
 
