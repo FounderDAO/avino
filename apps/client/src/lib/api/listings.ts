@@ -260,6 +260,21 @@ function toApiSort(sort: SortOption | undefined): string | undefined {
   return sort;
 }
 
+/**
+ * Безопасная выдача поиска: при ошибке API (5xx/4xx/сеть) секция деградирует
+ * до пустого списка вместо краха всей SSR-страницы. Ошибка логируется на
+ * сервере. Для одиночного листинга используется fetchOrNull (404 → null).
+ */
+async function safeSearch(path: string): Promise<Listing[]> {
+  try {
+    const env = await apiFetch<SearchEnvelope>(path);
+    return env.data.map(mapListing);
+  } catch (err) {
+    console.error(`[listings] search failed, degrading to empty: ${path}`, err);
+    return [];
+  }
+}
+
 // ─── Публичные селекторы (контракт мок-слоя) ───
 
 /**
@@ -283,8 +298,7 @@ export async function searchListings(
   // TODO(geo-reference): filter.district (имя) не маппится в district_id-uuid.
   params.set('limit', String(limit));
 
-  const env = await apiFetch<SearchEnvelope>(`/search?${params.toString()}`);
-  return env.data.map(mapListing);
+  return safeSearch(`/search?${params.toString()}`);
 }
 
 /** Рекомендованные (промо-приоритет) для главной. GET /search. */
@@ -293,8 +307,7 @@ export async function getFeaturedListings(limit = 6): Promise<Listing[]> {
     sort: 'promotion_priority_desc',
     limit: String(limit),
   });
-  const env = await apiFetch<SearchEnvelope>(`/search?${params.toString()}`);
-  return env.data.map(mapListing);
+  return safeSearch(`/search?${params.toString()}`);
 }
 
 /** Один листинг по id. GET /listings/:id (404 → null). */
@@ -319,9 +332,6 @@ export async function getSimilarListings(
     // +1, чтобы после фильтрации текущего id осталось достаточно.
     limit: String(limit + 1),
   });
-  const env = await apiFetch<SearchEnvelope>(`/search?${params.toString()}`);
-  return env.data
-    .filter((item) => item.id !== listing.id)
-    .slice(0, limit)
-    .map(mapListing);
+  const similar = await safeSearch(`/search?${params.toString()}`);
+  return similar.filter((item) => item.id !== listing.id).slice(0, limit);
 }
