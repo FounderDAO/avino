@@ -93,6 +93,42 @@ Commit messages:
 Related ADR:
 - docs/adr/ADR-0062-client-api-integration-ssr-rtk-split.md
 
+### TASK-191 — Client home hero & search bar
+
+Status: DONE
+Branch: feat/client-home-hero
+PR: https://github.com/FounderDAO/avino/pull/127 (#127)
+
+Files changed:
+- apps/client/src/features/home/Hero.tsx
+
+Summary:
+- Закрытие TASK-191 по факту аудита: основной объём задачи уже был доставлен
+  ранее — hero с поисковой панелью (фото-фон + оверлей, дисплейный заголовок,
+  сегмент Купить/Снять, локация, тип жилья, кнопка «Найти» в primary-red
+  ADR-0060, mobile-стек) пришёл с редизайном `apps/client` (поток
+  TASK-190..192), а вызов `GET /api/v1/search` выполняется SSR-слоем
+  `lib/api/listings.ts` (ADR-0062, гибрид SSR/RTK) — отдельный клиентский
+  `searchApi` из старой итерации (ADR-0061) в новом портале не используется.
+- В этом PR исправлен реальный пробел: Hero отправлял текст локации в `?q=`,
+  тогда как `/search` и FilterBar используют канонический параметр `?query=` —
+  запрос из hero молча терялся на выдаче. Параметр выровнен.
+- Проверки: `tsc --noEmit` 0 ошибок, `next build` успешен (8/8 страниц;
+  build-time лог «search degrading to empty» ожидаем — API недоступен при
+  сборке, см. ADR-0062).
+- Известное ограничение: критерий i18n-ready (uz/ru/en) не выполнен — портал
+  целиком RU-only, как и админка (там i18n отложен в ADMIN-17); требует
+  отдельной задачи уровня всего `apps/client` по решению Team Lead.
+- Бэкенд пока игнорирует `q` в `GET /search` (задокументировано в TASK-193 /
+  ADR-0062) — фронт отправляет параметр forward-compatible.
+
+Commit messages:
+- fix(client): send hero search text as query param
+
+Related ADR:
+- docs/adr/ADR-0060-client-color-palette.md
+- docs/adr/ADR-0062-client-api-integration-ssr-rtk-split.md
+
 ---
 
 ## 2026-06-10
