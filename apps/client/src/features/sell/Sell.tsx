@@ -4,6 +4,7 @@
  * Секции: Hero, «Как продавать» (пути), «Как это работает» (шаги),
  * продвижение (TOP/VIP — мок-тарифы), FAQ, финальный CTA.
  */
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { Building, Home as HomeIcon, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,31 +49,20 @@ function Path({
   );
 }
 
-/** Шаги «как продать на Avino». */
-const STEPS: [string, string][] = [
-  ['Разместите объявление', 'Заполните форму за пару минут: фото, цена, адрес на карте.'],
-  ['Пройдите модерацию', 'Мы проверим объявление и опубликуем его на всех языках.'],
-  ['Получайте отклики', 'Покупатели пишут в чат и звонят вам напрямую.'],
-  ['Закройте сделку', 'Договоритесь об условиях и проведите безопасную сделку.'],
-];
+/** Метрики hero-блока (значение/подпись — в словаре `sell.hero.stats`). */
+const STAT_KEYS = ['free', 'langs', 'buyers'] as const;
+
+/** Шаги «как продать на Avino» (тексты — в словаре `sell.how.steps`). */
+const STEP_KEYS = ['post', 'moderation', 'replies', 'deal'] as const;
 
 /** Мок-тарифы продвижения (NORMAL — бесплатно, TOP/VIP — платные). */
-const PROMOS: { tier: string; text: string; price: string; color: string }[] = [
-  {
-    tier: 'TOP',
-    text: 'Выше обычных объявлений в списке выдачи',
-    price: 'от 50 000 сум',
-    color: 'text-[#ff9ca0]',
-  },
-  {
-    tier: 'VIP',
-    text: 'Премиальный бейдж и максимальный охват',
-    price: 'от 120 000 сум',
-    color: 'text-[#E8C07A]',
-  },
+const PROMOS: { tier: string; key: 'top' | 'vip'; color: string }[] = [
+  { tier: 'TOP', key: 'top', color: 'text-[#ff9ca0]' },
+  { tier: 'VIP', key: 'vip', color: 'text-[#E8C07A]' },
 ];
 
 export function Sell() {
+  const t = useTranslations('sell');
   return (
     <div className="fade-up">
       {/* Hero */}
@@ -80,32 +70,31 @@ export function Sell() {
         <div className="mx-auto grid max-w-[1180px] grid-cols-1 items-center gap-12 px-6 lg:grid-cols-[1.1fr_1fr]">
           <div>
             <span className="inline-block rounded-pill bg-mint px-[14px] py-1.5 text-[13px] font-bold text-teal-deep">
-              Бесплатное размещение
+              {t('hero.badge')}
             </span>
             <h1 className="display mt-4 text-[clamp(38px,5vw,60px)]">
-              Продайте или сдайте жильё <span className="text-red">выгодно</span>
+              {t.rich('hero.title', {
+                accent: (chunks) => <span className="text-red">{chunks}</span>,
+              })}
             </h1>
             <p className="my-[18px] mb-7 max-w-[470px] text-lg text-muted-foreground">
-              Разместите объявление на крупнейшем портале недвижимости Узбекистана и общайтесь
-              с покупателями напрямую.
+              {t('hero.subtitle')}
             </p>
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg">
-                <Link href="/sell/new">Разместить объявление</Link>
+                <Link href="/sell/new">{t('hero.ctaPost')}</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <a href="#how">Как это работает</a>
+                <a href="#how">{t('hero.ctaHow')}</a>
               </Button>
             </div>
             <div className="mt-8 flex gap-6">
-              {[
-                ['Бесплатно', 'базовое размещение'],
-                ['3 языка', 'автоперевод'],
-                ['12 000+', 'покупателей в день'],
-              ].map(([a, b]) => (
-                <div key={a}>
-                  <div className="text-xl font-extrabold">{a}</div>
-                  <div className="text-[12.5px] text-muted-foreground">{b}</div>
+              {STAT_KEYS.map((k) => (
+                <div key={k}>
+                  <div className="text-xl font-extrabold">{t(`hero.stats.${k}.value`)}</div>
+                  <div className="text-[12.5px] text-muted-foreground">
+                    {t(`hero.stats.${k}.label`)}
+                  </div>
                 </div>
               ))}
             </div>
@@ -118,31 +107,29 @@ export function Sell() {
 
       {/* Пути продажи */}
       <section className="mx-auto max-w-[1180px] px-6 pt-4">
-        <h2 className="text-center text-3xl">Выберите, как продавать</h2>
-        <p className="mb-7 mt-1.5 text-center text-muted-foreground">
-          Полный контроль или помощь профессионала — решать вам.
-        </p>
+        <h2 className="text-center text-3xl">{t('paths.title')}</h2>
+        <p className="mb-7 mt-1.5 text-center text-muted-foreground">{t('paths.subtitle')}</p>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           <Path
             accent
             icon={HomeIcon}
-            title="Разместить самостоятельно"
-            text="Бесплатная публикация, прямые контакты с покупателями и полный контроль над объявлением."
-            cta="Разместить бесплатно"
+            title={t('paths.self.title')}
+            text={t('paths.self.text')}
+            cta={t('paths.self.cta')}
             href="/sell/new"
           />
           <Path
             icon={User}
-            title="Продать с агентом Avino Pro"
-            text="Профессионал возьмёт на себя показы, переговоры и оформление. Вы экономите время."
-            cta="Найти агента"
+            title={t('paths.agent.title')}
+            text={t('paths.agent.text')}
+            cta={t('paths.agent.cta')}
             href="/sell/new"
           />
           <Path
             icon={Building}
-            title="Сдать в аренду"
-            text="Найдите надёжного арендатора быстро — разместите объект и общайтесь в чате."
-            cta="Разместить аренду"
+            title={t('paths.rent.title')}
+            text={t('paths.rent.text')}
+            cta={t('paths.rent.cta')}
             href="/sell/new"
           />
         </div>
@@ -150,15 +137,17 @@ export function Sell() {
 
       {/* Как это работает */}
       <section id="how" className="mx-auto max-w-[1180px] scroll-mt-24 px-6 pt-16">
-        <h2 className="mb-8 text-center text-3xl">Как продать на Avino</h2>
+        <h2 className="mb-8 text-center text-3xl">{t('how.title')}</h2>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map(([t, d], i) => (
-            <div key={t} className="relative">
+          {STEP_KEYS.map((k, i) => (
+            <div key={k} className="relative">
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-red text-lg font-extrabold text-white">
                 {i + 1}
               </span>
-              <h3 className="mt-3.5 text-lg">{t}</h3>
-              <p className="mt-1.5 text-[14.5px] leading-[1.55] text-muted-foreground">{d}</p>
+              <h3 className="mt-3.5 text-lg">{t(`how.steps.${k}.title`)}</h3>
+              <p className="mt-1.5 text-[14.5px] leading-[1.55] text-muted-foreground">
+                {t(`how.steps.${k}.text`)}
+              </p>
             </div>
           ))}
         </div>
@@ -169,12 +158,10 @@ export function Sell() {
         <div className="rounded-feature bg-ink px-6 py-10 text-white sm:px-12 sm:py-11">
           <div className="mb-6">
             <span className="inline-block rounded-pill bg-red/20 px-[14px] py-1.5 text-[13px] font-bold text-[#ff9ca0]">
-              Продвижение
+              {t('promo.badge')}
             </span>
-            <h2 className="mt-3.5 text-[32px] text-white">Продавайте быстрее с TOP и VIP</h2>
-            <p className="mt-2 max-w-[460px] text-base text-white/70">
-              Поднимите объявление выше в выдаче и получите до 5× больше просмотров.
-            </p>
+            <h2 className="mt-3.5 text-[32px] text-white">{t('promo.title')}</h2>
+            <p className="mt-2 max-w-[460px] text-base text-white/70">{t('promo.subtitle')}</p>
           </div>
           <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2">
             {PROMOS.map((p) => (
@@ -184,30 +171,30 @@ export function Sell() {
               >
                 <div className="flex items-center justify-between">
                   <span className={'text-[22px] font-extrabold ' + p.color}>{p.tier}</span>
-                  <span className="text-base font-bold">{p.price}</span>
+                  <span className="text-base font-bold">{t(`promo.${p.key}.price`)}</span>
                 </div>
-                <p className="mt-2.5 text-[14.5px] text-white/70">{p.text}</p>
+                <p className="mt-2.5 text-[14.5px] text-white/70">{t(`promo.${p.key}.text`)}</p>
               </div>
             ))}
           </div>
           <Button asChild size="lg" className="mt-6">
-            <Link href="/sell/new">Разместить и продвинуть</Link>
+            <Link href="/sell/new">{t('promo.cta')}</Link>
           </Button>
         </div>
       </section>
 
       {/* FAQ */}
       <section className="mx-auto max-w-[820px] px-6 pt-16">
-        <h2 className="mb-5 text-3xl">Частые вопросы</h2>
+        <h2 className="mb-5 text-3xl">{t('faq.title')}</h2>
         <SellFaq />
       </section>
 
       {/* Финальный CTA */}
       <section className="mx-auto max-w-[1180px] px-6 pb-6 pt-14 text-center">
-        <h2 className="mx-auto max-w-[560px] text-[32px]">Готовы разместить объявление?</h2>
-        <p className="mt-2.5 text-[17px] text-muted-foreground">Это займёт всего пару минут.</p>
+        <h2 className="mx-auto max-w-[560px] text-[32px]">{t('finalCta.title')}</h2>
+        <p className="mt-2.5 text-[17px] text-muted-foreground">{t('finalCta.subtitle')}</p>
         <Button asChild size="lg" className="mt-5">
-          <Link href="/sell/new">Разместить бесплатно</Link>
+          <Link href="/sell/new">{t('finalCta.cta')}</Link>
         </Button>
       </section>
     </div>

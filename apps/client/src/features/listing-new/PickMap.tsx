@@ -7,6 +7,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { MapPin } from 'lucide-react';
 
 /** Координаты [lat, lng]. */
@@ -29,6 +30,7 @@ function project(fx: number, fy: number): Coords {
 }
 
 export function PickMap({ value, onChange }: PickMapProps) {
+  const t = useTranslations('listingNew');
   const boxRef = useRef<HTMLDivElement>(null);
   // Позиция маркера в долях [0..1] — для отрисовки. null до первого клика.
   const [pos, setPos] = useState<{ x: number; y: number } | null>(value ? { x: 0.5, y: 0.5 } : null);
@@ -82,7 +84,7 @@ export function PickMap({ value, onChange }: PickMapProps) {
         {pos && (
           <button
             type="button"
-            aria-label="Точка объекта"
+            aria-label={t('map.marker')}
             onPointerDown={(e) => {
               e.stopPropagation();
               dragging.current = true;
@@ -98,7 +100,7 @@ export function PickMap({ value, onChange }: PickMapProps) {
         {!pos && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <span className="rounded-pill bg-surface/90 px-3.5 py-1.5 text-[13px] font-semibold text-ink shadow-card">
-              Кликните на карте, чтобы поставить точку
+              {t('map.clickToPlace')}
             </span>
           </div>
         )}
@@ -106,10 +108,13 @@ export function PickMap({ value, onChange }: PickMapProps) {
       <p className="mt-2 text-[13px] text-muted-foreground">
         {value ? (
           <>
-            Точка на карте: <b className="text-ink">{value[0]}, {value[1]}</b>
+            {t('map.pointLabel')}{' '}
+            <b className="text-ink">
+              {value[0]}, {value[1]}
+            </b>
           </>
         ) : (
-          'Кликните на карте, чтобы поставить точку объекта (координаты берутся только с карты).'
+          t('map.helpEmpty')
         )}
       </p>
     </div>

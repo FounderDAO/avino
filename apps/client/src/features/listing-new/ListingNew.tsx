@@ -46,18 +46,21 @@ import { Progress } from './Progress';
 import { PickMap, type Coords } from './PickMap';
 import { PhotoUploader, type UploadPhoto } from './PhotoUploader';
 
-/** Подписи шагов прогресс-бара. */
+/** Шаги прогресс-бара (подписи — в словаре `listingNew.steps`). */
 const STEPS = [
-  'Тип',
-  'Адрес',
-  'Параметры',
-  'Цена',
-  'Фото',
-  'Описание',
-  'Контакты',
-  'Превью',
+  'type',
+  'address',
+  'params',
+  'price',
+  'photos',
+  'description',
+  'contacts',
+  'preview',
 ] as const;
 const TOTAL = STEPS.length;
+
+/** Варианты «количество комнат» ('studio' — код студии в стейте). */
+const ROOM_OPTIONS = ['studio', '1', '2', '3', '4', '5+'] as const;
 
 /** Язык оригинала объявления. */
 type Lang = 'RU' | 'UZ' | 'EN';
@@ -150,6 +153,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function ListingNew() {
+  const t = useTranslations('listingNew');
   const tUnits = useTranslations('units');
   const tEnums = useTranslations('enums');
   const [step, setStep] = useState(1);
@@ -199,7 +203,7 @@ export function ListingNew() {
       if (f.rooms) {
         // rooms — int; "Студия"/"5+" нормализуем (студия → 0, 5+ → 5).
         const n =
-          f.rooms === 'Студия' ? 0 : Number.parseInt(f.rooms, 10);
+          f.rooms === 'studio' ? 0 : Number.parseInt(f.rooms, 10);
         if (Number.isFinite(n)) body.rooms = n;
       }
       if (f.floor) body.floor = Number.parseInt(f.floor, 10);
@@ -222,7 +226,7 @@ export function ListingNew() {
     setMediaFailures(0);
 
     if (!isAuthenticated) {
-      setSubmitError('Войдите, чтобы опубликовать объявление.');
+      setSubmitError(t('errors.loginRequired'));
       return;
     }
 
@@ -274,33 +278,26 @@ export function ListingNew() {
         <div className="mx-auto mb-5 flex h-21 w-21 items-center justify-center rounded-full bg-green-bg text-green">
           <Check size={42} strokeWidth={2.4} />
         </div>
-        <h1 className="text-[34px]">
-          Объявление отправлено
-          <br />
-          на модерацию
-        </h1>
+        <h1 className="whitespace-pre-line text-[34px]">{t('success.title')}</h1>
         <div className="my-4 flex justify-center">
           <span className="rounded-badge bg-green-bg px-3 py-1.5 text-[12.5px] font-semibold text-green">
-            Статус: NEW · На проверке
+            {t('success.status')}
           </span>
         </div>
         <p className="mx-auto mb-7 max-w-[460px] text-base text-muted-foreground">
-          Объявление «{f.title}» отправлено на модерацию. Модератор проверит его обычно в течение
-          нескольких часов. После одобрения оно станет активным и появится в поиске. Автоперевод на
-          другие языки выполнится автоматически.
+          {t('success.body', { title: f.title })}
         </p>
         {mediaFailures > 0 && (
           <p className="mx-auto mb-6 max-w-[460px] rounded-input bg-red/5 px-4 py-3 text-[13.5px] text-red">
-            Не удалось загрузить {mediaFailures} фото. Объявление создано — вы сможете добавить фото
-            позже в личном кабинете.
+            {t('success.mediaFailures', { count: mediaFailures })}
           </p>
         )}
         <div className="flex flex-wrap justify-center gap-3">
           <Button asChild size="lg">
-            <Link href="/account/listings">Мои объявления</Link>
+            <Link href="/account/listings">{t('success.myListings')}</Link>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <Link href="/">На главную</Link>
+            <Link href="/">{t('success.home')}</Link>
           </Button>
         </div>
       </div>
@@ -313,29 +310,29 @@ export function ListingNew() {
         href="/sell"
         className="mb-4 inline-flex items-center gap-2 text-[14.5px] font-bold text-teal hover:text-teal-deep"
       >
-        <ChevronLeft size={18} /> Отмена
+        <ChevronLeft size={18} /> {t('cancel')}
       </Link>
-      <h1 className="mb-1.5 text-3xl">Разместить объявление</h1>
+      <h1 className="mb-1.5 text-3xl">{t('title')}</h1>
       <p className="mb-6 text-muted-foreground">
-        Шаг {step} из {TOTAL} · {STEPS[step - 1]}
+        {t('stepOf', { step, total: TOTAL })} · {t(`steps.${STEPS[step - 1]}`)}
       </p>
-      <Progress steps={[...STEPS]} step={step} />
+      <Progress steps={STEPS.map((k) => t(`steps.${k}`))} step={step} />
 
       <div className="rounded-card bg-surface p-[26px] shadow-card">
         {/* Шаг 1 — Тип сделки и недвижимости */}
         {step === 1 && (
           <div className="flex flex-col gap-5">
-            <FormField label="Тип сделки">
+            <FormField label={t('fields.txType')}>
               <Segment<TransactionType>
                 value={f.tx}
                 onChange={(v) => set('tx', v)}
                 options={[
-                  { value: 'SALE', label: 'Продажа' },
-                  { value: 'RENT', label: 'Аренда' },
+                  { value: 'SALE', label: tEnums('tx.SALE') },
+                  { value: 'RENT', label: tEnums('tx.RENT') },
                 ]}
               />
             </FormField>
-            <FormField label="Тип недвижимости">
+            <FormField label={t('fields.propertyType')}>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
                 {PROPERTY_TYPES.map((k) => {
                   const on = f.type === k;
@@ -367,14 +364,14 @@ export function ListingNew() {
         {/* Шаг 2 — Адрес и точка на карте */}
         {step === 2 && (
           <div className="flex flex-col gap-5">
-            <FormField label="Адрес" hint="Город, район, улица, дом">
+            <FormField label={t('fields.address.label')} hint={t('fields.address.hint')}>
               <Field
-                placeholder="Ташкент, Юнусабад, ул. Амира Темура 12"
+                placeholder={t('fields.address.placeholder')}
                 value={f.address}
                 onChange={(e) => set('address', e.target.value)}
               />
             </FormField>
-            <FormField label="Точка на карте">
+            <FormField label={t('fields.mapPoint')}>
               <PickMap value={f.coords} onChange={(c) => set('coords', c)} />
             </FormField>
           </div>
@@ -384,19 +381,19 @@ export function ListingNew() {
         {step === 3 && (
           <div className="flex flex-col gap-5">
             {!noRooms && (
-              <FormField label="Количество комнат">
+              <FormField label={t('fields.rooms.label')}>
                 <div className="flex flex-wrap gap-2">
-                  {['Студия', '1', '2', '3', '4', '5+'].map((r) => (
+                  {ROOM_OPTIONS.map((r) => (
                     <Chip key={r} active={f.rooms === r} onClick={() => set('rooms', r)}>
-                      {r}
+                      {r === 'studio' ? t('fields.rooms.studio') : r}
                     </Chip>
                   ))}
                 </div>
               </FormField>
             )}
-            <FormField label="Площадь, м²">
+            <FormField label={t('fields.area.label')}>
               <Field
-                placeholder="например, 78"
+                placeholder={t('fields.area.placeholder')}
                 inputMode="numeric"
                 value={f.area}
                 onChange={(e) => set('area', e.target.value.replace(/\D/g, ''))}
@@ -404,7 +401,7 @@ export function ListingNew() {
             </FormField>
             {!noRooms && (
               <div className="grid grid-cols-3 gap-3">
-                <FormField label="Этаж">
+                <FormField label={t('fields.floor')}>
                   <Field
                     placeholder="8"
                     inputMode="numeric"
@@ -412,7 +409,7 @@ export function ListingNew() {
                     onChange={(e) => set('floor', e.target.value.replace(/\D/g, ''))}
                   />
                 </FormField>
-                <FormField label="Этажность">
+                <FormField label={t('fields.totalFloors')}>
                   <Field
                     placeholder="10"
                     inputMode="numeric"
@@ -420,7 +417,7 @@ export function ListingNew() {
                     onChange={(e) => set('totalFloors', e.target.value.replace(/\D/g, ''))}
                   />
                 </FormField>
-                <FormField label="Год постройки">
+                <FormField label={t('fields.yearBuilt')}>
                   <Field
                     placeholder="2022"
                     inputMode="numeric"
@@ -436,19 +433,19 @@ export function ListingNew() {
         {/* Шаг 4 — Цена */}
         {step === 4 && (
           <div className="flex flex-col gap-5">
-            <FormField label="Валюта">
+            <FormField label={t('fields.currency')}>
               <Segment<Currency>
                 value={f.currency}
                 onChange={(v) => set('currency', v)}
                 options={[
-                  { value: 'USD', label: '$ USD' },
-                  { value: 'UZS', label: 'сум UZS' },
+                  { value: 'USD', label: t('fields.currencyUSD') },
+                  { value: 'UZS', label: t('fields.currencyUZS') },
                 ]}
               />
             </FormField>
             <FormField
-              label={f.tx === 'RENT' ? 'Цена за месяц' : 'Цена'}
-              hint="Указывайте реальную цену — это влияет на доверие покупателей."
+              label={f.tx === 'RENT' ? t('fields.price.labelRent') : t('fields.price.label')}
+              hint={t('fields.price.hint')}
             >
               <div className="relative">
                 <Field
@@ -459,7 +456,7 @@ export function ListingNew() {
                   onChange={(e) => set('price', e.target.value.replace(/\D/g, ''))}
                 />
                 <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">
-                  {f.currency === 'USD' ? '$' : 'сум'}
+                  {f.currency === 'USD' ? '$' : tUnits('sum')}
                 </span>
               </div>
             </FormField>
@@ -468,7 +465,7 @@ export function ListingNew() {
 
         {/* Шаг 5 — Фото */}
         {step === 5 && (
-          <FormField label="Фотографии">
+          <FormField label={t('fields.photos')}>
             <PhotoUploader photos={f.photos} setPhotos={(next) =>
               set('photos', typeof next === 'function' ? next(f.photos) : next)
             } />
@@ -478,34 +475,28 @@ export function ListingNew() {
         {/* Шаг 6 — Описание */}
         {step === 6 && (
           <div className="flex flex-col gap-5">
-            <FormField label="Язык оригинала" hint="Остальные языки сгенерируются автопереводом.">
+            <FormField label={t('fields.lang.label')} hint={t('fields.lang.hint')}>
               <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    ['RU', 'Русский'],
-                    ['UZ', 'O‘zbekcha'],
-                    ['EN', 'English'],
-                  ] as [Lang, string][]
-                ).map(([k, v]) => (
+                {(['RU', 'UZ', 'EN'] as Lang[]).map((k) => (
                   <Chip key={k} active={f.lang === k} onClick={() => set('lang', k)}>
-                    {v}
+                    {t(`languages.${k}`)}
                   </Chip>
                 ))}
               </div>
             </FormField>
-            <FormField label="Заголовок">
+            <FormField label={t('fields.title.label')}>
               <Field
-                placeholder="Просторная 3-комнатная у метро"
+                placeholder={t('fields.title.placeholder')}
                 maxLength={80}
                 value={f.title}
                 onChange={(e) => set('title', e.target.value)}
               />
             </FormField>
-            <FormField label="Описание">
+            <FormField label={t('fields.desc.label')}>
               <textarea
                 rows={5}
                 className={cn(fieldClass, 'resize-y')}
-                placeholder="Расскажите о квартире: ремонт, инфраструктура, что рядом…"
+                placeholder={t('fields.desc.placeholder')}
                 value={f.desc}
                 onChange={(e) => set('desc', e.target.value)}
               />
@@ -516,14 +507,14 @@ export function ListingNew() {
         {/* Шаг 7 — Контакты */}
         {step === 7 && (
           <div className="flex flex-col gap-5">
-            <FormField label="Ваше имя">
+            <FormField label={t('fields.name.label')}>
               <Field
-                placeholder="Например, Алишер"
+                placeholder={t('fields.name.placeholder')}
                 value={f.name}
                 onChange={(e) => set('name', e.target.value)}
               />
             </FormField>
-            <FormField label="Телефон" hint="Покупатели увидят его для связи.">
+            <FormField label={t('fields.phone.label')} hint={t('fields.phone.hint')}>
               <Field
                 type="tel"
                 inputMode="tel"
@@ -546,38 +537,49 @@ export function ListingNew() {
             <div>
               <div className="text-2xl font-extrabold">
                 {f.price ? formatMoney(f.price, f.currency, tUnits) : '—'}
-                {f.tx === 'RENT' && f.price ? '/мес' : ''}
+                {f.tx === 'RENT' && f.price ? tUnits('perMonth') : ''}
               </div>
-              <div className="mt-1 text-base font-bold text-ink">{f.title || 'Без заголовка'}</div>
+              <div className="mt-1 text-base font-bold text-ink">
+                {f.title || t('preview.noTitle')}
+              </div>
             </div>
             <div className="rounded-input bg-surface-2 px-4 py-1">
-              <Row label="Сделка" value={f.tx === 'RENT' ? 'Аренда' : 'Продажа'} />
-              <Row label="Тип" value={propertyTypeLabel(f.type, tEnums)} />
-              <Row label="Адрес" value={f.address} />
+              <Row label={t('preview.rows.tx')} value={tEnums(`tx.${f.tx}`)} />
+              <Row label={t('preview.rows.type')} value={propertyTypeLabel(f.type, tEnums)} />
+              <Row label={t('preview.rows.address')} value={f.address} />
               <Row
-                label="Координаты"
+                label={t('preview.rows.coords')}
                 value={f.coords ? `${f.coords[0]}, ${f.coords[1]}` : null}
               />
-              {!noRooms && <Row label="Комнат" value={f.rooms} />}
-              <Row label="Площадь" value={f.area ? `${f.area} м²` : null} />
               {!noRooms && (
                 <Row
-                  label="Этаж"
+                  label={t('preview.rows.rooms')}
+                  value={f.rooms === 'studio' ? t('fields.rooms.studio') : f.rooms}
+                />
+              )}
+              <Row
+                label={t('preview.rows.area')}
+                value={f.area ? tUnits('area', { value: f.area }) : null}
+              />
+              {!noRooms && (
+                <Row
+                  label={t('preview.rows.floor')}
                   value={f.floor && f.totalFloors ? `${f.floor}/${f.totalFloors}` : f.floor || null}
                 />
               )}
-              <Row label="Год" value={f.year || null} />
-              <Row label="Фото" value={f.photos.length ? `${f.photos.length} шт.` : null} />
-              <Row label="Контакт" value={f.name ? `${f.name} · ${f.phone}` : null} />
+              <Row label={t('preview.rows.year')} value={f.year || null} />
+              <Row
+                label={t('preview.rows.photos')}
+                value={f.photos.length ? t('preview.photosCount', { count: f.photos.length }) : null}
+              />
+              <Row label={t('preview.rows.contact')} value={f.name ? `${f.name} · ${f.phone}` : null} />
             </div>
             {f.desc && (
               <p className="whitespace-pre-line text-[14.5px] leading-[1.6] text-muted-foreground">
                 {f.desc}
               </p>
             )}
-            <p className="text-[13px] text-muted-foreground">
-              Проверьте данные. После публикации объявление уйдёт на модерацию.
-            </p>
+            <p className="text-[13px] text-muted-foreground">{t('preview.note')}</p>
           </div>
         )}
       </div>
@@ -590,7 +592,7 @@ export function ListingNew() {
       )}
       {step === TOTAL && !isAuthenticated && !submitError && !apiError && (
         <p className="mt-4 rounded-input bg-surface-2 px-4 py-3 text-[13.5px] text-muted-foreground">
-          Чтобы опубликовать объявление, войдите в аккаунт (кнопка входа — в шапке).
+          {t('errors.guestHint')}
         </p>
       )}
 
@@ -602,15 +604,15 @@ export function ListingNew() {
           className={step === 1 ? 'invisible' : ''}
           onClick={() => setStep((s) => s - 1)}
         >
-          <ChevronLeft size={18} /> Назад
+          <ChevronLeft size={18} /> {t('nav.back')}
         </Button>
         {step < TOTAL ? (
           <Button type="button" disabled={!canNext()} onClick={() => setStep((s) => s + 1)}>
-            Далее <ChevronRight size={18} />
+            {t('nav.next')} <ChevronRight size={18} />
           </Button>
         ) : (
           <Button type="button" disabled={submitting} onClick={handlePublish}>
-            {submitting ? 'Публикуем…' : 'Опубликовать'}
+            {submitting ? t('nav.publishing') : t('nav.publish')}
           </Button>
         )}
       </div>

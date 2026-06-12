@@ -7,6 +7,7 @@
 'use client';
 
 import { useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Camera, X } from 'lucide-react';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ const DEMO_PHOTOS = [
 const uid = () => Math.random().toString(36).slice(2);
 
 export function PhotoUploader({ photos, setPhotos }: PhotoUploaderProps) {
+  const t = useTranslations('listingNew');
   const dragIdx = useRef<number | null>(null);
 
   /** Добавить выбранные файлы (до 20 всего), создав blob-URL. */
@@ -76,10 +78,8 @@ export function PhotoUploader({ photos, setPhotos }: PhotoUploaderProps) {
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-mint text-teal">
           <Camera size={24} />
         </span>
-        <div className="font-bold">Перетащите фото сюда или нажмите, чтобы выбрать</div>
-        <div className="text-[13px] text-muted-foreground">
-          JPG/PNG, до 20 фото. Первое фото — обложка.
-        </div>
+        <div className="font-bold">{t('photoUploader.dropTitle')}</div>
+        <div className="text-[13px] text-muted-foreground">{t('photoUploader.dropHint')}</div>
         <input
           type="file"
           accept="image/*"
@@ -91,7 +91,7 @@ export function PhotoUploader({ photos, setPhotos }: PhotoUploaderProps) {
 
       {photos.length === 0 && (
         <Button type="button" variant="outline" size="sm" className="mt-3" onClick={addDemo}>
-          Добавить демо-фото
+          {t('photoUploader.addDemo')}
         </Button>
       )}
 
@@ -115,13 +115,13 @@ export function PhotoUploader({ photos, setPhotos }: PhotoUploaderProps) {
               <PhotoImg src={ph.url} alt="" className="h-full w-full" />
               {i === 0 && (
                 <span className="absolute left-1.5 top-1.5 rounded-badge bg-red px-2 py-0.5 text-[11px] font-bold text-white">
-                  Обложка
+                  {t('photoUploader.cover')}
                 </span>
               )}
               <button
                 type="button"
                 onClick={() => remove(ph.id)}
-                aria-label="Удалить"
+                aria-label={t('photoUploader.remove')}
                 className="absolute right-1.5 top-1.5 flex h-[26px] w-[26px] items-center justify-center rounded-full bg-ink/70 text-white"
               >
                 <X size={15} />
@@ -132,7 +132,7 @@ export function PhotoUploader({ photos, setPhotos }: PhotoUploaderProps) {
                   onClick={() => reorder(i, 0)}
                   className="absolute bottom-1.5 left-1.5 whitespace-nowrap rounded-md bg-white/95 px-2 py-[3px] text-[11px] font-bold text-ink"
                 >
-                  Обложка
+                  {t('photoUploader.makeCover')}
                 </button>
               )}
             </div>

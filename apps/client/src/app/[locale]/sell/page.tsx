@@ -3,13 +3,19 @@
  * Server component: рендерит секции Sell (интерактив — внутри SellFaq).
  */
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Sell } from '@/features/sell/Sell';
 
-export const metadata: Metadata = {
-  title: 'Продать или сдать недвижимость — Avino',
-  description:
-    'Разместите объявление о продаже или аренде недвижимости в Узбекистане бесплатно. Прямые контакты с покупателями, автоперевод на 3 языка, продвижение TOP и VIP.',
-};
+interface PageProps {
+  // В Next 15 params — асинхронные.
+  params: Promise<{ locale: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'sell' });
+  return { title: t('meta.title'), description: t('meta.description') };
+}
 
 export default function SellPage() {
   return <Sell />;
