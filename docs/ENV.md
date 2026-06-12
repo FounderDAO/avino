@@ -149,6 +149,41 @@ Notes:
 | ESKIZ_PASSWORD  | yes  | yes    | no     | (set)                         | Eskiz account password     |
 | ESKIZ_BASE_URL  | no   | no     | no     | https://notify.eskiz.uz/api   | Eskiz API base URL         |
 
+### 11.1 Google sign-in (TASK-195)
+
+| Variable                    | Req? | Secret | Client | Example          | Description                                                       |
+|-----------------------------|------|--------|--------|------------------|-------------------------------------------------------------------|
+| GOOGLE_CLIENT_ID            | no   | no     | no     | (set)            | OAuth client id; verifies Google ID-token (`aud`). Empty → /auth/google returns 503 AUTH_PROVIDER_UNAVAILABLE |
+| NEXT_PUBLIC_GOOGLE_CLIENT_ID| no   | no     | yes    | (same as above)  | Client-side id for GIS button (apps/client). Empty → button hidden |
+
+```text
+- ID-token верифицируется офлайн через google-auth-library; связывание аккаунта
+  по верифицированному email (email_verified=true обязателен), логин=signup
+  (ADR-0065). Значения опциональны на старте — без GOOGLE_CLIENT_ID вход через
+  Google недоступен (503), остальной auth-флоу не затронут.
+```
+
+### 11.2 Telegram admin alerts (TASK-195)
+
+| Variable                   | Req? | Secret | Client | Example       | Description                                                              |
+|----------------------------|------|--------|--------|---------------|--------------------------------------------------------------------------|
+| TELEGRAM_BOT_TOKEN         | no   | yes    | no     | (set)         | Bot API token. Empty → алерты в dev пишутся в лог, в prod не шлются       |
+| TELEGRAM_ADMIN_CHAT_ID     | no   | no     | no     | 123456789     | Чат админа (получатель алертов)                                          |
+| TELEGRAM_INCLUDE_OTP_CODE  | no   | no     | no     | true          | Включать ли сам OTP-код в алерт запроса (MVP). Default `true`            |
+| TELEGRAM_NOTIFICATION_STATE| no   | no     | no     | (unset)       | env-дефолт master-флага. Не задан → **dev=true / prod=false**           |
+
+```text
+- TelegramService — config-gated (как sms/email): нет токена/chat_id → dev-лог
+  `[DEV Telegram → admin]` (вне prod) / warn (prod). Доставка best-effort, сбой
+  Telegram не ломает логин (ADR-0065).
+- Master-флаг включённости двухслойный: строка app_settings
+  ['telegram_notifications_enabled'] (runtime, через PATCH /admin/telegram-settings,
+  ADMIN) главнее env-дефолта TELEGRAM_NOTIFICATION_STATE. Переключается без
+  пересборки/редеплоя.
+- Алерты: запрос OTP (с кодом, если TELEGRAM_INCLUDE_OTP_CODE), успешный вход
+  (OTP/Google), неудачный verify (OTP_INVALID/EXPIRED/ATTEMPTS_EXCEEDED/USER_BLOCKED).
+```
+
 ## 12. Translation (Google or Yandex)
 
 | Variable           | Req? | Secret | Client | Example | Description                                 |

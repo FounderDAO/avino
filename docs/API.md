@@ -123,6 +123,24 @@ Body:
 ```
 Errors: `400 OTP_INVALID`, `400 OTP_EXPIRED`, `429 OTP_ATTEMPTS_EXCEEDED`, `403 USER_BLOCKED`.
 
+### POST /api/v1/auth/google
+
+Вход через Google: верифицирует Google ID-token, создаёт/обновляет пользователя
+(связывание по верифицированному email, login=signup), выдаёт токены. Тело
+ответа идентично `otp/verify`. Auth: **public** (TASK-195, ADR-0065).
+
+Body:
+```json
+{ "id_token": "eyJ... (Google ID-token из GIS)" }
+```
+
+200: тот же контракт, что `otp/verify` (`access_token`, `refresh_token`,
+`token_type`, `expires_in`, `user`). Аккаунт создаётся с ролью `USER`,
+`is_email_verified: true`.
+
+Errors: `401 UNAUTHORIZED` (невалидный токен или `email_verified=false`),
+`403 USER_BLOCKED`, `503 AUTH_PROVIDER_UNAVAILABLE` (не задан `GOOGLE_CLIENT_ID`).
+
 ### POST /api/v1/auth/refresh
 
 Ротация refresh-токена. Auth: **valid refresh token** (в теле).
@@ -839,6 +857,23 @@ Errors: `422 INVALID_PERIOD` (не 7/14/30), `409 ACTIVE_PROMOTION_EXISTS`
 ```
 200 → `{ "expiryIntervalHours": 6 }`. Errors: `422` (значение вне `6 | 12`).
 
+#### GET /api/v1/admin/telegram-settings
+Текущее состояние Telegram-алертов админу. Auth: **ADMIN** (TASK-195, ADR-0065).
+200:
+```json
+{ "notificationsEnabled": true }
+```
+Значение: строка `app_settings['telegram_notifications_enabled']` если задана,
+иначе env-дефолт `TELEGRAM_NOTIFICATION_STATE` (не задан → dev=true / prod=false).
+
+#### PATCH /api/v1/admin/telegram-settings
+Включить/выключить Telegram-алерты в рантайме (без пересборки). Auth: **ADMIN**.
+Персистит в `app_settings`, пишет `audit_logs(TELEGRAM_SETTINGS_UPDATE)`.
+```json
+{ "enabled": false }
+```
+200 → `{ "notificationsEnabled": false }`. Errors: `400 VALIDATION_ERROR`.
+
 ---
 
 ## 16. Moderation & admin
@@ -961,6 +996,7 @@ Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
 | `OTP_ATTEMPTS_EXCEEDED` | 429 | Превышен лимит попыток ввода OTP |
 | `RATE_LIMITED` | 429 | Общий/OTP throttle |
 | `USER_BLOCKED` | 403 | `status = BLOCKED` |
+| `AUTH_PROVIDER_UNAVAILABLE` | 503 | Внешний провайдер входа не настроен (напр. Google без `GOOGLE_CLIENT_ID`) |
 | `FORBIDDEN` | 403 | Роль/право не позволяет действие (RBAC) |
 | `NOT_FOUND` | 404 | Ресурс не найден |
 | `CONTACT_TAKEN` | 409 | Phone/email уже занят среди non-DELETED аккаунтов |

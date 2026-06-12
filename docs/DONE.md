@@ -37,6 +37,64 @@ Related ADR:
 
 ---
 
+## 2026-06-13
+
+### TASK-195 — Google sign-in, Telegram admin auth-alerts, runtime toggle
+
+Status: DONE
+Branch: feat/auth-google-telegram-alerts
+PR: pending
+
+Files changed:
+- apps/api/src/telegram/{telegram.module,telegram.service,telegram.constants,auth-alert.util,index}.ts (+ 3 spec)
+- apps/api/src/auth/google-auth.service.ts (+ spec), dto/google-login.dto.ts
+- apps/api/src/auth/auth.controller.ts (POST /auth/google), auth.module.ts (TelegramModule + GoogleAuthService)
+- apps/api/src/auth/otp.service.ts (+ spec, алерт запроса), auth.service.ts (+ алерты verify success/fail, isNew)
+- apps/api/src/admin/admin-telegram-settings.{controller,service}.ts (+ spec), dto/update-telegram-settings.dto.ts, admin.module.ts
+- apps/api/src/config/configuration.ts, env.validation.ts (google/telegram)
+- apps/api/src/common/dto/error-response.dto.ts (AUTH_PROVIDER_UNAVAILABLE)
+- apps/api/package.json (google-auth-library), pnpm-lock.yaml
+- apps/client/src/store/api/authApi.ts (googleLogin), src/components/layout/GoogleSignInButton.tsx, LoginModal.tsx, messages/{ru,uz,en}.json
+- apps/web/src/store/api/adminTelegramSettingsApi.ts, src/components/admin/TelegramNotificationsToggle.tsx, src/app/admin/settings/page.tsx
+- docs/ENV.md, docs/API.md, docs/adr/ADR-0065-google-auth-telegram-admin-alerts.md
+
+Summary:
+- Вход через Google на публичном портале: POST /api/v1/auth/google верифицирует
+  ID-token офлайн (google-auth-library), связывает по верифицированному email,
+  login=signup, выдаёт ту же сессию что и OTP; кнопка GIS в LoginModal
+  (apps/client), показывается только при NEXT_PUBLIC_GOOGLE_CLIENT_ID.
+- Telegram-алерты админу (новый TelegramModule, fire-and-forget, никогда не
+  роняет логин): запрос OTP (с самим кодом — флаг TELEGRAM_INCLUDE_OTP_CODE),
+  успешный вход (OTP/Google), неудачный verify (OTP_INVALID/EXPIRED/
+  ATTEMPTS_EXCEEDED/USER_BLOCKED).
+- Двухслойный master-тоггл: env-дефолт TELEGRAM_NOTIFICATION_STATE
+  (dev=true/prod=false) + runtime-override в app_settings через ADMIN-эндпоинт
+  GET/PATCH /admin/telegram-settings (переключение без пересборки) + switch на
+  странице admin/settings (apps/web).
+- Все интеграции config-gated (паттерн sms/email): без кредов Google → 503
+  AUTH_PROVIDER_UNAVAILABLE, Telegram → dev-лог/no-op. OTP-контракт не изменён.
+- Тесты: 50 suites / 365 api-тестов зелёные (новые: telegram.service,
+  auth-alert.util, telegram.constants, google-auth.service,
+  admin-telegram-settings, otp.service, +кейсы auth.service/auth.controller);
+  client/web — lint + build чисто. Live-проверка стека — отдельной сессией.
+
+Commit messages:
+- feat(api): config+env for Google sign-in and Telegram alerts
+- feat(api): telegram setting key + enabled resolver
+- feat(api): telegram auth-alert message formatters
+- feat(api): TelegramService transport + enabled gate + module
+- feat(api): telegram alert on OTP request (with code)
+- feat(api): telegram alerts on OTP verify success/failure
+- feat(api): GoogleAuthService (verify ID-token, resolve by email)
+- feat(api): POST /auth/google endpoint
+- feat(api): ADMIN runtime toggle GET/PATCH /admin/telegram-settings
+- feat(client): googleLogin mutation
+- feat(client): Google sign-in button in LoginModal
+- feat(web): runtime toggle for Telegram alerts on admin settings
+
+Related ADR:
+- docs/adr/ADR-0065-google-auth-telegram-admin-alerts.md
+
 ## 2026-06-12
 
 ### TASK-194 — Радиусный гео-поиск на карте клиента + координаты в seed
