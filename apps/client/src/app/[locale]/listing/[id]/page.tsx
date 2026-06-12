@@ -18,10 +18,11 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, id } = await params;
   const listing = await getListingById(id, locale);
-  if (!listing) return { title: 'Объявление не найдено — Avino' };
+  const t = await getTranslations({ locale, namespace: 'listing' });
+  if (!listing) return { title: t('meta.notFoundTitle') };
   const tUnits = await getTranslations({ locale, namespace: 'units' });
   return {
-    title: `${listing.title} — ${formatPrice(listing, tUnits)} | Avino`,
+    title: t('meta.title', { title: listing.title, price: formatPrice(listing, tUnits) }),
     description: listing.desc,
   };
 }

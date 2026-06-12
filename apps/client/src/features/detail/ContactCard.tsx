@@ -7,6 +7,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { MessageSquare, Phone, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,9 +18,6 @@ import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import { useCreateThreadMutation } from '@/store/api/chatApi';
 import { getApiError } from '@/store/api/apiError';
 
-/** Дефолтное приветствие при создании диалога из карточки контакта. */
-const DEFAULT_GREETING = 'Здравствуйте! Объявление ещё актуально?';
-
 export interface ContactCardProps {
   listing: Listing;
   className?: string;
@@ -27,6 +25,7 @@ export interface ContactCardProps {
 
 export function ContactCard({ listing, className }: ContactCardProps) {
   const { agent } = listing;
+  const t = useTranslations('listing');
   const router = useRouter();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const [createThread, { isLoading: isCreatingThread }] = useCreateThreadMutation();
@@ -45,14 +44,15 @@ export function ContactCard({ listing, className }: ContactCardProps) {
     try {
       await createThread({
         listing_id: listing.id,
-        body: DEFAULT_GREETING,
+        // Дефолтное приветствие при создании диалога из карточки контакта.
+        body: t('contact.greeting'),
       }).unwrap();
       router.push('/account/inbox');
     } catch (err) {
       const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);
-      setChatError(apiErr?.message ?? 'Не удалось начать диалог');
+      setChatError(apiErr?.message ?? t('contact.chatError'));
     }
-  }, [isAuthenticated, createThread, listing.id, router]);
+  }, [isAuthenticated, createThread, listing.id, router, t]);
 
   // Заглушка «Поделиться»: системный шэр, иначе копируем ссылку.
   const handleShare = React.useCallback(() => {
@@ -77,10 +77,10 @@ export function ContactCard({ listing, className }: ContactCardProps) {
           <div className="mt-0.5">
             {agent.pro ? (
               <span className="inline-block rounded-badge bg-mint px-2.5 py-1 text-[11.5px] font-extrabold text-teal-deep">
-                Avino Pro
+                {t('contact.proBadge')}
               </span>
             ) : (
-              <span className="text-[13px] text-muted-foreground">Собственник</span>
+              <span className="text-[13px] text-muted-foreground">{t('contact.owner')}</span>
             )}
           </div>
         </div>
@@ -98,7 +98,7 @@ export function ContactCard({ listing, className }: ContactCardProps) {
           </a>
         ) : (
           <Button size="lg" className="w-full" onClick={() => setPhoneShown(true)}>
-            <Phone size={18} /> Показать телефон
+            <Phone size={18} /> {t('contact.showPhone')}
           </Button>
         )}
 
@@ -109,7 +109,7 @@ export function ContactCard({ listing, className }: ContactCardProps) {
           disabled={isCreatingThread}
           onClick={() => void handleMessage()}
         >
-          <MessageSquare size={18} /> Написать
+          <MessageSquare size={18} /> {t('contact.message')}
         </Button>
         {chatError && <div className="text-[12.5px] text-red">{chatError}</div>}
 
@@ -117,7 +117,7 @@ export function ContactCard({ listing, className }: ContactCardProps) {
         <div className="flex items-center gap-2.5">
           <FavButton listingId={listing.id} size={48} className="shrink-0 shadow-none ring-1 ring-border" />
           <Button variant="outline" size="lg" className="flex-1" onClick={handleShare}>
-            <Share2 size={17} /> Поделиться
+            <Share2 size={17} /> {t('contact.share')}
           </Button>
         </div>
       </div>
