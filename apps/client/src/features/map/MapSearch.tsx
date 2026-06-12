@@ -18,7 +18,6 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Pencil, Check, X, Trash2 } from 'lucide-react';
 import { PropertyCard } from '@/features/search/PropertyCard';
@@ -43,13 +42,16 @@ export interface MapSearchProps {
   /** Стартовая выдача (SSR, общий промо-приоритет) — до первого bounds-запроса. */
   initialListings: Listing[];
   locale: string;
+  /**
+   * Тип сделки из URL (?tx=), резолвится на сервере (page.tsx). НЕ читаем через
+   * useSearchParams здесь: это де-оптимизировало бы всю страницу /map в CSR
+   * (пустой SSR-шелл вместо стартовой выдачи).
+   */
+  tx?: TransactionType;
 }
 
-export function MapSearch({ initialListings, locale }: MapSearchProps) {
+export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
   const t = useTranslations('search');
-  const searchParams = useSearchParams();
-  const tx: TransactionType | undefined =
-    searchParams.get('tx') === 'RENT' ? 'RENT' : searchParams.get('tx') === 'SALE' ? 'SALE' : undefined;
   const filter: ListingFilter = React.useMemo(() => (tx ? { tx } : {}), [tx]);
 
   const [raw, setRaw] = React.useState<Listing[]>(initialListings);

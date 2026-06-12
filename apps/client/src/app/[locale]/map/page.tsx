@@ -45,7 +45,7 @@ export default async function MapPage({
 
   return (
     <div className="fade-up">
-      <MapSearch initialListings={initialListings} locale={locale} />
+      <MapSearch initialListings={initialListings} locale={locale} tx={tx} />
     </div>
   );
 }
