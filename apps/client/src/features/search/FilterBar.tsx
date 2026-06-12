@@ -64,6 +64,7 @@ const ROOM_OPTIONS: { value: number; label: string }[] = [
 export function FilterBar({ values, districts }: FilterBarProps) {
   const t = useTranslations();
   const tEnums = useTranslations('enums');
+  const tSearch = useTranslations('search');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -88,15 +89,20 @@ export function FilterBar({ values, districts }: FilterBarProps) {
 
   const priceActive = Boolean(values.priceMin || values.priceMax);
   const priceLabel = priceActive
-    ? `Цена: ${values.priceMin || '0'}–${values.priceMax || '∞'}`
-    : 'Цена';
+    ? tSearch('filters.priceRange', {
+        min: values.priceMin || '0',
+        max: values.priceMax || '∞',
+      })
+    : tSearch('filters.price');
   const roomsLabel = values.rooms
-    ? `Комнат: ${values.rooms === 4 ? '4+' : values.rooms}`
-    : 'Комнаты';
+    ? tSearch('filters.roomsCount', {
+        count: values.rooms === 4 ? '4+' : String(values.rooms),
+      })
+    : tSearch('filters.rooms');
   const typeLabel = values.type
     ? tEnums(`propertyType.${values.type}`)
-    : 'Тип жилья';
-  const districtLabel = values.district || 'Район';
+    : tSearch('filters.propertyType');
+  const districtLabel = values.district || tSearch('filters.district');
 
   // ─── Сохранить поиск ──────────────────────────────────────────────────────
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
@@ -117,9 +123,9 @@ export function FilterBar({ values, districts }: FilterBarProps) {
   const handleSaveSearch = React.useCallback(() => {
     if (!isAuthenticated || isSaving) return;
     const filters = buildFilters();
-    const name = describeFilters(filters, t) || 'Мой поиск';
+    const name = describeFilters(filters, t) || tSearch('filters.mySearch');
     void createSavedSearch({ name, filters });
-  }, [isAuthenticated, isSaving, buildFilters, createSavedSearch, t]);
+  }, [isAuthenticated, isSaving, buildFilters, createSavedSearch, t, tSearch]);
 
   const saveApiError = getApiError(saveError);
 
@@ -141,9 +147,9 @@ export function FilterBar({ values, districts }: FilterBarProps) {
                 if (e.key === 'Enter') setParams({ query: queryDraft });
               }}
               onBlur={() => setParams({ query: queryDraft })}
-              placeholder="Район, адрес…"
+              placeholder={tSearch('filters.searchPlaceholder')}
               className="rounded-pill py-[9px] pl-[38px] pr-4"
-              aria-label="Поиск по району или адресу"
+              aria-label={tSearch('filters.searchAria')}
             />
           </div>
 
@@ -151,8 +157,8 @@ export function FilterBar({ values, districts }: FilterBarProps) {
           <Segment<TransactionType>
             className="flex-shrink-0"
             options={[
-              { value: 'SALE', label: 'Купить' },
-              { value: 'RENT', label: 'Аренда' },
+              { value: 'SALE', label: tSearch('filters.buy') },
+              { value: 'RENT', label: tSearch('filters.rent') },
             ]}
             value={values.tx}
             onChange={(tx) => setParams({ tx })}
@@ -165,19 +171,19 @@ export function FilterBar({ values, districts }: FilterBarProps) {
             </DropdownTrigger>
             <DropdownContent align="start" className="w-[260px] p-4">
               <div className="mb-2 text-[12.5px] font-bold text-muted-foreground">
-                Цена, $
+                {tSearch('filters.priceTitle')}
               </div>
               <div className="flex gap-2">
                 <Field
                   inputMode="numeric"
-                  placeholder="от"
+                  placeholder={tSearch('filters.priceFrom')}
                   defaultValue={values.priceMin ?? ''}
                   onBlur={(e) => setParams({ priceMin: e.target.value.trim() })}
                   className="py-2.5"
                 />
                 <Field
                   inputMode="numeric"
-                  placeholder="до"
+                  placeholder={tSearch('filters.priceTo')}
                   defaultValue={values.priceMax ?? ''}
                   onBlur={(e) => setParams({ priceMax: e.target.value.trim() })}
                   className="py-2.5"
@@ -224,7 +230,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
                   !values.type && 'bg-mint',
                 )}
               >
-                Любой тип
+                {tSearch('filters.anyType')}
               </button>
               {PROPERTY_TYPES.map((key) => (
                 <button
@@ -258,7 +264,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
                   !values.district && 'bg-mint',
                 )}
               >
-                Все районы
+                {tSearch('filters.allDistricts')}
               </button>
               {districts.map((d) => (
                 <button
@@ -289,13 +295,13 @@ export function FilterBar({ values, districts }: FilterBarProps) {
               fieldClass,
               'w-auto flex-shrink-0 cursor-pointer rounded-pill py-[9px] pr-4 font-semibold',
             )}
-            aria-label="Сортировка"
+            aria-label={tSearch('filters.sortAria')}
           >
-            <option value="promotion">Сначала рекомендуемые</option>
-            <option value="price_asc">Сначала дешёвые</option>
-            <option value="price_desc">Сначала дорогие</option>
-            <option value="area_desc">Больше площадь</option>
-            <option value="date_desc">Сначала новые</option>
+            <option value="promotion">{tSearch('filters.sort.promotion')}</option>
+            <option value="price_asc">{tSearch('filters.sort.price_asc')}</option>
+            <option value="price_desc">{tSearch('filters.sort.price_desc')}</option>
+            <option value="area_desc">{tSearch('filters.sort.area_desc')}</option>
+            <option value="date_desc">{tSearch('filters.sort.date_desc')}</option>
           </select>
 
           {/* Сохранить поиск — только для авторизованных (POST /saved-searches). */}
@@ -316,12 +322,12 @@ export function FilterBar({ values, districts }: FilterBarProps) {
             >
               <Bell size={16} strokeWidth={1.9} />
               {isSaving
-                ? 'Сохраняем…'
+                ? tSearch('filters.saving')
                 : isSaved
-                  ? 'Сохранено'
+                  ? tSearch('filters.saved')
                   : saveApiError
-                    ? 'Ошибка'
-                    : 'Сохранить поиск'}
+                    ? tSearch('filters.saveError')
+                    : tSearch('filters.saveSearch')}
             </button>
           )}
 
@@ -332,13 +338,13 @@ export function FilterBar({ values, districts }: FilterBarProps) {
                 active={values.view === 'list'}
                 onClick={() => setParams({ view: undefined })}
                 icon={<List size={16} strokeWidth={2} />}
-                label="Список"
+                label={tSearch('filters.listView')}
               />
               <ViewToggleButton
                 active={values.view === 'map'}
                 onClick={() => setParams({ view: 'map' })}
                 icon={<MapIcon size={16} strokeWidth={2} />}
-                label="Карта"
+                label={tSearch('filters.mapView')}
               />
             </div>
           </div>

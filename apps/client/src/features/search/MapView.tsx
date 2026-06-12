@@ -78,6 +78,7 @@ function ensurePinStyles() {
 
 export function MapView({ listings, activeId, onSelect, onHover }: MapViewProps) {
   const tUnits = useTranslations('units');
+  const tSearch = useTranslations('search');
   const elRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<L.Map | null>(null);
   const markersRef = React.useRef<Record<string, L.Marker>>({});
@@ -193,7 +194,7 @@ export function MapView({ listings, activeId, onSelect, onHover }: MapViewProps)
       ref={elRef}
       className="h-full w-full bg-[#e8ede9]"
       role="img"
-      aria-label="Карта объявлений"
+      aria-label={tSearch('map.ariaLabel')}
     />
   );
 }

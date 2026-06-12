@@ -6,6 +6,7 @@
  * Фильтры — единственный источник истины в URL, поэтому страница
  * пересобирается при каждом изменении query (FilterBar → router.replace).
  */
+import { getTranslations } from 'next-intl/server';
 import { getDistricts } from '@/lib/mock';
 import { searchListings } from '@/lib/api/listings';
 import type {
@@ -17,10 +18,15 @@ import type {
 import { FilterBar, type FilterValues } from '@/features/search/FilterBar';
 import { SearchResults } from '@/features/search/SearchResults';
 
-export const metadata = {
-  title: 'Поиск недвижимости — Avino',
-  description: 'Покупка и аренда жилья в Узбекистане: фильтры, список и карта.',
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'search' });
+  return { title: t('metaTitle'), description: t('metaDescription') };
+}
 
 /** Допустимые значения, чтобы безопасно сузить строки из URL. */
 const PROPERTY_TYPES: PropertyType[] = [
@@ -102,7 +108,10 @@ export default async function SearchPage({
   };
 
   // Заголовок выдачи: «Покупка/Аренда жилья · <запрос|Ташкент>».
-  const heading = `${tx === 'RENT' ? 'Аренда' : 'Покупка'} жилья · ${query || 'Ташкент'}`;
+  const t = await getTranslations({ locale, namespace: 'search' });
+  const heading = t(tx === 'RENT' ? 'headingRent' : 'headingSale', {
+    query: query || t('defaultLocation'),
+  });
 
   return (
     <div className="fade-up">
