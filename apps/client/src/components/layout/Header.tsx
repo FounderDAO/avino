@@ -7,6 +7,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import { usePathname } from '@/i18n/navigation';
@@ -27,6 +28,7 @@ import {
 import { useLogoutMutation } from '@/store/api/authApi';
 
 function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) {
+  const t = useTranslations('nav');
   const pathname = usePathname();
   const [scrolled, setScrolled] = React.useState(false);
   const [menu, setMenu] = React.useState(false);
@@ -42,7 +44,7 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
     currentUser?.profile?.display_name ??
     currentUser?.profile?.first_name ??
     currentUser?.phone ??
-    'Аккаунт';
+    t('account');
 
   const handleLogout = React.useCallback(() => {
     // clearCredentials вызывается в onQueryStarted независимо от исхода.
@@ -99,7 +101,7 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
                     on ? 'font-bold text-ink' : 'font-semibold text-muted-foreground hover:text-ink',
                   )}
                 >
-                  {n.label}
+                  {t(n.labelKey)}
                   {on && (
                     <span className="absolute -bottom-1 left-0 right-0 h-[3px] rounded-[3px] bg-red" />
                   )}
@@ -114,7 +116,7 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
           <LangSwitcher />
           <Link
             href="/account/favorites"
-            aria-label="Избранное"
+            aria-label={t('favorites')}
             className="relative flex h-10 w-10 items-center justify-center rounded-full text-ink hover:bg-surface-2"
           >
             <Heart size={20} strokeWidth={1.9} />
@@ -135,23 +137,23 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
                 disabled={isLoggingOut}
                 className="text-[15px]"
               >
-                Выйти
+                {t('logout')}
               </Button>
             </>
           ) : (
             <Button variant="ghost" onClick={() => setLogin(true)} className="text-[15px]">
-              Войти
+              {t('login')}
             </Button>
           )}
           <Button size="sm" asChild>
-            <Link href="/sell">Разместить</Link>
+            <Link href="/sell">{t('postListing')}</Link>
           </Button>
         </div>
 
         {/* Мобайл: бургер */}
         <button
           type="button"
-          aria-label="Меню"
+          aria-label={t('menu')}
           onClick={() => setMenu(true)}
           className="p-1.5 text-ink md:hidden"
         >
@@ -167,7 +169,7 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
             style={{ height: 'var(--header-h)' }}
           >
             <Logo />
-            <button type="button" aria-label="Закрыть" onClick={() => setMenu(false)} className="p-1.5">
+            <button type="button" aria-label={t('close')} onClick={() => setMenu(false)} className="p-1.5">
               <X size={26} />
             </button>
           </div>
@@ -178,12 +180,12 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
                 href={n.href}
                 className="border-b border-border py-4 text-[22px] font-extrabold text-ink"
               >
-                {n.label}
+                {t(n.labelKey)}
               </Link>
             ))}
             <div className="mt-6 flex flex-col gap-3">
               <Button size="lg" asChild>
-                <Link href="/sell">Разместить объявление</Link>
+                <Link href="/sell">{t('postListingFull')}</Link>
               </Button>
               {isAuthenticated ? (
                 <>
@@ -199,7 +201,7 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
                       handleLogout();
                     }}
                   >
-                    Выйти
+                    {t('logout')}
                   </Button>
                 </>
               ) : (
@@ -211,7 +213,7 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
                     setLogin(true);
                   }}
                 >
-                  Войти
+                  {t('login')}
                 </Button>
               )}
               <div className="mt-2">

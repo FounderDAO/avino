@@ -5,6 +5,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { PhotoImg } from './photo-img';
 import type { ListingPhoto } from '@/lib/mock/types';
@@ -19,6 +20,7 @@ export interface LightboxProps {
 }
 
 export function Lightbox({ photos, index, onIndexChange, onClose, alt }: LightboxProps) {
+  const t = useTranslations('common');
   const total = photos.length;
   const prev = React.useCallback(
     () => onIndexChange((index - 1 + total) % total),
@@ -51,7 +53,7 @@ export function Lightbox({ photos, index, onIndexChange, onClose, alt }: Lightbo
       <button
         type="button"
         onClick={onClose}
-        aria-label="Закрыть"
+        aria-label={t('close')}
         className="absolute right-5 top-5 text-white/80 hover:text-white"
       >
         <X size={28} />
@@ -64,7 +66,7 @@ export function Lightbox({ photos, index, onIndexChange, onClose, alt }: Lightbo
             e.stopPropagation();
             prev();
           }}
-          aria-label="Назад"
+          aria-label={t('previous')}
           className="absolute left-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
         >
           <ChevronLeft size={26} />
@@ -85,7 +87,7 @@ export function Lightbox({ photos, index, onIndexChange, onClose, alt }: Lightbo
             e.stopPropagation();
             next();
           }}
-          aria-label="Вперёд"
+          aria-label={t('next')}
           className="absolute right-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
         >
           <ChevronRight size={26} />
