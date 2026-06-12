@@ -28,6 +28,7 @@ import type {
   ListingStatus,
   PromotionType,
   PropertyType,
+  RadiusCircle,
   SortOption,
   TransactionType,
 } from '@/lib/mock/types';
@@ -282,15 +283,11 @@ async function safeSearch(path: string, lang: string): Promise<Listing[]> {
 // ─── Публичные селекторы (контракт мок-слоя) ───
 
 /**
- * Публичная выдача по фильтру. GET /api/v1/search.
+ * Базовые query-параметры поиска (общие для /search и /search/radius).
  * district НЕ отправляется (бэкенд ждёт district_id-uuid, а UI хранит имя) —
  * см. TODO(geo-reference). Прочие фильтры применяются на бэке.
  */
-export async function searchListings(
-  filter: ListingFilter = {},
-  lang = 'ru',
-  limit = 24,
-): Promise<Listing[]> {
+function buildSearchParams(filter: ListingFilter, limit: number): URLSearchParams {
   const params = new URLSearchParams();
   if (filter.tx) params.set('transaction_type', filter.tx);
   if (filter.type) params.set('property_type', filter.type);
@@ -302,8 +299,35 @@ export async function searchListings(
   if (sort) params.set('sort', sort);
   // TODO(geo-reference): filter.district (имя) не маппится в district_id-uuid.
   params.set('limit', String(limit));
+  return params;
+}
 
+/** Публичная выдача по фильтру. GET /api/v1/search. */
+export async function searchListings(
+  filter: ListingFilter = {},
+  lang = 'ru',
+  limit = 24,
+): Promise<Listing[]> {
+  const params = buildSearchParams(filter, limit);
   return safeSearch(`/search?${params.toString()}`, lang);
+}
+
+/**
+ * Радиусный гео-поиск. GET /api/v1/search/radius (API.md §10, PostGIS ST_DWithin).
+ * Принимает те же фильтры §9, что и /search, плюс центр и радиус круга,
+ * нарисованного на карте. Радиус ограничен бэкендом: 1..50000 м.
+ */
+export async function searchRadiusListings(
+  filter: ListingFilter,
+  circle: RadiusCircle,
+  lang = 'ru',
+  limit = 24,
+): Promise<Listing[]> {
+  const params = buildSearchParams(filter, limit);
+  params.set('lat', String(circle.lat));
+  params.set('lng', String(circle.lng));
+  params.set('radius_m', String(Math.round(circle.radiusM)));
+  return safeSearch(`/search/radius?${params.toString()}`, lang);
 }
 
 /** Рекомендованные (промо-приоритет) для главной. GET /search. */

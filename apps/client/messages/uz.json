@@ -207,6 +207,14 @@
     },
     "map": {
       "ariaLabel": "E'lonlar xaritasi"
+    },
+    "radius": {
+      "draw": "Radius",
+      "cancel": "Bekor qilish",
+      "hint": "Xaritada bosib torting",
+      "chipKm": "Radius {km, number} km",
+      "chipM": "Radius {m, number} m",
+      "clearAria": "Radiusni tozalash"
     }
   },
   "listing": {

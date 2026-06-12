@@ -14,7 +14,8 @@ import * as React from 'react';
 import L from 'leaflet';
 import { useTranslations } from 'next-intl';
 import { pinPrice, type T } from '@/lib/format';
-import type { Listing } from '@/lib/mock/types';
+import { clampRadius, MAX_RADIUS_M } from '@/lib/geo';
+import type { Listing, RadiusCircle } from '@/lib/mock/types';
 
 import 'leaflet/dist/leaflet.css';
 
@@ -24,7 +25,21 @@ export interface MapViewProps {
   activeId?: string | null;
   onSelect?: (id: string) => void;
   onHover?: (id: string | null) => void;
+  /** Активный круг радиусного поиска (из URL) — рисуется поверх карты. */
+  circle?: RadiusCircle | null;
+  /** Режим рисования: drag карты выключен, зажал-потянул-отпустил → onDrawComplete. */
+  drawMode?: boolean;
+  onDrawComplete?: (circle: RadiusCircle) => void;
 }
+
+/** Стиль круга радиуса (превью при рисовании и постоянный — одинаковые). */
+const CIRCLE_STYLE: L.PathOptions = {
+  color: '#282218',
+  weight: 2,
+  fillColor: '#282218',
+  fillOpacity: 0.08,
+  interactive: false,
+};
 
 /** Центр карты по умолчанию — Ташкент. */
 const TASHKENT_CENTER: [number, number] = [41.311, 69.28];
@@ -76,18 +91,32 @@ function ensurePinStyles() {
   document.head.appendChild(style);
 }
 
-export function MapView({ listings, activeId, onSelect, onHover }: MapViewProps) {
+export function MapView({
+  listings,
+  activeId,
+  onSelect,
+  onHover,
+  circle,
+  drawMode,
+  onDrawComplete,
+}: MapViewProps) {
   const tUnits = useTranslations('units');
   const tSearch = useTranslations('search');
   const elRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<L.Map | null>(null);
   const markersRef = React.useRef<Record<string, L.Marker>>({});
+  const circleLayerRef = React.useRef<L.Circle | null>(null);
 
   // Свежие колбэки в ref, чтобы не пересоздавать маркеры при смене пропсов.
   const onSelectRef = React.useRef(onSelect);
   const onHoverRef = React.useRef(onHover);
+  const onDrawCompleteRef = React.useRef(onDrawComplete);
+  // Круг в ref: эффект маркеров не должен авто-зумиться к пинам при активном радиусе.
+  const circleRef = React.useRef(circle);
   onSelectRef.current = onSelect;
   onHoverRef.current = onHover;
+  onDrawCompleteRef.current = onDrawComplete;
+  circleRef.current = circle;
 
   // Инициализация карты (один раз, только на клиенте).
   React.useEffect(() => {
@@ -150,6 +179,8 @@ export function MapView({ listings, activeId, onSelect, onHover }: MapViewProps)
 
     setTimeout(() => {
       map.invalidateSize();
+      // При активном радиусе вид держит круг (отдельный эффект) — к пинам не зумимся.
+      if (circleRef.current) return;
       if (pts.length === 1) {
         map.setView(pts[0], 15);
       } else if (pts.length > 1) {
@@ -163,6 +194,85 @@ export function MapView({ listings, activeId, onSelect, onHover }: MapViewProps)
     // activeId намеренно не в зависимостях: подсветка — отдельным эффектом.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listingsKey]);
+
+  // Постоянный круг радиусного поиска (из URL): рендер + подгон вида под круг.
+  const circleKey = circle ? `${circle.lat},${circle.lng},${circle.radiusM}` : '';
+  React.useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (circleLayerRef.current) {
+      map.removeLayer(circleLayerRef.current);
+      circleLayerRef.current = null;
+    }
+    if (!circle) return;
+    const layer = L.circle([circle.lat, circle.lng], {
+      radius: circle.radiusM,
+      ...CIRCLE_STYLE,
+    }).addTo(map);
+    circleLayerRef.current = layer;
+    setTimeout(() => {
+      map.invalidateSize();
+      map.fitBounds(layer.getBounds(), { padding: [40, 40] });
+    }, 80);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [circleKey]);
+
+  // Режим рисования: зажал (центр) — потянул (радиус растёт) — отпустил (готово).
+  // Pointer events покрывают мышь и тач; drag карты на время выключаем.
+  React.useEffect(() => {
+    const map = mapRef.current;
+    const el = elRef.current;
+    if (!map || !el || !drawMode) return;
+
+    map.dragging.disable();
+    const prevCursor = el.style.cursor;
+    const prevTouchAction = el.style.touchAction;
+    el.style.cursor = 'crosshair';
+    el.style.touchAction = 'none';
+
+    let center: L.LatLng | null = null;
+    let preview: L.Circle | null = null;
+
+    const onDown = (e: PointerEvent) => {
+      // Не стартуем рисование с контролов карты (zoom и т.п.) и не-основной кнопки.
+      if (e.button !== 0) return;
+      if ((e.target as HTMLElement).closest('.leaflet-control')) return;
+      e.preventDefault();
+      el.setPointerCapture?.(e.pointerId);
+      center = map.mouseEventToLatLng(e);
+      preview = L.circle(center, { radius: 0, ...CIRCLE_STYLE }).addTo(map);
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (!center || !preview) return;
+      const r = Math.min(MAX_RADIUS_M, center.distanceTo(map.mouseEventToLatLng(e)));
+      preview.setRadius(r);
+    };
+
+    const onUp = () => {
+      if (!center || !preview) return;
+      const radiusM = clampRadius(preview.getRadius());
+      map.removeLayer(preview);
+      const { lat, lng } = center;
+      center = null;
+      preview = null;
+      onDrawCompleteRef.current?.({ lat, lng, radiusM });
+    };
+
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+
+    return () => {
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      if (preview) map.removeLayer(preview);
+      el.style.cursor = prevCursor;
+      el.style.touchAction = prevTouchAction;
+      map.dragging.enable();
+    };
+  }, [drawMode]);
 
   // Подсветка активного пина без перестроения всех маркеров.
   React.useEffect(() => {

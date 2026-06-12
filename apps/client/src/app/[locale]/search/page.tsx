@@ -8,7 +8,8 @@
  */
 import { getTranslations } from 'next-intl/server';
 import { getDistricts } from '@/lib/mock';
-import { searchListings } from '@/lib/api/listings';
+import { searchListings, searchRadiusListings } from '@/lib/api/listings';
+import { parseCircleParams } from '@/lib/geo';
 import type {
   ListingFilter,
   PropertyType,
@@ -88,10 +89,15 @@ export default async function SearchPage({
   const priceMin = priceMinRaw && Number.isFinite(Number(priceMinRaw)) ? Number(priceMinRaw) : undefined;
   const priceMax = priceMaxRaw && Number.isFinite(Number(priceMaxRaw)) ? Number(priceMaxRaw) : undefined;
 
+  // Радиус, нарисованный на карте (?clat=&clng=&radius=); невалидный → null.
+  const circle = parseCircleParams(first(sp.clat), first(sp.clng), first(sp.radius));
+
   // ----- Данные из реального API (district пока на бэк не уходит, см.
   // TODO(geo-reference) в lib/api/listings) -----
   const filter: ListingFilter = { tx, type, district, rooms, priceMin, priceMax, query, sort };
-  const listings = await searchListings(filter, locale);
+  const listings = circle
+    ? await searchRadiusListings(filter, circle, locale)
+    : await searchListings(filter, locale);
   const districts = getDistricts();
 
   // Значения для FilterBar (цена — строкой, как в инпутах).
@@ -116,7 +122,7 @@ export default async function SearchPage({
   return (
     <div className="fade-up">
       <FilterBar values={filterValues} districts={districts} />
-      <SearchResults listings={listings} view={view} heading={heading} />
+      <SearchResults listings={listings} view={view} heading={heading} circle={circle} />
     </div>
   );
 }
