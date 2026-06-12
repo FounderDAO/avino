@@ -1,11 +1,15 @@
 /**
- * LangSwitcher — переключатель языка интерфейса (UI без реальной локализации).
- * Локальный стейт выбранного языка; реальная i18n будет позже (вне цикла 1).
+ * LangSwitcher — переключатель языка интерфейса.
+ * Меняет [locale]-сегмент URL, сохраняя путь и query; cookie NEXT_LOCALE
+ * ставит middleware next-intl.
  */
 'use client';
 
 import * as React from 'react';
 import { Globe, ChevronDown } from 'lucide-react';
+import { useLocale } from 'next-intl';
+import { usePathname, useRouter } from '@/i18n/navigation';
+import type { Locale } from '@/i18n/routing';
 import {
   Dropdown,
   DropdownTrigger,
@@ -13,17 +17,26 @@ import {
   DropdownItem,
 } from '@/components/ui/dropdown';
 
-type LangCode = 'ru' | 'uz' | 'en';
-
-const LANGS: { code: LangCode; short: string; label: string }[] = [
+// Названия языков — на родном языке каждого (стандарт UX), в словари не выносятся.
+const LANGS: { code: Locale; short: string; label: string }[] = [
   { code: 'ru', short: 'RU', label: 'Русский' },
   { code: 'uz', short: 'UZ', label: 'O‘zbekcha' },
   { code: 'en', short: 'EN', label: 'English' },
 ];
 
 export function LangSwitcher() {
-  const [lang, setLang] = React.useState<LangCode>('ru');
-  const current = LANGS.find((l) => l.code === lang) ?? LANGS[0];
+  const locale = useLocale();
+  const router = useRouter();
+  const pathname = usePathname();
+  const current = LANGS.find((l) => l.code === locale) ?? LANGS[0];
+
+  function switchTo(next: Locale) {
+    if (next === locale) return;
+    // Query читаем в момент клика (event handler) — useSearchParams потребовал бы
+    // Suspense-границы и сломал бы статический fallback Header.
+    const qs = window.location.search;
+    router.replace(`${pathname}${qs}`, { locale: next });
+  }
 
   return (
     <Dropdown>
@@ -40,8 +53,8 @@ export function LangSwitcher() {
         {LANGS.map((l) => (
           <DropdownItem
             key={l.code}
-            selected={l.code === lang}
-            onSelect={() => setLang(l.code)}
+            selected={l.code === locale}
+            onSelect={() => switchTo(l.code)}
           >
             {l.label}
           </DropdownItem>
