@@ -55,7 +55,7 @@ interface ApiMedia {
 }
 
 /** Элемент выдачи GET /search (краткая карточка). */
-interface ApiSearchItem {
+export interface ApiSearchItem {
   id: string;
   status: ListingStatus;
   transaction_type: TransactionType;
@@ -114,8 +114,8 @@ interface ApiListingDetail {
   created_at: string;
 }
 
-/** Envelope поиска (API.md §9). */
-interface SearchEnvelope {
+/** Envelope поиска (API.md §9). Реиспользуется клиентским searchApi (TASK-152). */
+export interface SearchEnvelope {
   data: ApiSearchItem[];
   meta: { limit: number; total: number; next_cursor: string | null };
 }

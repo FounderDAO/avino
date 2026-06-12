@@ -20,6 +20,7 @@
     "buy": "Sotib olish",
     "rent": "Ijara",
     "newBuildings": "Yangi binolar",
+    "map": "Xarita",
     "sell": "Sotish",
     "help": "Yordam",
     "account": "Akkaunt",
@@ -208,7 +209,23 @@
       "map": "Xarita"
     },
     "map": {
-      "ariaLabel": "E'lonlar xaritasi"
+      "ariaLabel": "E'lonlar xaritasi",
+      "heading": "Xaritada qidiruv",
+      "metaTitle": "Xaritada qidiruv — Avino",
+      "metaDescription": "Ko'chmas mulkni xaritada qidiring: ko'rinadigan hududdagi e'lonlarni ko'ring va o'z hududingizni chizing.",
+      "loading": "Yuklanmoqda…",
+      "missingKey": "Xarita mavjud emas: Yandex Maps kaliti kiritilmagan.",
+      "loadError": "Xaritani yuklab bo'lmadi. Sahifani yangilang.",
+      "drawTerritory": "Hudud chizish",
+      "drawHint": "Xaritani bosib burchaklarni belgilang · nuqtalar: {count, number}",
+      "finish": "Tayyor",
+      "cancel": "Bekor qilish",
+      "clear": "Tozalash",
+      "areaCount": "{count, plural, other {hududda # ta e'lon}}",
+      "emptyArea": "Bu hududda e'lonlar yo'q — xaritani suring yoki hududni o'zgartiring.",
+      "preview": {
+        "close": "Ko'rinishni yopish"
+      }
     },
     "radius": {
       "draw": "Radius",

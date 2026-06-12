@@ -14,7 +14,7 @@
 'use client';
 
 import * as React from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import dynamic from 'next/dynamic';
@@ -26,9 +26,9 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Listing, RadiusCircle } from '@/lib/mock/types';
 
-// Карта — только на клиенте (Leaflet требует window). next/dynamic ssr:false.
+// Карта — только на клиенте (Yandex JS API требует window). next/dynamic ssr:false.
 const MapView = dynamic(
-  () => import('@/features/search/MapView').then((m) => m.MapView),
+  () => import('@/features/map/MapView').then((m) => m.MapView),
   {
     ssr: false,
     loading: () => <div className="h-full w-full bg-[#e8ede9]" />,
@@ -50,6 +50,7 @@ export interface SearchResultsProps {
 export function SearchResults({ listings, view, heading, circle, loading }: SearchResultsProps) {
   const t = useTranslations('search');
   const tCommon = useTranslations('common');
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -172,9 +173,11 @@ export function SearchResults({ listings, view, heading, circle, loading }: Sear
           activeId={activeId}
           onSelect={setActiveId}
           onHover={setActiveId}
+          locale={locale}
           circle={circle}
-          drawMode={drawMode}
+          drawMode={drawMode ? 'radius' : null}
           onDrawComplete={handleDrawComplete}
+          autoFit
         />
 
         {/* ---- Управление радиусом (поверх карты) ---- */}
