@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/client-radius-search
-PR: pending
+PR: https://github.com/FounderDAO/avino/pull/129 (#129)
 
 Files changed:
 - apps/client/src/lib/geo.ts (новый: parseCircleParams, clampRadius, границы радиуса)
