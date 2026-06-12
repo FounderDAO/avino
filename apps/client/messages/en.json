@@ -1,0 +1,11 @@
+{
+  "meta": {
+    "title": "Avino — Real Estate in Uzbekistan",
+    "description": "The national real estate portal of Uzbekistan. Buy and rent property nationwide — search, filters, map."
+  },
+  "common": {
+    "showMore": "Show more",
+    "loading": "Loading…",
+    "error": "Something went wrong"
+  }
+}

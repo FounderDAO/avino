@@ -1,0 +1,11 @@
+{
+  "meta": {
+    "title": "Avino — O'zbekiston ko'chmas mulki",
+    "description": "O'zbekistonning milliy ko'chmas mulk portali. Butun mamlakat bo'ylab uy-joy sotib olish va ijaraga olish — qidiruv, filtrlar, xarita."
+  },
+  "common": {
+    "showMore": "Yana ko'rsatish",
+    "loading": "Yuklanmoqda…",
+    "error": "Xatolik yuz berdi"
+  }
+}
