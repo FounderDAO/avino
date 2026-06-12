@@ -11,6 +11,7 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Logo } from './Logo';
+import { GoogleSignInButton } from './GoogleSignInButton';
 import {
   useRequestOtpMutation,
   useVerifyOtpMutation,
@@ -182,6 +183,12 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
               >
                 {requestState.isLoading ? t('sending') : t('requestCode')}
               </Button>
+              <div className="mt-4 flex items-center gap-3 text-[12px] text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                {t('or')}
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <GoogleSignInButton onSuccess={() => onOpenChange(false)} />
             </>
           ) : (
             <>

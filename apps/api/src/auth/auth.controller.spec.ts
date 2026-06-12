@@ -28,9 +28,37 @@ describe('AuthController.me', () => {
       },
     };
     const authService = { getMe: jest.fn().mockResolvedValue(me) };
-    const controller = new AuthController({} as any, authService as any);
+    const controller = new AuthController(
+      {} as any,
+      authService as any,
+      {} as any,
+    );
 
     await expect(controller.me('u1')).resolves.toBe(me);
     expect(authService.getMe).toHaveBeenCalledWith('u1');
+  });
+});
+
+describe('AuthController.google', () => {
+  it('delegates to GoogleAuthService.login with body, ip and user-agent', async () => {
+    const result = { access_token: 'a' };
+    const googleAuthService = { login: jest.fn().mockResolvedValue(result) };
+    const controller = new AuthController(
+      {} as any,
+      {} as any,
+      googleAuthService as any,
+    );
+
+    const res = await controller.google(
+      { id_token: 't' } as any,
+      '1.1.1.1',
+      'UA',
+    );
+    expect(googleAuthService.login).toHaveBeenCalledWith(
+      { id_token: 't' },
+      '1.1.1.1',
+      'UA',
+    );
+    expect(res).toBe(result);
   });
 });

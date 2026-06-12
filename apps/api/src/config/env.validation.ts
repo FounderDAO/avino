@@ -256,6 +256,29 @@ export class EnvironmentVariables {
   @Min(1)
   @IsOptional()
   JWT_REFRESH_TTL?: number;
+
+  // ── Google Sign-In (опционально на старте) ──
+  @IsString()
+  @IsOptional()
+  GOOGLE_CLIENT_ID?: string;
+
+  // ── Telegram admin-алерты (опционально на старте) ──
+  @IsString()
+  @IsOptional()
+  TELEGRAM_BOT_TOKEN?: string;
+
+  @IsString()
+  @IsOptional()
+  TELEGRAM_ADMIN_CHAT_ID?: string;
+
+  // Булевы как строки (class-transformer привёл бы любую непустую к true).
+  @IsString()
+  @IsOptional()
+  TELEGRAM_INCLUDE_OTP_CODE?: string;
+
+  @IsString()
+  @IsOptional()
+  TELEGRAM_NOTIFICATION_STATE?: string;
 }
 
 /**

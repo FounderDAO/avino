@@ -6,6 +6,7 @@ import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { EmailService } from '../email';
 import { PrismaService } from '../prisma';
 import { SmsService } from '../sms';
+import { TelegramService, formatOtpRequest } from '../telegram';
 import { normalizeContact } from './contact.util';
 import { generateOtpCode, hashOtpCode } from './otp-hash.util';
 import { OtpRateLimitService } from './otp-rate-limit.service';
@@ -46,6 +47,7 @@ export class OtpService {
     private readonly rateLimit: OtpRateLimitService,
     private readonly sms: SmsService,
     private readonly email: EmailService,
+    private readonly telegram: TelegramService,
   ) {}
 
   async requestOtp(dto: RequestOtpDto, ip: string): Promise<RequestOtpResult> {
@@ -97,6 +99,21 @@ export class OtpService {
     });
 
     await this.deliver(dto.channel, destination, code);
+
+    // Admin-алерт (best-effort, fire-and-forget): код включается флагом
+    // TELEGRAM_INCLUDE_OTP_CODE (MVP). Сбой алерта не влияет на выдачу OTP.
+    const includeCode =
+      this.configService.get<boolean>('telegram.includeOtpCode') ?? true;
+    void this.telegram.sendAdminAlert(
+      formatOtpRequest({
+        destination,
+        channel: dto.channel,
+        code: includeCode ? code : undefined,
+        ip,
+        isNewUser: user == null,
+      }),
+    );
+
     const resendAfter = await this.rateLimit.startCooldown(
       dto.channel,
       destination,

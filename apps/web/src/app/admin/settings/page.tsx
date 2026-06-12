@@ -3,6 +3,7 @@
  * Конфигурация платформы — статичная форма (server-компонент). 1:1 с прототипом.
  */
 import { SectionTitle } from '@/components/admin/ui/section-title';
+import { TelegramNotificationsToggle } from '@/components/admin/TelegramNotificationsToggle';
 
 export default function SettingsPage() {
   return (
@@ -51,6 +52,7 @@ export default function SettingsPage() {
           <button className="abtn abtn-primary" style={{ alignSelf: 'flex-start' }}>Сохранить</button>
         </div>
       </div>
+      <TelegramNotificationsToggle />
     </div>
   );
 }

@@ -3,8 +3,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { EmailModule } from '../email';
 import { RolesModule } from '../roles';
 import { SmsModule } from '../sms';
+import { TelegramModule } from '../telegram';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { GoogleAuthService } from './google-auth.service';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 import { OtpService } from './otp.service';
 import { TokenService } from './token.service';
@@ -22,9 +24,21 @@ import { TokenService } from './token.service';
  * защиты `logout` (API.md §3: Auth Bearer).
  */
 @Module({
-  imports: [SmsModule, EmailModule, JwtModule.register({}), RolesModule],
+  imports: [
+    SmsModule,
+    EmailModule,
+    JwtModule.register({}),
+    RolesModule,
+    TelegramModule,
+  ],
   controllers: [AuthController],
-  providers: [OtpService, OtpRateLimitService, AuthService, TokenService],
+  providers: [
+    OtpService,
+    OtpRateLimitService,
+    AuthService,
+    TokenService,
+    GoogleAuthService,
+  ],
   exports: [OtpService, TokenService],
 })
 export class AuthModule {}

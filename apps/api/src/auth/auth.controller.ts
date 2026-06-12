@@ -12,7 +12,9 @@ import {
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
 import { AuthService, RefreshResult, VerifyOtpResult } from './auth.service';
+import { GoogleAuthService } from './google-auth.service';
 import { OtpService, RequestOtpResult } from './otp.service';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { MeResponse } from './dto/me-response.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
@@ -32,6 +34,7 @@ export class AuthController {
   constructor(
     private readonly otpService: OtpService,
     private readonly authService: AuthService,
+    private readonly googleAuthService: GoogleAuthService,
   ) {}
 
   /**
@@ -60,6 +63,21 @@ export class AuthController {
     @Headers('user-agent') userAgent?: string,
   ): Promise<VerifyOtpResult> {
     return this.authService.verifyOtp(dto, ip, userAgent);
+  }
+
+  /**
+   * Вход через Google (public). Принимает Google ID-token (GIS на клиенте),
+   * верифицирует офлайн, создаёт пользователя при первом входе (login=signup),
+   * выдаёт ту же сессию, что и OTP-verify. Провайдер не настроен → 503.
+   */
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  google(
+    @Body() dto: GoogleLoginDto,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent?: string,
+  ): Promise<VerifyOtpResult> {
+    return this.googleAuthService.login(dto, ip, userAgent);
   }
 
   /**
