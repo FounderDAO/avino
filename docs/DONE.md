@@ -39,6 +39,65 @@ Related ADR:
 
 ## 2026-06-12
 
+### TASK-142 — Add i18n foundation (client, uz/ru/en)
+
+Status: DONE
+Branch: feat/client-i18n
+PR: pending
+
+Files changed:
+- apps/client/next.config.mjs, apps/client/package.json (next-intl ^4)
+- apps/client/src/i18n/{routing,request,navigation}.ts, apps/client/src/middleware.ts
+- apps/client/src/app/[locale]/** (все 7 роутов перенесены под [locale], корневой layout)
+- apps/client/messages/{ru,uz,en}.json (~470 ключей × 3 локали)
+- apps/client/src/components/layout/* (Header/Nav/Footer/Logo/LoginModal/LangSwitcher)
+- apps/client/src/components/ui/{fav-button,lightbox,promo-badge}.tsx
+- apps/client/src/features/{home,search,detail,sell,listing-new,help,account}/*
+- apps/client/src/store/api/baseQuery.ts (Accept-Language)
+- apps/client/src/lib/{format,savedSearch}.ts, apps/client/src/lib/api/listings.ts, apps/client/src/lib/mock/{types,listings}.ts
+
+Summary:
+- Полный i18n публичного портала: next-intl v4 + `[locale]`-роутинг
+  (`/ru|/uz|/en/...`, localePrefix always, дефолт ru); middleware детектит язык
+  (cookie NEXT_LOCALE → Accept-Language → ru), неизвестная локаль → 404.
+- LangSwitcher из заглушки стал рабочим: смена локали с сохранением пути и
+  query, персистентность через cookie.
+- Все захардкоженные RU-строки (~40 компонентов: layout, главная, поиск,
+  карточка, продажа+визард, помощь, кабинет) вынесены в словари; metadata
+  страниц locale-aware; ICU-плюрализация вместо ручной.
+- Контент объявлений следует за языком интерфейса: Accept-Language уходит из
+  RTK Query и серверного fetch-слоя (перевод листинга — ADR-005/012).
+- Locale-aware форматирование: хелперы format.ts получили t-параметр;
+  Listing.created (RU-строка) → createdAt (ISO) + useFormatter().relativeTime;
+  isFresh по дате вместо regex.
+- Закрывает критерии TASK-142 (uz/ru/en, browser detection, ручной свитчер,
+  персистентность) + задел под TASK-183 (per-language URL для hreflang).
+- Не локализованы (осознанно): мок-данные (районы/агенты/демо-профиль — данные,
+  ждут geo-reference/profile API), эндонимы языков, бренд Avino.
+
+Commit messages:
+- docs(client): add i18n design spec for TASK-142
+- docs(client): add i18n implementation plan for TASK-142
+- feat(client): add next-intl i18n foundation
+- feat(client): move routes under [locale] prefix
+- refactor(client): use locale-aware navigation wrappers
+- feat(client): wire language switcher to locale routing
+- feat(client): send Accept-Language and switch listing dates to ISO
+- refactor(client): locale-aware formatting helpers
+- feat(client): add full uz/ru/en message dictionaries
+- feat(client): localize layout chrome and auth
+- feat(client): localize home page
+- feat(client): localize search page
+- feat(client): localize listing detail
+- feat(client): localize sell and listing creation pages
+- feat(client): localize help and account pages
+- docs(client): record TASK-142 client i18n (ADR, TASKS, DONE)
+
+Related ADR:
+- docs/adr/ADR-0063-client-i18n-next-intl.md
+
+---
+
 ### TASK-193 — Подключение публичного портала к реальному API (mock → backend)
 
 Status: DONE
