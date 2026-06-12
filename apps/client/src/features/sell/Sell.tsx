@@ -4,7 +4,7 @@
  * Секции: Hero, «Как продавать» (пути), «Как это работает» (шаги),
  * продвижение (TOP/VIP — мок-тарифы), FAQ, финальный CTA.
  */
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { Building, Home as HomeIcon, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PhotoImg } from '@/components/ui/photo-img';

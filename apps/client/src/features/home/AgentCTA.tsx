@@ -3,7 +3,7 @@
  * «Разместить объявление» → /sell. Справа — карточки преимуществ TOP/VIP/Лиды.
  * Server component: кнопка-ссылка через Button asChild.
  */
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 
 /** Преимущества размещения (как в дизайн-источнике). */

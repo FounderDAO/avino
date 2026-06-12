@@ -6,7 +6,7 @@
  * контакт) → похожие объявления. Server component; интерактив (галерея,
  * лайтбокс, контакт, избранное) — внутри дочерних 'use client'-компонентов.
  */
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { ChevronLeft, MapPin, Check } from 'lucide-react';
 import { Gallery } from '@/components/ui/gallery';
 import { PromoBadge } from '@/components/ui/promo-badge';

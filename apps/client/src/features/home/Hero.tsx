@@ -9,7 +9,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { MapPin, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Segment } from '@/components/ui/segment';

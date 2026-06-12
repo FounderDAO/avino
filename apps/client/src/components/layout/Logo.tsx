@@ -5,7 +5,7 @@
  * По умолчанию ведёт на главную (<Link>). `light` — белый текст для тёмных
  * поверхностей (футер, CTA).
  */
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import logoIcon from '@/assets/logo/avino-appicon.svg';

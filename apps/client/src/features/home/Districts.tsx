@@ -4,7 +4,7 @@
  * (Unsplash) по индексу. Каждая плитка — ссылка на /search?district=...
  * Server component: данные синхронные, без интерактива.
  */
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { getDistricts } from '@/lib/mock';
 

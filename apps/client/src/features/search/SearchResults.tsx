@@ -14,7 +14,7 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import dynamic from 'next/dynamic';
 import { List as ListIcon, Map as MapIcon } from 'lucide-react';
 import { PropertyCard } from '@/features/search/PropertyCard';

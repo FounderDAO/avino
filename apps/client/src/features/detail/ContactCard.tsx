@@ -7,7 +7,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { MessageSquare, Phone, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FavButton } from '@/components/ui/fav-button';

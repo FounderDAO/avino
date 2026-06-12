@@ -1,7 +1,7 @@
 /**
  * not-found для /listing/[id] — объект не найден / снят с публикации.
  */
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 

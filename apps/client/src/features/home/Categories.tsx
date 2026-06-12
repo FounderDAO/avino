@@ -3,7 +3,7 @@
  * Каждый чип — ссылка на выдачу /search?tx=SALE&type=...
  * Server component: статичные ссылки, без состояния.
  */
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { Building2, Home as HomeIcon, Store, Trees, type LucideIcon } from 'lucide-react';
 import type { PropertyType } from '@/lib/mock/types';
 

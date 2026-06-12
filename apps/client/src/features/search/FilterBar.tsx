@@ -8,7 +8,8 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from '@/i18n/navigation';
 import { Search, Bell, List, Map as MapIcon } from 'lucide-react';
 import { Segment } from '@/components/ui/segment';
 import { Pill } from '@/components/ui/pill';

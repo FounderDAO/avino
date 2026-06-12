@@ -7,7 +7,7 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { Field } from '@/components/ui/field';
 import { Pill } from '@/components/ui/pill';
 import { Button } from '@/components/ui/button';

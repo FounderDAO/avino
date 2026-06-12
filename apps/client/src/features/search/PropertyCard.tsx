@@ -6,7 +6,7 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { MapPin } from 'lucide-react';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { PromoBadge, NewBadge } from '@/components/ui/promo-badge';

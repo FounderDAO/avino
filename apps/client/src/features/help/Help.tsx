@@ -3,7 +3,7 @@
  * Блок контактов статичный (Support@avino.uz) — без модалки/отправки (только моки).
  */
 import * as React from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Faq } from './Faq';

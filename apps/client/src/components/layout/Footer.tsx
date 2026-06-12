@@ -2,7 +2,7 @@
  * Footer — тёмный футер (перенос Footer из chrome.jsx).
  * Колонки ссылок, лого со слоганом, соц-иконки, копирайт.
  */
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { Logo } from './Logo';
 
 const COLS: { heading: string; links: { label: string; href: string }[] }[] = [
