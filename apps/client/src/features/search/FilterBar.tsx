@@ -25,8 +25,9 @@ import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import { useCreateSavedSearchMutation } from '@/store/api/savedSearchesApi';
 import { describeFilters, type SavedSearchFilters } from '@/lib/savedSearch';
 import { getApiError } from '@/store/api/apiError';
+import { useTranslations } from 'next-intl';
 import {
-  PROPERTY_TYPE_LABELS,
+  PROPERTY_TYPES,
   type District,
   type PropertyType,
   type SortOption,
@@ -60,12 +61,9 @@ const ROOM_OPTIONS: { value: number; label: string }[] = [
   { value: 4, label: '4+' },
 ];
 
-const PROPERTY_TYPE_ENTRIES = Object.entries(PROPERTY_TYPE_LABELS) as [
-  PropertyType,
-  string,
-][];
-
 export function FilterBar({ values, districts }: FilterBarProps) {
+  const t = useTranslations();
+  const tEnums = useTranslations('enums');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -95,7 +93,9 @@ export function FilterBar({ values, districts }: FilterBarProps) {
   const roomsLabel = values.rooms
     ? `Комнат: ${values.rooms === 4 ? '4+' : values.rooms}`
     : 'Комнаты';
-  const typeLabel = values.type ? PROPERTY_TYPE_LABELS[values.type] : 'Тип жилья';
+  const typeLabel = values.type
+    ? tEnums(`propertyType.${values.type}`)
+    : 'Тип жилья';
   const districtLabel = values.district || 'Район';
 
   // ─── Сохранить поиск ──────────────────────────────────────────────────────
@@ -117,9 +117,9 @@ export function FilterBar({ values, districts }: FilterBarProps) {
   const handleSaveSearch = React.useCallback(() => {
     if (!isAuthenticated || isSaving) return;
     const filters = buildFilters();
-    const name = describeFilters(filters) || 'Мой поиск';
+    const name = describeFilters(filters, t) || 'Мой поиск';
     void createSavedSearch({ name, filters });
-  }, [isAuthenticated, isSaving, buildFilters, createSavedSearch]);
+  }, [isAuthenticated, isSaving, buildFilters, createSavedSearch, t]);
 
   const saveApiError = getApiError(saveError);
 
@@ -226,7 +226,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
               >
                 Любой тип
               </button>
-              {PROPERTY_TYPE_ENTRIES.map(([key, label]) => (
+              {PROPERTY_TYPES.map((key) => (
                 <button
                   key={key}
                   type="button"
@@ -238,7 +238,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
                     values.type === key && 'bg-mint',
                   )}
                 >
-                  {label}
+                  {tEnums(`propertyType.${key}`)}
                 </button>
               ))}
             </DropdownContent>

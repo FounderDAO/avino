@@ -7,5 +7,37 @@
     "showMore": "Yana ko'rsatish",
     "loading": "Yuklanmoqda…",
     "error": "Xatolik yuz berdi"
+  },
+  "units": {
+    "sum": "so'm",
+    "perMonth": "/oy",
+    "area": "{value} m²",
+    "rooms": "{count} xonali",
+    "roomsShort": "{count} xona",
+    "floorOf": "{floor}/{total}-qavat",
+    "floor": "{floor}-qavat",
+    "landArea": "{value} m² uchastka",
+    "billion": "mlrd",
+    "million": "mln"
+  },
+  "savedSearch": {
+    "txSale": "Sotib olish",
+    "txRent": "Ijara",
+    "upTo": "{value} gacha",
+    "from": "{value} dan",
+    "rooms": "{count} xona"
+  },
+  "enums": {
+    "tx": {
+      "SALE": "Sotuv",
+      "RENT": "Ijara"
+    },
+    "propertyType": {
+      "APARTMENT": "Kvartira",
+      "HOUSE": "Uy",
+      "NEW_BUILDING": "Yangi bino",
+      "LAND": "Yer uchastkasi",
+      "COMMERCIAL": "Tijorat"
+    }
   }
 }

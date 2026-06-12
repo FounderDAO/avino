@@ -10,6 +10,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { Bell, BookmarkX, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -87,10 +88,11 @@ export function SavedSearches() {
 
 /** Одна строка списка — изолирует per-item pending-состояния мутаций. */
 function SavedSearchRow({ item }: { item: SavedSearch }) {
+  const t = useTranslations();
   const [updateSearch, { isLoading: isUpdating }] = useUpdateSavedSearchMutation();
   const [deleteSearch, { isLoading: isDeleting }] = useDeleteSavedSearchMutation();
 
-  const meta = describeFilters(item.filters_json.filters);
+  const meta = describeFilters(item.filters_json.filters, t);
   const href = filtersToSearchHref(item.filters_json.filters);
 
   return (

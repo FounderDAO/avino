@@ -6,7 +6,7 @@
  * контакт) → похожие объявления. Server component; интерактив (галерея,
  * лайтбокс, контакт, избранное) — внутри дочерних 'use client'-компонентов.
  */
-import { getLocale } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { ChevronLeft, MapPin, Check } from 'lucide-react';
 import { Gallery } from '@/components/ui/gallery';
@@ -26,7 +26,9 @@ export interface DetailProps {
 
 export async function Detail({ listing }: DetailProps) {
   const locale = await getLocale();
-  const parts = specs(listing);
+  const tUnits = await getTranslations('units');
+  const tEnums = await getTranslations('enums');
+  const parts = specs(listing, tUnits);
   const similar = await getSimilarListings(listing, 4, locale);
   // Ссылка «Назад к поиску» сохраняет тип сделки текущего объекта.
   const backHref = `/search?tx=${listing.tx}`;
@@ -54,15 +56,15 @@ export async function Detail({ listing }: DetailProps) {
           <div className="flex flex-wrap items-center gap-2.5">
             <PromoBadge promo={listing.promo} />
             <span className="rounded-badge border border-border bg-surface-2 px-2.5 py-1 text-[12.5px] font-bold text-teal">
-              {propertyTypeLabel(listing.type)}
+              {propertyTypeLabel(listing.type, tEnums)}
             </span>
             <span className="rounded-badge border border-border bg-surface-2 px-2.5 py-1 text-[12.5px] font-bold">
-              {txLabel(listing.tx)}
+              {txLabel(listing.tx, tEnums)}
             </span>
           </div>
 
           {/* Цена */}
-          <div className="display mt-3.5 text-[40px]">{formatPrice(listing)}</div>
+          <div className="display mt-3.5 text-[40px]">{formatPrice(listing, tUnits)}</div>
 
           {/* Характеристики строкой */}
           {parts.length > 0 && (

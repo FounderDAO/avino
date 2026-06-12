@@ -34,9 +34,10 @@ import { Segment } from '@/components/ui/segment';
 import { Chip } from '@/components/ui/pill';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { cn } from '@/lib/utils';
-import { formatMoney } from '@/lib/format';
+import { useTranslations } from 'next-intl';
+import { formatMoney, propertyTypeLabel } from '@/lib/format';
 import {
-  PROPERTY_TYPE_LABELS,
+  PROPERTY_TYPES,
   type Currency,
   type PropertyType,
   type TransactionType,
@@ -149,6 +150,8 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function ListingNew() {
+  const tUnits = useTranslations('units');
+  const tEnums = useTranslations('enums');
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
   const [f, dispatch] = useReducer(reducer, INITIAL);
@@ -334,7 +337,7 @@ export function ListingNew() {
             </FormField>
             <FormField label="Тип недвижимости">
               <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
-                {(Object.keys(PROPERTY_TYPE_LABELS) as PropertyType[]).map((k) => {
+                {PROPERTY_TYPES.map((k) => {
                   const on = f.type === k;
                   const Icon = TYPE_ICONS[k];
                   return (
@@ -352,7 +355,7 @@ export function ListingNew() {
                         strokeWidth={1.8}
                         className={on ? 'text-red' : 'text-teal'}
                       />
-                      <span className="text-[15px] font-bold">{PROPERTY_TYPE_LABELS[k]}</span>
+                      <span className="text-[15px] font-bold">{propertyTypeLabel(k, tEnums)}</span>
                     </button>
                   );
                 })}
@@ -542,14 +545,14 @@ export function ListingNew() {
             )}
             <div>
               <div className="text-2xl font-extrabold">
-                {f.price ? formatMoney(f.price, f.currency) : '—'}
+                {f.price ? formatMoney(f.price, f.currency, tUnits) : '—'}
                 {f.tx === 'RENT' && f.price ? '/мес' : ''}
               </div>
               <div className="mt-1 text-base font-bold text-ink">{f.title || 'Без заголовка'}</div>
             </div>
             <div className="rounded-input bg-surface-2 px-4 py-1">
               <Row label="Сделка" value={f.tx === 'RENT' ? 'Аренда' : 'Продажа'} />
-              <Row label="Тип" value={PROPERTY_TYPE_LABELS[f.type]} />
+              <Row label="Тип" value={propertyTypeLabel(f.type, tEnums)} />
               <Row label="Адрес" value={f.address} />
               <Row
                 label="Координаты"

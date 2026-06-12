@@ -7,5 +7,37 @@
     "showMore": "Show more",
     "loading": "Loading…",
     "error": "Something went wrong"
+  },
+  "units": {
+    "sum": "UZS",
+    "perMonth": "/mo",
+    "area": "{value} m²",
+    "rooms": "{count}-room",
+    "roomsShort": "{count} rm",
+    "floorOf": "{floor}/{total} fl",
+    "floor": "{floor} fl",
+    "landArea": "{value} m² lot",
+    "billion": "bln",
+    "million": "mln"
+  },
+  "savedSearch": {
+    "txSale": "Buy",
+    "txRent": "Rent",
+    "upTo": "up to {value}",
+    "from": "from {value}",
+    "rooms": "{count} rm"
+  },
+  "enums": {
+    "tx": {
+      "SALE": "Sale",
+      "RENT": "Rent"
+    },
+    "propertyType": {
+      "APARTMENT": "Apartment",
+      "HOUSE": "House",
+      "NEW_BUILDING": "New building",
+      "LAND": "Land",
+      "COMMERCIAL": "Commercial"
+    }
   }
 }

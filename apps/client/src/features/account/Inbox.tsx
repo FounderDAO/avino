@@ -23,8 +23,8 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fieldClass } from '@/components/ui/field';
-import { useFormatter } from 'next-intl';
-import { formatMoney } from '@/lib/format';
+import { useFormatter, useTranslations } from 'next-intl';
+import { formatMoney, type T } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser, selectIsAuthenticated } from '@/store/slices/authSlice';
 import { getApiError } from '@/store/api/apiError';
@@ -47,12 +47,12 @@ function threadInitial(t: ApiThread): string {
 }
 
 /** Вторичная строка строки списка: цена объявления либо статус. */
-function threadSubtitle(t: ApiThread): string {
+function threadSubtitle(t: ApiThread, tUnits: T): string {
   const { price, currency, status } = t.listing_preview;
   const n = Number(price);
   if (Number.isFinite(n) && n > 0) {
     // API возвращает currency строкой; formatMoney различает только USD vs прочее.
-    return formatMoney(price, currency === 'USD' ? 'USD' : 'UZS');
+    return formatMoney(price, currency === 'USD' ? 'USD' : 'UZS', tUnits);
   }
   return status;
 }
@@ -66,6 +66,7 @@ function msgTime(iso: string): string {
 
 export function Inbox() {
   const format = useFormatter();
+  const tUnits = useTranslations('units');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const currentUser = useAppSelector(selectCurrentUser);
   const currentUserId = currentUser?.id ?? null;
@@ -208,7 +209,7 @@ export function Inbox() {
                     </span>
                   </span>
                   <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
-                    {threadSubtitle(t)}
+                    {threadSubtitle(t, tUnits)}
                   </span>
                 </span>
                 {t.unread_count > 0 && (
@@ -234,7 +235,7 @@ export function Inbox() {
                     {selectedThread.listing_preview.title}
                   </div>
                   <div className="text-[12.5px] text-muted-foreground">
-                    {threadSubtitle(selectedThread)}
+                    {threadSubtitle(selectedThread, tUnits)}
                   </div>
                 </div>
               </div>

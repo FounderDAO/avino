@@ -16,6 +16,7 @@ import * as React from 'react';
 import { Link } from '@/i18n/navigation';
 import { Home } from 'lucide-react';
 import type { Listing, ListingStatus } from '@/lib/mock/types';
+import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/format';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { PromoBadge } from '@/components/ui/promo-badge';
@@ -54,6 +55,7 @@ function StatusPill({ s }: { s: ListingStatus | undefined }) {
 
 /** Строка объявления в кабинете. */
 function ListingRow({ l }: { l: Listing }) {
+  const tUnits = useTranslations('units');
   return (
     <div className="grid grid-cols-[120px_1fr] items-center gap-4 rounded-card border border-border/60 bg-surface p-3.5 shadow-card sm:grid-cols-[120px_1fr_auto]">
       {/* Превью */}
@@ -72,7 +74,7 @@ function ListingRow({ l }: { l: Listing }) {
         </div>
         <div className="truncate text-base font-bold">{l.title}</div>
         <div className="mt-[3px] text-[13.5px] text-muted-foreground">
-          {formatPrice(l)} · {l.district}
+          {formatPrice(l, tUnits)} · {l.district}
         </div>
         {/* TODO(listing-analytics): API /listings/mine не отдаёт views/leads. */}
       </div>

@@ -12,7 +12,8 @@
 
 import * as React from 'react';
 import L from 'leaflet';
-import { pinPrice } from '@/lib/format';
+import { useTranslations } from 'next-intl';
+import { pinPrice, type T } from '@/lib/format';
 import type { Listing } from '@/lib/mock/types';
 
 import 'leaflet/dist/leaflet.css';
@@ -30,8 +31,8 @@ const TASHKENT_CENTER: [number, number] = [41.311, 69.28];
 const DEFAULT_ZOOM = 12;
 
 /** HTML ценового пина (divIcon): VIP — золотой, TOP — красный, активный — тёмный. */
-function pinHTML(listing: Listing, active: boolean): string {
-  const price = pinPrice(listing);
+function pinHTML(listing: Listing, active: boolean, t: T): string {
+  const price = pinPrice(listing, t);
   let bg = '#fff';
   let fg = 'var(--ink, #282218)';
   let bd = '1.5px solid var(--border, #e7e2d8)';
@@ -76,6 +77,7 @@ function ensurePinStyles() {
 }
 
 export function MapView({ listings, activeId, onSelect, onHover }: MapViewProps) {
+  const tUnits = useTranslations('units');
   const elRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<L.Map | null>(null);
   const markersRef = React.useRef<Record<string, L.Marker>>({});
@@ -134,7 +136,7 @@ export function MapView({ listings, activeId, onSelect, onHover }: MapViewProps)
       pts.push([l.lat, l.lng]);
       const icon = L.divIcon({
         className: 'av-pin-wrap',
-        html: pinHTML(l, l.id === activeId),
+        html: pinHTML(l, l.id === activeId, tUnits),
         iconSize: undefined,
         iconAnchor: [0, 0],
       });
@@ -171,7 +173,7 @@ export function MapView({ listings, activeId, onSelect, onHover }: MapViewProps)
       marker.setIcon(
         L.divIcon({
           className: 'av-pin-wrap',
-          html: pinHTML(l, l.id === activeId),
+          html: pinHTML(l, l.id === activeId, tUnits),
           iconSize: undefined,
           iconAnchor: [0, 0],
         }),

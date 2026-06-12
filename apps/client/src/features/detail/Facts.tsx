@@ -3,6 +3,7 @@
  * Перенос блока facts-grid + Fact из claudeDesign/detail.jsx на токены проекта.
  */
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Bed, Ruler, Layers, CalendarDays, type LucideIcon } from 'lucide-react';
 import { formatArea } from '@/lib/format';
 import type { Listing } from '@/lib/mock/types';
@@ -28,13 +29,14 @@ export interface FactsProps {
 }
 
 export function Facts({ listing, className }: FactsProps) {
+  const tUnits = useTranslations('units');
   // Собираем только заполненные характеристики (у участка/коммерции часть пуста).
   const items: React.ReactNode[] = [];
   if (listing.rooms) {
     items.push(<Fact key="rooms" icon={Bed} label="Комнат" value={listing.rooms} />);
   }
   if (listing.area) {
-    items.push(<Fact key="area" icon={Ruler} label="Площадь" value={formatArea(listing.area)} />);
+    items.push(<Fact key="area" icon={Ruler} label="Площадь" value={formatArea(listing.area, tUnits)} />);
   }
   if (listing.floor && listing.totalFloors) {
     items.push(

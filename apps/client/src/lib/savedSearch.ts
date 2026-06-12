@@ -7,22 +7,16 @@
  *   currency, city_id, district_id.
  *
  * Здесь — два чистых хелпера:
- *  - describeFilters → короткая человекочитаемая RU-сводка для заголовка/мета,
+ *  - describeFilters → короткая человекочитаемая сводка для заголовка/мета
+ *    (locale-aware: принимает КОРНЕВОЙ translator — useTranslations() без
+ *    неймспейса, ключи `savedSearch.*` и `enums.propertyType.*`),
  *  - filtersToSearchHref → ссылка `/search?...` для перехода в выдачу.
  */
-import {
-  PROPERTY_TYPE_LABELS,
-  type PropertyType,
-} from '@/lib/mock/types';
+import { PROPERTY_TYPES, type PropertyType } from '@/lib/mock/types';
+import type { T } from '@/lib/format';
 
 /** Внутренний объект фильтров (произвольные ключи API.md §12). */
 export type SavedSearchFilters = Record<string, unknown>;
-
-/** Человекочитаемая метка типа сделки. */
-const TX_LABELS: Record<string, string> = {
-  SALE: 'Покупка',
-  RENT: 'Аренда',
-};
 
 function asString(v: unknown): string | undefined {
   if (typeof v === 'string' && v.trim() !== '') return v.trim();
@@ -31,7 +25,7 @@ function asString(v: unknown): string | undefined {
 }
 
 function isPropertyType(v: unknown): v is PropertyType {
-  return typeof v === 'string' && v in PROPERTY_TYPE_LABELS;
+  return typeof v === 'string' && (PROPERTY_TYPES as string[]).includes(v);
 }
 
 /** Форматирует число с разделителями тысяч (RU non-breaking space). */
@@ -42,18 +36,19 @@ function formatPrice(raw: string): string {
 }
 
 /**
- * Короткая RU-сводка из внутренних фильтров.
- * Пример: «Аренда · Квартира · до 5 000 000 UZS · 2 комн».
- * Неизвестные/пустые поля пропускаются.
+ * Короткая сводка из внутренних фильтров на языке интерфейса.
+ * Пример (ru): «Аренда · Квартира · до 5 000 000 UZS · 2 комн».
+ * Неизвестные/пустые поля пропускаются. `t` — КОРНЕВОЙ translator.
  */
-export function describeFilters(filters: SavedSearchFilters): string {
+export function describeFilters(filters: SavedSearchFilters, t: T): string {
   const parts: string[] = [];
 
   const tx = asString(filters.transaction_type);
-  if (tx && TX_LABELS[tx]) parts.push(TX_LABELS[tx]);
+  if (tx === 'SALE') parts.push(t('savedSearch.txSale'));
+  else if (tx === 'RENT') parts.push(t('savedSearch.txRent'));
 
   if (isPropertyType(filters.property_type)) {
-    parts.push(PROPERTY_TYPE_LABELS[filters.property_type]);
+    parts.push(t(`enums.propertyType.${filters.property_type}`));
   }
 
   const currency = asString(filters.currency) ?? '';
@@ -63,13 +58,13 @@ export function describeFilters(filters: SavedSearchFilters): string {
   if (priceMin && priceMax) {
     parts.push(`${formatPrice(priceMin)}–${formatPrice(priceMax)}${cur}`);
   } else if (priceMax) {
-    parts.push(`до ${formatPrice(priceMax)}${cur}`);
+    parts.push(t('savedSearch.upTo', { value: `${formatPrice(priceMax)}${cur}` }));
   } else if (priceMin) {
-    parts.push(`от ${formatPrice(priceMin)}${cur}`);
+    parts.push(t('savedSearch.from', { value: `${formatPrice(priceMin)}${cur}` }));
   }
 
   const rooms = asString(filters.rooms);
-  if (rooms) parts.push(`${rooms} комн`);
+  if (rooms) parts.push(t('savedSearch.rooms', { count: rooms }));
 
   const q = asString(filters.q);
   if (q) parts.push(`«${q}»`);

@@ -7,5 +7,37 @@
     "showMore": "Показать ещё",
     "loading": "Загрузка…",
     "error": "Что-то пошло не так"
+  },
+  "units": {
+    "sum": "сум",
+    "perMonth": "/мес",
+    "area": "{value} м²",
+    "rooms": "{count}-комн.",
+    "roomsShort": "{count} комн",
+    "floorOf": "{floor}/{total} эт",
+    "floor": "{floor} эт",
+    "landArea": "{value} м² участок",
+    "billion": "млрд",
+    "million": "млн"
+  },
+  "savedSearch": {
+    "txSale": "Покупка",
+    "txRent": "Аренда",
+    "upTo": "до {value}",
+    "from": "от {value}",
+    "rooms": "{count} комн"
+  },
+  "enums": {
+    "tx": {
+      "SALE": "Продажа",
+      "RENT": "Аренда"
+    },
+    "propertyType": {
+      "APARTMENT": "Квартира",
+      "HOUSE": "Дом",
+      "NEW_BUILDING": "Новостройка",
+      "LAND": "Участок",
+      "COMMERCIAL": "Коммерция"
+    }
   }
 }

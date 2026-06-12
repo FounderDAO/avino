@@ -15,7 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Segment } from '@/components/ui/segment';
 import { Field, SelectField } from '@/components/ui/field';
 import { PhotoImg } from '@/components/ui/photo-img';
-import { PROPERTY_TYPE_LABELS } from '@/lib/mock/types';
+import { useTranslations } from 'next-intl';
+import { PROPERTY_TYPES } from '@/lib/mock/types';
 import type { PropertyType, TransactionType } from '@/lib/mock/types';
 
 /** Фото-фон героя (как в прототипе home.jsx · HERO_PHOTO). */
@@ -24,6 +25,7 @@ const HERO_PHOTO =
 
 /** Поисковая панель: сегмент сделки + локация + тип жилья + кнопка «Найти». */
 function SearchPanel() {
+  const tEnums = useTranslations('enums');
   const router = useRouter();
   const [tx, setTx] = React.useState<TransactionType>('SALE');
   const [type, setType] = React.useState<PropertyType | ''>('');
@@ -73,13 +75,11 @@ function SearchPanel() {
           aria-label="Тип жилья"
         >
           <option value="">Тип жилья</option>
-          {(Object.entries(PROPERTY_TYPE_LABELS) as [PropertyType, string][]).map(
-            ([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ),
-          )}
+          {PROPERTY_TYPES.map((k) => (
+            <option key={k} value={k}>
+              {tEnums(`propertyType.${k}`)}
+            </option>
+          ))}
         </SelectField>
         {/* Кнопка поиска */}
         <Button type="button" onClick={submit} className="px-[26px]">
