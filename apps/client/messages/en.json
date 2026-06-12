@@ -217,7 +217,7 @@
       "missingKey": "Map unavailable: Yandex Maps key is not set.",
       "loadError": "Failed to load the map. Please refresh the page.",
       "drawTerritory": "Draw territory",
-      "drawHint": "Mark corners by clicking the map · points: {count, number}",
+      "drawHint": "Press and draw around the area, then release",
       "finish": "Done",
       "cancel": "Cancel",
       "clear": "Clear",

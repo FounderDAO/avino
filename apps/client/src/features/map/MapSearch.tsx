@@ -5,7 +5,7 @@
  * `searchByBounds` (CLAUDE.md §4) и связывает список ↔ карту:
  *  - сдвиг/зум карты (без активной территории) → подгрузка листингов видимой
  *    области (MapView дебаунсит `onBoundsChange`);
- *  - режим рисования территории → клики-вершины, «Готово» замыкает полигон,
+ *  - режим рисования территории → freehand-лассо (зажал, обвёл, отпустил),
  *    запрашиваем bbox территории и отсекаем точную форму на клиенте
  *    (point-in-polygon, lib/geo) — MVP поверх /search/bounds; серверный
  *    ST_Within(polygon) — отдельная задача apps/api;
@@ -19,7 +19,7 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
-import { Pencil, Check, X, Trash2 } from 'lucide-react';
+import { Pencil, X, Trash2 } from 'lucide-react';
 import { PropertyCard } from '@/features/search/PropertyCard';
 import { cn } from '@/lib/utils';
 import {
@@ -59,8 +59,6 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
   const [previewId, setPreviewId] = React.useState<string | null>(null);
   const [drawing, setDrawing] = React.useState(false);
   const [polygon, setPolygon] = React.useState<LatLng[] | null>(null);
-  const [finishSignal, setFinishSignal] = React.useState(0);
-  const [vertices, setVertices] = React.useState(0);
   const [mobView, setMobView] = React.useState<'list' | 'map'>('list');
 
   const [trigger, { isFetching }] = useLazySearchByBoundsQuery();
@@ -106,18 +104,11 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
 
   const startDraw = () => {
     setPolygon(null);
-    setVertices(0);
     setPreviewId(null);
     setDrawing(true);
   };
-  const cancelDraw = () => {
-    setDrawing(false);
-    setVertices(0);
-  };
-  const clearTerritory = () => {
-    setPolygon(null);
-    setVertices(0);
-  };
+  const cancelDraw = () => setDrawing(false);
+  const clearTerritory = () => setPolygon(null);
 
   const handleSelect = (id: string) => {
     setActiveId(id);
@@ -187,9 +178,7 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
           locale={locale}
           polygon={polygon}
           drawMode={drawing ? 'polygon' : null}
-          finishSignal={finishSignal}
           onPolygonComplete={handlePolygonComplete}
-          onPolygonProgress={setVertices}
           onBoundsChange={handleBoundsChange}
           autoFit={false}
         />
@@ -199,17 +188,8 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
           {drawing ? (
             <>
               <span className="rounded-pill bg-ink/85 px-3.5 py-2 text-[13px] font-semibold text-white shadow-raised">
-                {t('map.drawHint', { count: vertices })}
+                {t('map.drawHint')}
               </span>
-              <button
-                type="button"
-                onClick={() => setFinishSignal((s) => s + 1)}
-                disabled={vertices < 3}
-                className="inline-flex items-center gap-1.5 rounded-pill border-[1.5px] border-ink bg-ink px-4 py-2 text-sm font-bold text-white shadow-raised transition-colors disabled:opacity-50"
-              >
-                <Check size={15} strokeWidth={2.2} />
-                {t('map.finish')}
-              </button>
               <button
                 type="button"
                 onClick={cancelDraw}

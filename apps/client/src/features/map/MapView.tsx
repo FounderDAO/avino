@@ -5,8 +5,8 @@
  * пропсы списка↔карты стабильны (`listings/activeId/onSelect/onHover`):
  *  - /search — радиусный поиск: оверлей-круг (`circle`) + рисование радиуса
  *    (`drawMode='radius'`, зажал-потянул-отпустил → `onDrawComplete`);
- *  - /map    — поиск по карте: рисование территории (`drawMode='polygon'`,
- *    клики-вершины + `finishSignal` → `onPolygonComplete`), оверлей территории
+ *  - /map    — поиск по карте: freehand-лассо территории (`drawMode='polygon'`,
+ *    зажал → обвёл → отпустил → `onPolygonComplete`), оверлей территории
  *    (`polygon`) и отчёт о видимой области (`onBoundsChange`, debounce).
  *
  * Маркеры — кластеризуются (ymaps.Clusterer). Пины брендовые (ADR-0060): VIP
@@ -47,10 +47,9 @@ export interface MapViewProps {
   // ── /map: территория + видимая область ──
   /** Зафиксированный полигон территории — рисуется поверх карты. */
   polygon?: LatLng[] | null;
-  /** Готовность полигона: рост счётчика завершает текущее рисование. */
-  finishSignal?: number;
+  /** Замкнутая freehand-территория (зажал → обвёл → отпустил). */
   onPolygonComplete?: (points: LatLng[]) => void;
-  /** Прогресс рисования (число поставленных вершин). */
+  /** Прогресс freehand-рисования (число точек обводки; 0 — рисование сброшено). */
   onPolygonProgress?: (count: number) => void;
   /** Видимая область карты (debounce). Эмитится только без активного draw/polygon. */
   onBoundsChange?: (bounds: LatLngBounds) => void;
@@ -65,6 +64,8 @@ export interface MapViewProps {
 const TASHKENT_CENTER: LatLng = [41.311, 69.28];
 const DEFAULT_ZOOM = 12;
 const BOUNDS_DEBOUNCE_MS = 450;
+/** Freehand-лассо: не добавляем вершину ближе этого к предыдущей (м) — реже точек. */
+const LASSO_MIN_STEP_M = 12;
 
 /** Стиль оверлеев (круг радиуса и территория) — тёмный ink, как в прежнем MapView. */
 const OVERLAY_STYLE = {
@@ -134,7 +135,6 @@ export function MapView({
   circle,
   onDrawComplete,
   polygon,
-  finishSignal,
   onPolygonComplete,
   onPolygonProgress,
   onBoundsChange,
@@ -348,49 +348,73 @@ export function MapView({
     };
   }, [drawMode, ymaps]);
 
-  // ── Рисование ТЕРРИТОРИИ (/map): клики-вершины, finishSignal замыкает ──
+  // ── Рисование ТЕРРИТОРИИ (/map): freehand-лассо — зажал → обвёл → отпустил ──
+  // Тот же механизм событий карты, что и у радиуса; вместо круга копим путь
+  // обводки в полигон. Отпускание мыши замыкает территорию (≥3 точек).
   const pointsRef = React.useRef<LatLng[]>([]);
   React.useEffect(() => {
     const map = mapRef.current;
     if (!map || !ymaps || drawMode !== 'polygon') return;
 
+    map.behaviors.disable('drag');
+    const el = elRef.current;
+    const prevCursor = el?.style.cursor ?? '';
+    if (el) el.style.cursor = 'crosshair';
+
+    let drawing = false;
+    let shape: any = null;
     pointsRef.current = [];
     cb.current.onPolygonProgress?.(0);
-    const shape = new ymaps.Polygon([[]], {}, { ...OVERLAY_STYLE, editorDrawingCursor: 'crosshair' });
-    map.geoObjects.add(shape);
-    drawTmpRef.current = shape;
 
-    const redraw = () => {
+    const onDown = (e: any) => {
+      drawing = true;
+      pointsRef.current = [e.get('coords') as LatLng];
+      shape = new ymaps.Polygon([[]], {}, { ...OVERLAY_STYLE, interactivityModel: 'default#transparent' });
+      map.geoObjects.add(shape);
+      drawTmpRef.current = shape;
+      cb.current.onPolygonProgress?.(1);
+    };
+    const onMove = (e: any) => {
+      if (!drawing || !shape) return;
+      const c = e.get('coords') as LatLng;
       const pts = pointsRef.current;
-      const ring = pts.length >= 3 ? [...pts, pts[0]] : pts;
-      shape.geometry.setCoordinates([ring]);
+      const last = pts[pts.length - 1];
+      // Прореживаем: пропускаем точки ближе LASSO_MIN_STEP_M к предыдущей.
+      if (last && ymaps.coordSystem.geo.getDistance(last, c) < LASSO_MIN_STEP_M) return;
+      pts.push(c);
+      shape.geometry.setCoordinates([pts]); // открытое кольцо во время обводки
+      cb.current.onPolygonProgress?.(pts.length);
     };
-    const onClick = (e: any) => {
-      pointsRef.current = [...pointsRef.current, e.get('coords') as LatLng];
-      redraw();
-      cb.current.onPolygonProgress?.(pointsRef.current.length);
+    const onUp = () => {
+      if (!drawing) return;
+      drawing = false;
+      const pts = pointsRef.current;
+      if (shape) {
+        map.geoObjects.remove(shape);
+        shape = null;
+        drawTmpRef.current = null;
+      }
+      // ≥3 точек → территория готова (оверлей-эффект отрисует её по `polygon`).
+      if (pts.length >= 3) cb.current.onPolygonComplete?.(pts);
+      else cb.current.onPolygonProgress?.(0); // слишком короткая обводка — сброс
+      pointsRef.current = [];
     };
-    map.events.add('click', onClick);
 
+    map.events.add('mousedown', onDown);
+    map.events.add('mousemove', onMove);
+    map.events.add('mouseup', onUp);
     return () => {
-      map.events.remove('click', onClick);
-      // Снимаем временную фигуру: зафиксированную территорию отрисует оверлей-эффект.
+      map.events.remove('mousedown', onDown);
+      map.events.remove('mousemove', onMove);
+      map.events.remove('mouseup', onUp);
       if (drawTmpRef.current) {
         map.geoObjects.remove(drawTmpRef.current);
         drawTmpRef.current = null;
       }
+      if (el) el.style.cursor = prevCursor;
+      map.behaviors.enable('drag');
     };
   }, [drawMode, ymaps]);
-
-  // finishSignal: замкнуть текущую территорию (≥3 вершин) → onPolygonComplete.
-  const prevFinish = React.useRef(finishSignal);
-  React.useEffect(() => {
-    if (finishSignal === prevFinish.current) return;
-    prevFinish.current = finishSignal;
-    if (drawModeRef.current !== 'polygon') return;
-    const pts = pointsRef.current;
-    if (pts.length >= 3) cb.current.onPolygonComplete?.(pts);
-  }, [finishSignal]);
 
   // ── Деградация без ключа/при ошибке: подсказка вместо карты ──
   if (status !== 'ready') {
