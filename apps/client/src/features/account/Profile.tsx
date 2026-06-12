@@ -7,6 +7,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { Field } from '@/components/ui/field';
 import { Pill } from '@/components/ui/pill';
@@ -48,6 +49,7 @@ interface ProfileForm {
 }
 
 export function Profile() {
+  const t = useTranslations('account');
   const isAuthed = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectCurrentUser);
 
@@ -85,14 +87,14 @@ export function Profile() {
   if (!isAuthed) {
     return (
       <div className="max-w-[560px]">
-        <h1 className="mb-[18px] text-[28px]">Профиль</h1>
+        <h1 className="mb-[18px] text-[28px]">{t('profile.title')}</h1>
         <div className="rounded-card border border-border/60 bg-surface shadow-card">
           <EmptyState
-            title="Войдите в аккаунт"
-            text="Чтобы видеть и редактировать профиль, войдите в Avino."
+            title={t('profile.authTitle')}
+            text={t('profile.authText')}
             action={
               <Button asChild>
-                <Link href="/">Войти</Link>
+                <Link href="/">{t('profile.login')}</Link>
               </Button>
             }
           />
@@ -136,16 +138,16 @@ export function Profile() {
     } catch (err) {
       const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);
       if (apiErr?.code === 'CONTACT_TAKEN') {
-        setEmailError('Этот email уже используется другим аккаунтом.');
+        setEmailError(t('profile.emailTaken'));
       } else {
-        setFormError(apiErr?.message ?? 'Не удалось сохранить изменения. Попробуйте ещё раз.');
+        setFormError(apiErr?.message ?? t('profile.saveError'));
       }
     }
   };
 
   return (
     <div className="max-w-[560px]">
-      <h1 className="mb-[18px] text-[28px]">Профиль</h1>
+      <h1 className="mb-[18px] text-[28px]">{t('profile.title')}</h1>
       <div className="rounded-card border border-border/60 bg-surface p-6 shadow-card">
         {/* Аватар + смена фото */}
         <div className="mb-[22px] flex items-center gap-4">
@@ -154,21 +156,21 @@ export function Profile() {
           </span>
           {/* TODO(avatar-upload): нет эндпоинта загрузки аватара — заглушка. */}
           <Button variant="outline" size="sm" type="button" disabled>
-            Сменить фото
+            {t('profile.changePhoto')}
           </Button>
         </div>
 
         <div className="flex flex-col gap-4">
           <div>
-            <label className="mb-[7px] block text-[13px] font-bold">Имя</label>
+            <label className="mb-[7px] block text-[13px] font-bold">{t('profile.name')}</label>
             <Field value={form.name} onChange={(e) => set('name', e.target.value)} />
           </div>
           <div>
-            <label className="mb-[7px] block text-[13px] font-bold">Телефон</label>
+            <label className="mb-[7px] block text-[13px] font-bold">{t('profile.phone')}</label>
             <Field value={form.phone} onChange={(e) => set('phone', e.target.value)} />
           </div>
           <div>
-            <label className="mb-[7px] block text-[13px] font-bold">Email</label>
+            <label className="mb-[7px] block text-[13px] font-bold">{t('profile.email')}</label>
             <Field
               type="email"
               value={form.email}
@@ -180,7 +182,7 @@ export function Profile() {
             )}
           </div>
           <div>
-            <label className="mb-[7px] block text-[13px] font-bold">Язык интерфейса</label>
+            <label className="mb-[7px] block text-[13px] font-bold">{t('profile.language')}</label>
             <div className="flex gap-2">
               {LANGS.map(([k, v]) => (
                 <Pill key={k} active={form.lang === k} onClick={() => set('lang', k)}>
@@ -194,7 +196,7 @@ export function Profile() {
             <p className="text-[13px] font-semibold text-red">{formError}</p>
           )}
           {saved && (
-            <p className="text-[13px] font-semibold text-teal">Изменения сохранены.</p>
+            <p className="text-[13px] font-semibold text-teal">{t('profile.saved')}</p>
           )}
 
           <Button
@@ -203,7 +205,7 @@ export function Profile() {
             onClick={onSave}
             disabled={pending}
           >
-            {pending ? 'Сохранение…' : 'Сохранить изменения'}
+            {pending ? t('profile.saving') : t('profile.save')}
           </Button>
         </div>
       </div>

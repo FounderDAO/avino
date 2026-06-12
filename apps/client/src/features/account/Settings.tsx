@@ -7,6 +7,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Pill } from '@/components/ui/pill';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
@@ -50,21 +51,11 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   );
 }
 
-/** Описание одной строки-настройки уведомлений. */
-interface NotifSetting {
-  key: string;
-  title: string;
-  text: string;
-}
-
-const NOTIF_SETTINGS: NotifSetting[] = [
-  { key: 'searches', title: 'Новое по сохранённым поискам', text: 'Письмо, когда появляются подходящие объявления.' },
-  { key: 'messages', title: 'Сообщения в чате', text: 'Уведомлять о новых сообщениях от авторов объявлений.' },
-  { key: 'moderation', title: 'Статус модерации', text: 'Когда объявление одобрено или отклонено.' },
-  { key: 'promo', title: 'Акции и продвижение', text: 'Скидки на TOP/VIP и новости Avino.' },
-];
+/** Ключи строк-настроек уведомлений (тексты — account.settings.notif.{key}). */
+const NOTIF_SETTINGS = ['searches', 'messages', 'moderation', 'promo'] as const;
 
 export function Settings() {
+  const t = useTranslations('account');
   const isAuthed = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectCurrentUser);
 
@@ -102,21 +93,21 @@ export function Settings() {
     } catch (err) {
       setLang(prev); // откат при ошибке
       const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);
-      setLangError(apiErr?.message ?? 'Не удалось сменить язык. Попробуйте ещё раз.');
+      setLangError(apiErr?.message ?? t('settings.langError'));
     }
   };
 
   return (
     <div className="max-w-[640px]">
-      <h1 className="mb-[18px] text-[28px]">Настройки</h1>
+      <h1 className="mb-[18px] text-[28px]">{t('settings.title')}</h1>
 
       <div className="flex flex-col gap-4">
         {/* Язык и валюта */}
         <div className="rounded-card border border-border/60 bg-surface p-6 shadow-card">
-          <h2 className="mb-4 text-lg">Язык и валюта</h2>
+          <h2 className="mb-4 text-lg">{t('settings.langCurrency')}</h2>
 
           <div className="mb-5">
-            <div className="mb-[9px] text-[13px] font-bold">Язык интерфейса</div>
+            <div className="mb-[9px] text-[13px] font-bold">{t('settings.uiLanguage')}</div>
             <div className="flex gap-2">
               {(
                 [
@@ -137,7 +128,7 @@ export function Settings() {
             </div>
             {!isAuthed && (
               <p className="mt-1.5 text-[13px] text-muted-foreground">
-                Войдите, чтобы сохранять язык интерфейса.
+                {t('settings.loginToSaveLang')}
               </p>
             )}
             {langError && (
@@ -146,16 +137,11 @@ export function Settings() {
           </div>
 
           <div>
-            <div className="mb-[9px] text-[13px] font-bold">Валюта цен</div>
+            <div className="mb-[9px] text-[13px] font-bold">{t('settings.currency')}</div>
             <div className="flex gap-2">
-              {(
-                [
-                  ['USD', 'Доллар $'],
-                  ['UZS', 'Сум'],
-                ] as const
-              ).map(([k, v]) => (
+              {(['USD', 'UZS'] as const).map((k) => (
                 <Pill key={k} active={currency === k} onClick={() => setCurrency(k)}>
-                  {v}
+                  {k === 'USD' ? t('settings.currencyUsd') : t('settings.currencyUzs')}
                 </Pill>
               ))}
             </div>
@@ -164,15 +150,17 @@ export function Settings() {
 
         {/* Уведомления */}
         <div className="rounded-card border border-border/60 bg-surface p-6 shadow-card">
-          <h2 className="mb-4 text-lg">Уведомления</h2>
+          <h2 className="mb-4 text-lg">{t('settings.notificationsTitle')}</h2>
           <div className="flex flex-col divide-y divide-border">
-            {NOTIF_SETTINGS.map((n) => (
-              <div key={n.key} className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
+            {NOTIF_SETTINGS.map((key) => (
+              <div key={key} className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
                 <div className="min-w-0">
-                  <div className="text-[15px] font-bold">{n.title}</div>
-                  <div className="mt-0.5 text-[13.5px] text-muted-foreground">{n.text}</div>
+                  <div className="text-[15px] font-bold">{t(`settings.notif.${key}.title`)}</div>
+                  <div className="mt-0.5 text-[13.5px] text-muted-foreground">
+                    {t(`settings.notif.${key}.text`)}
+                  </div>
                 </div>
-                <Toggle on={!!notifs[n.key]} onClick={() => toggle(n.key)} />
+                <Toggle on={!!notifs[key]} onClick={() => toggle(key)} />
               </div>
             ))}
           </div>

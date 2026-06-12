@@ -67,6 +67,7 @@ function msgTime(iso: string): string {
 export function Inbox() {
   const format = useFormatter();
   const tUnits = useTranslations('units');
+  const tAccount = useTranslations('account');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const currentUser = useAppSelector(selectCurrentUser);
   const currentUserId = currentUser?.id ?? null;
@@ -138,7 +139,7 @@ export function Inbox() {
       const apiErr = getApiError(
         err as Parameters<typeof getApiError>[0],
       );
-      setSendError(apiErr?.message ?? 'Не удалось отправить сообщение');
+      setSendError(apiErr?.message ?? tAccount('inbox.sendError'));
     }
   };
 
@@ -146,15 +147,15 @@ export function Inbox() {
   if (!isAuthenticated) {
     return (
       <div>
-        <h1 className="mb-[18px] text-[28px]">Сообщения</h1>
+        <h1 className="mb-[18px] text-[28px]">{tAccount('inbox.title')}</h1>
         <EmptyState
           icon={MessageCircle}
-          title="Войдите, чтобы видеть сообщения"
-          text="Здесь появятся ваши диалоги с авторами объявлений."
+          title={tAccount('inbox.authTitle')}
+          text={tAccount('inbox.authText')}
           action={
             <Button asChild>
               {/* Вход — модалка в Header; /login-маршрута нет. */}
-              <Link href="/">На главную</Link>
+              <Link href="/">{tAccount('inbox.goHome')}</Link>
             </Button>
           }
         />
@@ -166,7 +167,7 @@ export function Inbox() {
 
   return (
     <div>
-      <h1 className="mb-[18px] text-[28px]">Сообщения</h1>
+      <h1 className="mb-[18px] text-[28px]">{tAccount('inbox.title')}</h1>
       <div className="grid h-[540px] grid-cols-1 overflow-hidden rounded-card border border-border/60 bg-surface shadow-card sm:grid-cols-[300px_1fr]">
         {/* Список диалогов */}
         <div className="hidden overflow-y-auto border-r border-border sm:block">
@@ -179,7 +180,7 @@ export function Inbox() {
           ) : list.length === 0 ? (
             <EmptyState
               icon={MessageCircle}
-              title="Сообщений пока нет"
+              title={tAccount('inbox.emptyList')}
               className="py-10"
             />
           ) : (
@@ -288,7 +289,7 @@ export function Inbox() {
                 <div className="flex gap-2">
                   <input
                     className={cn(fieldClass, 'rounded-pill')}
-                    placeholder="Напишите сообщение…"
+                    placeholder={tAccount('inbox.inputPlaceholder')}
                     value={text}
                     disabled={isSending}
                     onChange={(e) => setText(e.target.value)}
@@ -302,7 +303,7 @@ export function Inbox() {
                     disabled={isSending || !text.trim()}
                     className="shrink-0"
                   >
-                    Отправить
+                    {tAccount('inbox.send')}
                   </Button>
                 </div>
               </div>
@@ -311,8 +312,8 @@ export function Inbox() {
             <div className="flex flex-1 items-center justify-center">
               <EmptyState
                 icon={MessageCircle}
-                title="Выберите диалог"
-                text="Слева — список ваших переписок."
+                title={tAccount('inbox.selectThreadTitle')}
+                text={tAccount('inbox.selectThreadText')}
               />
             </div>
           )}
