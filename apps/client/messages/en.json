@@ -71,6 +71,8 @@
     "verify": "Confirm",
     "resendCode": "Resend code",
     "close": "Close",
+    "or": "or",
+    "continueWithGoogle": "Continue with Google",
     "errors": {
       "otpInvalid": "Invalid code. Check it and try again.",
       "otpExpired": "The code has expired. Request a new one.",
