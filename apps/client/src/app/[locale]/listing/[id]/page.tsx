@@ -11,12 +11,12 @@ import { Detail } from '@/features/detail/Detail';
 
 interface PageProps {
   // В Next 15 params — асинхронные.
-  params: Promise<{ id: string }>;
+  params: Promise<{ locale: string; id: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params;
-  const listing = await getListingById(id);
+  const { locale, id } = await params;
+  const listing = await getListingById(id, locale);
   if (!listing) return { title: 'Объявление не найдено — Avino' };
   return {
     title: `${listing.title} — ${formatPrice(listing)} | Avino`,
@@ -25,8 +25,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ListingPage({ params }: PageProps) {
-  const { id } = await params;
-  const listing = await getListingById(id);
+  const { locale, id } = await params;
+  const listing = await getListingById(id, locale);
   if (!listing) notFound();
   return <Detail listing={listing} />;
 }

@@ -19,7 +19,6 @@
  *  - search игнорирует sort/q/rooms/area/promotion_type (forward-compatible),
  *    но применяет transaction_type/property_type/price_min/price_max/district_id.
  */
-import { formatRelativeDate } from '@/lib/format';
 import type {
   Currency,
   Listing,
@@ -130,14 +129,19 @@ function hasMedia(l: AnyApiListing): l is ApiListingDetail {
 
 // ─── HTTP ───
 
+/** Заголовки запроса: контент листинга — на языке интерфейса (API.md §1). */
+function apiHeaders(lang: string): Record<string, string> {
+  return { Accept: 'application/json', 'Accept-Language': lang };
+}
+
 /**
  * Низкоуровневый fetch к `${API_BASE}${path}`. Динамические данные → `no-store`.
  * Бросает при не-2xx (кроме 404 — вызывающий решает сам через {@link fetchOrNull}).
  */
-async function apiFetch<T>(path: string): Promise<T> {
+async function apiFetch<T>(path: string, lang: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     cache: 'no-store',
-    headers: { Accept: 'application/json' },
+    headers: apiHeaders(lang),
   });
   if (!res.ok) {
     throw new Error(`API ${res.status} ${res.statusText} for ${path}`);
@@ -146,10 +150,10 @@ async function apiFetch<T>(path: string): Promise<T> {
 }
 
 /** Как {@link apiFetch}, но 404 → null (для detail). */
-async function fetchOrNull<T>(path: string): Promise<T | null> {
+async function fetchOrNull<T>(path: string, lang: string): Promise<T | null> {
   const res = await fetch(`${API_BASE}${path}`, {
     cache: 'no-store',
-    headers: { Accept: 'application/json' },
+    headers: apiHeaders(lang),
   });
   if (res.status === 404) return null;
   if (!res.ok) {
@@ -246,7 +250,7 @@ export function mapListing(api: AnyApiListing): Listing {
     photos: toPhotos(api),
     agent,
 
-    created: formatRelativeDate(api.created_at),
+    createdAt: api.created_at,
     status: api.status,
   };
 }
@@ -265,9 +269,9 @@ function toApiSort(sort: SortOption | undefined): string | undefined {
  * до пустого списка вместо краха всей SSR-страницы. Ошибка логируется на
  * сервере. Для одиночного листинга используется fetchOrNull (404 → null).
  */
-async function safeSearch(path: string): Promise<Listing[]> {
+async function safeSearch(path: string, lang: string): Promise<Listing[]> {
   try {
-    const env = await apiFetch<SearchEnvelope>(path);
+    const env = await apiFetch<SearchEnvelope>(path, lang);
     return env.data.map(mapListing);
   } catch (err) {
     console.error(`[listings] search failed, degrading to empty: ${path}`, err);
@@ -284,6 +288,7 @@ async function safeSearch(path: string): Promise<Listing[]> {
  */
 export async function searchListings(
   filter: ListingFilter = {},
+  lang = 'ru',
   limit = 24,
 ): Promise<Listing[]> {
   const params = new URLSearchParams();
@@ -298,22 +303,26 @@ export async function searchListings(
   // TODO(geo-reference): filter.district (имя) не маппится в district_id-uuid.
   params.set('limit', String(limit));
 
-  return safeSearch(`/search?${params.toString()}`);
+  return safeSearch(`/search?${params.toString()}`, lang);
 }
 
 /** Рекомендованные (промо-приоритет) для главной. GET /search. */
-export async function getFeaturedListings(limit = 6): Promise<Listing[]> {
+export async function getFeaturedListings(limit = 6, lang = 'ru'): Promise<Listing[]> {
   const params = new URLSearchParams({
     sort: 'promotion_priority_desc',
     limit: String(limit),
   });
-  return safeSearch(`/search?${params.toString()}`);
+  return safeSearch(`/search?${params.toString()}`, lang);
 }
 
 /** Один листинг по id. GET /listings/:id (404 → null). */
-export async function getListingById(id: string): Promise<Listing | null> {
+export async function getListingById(
+  id: string,
+  lang = 'ru',
+): Promise<Listing | null> {
   const api = await fetchOrNull<ApiListingDetail>(
     `/listings/${encodeURIComponent(id)}`,
+    lang,
   );
   return api ? mapListing(api) : null;
 }
@@ -325,6 +334,7 @@ export async function getListingById(id: string): Promise<Listing | null> {
 export async function getSimilarListings(
   listing: Listing,
   limit = 4,
+  lang = 'ru',
 ): Promise<Listing[]> {
   const params = new URLSearchParams({
     transaction_type: listing.tx,
@@ -332,6 +342,6 @@ export async function getSimilarListings(
     // +1, чтобы после фильтрации текущего id осталось достаточно.
     limit: String(limit + 1),
   });
-  const similar = await safeSearch(`/search?${params.toString()}`);
+  const similar = await safeSearch(`/search?${params.toString()}`, lang);
   return similar.filter((item) => item.id !== listing.id).slice(0, limit);
 }

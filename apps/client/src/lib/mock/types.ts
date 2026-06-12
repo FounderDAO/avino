@@ -103,8 +103,8 @@ export interface Listing {
   /** Автор/контакт. */
   agent: ListingAgent;
 
-  /** Относительная дата публикации («2 дня назад»). */
-  created: string;
+  /** Дата публикации (ISO-строка; рендер — locale-aware relativeTime). */
+  createdAt: string;
 
   /** Язык оригинала (на будущее, дефолт RU в моках). */
   originalLanguage?: Language;

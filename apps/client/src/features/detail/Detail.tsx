@@ -6,6 +6,7 @@
  * контакт) → похожие объявления. Server component; интерактив (галерея,
  * лайтбокс, контакт, избранное) — внутри дочерних 'use client'-компонентов.
  */
+import { getLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { ChevronLeft, MapPin, Check } from 'lucide-react';
 import { Gallery } from '@/components/ui/gallery';
@@ -24,8 +25,9 @@ export interface DetailProps {
 }
 
 export async function Detail({ listing }: DetailProps) {
+  const locale = await getLocale();
   const parts = specs(listing);
-  const similar = await getSimilarListings(listing, 4);
+  const similar = await getSimilarListings(listing, 4, locale);
   // Ссылка «Назад к поиску» сохраняет тип сделки текущего объекта.
   const backHref = `/search?tx=${listing.tx}`;
 

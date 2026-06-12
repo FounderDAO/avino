@@ -25,8 +25,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useFormatter } from 'next-intl';
 import { cn } from '@/lib/utils';
-import { formatRelativeDate } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import {
@@ -52,6 +52,7 @@ function iconFor(type: NotificationType): LucideIcon {
 }
 
 export function Notifications() {
+  const format = useFormatter();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   const { data, isLoading } = useGetNotificationsQuery(undefined, {
@@ -150,7 +151,7 @@ export function Notifications() {
                 <div className="flex items-center justify-between gap-2.5">
                   <b className="text-[15px]">{n.title}</b>
                   <span className="whitespace-nowrap text-xs text-muted-foreground">
-                    {formatRelativeDate(n.created_at)}
+                    {format.relativeTime(new Date(n.created_at))}
                   </span>
                 </div>
                 <p className="mt-[3px] text-sm text-muted-foreground">{n.body}</p>

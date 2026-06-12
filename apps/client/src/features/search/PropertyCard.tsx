@@ -21,7 +21,7 @@ export interface PropertyCardProps {
 
 export function PropertyCard({ listing, className }: PropertyCardProps) {
   const parts = specs(listing);
-  const fresh = isFresh(listing.created);
+  const fresh = isFresh(listing.createdAt);
 
   return (
     <Link

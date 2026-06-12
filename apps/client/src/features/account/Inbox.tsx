@@ -23,7 +23,8 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fieldClass } from '@/components/ui/field';
-import { formatMoney, formatRelativeDate } from '@/lib/format';
+import { useFormatter } from 'next-intl';
+import { formatMoney } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser, selectIsAuthenticated } from '@/store/slices/authSlice';
 import { getApiError } from '@/store/api/apiError';
@@ -64,6 +65,7 @@ function msgTime(iso: string): string {
 }
 
 export function Inbox() {
+  const format = useFormatter();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const currentUser = useAppSelector(selectCurrentUser);
   const currentUserId = currentUser?.id ?? null;
@@ -200,7 +202,9 @@ export function Inbox() {
                       {t.listing_preview.title}
                     </b>
                     <span className="whitespace-nowrap text-xs text-muted-foreground">
-                      {formatRelativeDate(t.last_message_at)}
+                      {t.last_message_at
+                        ? format.relativeTime(new Date(t.last_message_at))
+                        : null}
                     </span>
                   </span>
                   <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">

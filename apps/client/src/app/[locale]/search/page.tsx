@@ -48,10 +48,13 @@ function first(v: string | string[] | undefined): string | undefined {
 type SearchParams = Record<string, string | string[] | undefined>;
 
 export default async function SearchPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ locale: string }>;
   searchParams: Promise<SearchParams>;
 }) {
+  const { locale } = await params;
   const sp = await searchParams;
 
   // ----- Парсинг и нормализация фильтров из URL -----
@@ -82,7 +85,7 @@ export default async function SearchPage({
   // ----- Данные из реального API (district пока на бэк не уходит, см.
   // TODO(geo-reference) в lib/api/listings) -----
   const filter: ListingFilter = { tx, type, district, rooms, priceMin, priceMax, query, sort };
-  const listings = await searchListings(filter);
+  const listings = await searchListings(filter, locale);
   const districts = getDistricts();
 
   // Значения для FilterBar (цена — строкой, как в инпутах).

@@ -12,11 +12,16 @@ import { Agents } from '@/features/home/Agents';
 import { AgentCTA } from '@/features/home/AgentCTA';
 import { Faq } from '@/features/home/Faq';
 
-export default async function HomePage() {
+export default async function HomePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
   // Рекомендованные (VIP/TOP в приоритете) и свежее в аренде.
   const [featured, rent] = await Promise.all([
-    getFeaturedListings(8),
-    searchListings({ tx: 'RENT' }),
+    getFeaturedListings(8, locale),
+    searchListings({ tx: 'RENT' }, locale),
   ]);
 
   return (
