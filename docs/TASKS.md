@@ -571,10 +571,17 @@ apps/client/src/store/api/searchApi.ts
 Acceptance criteria:
 
 ```text
-Yandex Maps loads from env key
-Markers display listings
-Map bounds search calls /api/v1/search/bounds
-Marker click shows listing preview
+Yandex Maps loads from env key (NEXT_PUBLIC_YANDEX_MAPS_API_KEY)
+Markers display listings with clustering (Yandex Clusterer)
+Map bounds search calls /api/v1/search/bounds (debounce on pan/zoom)
+Marker click shows listing preview (PropertyCard)
+List↔map hover sync: наведение на объявление в списке → карта панорамируется
+  (panTo) к его координатам и подсвечивает пин; уведение снимает подсветку.
+  Стабильные пропсы listings/activeId/onSelect/onHover (как в текущем MapView).
+Draw-territory: пользователь обводит произвольный полигон на карте, показываем
+  ТОЛЬКО объявления внутри территории (bbox → /search/bounds → client-side
+  point-in-polygon). Кнопки «Нарисовать территорию» / «Очистить» + счётчик.
+Pins по бренду: VIP золотой, TOP красный (ADR-0060).
 ```
 
 Note:
@@ -582,6 +589,9 @@ Note:
 ```text
 Реальный backend route — GET /api/v1/search/bounds (см. API.md), не /search/map.
 UI публичного портала живёт в apps/client (apps/web = админка).
+Текущий MapView.tsx — на Leaflet+OSM+mock; перевести на Yandex Maps JS API (§12).
+Серверная точность по полигону (ST_Within) — ОТДЕЛЬНАЯ задача на apps/api
+  (/search/polygon), здесь не делать, только предложить.
 ```
 
 Suggested commits:
