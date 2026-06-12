@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/auth-google-telegram-alerts
-PR: pending
+PR: https://github.com/FounderDAO/avino/pull/130 (#130)
 
 Files changed:
 - apps/api/src/telegram/{telegram.module,telegram.service,telegram.constants,auth-alert.util,index}.ts (+ 3 spec)
