@@ -3,17 +3,19 @@
  * «Разместить объявление» → /sell. Справа — карточки преимуществ TOP/VIP/Лиды.
  * Server component: кнопка-ссылка через Button asChild.
  */
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 
 /** Преимущества размещения (как в дизайн-источнике). */
-const PERKS: { title: string; text: string; gold?: boolean }[] = [
-  { title: 'TOP', text: 'Выше в выдаче' },
-  { title: 'VIP', text: 'Максимум показов', gold: true },
-  { title: 'Лиды', text: 'Чат и звонки' },
+const PERKS: { key: 'top' | 'vip' | 'leads'; gold?: boolean }[] = [
+  { key: 'top' },
+  { key: 'vip', gold: true },
+  { key: 'leads' },
 ];
 
 export function AgentCTA() {
+  const t = useTranslations('home');
   return (
     <section className="mx-auto max-w-[1280px] px-4 pb-4 pt-16 sm:px-6">
       <div className="relative grid grid-cols-1 items-center gap-8 overflow-hidden rounded-feature bg-ink p-8 text-white sm:grid-cols-[1.4fr_1fr] sm:p-12">
@@ -22,21 +24,20 @@ export function AgentCTA() {
             Avino Pro
           </span>
           <h2 className="mt-4 text-[28px] text-white sm:text-[34px]">
-            Продаёте или сдаёте жильё?
+            {t('cta.title')}
           </h2>
           <p className="mt-2.5 max-w-[420px] text-[16.5px] text-white/75">
-            Разместите объявление за пару минут. Бесплатная публикация, продвижение
-            TOP/VIP и доступ к лидам.
+            {t('cta.text')}
           </p>
           <Button asChild size="lg" className="mt-6">
-            <Link href="/sell">Разместить объявление</Link>
+            <Link href="/sell">{t('cta.button')}</Link>
           </Button>
         </div>
         {/* Карточки преимуществ — только на десктопе */}
         <div className="hidden justify-end gap-3.5 sm:flex">
           {PERKS.map((p) => (
             <div
-              key={p.title}
+              key={p.key}
               className="min-w-[110px] rounded-[14px] border border-white/[0.12] bg-white/[0.07] px-4 py-[18px] text-center"
             >
               <div
@@ -44,9 +45,11 @@ export function AgentCTA() {
                   'text-lg font-extrabold ' + (p.gold ? 'text-[#E8C07A]' : 'text-white')
                 }
               >
-                {p.title}
+                {t(`cta.perks.${p.key}.title`)}
               </div>
-              <div className="mt-1.5 text-[12.5px] text-white/70">{p.text}</div>
+              <div className="mt-1.5 text-[12.5px] text-white/70">
+                {t(`cta.perks.${p.key}.text`)}
+              </div>
             </div>
           ))}
         </div>

@@ -4,6 +4,7 @@
  * (Unsplash) по индексу. Каждая плитка — ссылка на /search?district=...
  * Server component: данные синхронные, без интерактива.
  */
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { getDistricts } from '@/lib/mock';
@@ -18,15 +19,14 @@ const COVER_IDS = [
   '1444723121867-7a241cacace9',
 ];
 
-const nf = new Intl.NumberFormat('ru-RU');
-
 export function Districts() {
+  const t = useTranslations('home');
   // Берём первые 6 районов для сетки 3×2.
   const districts = getDistricts().slice(0, 6);
 
   return (
     <section className="mx-auto max-w-[1280px] px-4 pt-14 sm:px-6">
-      <h2 className="mb-[18px] text-2xl sm:text-[30px]">Популярные районы Ташкента</h2>
+      <h2 className="mb-[18px] text-2xl sm:text-[30px]">{t('districts.title')}</h2>
       <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
         {districts.map((d, i) => (
           <Link
@@ -44,7 +44,7 @@ export function Districts() {
             <div className="absolute bottom-3.5 left-4 text-white">
               <div className="text-[19px] font-extrabold">{d.name}</div>
               <div className="text-[13.5px] opacity-90">
-                {nf.format(d.count)} объявлений
+                {t('districts.listingsCount', { count: d.count })}
               </div>
             </div>
           </Link>
