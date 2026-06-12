@@ -207,6 +207,14 @@
     },
     "map": {
       "ariaLabel": "Map of listings"
+    },
+    "radius": {
+      "draw": "Radius",
+      "cancel": "Cancel",
+      "hint": "Press and drag on the map",
+      "chipKm": "Radius {km, number} km",
+      "chipM": "Radius {m, number} m",
+      "clearAria": "Clear radius"
     }
   },
   "listing": {

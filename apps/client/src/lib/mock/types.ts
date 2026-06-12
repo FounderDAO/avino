@@ -157,6 +157,16 @@ export interface ListingFilter {
   sort?: SortOption;
 }
 
+/**
+ * Гео-круг радиусного поиска (рисуется на карте, живёт в URL `?clat=&clng=&radius=`).
+ * Бэкенд: GET /search/radius (API.md §10), radiusM — метры (1..50000).
+ */
+export interface RadiusCircle {
+  lat: number;
+  lng: number;
+  radiusM: number;
+}
+
 /** Варианты сортировки выдачи (соответствуют SPEC.md §6.2). */
 export type SortOption =
   | 'promotion'

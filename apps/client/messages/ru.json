@@ -207,6 +207,14 @@
     },
     "map": {
       "ariaLabel": "Карта объявлений"
+    },
+    "radius": {
+      "draw": "Радиус",
+      "cancel": "Отмена",
+      "hint": "Зажмите и потяните по карте",
+      "chipKm": "Радиус {km, number} км",
+      "chipM": "Радиус {m, number} м",
+      "clearAria": "Сбросить радиус"
     }
   },
   "listing": {

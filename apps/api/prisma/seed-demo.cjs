@@ -56,7 +56,7 @@ async function upsertListing(n, owner, data, title, photoSeeds = []) {
   const id = L(n);
   await prisma.listing.upsert({
     where: { id },
-    update: { status: data.status },
+    update: { status: data.status, latitude: data.latitude, longitude: data.longitude },
     create: { id, ownerId: owner, originalLanguage: 'RU', ...data },
   });
   await prisma.listingTranslation.upsert({
@@ -104,6 +104,7 @@ async function main() {
       price: '650000000.00', currency: 'UZS', area: '62.50', rooms: 3,
       floor: 5, totalFloors: 9, yearBuilt: 2019,
       address: 'Ташкент, Чиланзар, 12 квартал',
+      latitude: '41.279500', longitude: '69.204600',
     },
     '3-комнатная квартира в Чиланзаре',
     ['avino-apt-1a', 'avino-apt-1b', 'avino-apt-1c', 'avino-apt-1d'],
@@ -116,6 +117,7 @@ async function main() {
       price: '8000000.00', currency: 'UZS', area: '180.00', rooms: 5,
       floor: 1, totalFloors: 2, yearBuilt: 2015,
       address: 'Ташкент, Юнусабад, массив Богишамол',
+      latitude: '41.367200', longitude: '69.287000',
     },
     'Дом в аренду на Юнусабаде',
     ['avino-house-2a', 'avino-house-2b', 'avino-house-2c'],
@@ -128,6 +130,7 @@ async function main() {
       price: '95000.00', currency: 'USD', area: '78.00', rooms: 2,
       floor: 11, totalFloors: 16, yearBuilt: 2024,
       address: 'Ташкент, Мирабад, ЖК «Nest One»',
+      latitude: '41.293700', longitude: '69.278000',
       publishedAt: new Date(),
     },
     'Новостройка 2-комн в ЖК Nest One',
@@ -140,6 +143,7 @@ async function main() {
       transactionType: 'RENT', propertyType: 'COMMERCIAL', status: 'DRAFT',
       price: '15000000.00', currency: 'UZS', area: '120.00',
       address: 'Ташкент, Шайхантахур, ул. Навои',
+      latitude: '41.327500', longitude: '69.254500',
     },
     'Коммерческое помещение под офис',
     ['avino-com-4a', 'avino-com-4b'],
@@ -151,6 +155,7 @@ async function main() {
       transactionType: 'SALE', propertyType: 'LAND', status: 'NEW',
       price: '450000000.00', currency: 'UZS', area: '600.00',
       address: 'Ташкентская область, Кибрай',
+      latitude: '41.389700', longitude: '69.464600',
     },
     'Земельный участок 6 соток в Кибрае',
     ['avino-land-5a', 'avino-land-5b'],
