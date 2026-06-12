@@ -144,6 +144,27 @@ export const jwtConfig = registerAs('jwt', () => ({
   refreshTtl: parseInt(process.env.JWT_REFRESH_TTL ?? '2592000', 10),
 }));
 
+// Google Sign-In (passwordless вход публичного портала). clientId опционален на
+// старте — без него /auth/google отдаёт 503 AUTH_PROVIDER_UNAVAILABLE.
+export const googleConfig = registerAs('google', () => ({
+  clientId: process.env.GOOGLE_CLIENT_ID,
+}));
+
+// Telegram admin-алерты (config-gated, как sms/email). Булевы хранятся строкой
+// в env (class-transformer привёл бы любую непустую к true) и парсятся здесь.
+export const telegramConfig = registerAs('telegram', () => ({
+  botToken: process.env.TELEGRAM_BOT_TOKEN,
+  adminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID,
+  // Включать ли сам OTP-код в сообщение (MVP). Default true.
+  includeOtpCode: process.env.TELEGRAM_INCLUDE_OTP_CODE !== 'false',
+  // Master-флаг по умолчанию: явное значение → оно; иначе dev=true / prod=false.
+  // Перебивается runtime-строкой в app_settings (admin-тоггл).
+  notificationStateDefault:
+    process.env.TELEGRAM_NOTIFICATION_STATE != null
+      ? process.env.TELEGRAM_NOTIFICATION_STATE === 'true'
+      : process.env.NODE_ENV !== 'production',
+}));
+
 export const configurations = [
   appConfig,
   corsConfig,
@@ -159,4 +180,6 @@ export const configurations = [
   otpConfig,
   rateLimitConfig,
   jwtConfig,
+  googleConfig,
+  telegramConfig,
 ];
