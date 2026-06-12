@@ -39,6 +39,44 @@ Related ADR:
 
 ## 2026-06-12
 
+### TASK-194 — Радиусный гео-поиск на карте клиента + координаты в seed
+
+Status: DONE
+Branch: feat/client-radius-search
+PR: pending
+
+Files changed:
+- apps/client/src/lib/geo.ts (новый: parseCircleParams, clampRadius, границы радиуса)
+- apps/client/src/lib/api/listings.ts (searchRadiusListings → GET /search/radius, общий buildSearchParams)
+- apps/client/src/lib/mock/types.ts (тип RadiusCircle)
+- apps/client/src/features/search/MapView.tsx (draw-режим на pointer events, рендер круга, fit к кругу)
+- apps/client/src/features/search/SearchResults.tsx (кнопка «Радиус», чип сброса, запись ?clat=&clng=&radius= в URL)
+- apps/client/src/app/[locale]/search/page.tsx (парсинг параметров круга, выбор эндпоинта)
+- apps/client/messages/{ru,uz,en}.json (ключи search.radius.*)
+- apps/api/prisma/seed-demo.cjs (координаты районов Ташкента у демо-листингов)
+
+Summary:
+- Пользователь рисует круг на карте /search (зажал–потянул–отпустил, мышь и тач
+  через pointer events) → выдача и пины фильтруются бэкендом через
+  GET /api/v1/search/radius (PostGIS ST_DWithin, API.md §10) с сохранением всех
+  остальных фильтров; чип «Радиус N км ✕» сбрасывает фильтр.
+- Круг живёт в URL (?clat=&clng=&radius=) — как остальные фильтры: ссылка
+  шарится, back/forward работают, сервер сам выбирает эндпоинт.
+- Попутно починены пины карты как таковые: seed-данные не имели координат
+  (31/32 NULL) — seed-demo.cjs теперь задаёт реальные координаты районов,
+  существующие локальные записи добиты детерминированным разбросом по md5(id).
+- Live-проверка Playwright: рисование → 6 → 1 объявление, пин внутри круга,
+  чип «Радиус 1,1 км», сброс возвращает полную выдачу; tsc и next lint — 0 ошибок.
+
+Commit messages:
+- fix(api): seed demo listings with Tashkent coordinates for map pins
+- feat(client): radius geo-search on map (draw-to-filter via /search/radius)
+
+Related ADR:
+- docs/adr/ADR-0064-client-radius-map-search.md
+
+---
+
 ### TASK-142 — Add i18n foundation (client, uz/ru/en)
 
 Status: DONE
