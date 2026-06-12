@@ -135,6 +135,30 @@ export const authApi = baseApi.injectEndpoints({
       },
     }),
 
+    googleLogin: build.mutation<VerifyOtpResponse, { id_token: string }>({
+      query: (body) => ({
+        url: '/auth/google',
+        method: 'POST',
+        body,
+      }),
+      // Успешный вход меняет «текущего пользователя».
+      invalidatesTags: ['Auth', 'User'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            setCredentials({
+              access_token: data.access_token,
+              refresh_token: data.refresh_token,
+              user: data.user,
+            }),
+          );
+        } catch {
+          /* ошибку показывает UI через apiError-хелпер */
+        }
+      },
+    }),
+
     refresh: build.mutation<RefreshResponse, RefreshBody>({
       query: (body) => ({
         url: '/auth/refresh',
@@ -179,6 +203,7 @@ export const authApi = baseApi.injectEndpoints({
 export const {
   useRequestOtpMutation,
   useVerifyOtpMutation,
+  useGoogleLoginMutation,
   useRefreshMutation,
   useLogoutMutation,
   useGetMeQuery,
