@@ -10,7 +10,8 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { Heart } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
@@ -21,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
 export function Favorites() {
+  const t = useTranslations('account');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   const {
@@ -34,19 +36,19 @@ export function Favorites() {
   return (
     <div>
       <h1 className="mb-[18px] text-[28px]">
-        Избранное{' '}
+        {t('favorites.title')}{' '}
         <span className="text-lg font-semibold text-muted-foreground">· {count}</span>
       </h1>
 
       {!isAuthenticated ? (
         <EmptyState
           icon={Heart}
-          title="Войдите, чтобы увидеть избранное"
-          text="Сохраняйте понравившиеся объявления — после входа они появятся здесь на всех ваших устройствах."
+          title={t('favorites.authTitle')}
+          text={t('favorites.authText')}
           action={
             <Button asChild>
               {/* Вход — модалка в Header; /login-маршрута нет. TODO(account-auth-guard). */}
-              <Link href="/">На главную</Link>
+              <Link href="/">{t('favorites.goHome')}</Link>
             </Button>
           }
         />
@@ -59,17 +61,17 @@ export function Favorites() {
       ) : isError ? (
         <EmptyState
           icon={Heart}
-          title="Не удалось загрузить избранное"
-          text="Попробуйте обновить страницу чуть позже."
+          title={t('favorites.errorTitle')}
+          text={t('favorites.errorText')}
         />
       ) : !items || items.length === 0 ? (
         <EmptyState
           icon={Heart}
-          title="Здесь пока пусто"
-          text="Сохраняйте понравившиеся объявления — нажимайте на сердечко в карточках, чтобы вернуться к ним позже."
+          title={t('favorites.emptyTitle')}
+          text={t('favorites.emptyText')}
           action={
             <Button asChild>
-              <Link href="/search">Начать поиск</Link>
+              <Link href="/search">{t('favorites.startSearch')}</Link>
             </Button>
           }
         />

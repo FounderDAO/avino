@@ -9,13 +9,14 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { MapPin, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Segment } from '@/components/ui/segment';
 import { Field, SelectField } from '@/components/ui/field';
 import { PhotoImg } from '@/components/ui/photo-img';
-import { PROPERTY_TYPE_LABELS } from '@/lib/mock/types';
+import { useTranslations } from 'next-intl';
+import { PROPERTY_TYPES } from '@/lib/mock/types';
 import type { PropertyType, TransactionType } from '@/lib/mock/types';
 
 /** Фото-фон героя (как в прототипе home.jsx · HERO_PHOTO). */
@@ -24,6 +25,8 @@ const HERO_PHOTO =
 
 /** Поисковая панель: сегмент сделки + локация + тип жилья + кнопка «Найти». */
 function SearchPanel() {
+  const t = useTranslations('home');
+  const tEnums = useTranslations('enums');
   const router = useRouter();
   const [tx, setTx] = React.useState<TransactionType>('SALE');
   const [type, setType] = React.useState<PropertyType | ''>('');
@@ -44,8 +47,8 @@ function SearchPanel() {
         value={tx}
         onChange={setTx}
         options={[
-          { value: 'SALE', label: 'Купить' },
-          { value: 'RENT', label: 'Снять' },
+          { value: 'SALE', label: t('hero.buy') },
+          { value: 'RENT', label: t('hero.rent') },
         ]}
       />
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[1.6fr_1fr_auto]">
@@ -58,11 +61,11 @@ function SearchPanel() {
           />
           <Field
             className="pl-[42px]"
-            placeholder="Город, район или адрес"
+            placeholder={t('hero.locationPlaceholder')}
             value={loc}
             onChange={(e) => setLoc(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
-            aria-label="Локация"
+            aria-label={t('hero.locationAria')}
           />
         </div>
         {/* Тип жилья */}
@@ -70,20 +73,18 @@ function SearchPanel() {
           value={type}
           onChange={(e) => setType(e.target.value as PropertyType | '')}
           className="cursor-pointer"
-          aria-label="Тип жилья"
+          aria-label={t('hero.propertyType')}
         >
-          <option value="">Тип жилья</option>
-          {(Object.entries(PROPERTY_TYPE_LABELS) as [PropertyType, string][]).map(
-            ([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ),
-          )}
+          <option value="">{t('hero.propertyType')}</option>
+          {PROPERTY_TYPES.map((k) => (
+            <option key={k} value={k}>
+              {tEnums(`propertyType.${k}`)}
+            </option>
+          ))}
         </SelectField>
         {/* Кнопка поиска */}
         <Button type="button" onClick={submit} className="px-[26px]">
-          <Search size={18} /> Найти
+          <Search size={18} /> {t('hero.search')}
         </Button>
       </div>
     </div>
@@ -91,6 +92,7 @@ function SearchPanel() {
 }
 
 export function Hero() {
+  const t = useTranslations('home');
   return (
     <section className="relative min-h-[480px] bg-[linear-gradient(135deg,var(--red)_0%,#B5232A_45%,#1A1A1A_100%)]">
       {/* Фото-фон + затемняющий красно-тёмный оверлей */}
@@ -101,12 +103,12 @@ export function Hero() {
 
       <div className="relative mx-auto max-w-[1280px] px-6 pb-[72px] pt-[84px]">
         <h1 className="display max-w-[720px] text-[clamp(40px,6vw,64px)] text-white [text-shadow:0_2px_24px_rgba(0,0,0,.3)]">
-          Недвижимость Узбекистана
-          <br />в одном месте
+          {t('hero.title1')}
+          <br />
+          {t('hero.title2')}
         </h1>
         <p className="mb-[30px] mt-[18px] max-w-[540px] text-[19px] text-white/90 [text-shadow:0_1px_12px_rgba(0,0,0,.3)]">
-          Найдите квартиру, дом или новостройку для покупки и аренды — на карте и
-          по фильтрам.
+          {t('hero.subtitle')}
         </p>
         <div className="max-w-[780px]">
           <SearchPanel />

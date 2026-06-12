@@ -5,6 +5,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Dialog } from 'radix-ui';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,22 +39,23 @@ function toE164Uzbek(raw: string): string {
   return `+998${digits}`;
 }
 
-/** RU-сообщения для кодов ошибок шага «Подтвердить». */
-const VERIFY_ERROR_MESSAGES: Record<string, string> = {
-  OTP_INVALID: 'Неверный код. Проверьте и попробуйте ещё раз.',
-  OTP_EXPIRED: 'Срок действия кода истёк. Запросите новый.',
-  OTP_ATTEMPTS_EXCEEDED: 'Слишком много попыток. Запросите новый код позже.',
-  USER_BLOCKED: 'Аккаунт заблокирован. Обратитесь в поддержку.',
+/** Ключи переводов (`auth.errors.*`) для кодов ошибок шага «Подтвердить». */
+const VERIFY_ERROR_KEYS: Record<string, string> = {
+  OTP_INVALID: 'errors.otpInvalid',
+  OTP_EXPIRED: 'errors.otpExpired',
+  OTP_ATTEMPTS_EXCEEDED: 'errors.otpAttemptsExceeded',
+  USER_BLOCKED: 'errors.userBlocked',
 };
 
-/** RU-сообщения для кодов ошибок шага «Получить код». */
-const REQUEST_ERROR_MESSAGES: Record<string, string> = {
-  RATE_LIMITED: 'Слишком часто. Подождите немного перед повтором.',
-  OTP_RATE_LIMITED: 'Слишком часто. Подождите немного перед повтором.',
-  VALIDATION_ERROR: 'Проверьте корректность номера телефона.',
+/** Ключи переводов (`auth.errors.*`) для кодов ошибок шага «Получить код». */
+const REQUEST_ERROR_KEYS: Record<string, string> = {
+  RATE_LIMITED: 'errors.rateLimited',
+  OTP_RATE_LIMITED: 'errors.rateLimited',
+  VALIDATION_ERROR: 'errors.validationError',
 };
 
 export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
+  const t = useTranslations('auth');
   const [step, setStep] = React.useState<1 | 2>(1);
   const [phone, setPhone] = React.useState('');
   /** E.164 номер, на который реально отправлен код (шаг 1 → шаг 2). */
@@ -78,18 +80,20 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
   }, [open]);
 
   const requestError = getApiError(requestState.error);
+  const requestErrorKey = requestError ? REQUEST_ERROR_KEYS[requestError.code] : undefined;
   const requestErrorMessage = requestError
-    ? (REQUEST_ERROR_MESSAGES[requestError.code] ??
-        requestError.message ??
-        'Не удалось отправить код. Попробуйте ещё раз.')
+    ? requestErrorKey
+      ? t(requestErrorKey)
+      : (requestError.message ?? t('errors.requestFailed'))
     : null;
 
   const verifyErrorCode = getApiErrorCode(verifyState.error);
   const verifyError = getApiError(verifyState.error);
+  const verifyErrorKey = verifyErrorCode ? VERIFY_ERROR_KEYS[verifyErrorCode] : undefined;
   const verifyErrorMessage = verifyError
-    ? ((verifyErrorCode && VERIFY_ERROR_MESSAGES[verifyErrorCode]) ??
-        verifyError.message ??
-        'Не удалось подтвердить код. Попробуйте ещё раз.')
+    ? verifyErrorKey
+      ? t(verifyErrorKey)
+      : (verifyError.message ?? t('errors.verifyFailed'))
     : null;
 
   const handleRequest = async () => {
@@ -127,7 +131,7 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
         <Dialog.Overlay className="fixed inset-0 z-[80] bg-ink/50 backdrop-blur-[3px]" />
         <Dialog.Content className="fade-up fixed left-1/2 top-1/2 z-[81] w-[calc(100%-40px)] max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] bg-surface p-8 shadow-raised">
           <Dialog.Close
-            aria-label="Закрыть"
+            aria-label={t('close')}
             className="absolute right-4 top-4 p-1 text-muted-foreground hover:text-ink"
           >
             <X size={22} />
@@ -143,16 +147,16 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
 
           {step === 1 ? (
             <>
-              <Dialog.Title className="mt-[18px] text-[26px]">Вход в Avino</Dialog.Title>
+              <Dialog.Title className="mt-[18px] text-[26px]">{t('title')}</Dialog.Title>
               <Dialog.Description className="mt-1.5 text-[14.5px] text-muted-foreground">
-                Введите номер телефона — пришлём код подтверждения по SMS.
+                {t('phoneDescription')}
               </Dialog.Description>
               <label className="mt-5 block text-[13px] font-bold text-ink">
-                Номер телефона
+                {t('phoneLabel')}
               </label>
               <Field
                 className="mt-2"
-                placeholder="+998 90 123 45 67"
+                placeholder={t('phonePlaceholder')}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 inputMode="tel"
@@ -176,20 +180,20 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
                 disabled={!phoneValid || requestState.isLoading}
                 onClick={() => void handleRequest()}
               >
-                {requestState.isLoading ? 'Отправляем…' : 'Получить код'}
+                {requestState.isLoading ? t('sending') : t('requestCode')}
               </Button>
             </>
           ) : (
             <>
-              <Dialog.Title className="mt-[18px] text-[26px]">Введите код</Dialog.Title>
+              <Dialog.Title className="mt-[18px] text-[26px]">{t('codeTitle')}</Dialog.Title>
               <Dialog.Description className="mt-1.5 text-[14.5px] text-muted-foreground">
-                Код отправлен на {destination || 'ваш номер'}.{' '}
+                {t('codeSentTo', { destination: destination || t('yourNumber') })}{' '}
                 <button
                   type="button"
                   onClick={goToStep1}
                   className="font-bold text-teal"
                 >
-                  Изменить
+                  {t('change')}
                 </button>
               </Dialog.Description>
               <Field
@@ -220,7 +224,7 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
                 disabled={code.length < 4 || verifyState.isLoading}
                 onClick={() => void handleVerify()}
               >
-                {verifyState.isLoading ? 'Проверяем…' : 'Подтвердить'}
+                {verifyState.isLoading ? t('verifying') : t('verify')}
               </Button>
               <button
                 type="button"
@@ -228,7 +232,7 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
                 disabled={requestState.isLoading}
                 className="mt-3 w-full text-[13px] font-semibold text-muted-foreground hover:text-ink disabled:opacity-50"
               >
-                {requestState.isLoading ? 'Отправляем…' : 'Отправить код повторно'}
+                {requestState.isLoading ? t('sending') : t('resendCode')}
               </button>
             </>
           )}

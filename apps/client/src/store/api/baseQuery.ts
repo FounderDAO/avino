@@ -38,6 +38,11 @@ const rawBaseQuery = fetchBaseQuery({
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
     }
+    // Язык интерфейса = язык контента (API.md §1: Accept-Language).
+    // <html lang> ставится сервером из [locale]-сегмента — источник надёжный.
+    if (typeof document !== 'undefined' && document.documentElement.lang) {
+      headers.set('Accept-Language', document.documentElement.lang);
+    }
     return headers;
   },
 });

@@ -1,60 +1,63 @@
 /**
  * Footer — тёмный футер (перенос Footer из chrome.jsx).
  * Колонки ссылок, лого со слоганом, соц-иконки, копирайт.
+ * Строки — через next-intl (неймспейс `footer`); «Avino Pro» — бренд, не переводится.
  */
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { Logo } from './Logo';
 
-const COLS: { heading: string; links: { label: string; href: string }[] }[] = [
+const COLS: {
+  headingKey: string;
+  links: { labelKey?: string; label?: string; href: string }[];
+}[] = [
   {
-    heading: 'О компании',
+    headingKey: 'aboutCompany',
     links: [
-      { label: 'О нас', href: '/help' },
-      { label: 'Карьера', href: '/help' },
-      { label: 'Пресса', href: '/help' },
-      { label: 'Контакты', href: '/help' },
+      { labelKey: 'aboutUs', href: '/help' },
+      { labelKey: 'careers', href: '/help' },
+      { labelKey: 'press', href: '/help' },
+      { labelKey: 'contacts', href: '/help' },
     ],
   },
   {
-    heading: 'Покупателям',
+    headingKey: 'forBuyers',
     links: [
-      { label: 'Купить', href: '/search?tx=SALE' },
-      { label: 'Снять', href: '/search?tx=RENT' },
-      { label: 'Новостройки', href: '/search?tx=SALE&type=NEW_BUILDING' },
-      { label: 'Ипотека', href: '/help' },
+      { labelKey: 'buy', href: '/search?tx=SALE' },
+      { labelKey: 'rent', href: '/search?tx=RENT' },
+      { labelKey: 'newBuildings', href: '/search?tx=SALE&type=NEW_BUILDING' },
+      { labelKey: 'mortgage', href: '/help' },
     ],
   },
   {
-    heading: 'Профессионалам',
+    headingKey: 'forProfessionals',
     links: [
       { label: 'Avino Pro', href: '/sell' },
-      { label: 'Разместить объект', href: '/sell' },
-      { label: 'Тарифы', href: '/sell' },
-      { label: 'Рекламодателям', href: '/help' },
+      { labelKey: 'postProperty', href: '/sell' },
+      { labelKey: 'pricing', href: '/sell' },
+      { labelKey: 'advertisers', href: '/help' },
     ],
   },
   {
-    heading: 'Помощь',
+    headingKey: 'help',
     links: [
-      { label: 'Поддержка', href: '/help' },
-      { label: 'Безопасная сделка', href: '/help' },
-      { label: 'Условия', href: '/help' },
-      { label: 'Конфиденциальность', href: '/help' },
+      { labelKey: 'support', href: '/help' },
+      { labelKey: 'safeDeal', href: '/help' },
+      { labelKey: 'terms', href: '/help' },
+      { labelKey: 'privacy', href: '/help' },
     ],
   },
 ];
 
 export function Footer() {
+  const t = useTranslations('footer');
   return (
     <footer className="mt-2 bg-ink text-white/70">
       <div className="mx-auto max-w-[1280px] px-6 pb-8 pt-14">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div className="col-span-2 sm:col-span-3 lg:col-span-1">
             <Logo light />
-            <p className="mt-3.5 max-w-[240px] text-sm leading-relaxed">
-              Национальный портал недвижимости Узбекистана. Покупка и аренда жилья
-              по всей стране.
-            </p>
+            <p className="mt-3.5 max-w-[240px] text-sm leading-relaxed">{t('slogan')}</p>
             <div className="mt-4 flex gap-2">
               {['TG', 'IG', 'FB', 'YT'].map((s) => (
                 <span
@@ -67,12 +70,16 @@ export function Footer() {
             </div>
           </div>
           {COLS.map((col) => (
-            <div key={col.heading}>
-              <div className="mb-3.5 text-sm font-bold text-white">{col.heading}</div>
+            <div key={col.headingKey}>
+              <div className="mb-3.5 text-sm font-bold text-white">{t(col.headingKey)}</div>
               <div className="flex flex-col gap-3">
                 {col.links.map((l, i) => (
-                  <Link key={`${l.label}-${i}`} href={l.href} className="text-sm hover:text-white">
-                    {l.label}
+                  <Link
+                    key={`${col.headingKey}-${i}`}
+                    href={l.href}
+                    className="text-sm hover:text-white"
+                  >
+                    {l.labelKey ? t(l.labelKey) : l.label}
                   </Link>
                 ))}
               </div>
@@ -80,8 +87,8 @@ export function Footer() {
           ))}
         </div>
         <div className="mt-10 flex flex-wrap justify-between gap-3 border-t border-white/[0.12] pt-6 text-[13px]">
-          <span>© 2026 Avino · www.avino.uz · Support@avino.uz</span>
-          <span>Ташкент, Узбекистан · Валюта: сум / $</span>
+          <span>{t('copyright')}</span>
+          <span>{t('location')}</span>
         </div>
       </div>
     </footer>

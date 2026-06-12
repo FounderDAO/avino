@@ -6,6 +6,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { PropertyCard } from '@/features/search/PropertyCard';
 import type { Listing } from '@/lib/mock/types';
@@ -17,6 +18,7 @@ export interface FeaturedCarouselProps {
 }
 
 export function FeaturedCarousel({ title, subtitle, listings }: FeaturedCarouselProps) {
+  const t = useTranslations('home');
   const ref = React.useRef<HTMLDivElement>(null);
 
   // Прокрутка на ширину карточки (~340px) в нужную сторону.
@@ -38,7 +40,7 @@ export function FeaturedCarousel({ title, subtitle, listings }: FeaturedCarousel
           <button
             type="button"
             onClick={() => scroll(-1)}
-            aria-label="Назад"
+            aria-label={t('featured.prev')}
             className="flex h-10 w-10 items-center justify-center rounded-pill border-[1.5px] border-border bg-surface text-ink transition-colors duration-150 hover:border-ink"
           >
             <ChevronLeft size={20} />
@@ -46,7 +48,7 @@ export function FeaturedCarousel({ title, subtitle, listings }: FeaturedCarousel
           <button
             type="button"
             onClick={() => scroll(1)}
-            aria-label="Вперёд"
+            aria-label={t('featured.next')}
             className="flex h-10 w-10 items-center justify-center rounded-pill border-[1.5px] border-border bg-surface text-ink transition-colors duration-150 hover:border-ink"
           >
             <ChevronRight size={20} />

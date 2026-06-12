@@ -1,0 +1,660 @@
+{
+  "meta": {
+    "title": "Avino — O'zbekiston ko'chmas mulki",
+    "description": "O'zbekistonning milliy ko'chmas mulk portali. Butun mamlakat bo'ylab uy-joy sotib olish va ijaraga olish — qidiruv, filtrlar, xarita."
+  },
+  "common": {
+    "showMore": "Yana ko'rsatish",
+    "loading": "Yuklanmoqda…",
+    "error": "Xatolik yuz berdi",
+    "addToFavorites": "Saralanganlarga qo'shish",
+    "removeFromFavorites": "Saralanganlardan olib tashlash",
+    "close": "Yopish",
+    "previous": "Orqaga",
+    "next": "Oldinga",
+    "badgeVip": "VIP",
+    "badgeTop": "TOP",
+    "badgeNew": "Yangi"
+  },
+  "nav": {
+    "buy": "Sotib olish",
+    "rent": "Ijara",
+    "newBuildings": "Yangi binolar",
+    "sell": "Sotish",
+    "help": "Yordam",
+    "account": "Akkaunt",
+    "favorites": "Saralanganlar",
+    "login": "Kirish",
+    "logout": "Chiqish",
+    "postListing": "E'lon berish",
+    "postListingFull": "E'lon joylashtirish",
+    "menu": "Menyu",
+    "close": "Yopish",
+    "logoAria": "Avino — bosh sahifaga"
+  },
+  "footer": {
+    "aboutCompany": "Kompaniya haqida",
+    "aboutUs": "Biz haqimizda",
+    "careers": "Karyera",
+    "press": "Matbuot",
+    "contacts": "Kontaktlar",
+    "forBuyers": "Xaridorlarga",
+    "buy": "Sotib olish",
+    "rent": "Ijaraga olish",
+    "newBuildings": "Yangi binolar",
+    "mortgage": "Ipoteka",
+    "forProfessionals": "Mutaxassislarga",
+    "postProperty": "Obyekt joylash",
+    "pricing": "Tariflar",
+    "advertisers": "Reklama beruvchilarga",
+    "help": "Yordam",
+    "support": "Qo'llab-quvvatlash",
+    "safeDeal": "Xavfsiz bitim",
+    "terms": "Shartlar",
+    "privacy": "Maxfiylik",
+    "slogan": "O'zbekistonning milliy ko'chmas mulk portali. Butun mamlakat bo'ylab uy-joy sotib olish va ijaraga olish.",
+    "copyright": "© 2026 Avino · www.avino.uz · Support@avino.uz",
+    "location": "Toshkent, O'zbekiston · Valyuta: so'm / $"
+  },
+  "auth": {
+    "title": "Avinoga kirish",
+    "phoneDescription": "Telefon raqamingizni kiriting — SMS orqali tasdiqlash kodini yuboramiz.",
+    "phoneLabel": "Telefon raqami",
+    "phonePlaceholder": "+998 90 123 45 67",
+    "sending": "Yuborilmoqda…",
+    "requestCode": "Kod olish",
+    "codeTitle": "Kodni kiriting",
+    "codeSentTo": "Kod yuborildi: {destination}.",
+    "yourNumber": "sizning raqamingiz",
+    "change": "O'zgartirish",
+    "verifying": "Tekshirilmoqda…",
+    "verify": "Tasdiqlash",
+    "resendCode": "Kodni qayta yuborish",
+    "close": "Yopish",
+    "errors": {
+      "otpInvalid": "Kod noto'g'ri. Tekshirib, qayta urinib ko'ring.",
+      "otpExpired": "Kod muddati tugadi. Yangisini so'rang.",
+      "otpAttemptsExceeded": "Urinishlar soni juda ko'p. Keyinroq yangi kod so'rang.",
+      "userBlocked": "Akkaunt bloklangan. Qo'llab-quvvatlash xizmatiga murojaat qiling.",
+      "rateLimited": "Juda tez-tez. Qayta urinishdan oldin biroz kuting.",
+      "validationError": "Telefon raqami to'g'riligini tekshiring.",
+      "requestFailed": "Kod yuborib bo'lmadi. Qayta urinib ko'ring.",
+      "verifyFailed": "Kodni tasdiqlab bo'lmadi. Qayta urinib ko'ring."
+    }
+  },
+  "home": {
+    "hero": {
+      "title1": "O‘zbekiston ko‘chmas mulki",
+      "title2": "bir joyda",
+      "subtitle": "Sotib olish va ijara uchun kvartira, uy yoki yangi bino toping — xaritada va filtrlar orqali.",
+      "buy": "Sotib olish",
+      "rent": "Ijaraga olish",
+      "locationPlaceholder": "Shahar, tuman yoki manzil",
+      "locationAria": "Joylashuv",
+      "propertyType": "Uy-joy turi",
+      "search": "Qidirish"
+    },
+    "categories": {
+      "APARTMENT": "Kvartiralar",
+      "HOUSE": "Uylar",
+      "NEW_BUILDING": "Yangi binolar",
+      "COMMERCIAL": "Tijorat obyektlari",
+      "LAND": "Yer uchastkalari"
+    },
+    "featured": {
+      "recommended": {
+        "title": "Tavsiya etamiz",
+        "subtitle": "VIP va TOP e’lonlar birinchi o‘rinda"
+      },
+      "rent": {
+        "title": "Ijarada yangi e’lonlar",
+        "subtitle": "So‘nggi kunlardagi yangi takliflar"
+      },
+      "prev": "Orqaga",
+      "next": "Oldinga"
+    },
+    "districts": {
+      "title": "Toshkentning mashhur tumanlari",
+      "listingsCount": "{count, number} ta e’lon"
+    },
+    "agents": {
+      "title": "Agentlar va agentliklar",
+      "subtitle": "Ishonchli Avino Pro mutaxassislari",
+      "listingsCount": "{count} ta e’lon"
+    },
+    "cta": {
+      "title": "Uy-joy sotyapsizmi yoki ijaraga beryapsizmi?",
+      "text": "E’lonni bir necha daqiqada joylashtiring. Bepul nashr, TOP/VIP targ‘ibot va lidlarga kirish imkoniyati.",
+      "button": "E’lon joylashtirish",
+      "perks": {
+        "top": { "title": "TOP", "text": "Natijalarda yuqorida" },
+        "vip": { "title": "VIP", "text": "Maksimal ko‘rishlar" },
+        "leads": { "title": "Lidlar", "text": "Chat va qo‘ng‘iroqlar" }
+      }
+    },
+    "faq": {
+      "title": "Ko‘p so‘raladigan savollar",
+      "all": "Barcha savollar",
+      "items": {
+        "price": {
+          "q": "E’lon joylashtirish qancha turadi?",
+          "a": "Avino’da oddiy e’lon joylashtirish bepul. Faqat targ‘ibot opsiyalari — TOP va VIP pullik bo‘lib, ular e’lonni qidiruv natijalarida yuqoriga ko‘taradi va ko‘rishlar sonini oshiradi."
+        },
+        "contact": {
+          "q": "Mulk egasi yoki agent bilan qanday bog‘lanish mumkin?",
+          "a": "E’lon sahifasida muallifning kontaktlari — telefon va chat mavjud. Avino Pro tekshirilgan mutaxassislarni maxsus belgi bilan ajratib ko‘rsatadi."
+        },
+        "moderation": {
+          "q": "E’lonlar chop etilishidan oldin tekshiriladimi?",
+          "a": "Ha. Barcha e’lonlar moderatsiyadan o‘tadi: qidiruv natijalari halol bo‘lib qolishi uchun ma’lumotlar, suratlar va narxning to‘g‘riligini tekshiramiz."
+        },
+        "languages": {
+          "q": "Portal qaysi tillarda ishlaydi?",
+          "a": "Avino interfeysi uch tilda mavjud: o‘zbek, rus va ingliz. Tilni saytning yuqori qismida almashtirish mumkin."
+        },
+        "map": {
+          "q": "Ko‘chmas mulkni xaritada qidirish mumkinmi?",
+          "a": "Ha, qidiruv natijalarida xarita rejimi bor — obyektlar narx ko‘rsatilgan pinlar bilan ko‘rsatiladi, bu joylashuv bo‘yicha tanlash uchun qulay."
+        }
+      }
+    }
+  },
+  "search": {
+    "metaTitle": "Ko'chmas mulk qidiruvi — Avino",
+    "metaDescription": "O'zbekistonda uy-joy sotib olish va ijaraga olish: filtrlar, ro'yxat va xarita.",
+    "headingSale": "Uy-joy xaridi · {query}",
+    "headingRent": "Uy-joy ijarasi · {query}",
+    "defaultLocation": "Toshkent",
+    "filters": {
+      "searchPlaceholder": "Tuman, manzil…",
+      "searchAria": "Tuman yoki manzil bo'yicha qidirish",
+      "buy": "Sotib olish",
+      "rent": "Ijara",
+      "price": "Narx",
+      "priceRange": "Narx: {min}–{max}",
+      "priceTitle": "Narx, $",
+      "priceFrom": "dan",
+      "priceTo": "gacha",
+      "rooms": "Xonalar",
+      "roomsCount": "Xonalar: {count}",
+      "propertyType": "Uy-joy turi",
+      "anyType": "Istalgan tur",
+      "district": "Tuman",
+      "allDistricts": "Barcha tumanlar",
+      "sortAria": "Saralash",
+      "sort": {
+        "promotion": "Avval tavsiya etilganlar",
+        "price_asc": "Avval arzonlari",
+        "price_desc": "Avval qimmatlari",
+        "area_desc": "Maydoni kattalari",
+        "date_desc": "Avval yangilari"
+      },
+      "mySearch": "Mening qidiruvim",
+      "saveSearch": "Qidiruvni saqlash",
+      "saving": "Saqlanmoqda…",
+      "saved": "Saqlandi",
+      "saveError": "Xatolik",
+      "listView": "Ro'yxat",
+      "mapView": "Xarita"
+    },
+    "results": {
+      "count": "{count, plural, other {# ta e'lon}}",
+      "emptyTitle": "Hech narsa topilmadi",
+      "emptyText": "Filtrlarni yumshatib ko'ring yoki qidiruv hududini kengaytiring — masalan, aniq manzil o'rniga shahar bo'yicha qidiring.",
+      "resetFilters": "Filtrlarni tozalash",
+      "list": "Ro'yxat",
+      "map": "Xarita"
+    },
+    "map": {
+      "ariaLabel": "E'lonlar xaritasi"
+    }
+  },
+  "listing": {
+    "meta": {
+      "title": "{title} — {price} | Avino",
+      "notFoundTitle": "E'lon topilmadi — Avino"
+    },
+    "notFound": {
+      "title": "E'lon topilmadi",
+      "text": "Ehtimol, u nashrdan olib tashlangan.",
+      "cta": "Qidiruvga"
+    },
+    "backToSearch": "Qidiruvga qaytish",
+    "addressLine": "{address}, {district} tumani, Toshkent",
+    "sections": {
+      "description": "Tavsif",
+      "features": "Xususiyatlar",
+      "map": "Xaritada",
+      "similar": "O'xshash e'lonlar"
+    },
+    "map": {
+      "pin": "{district} tumani · {address}",
+      "note": "Aniq joylashuv muallif bilan bog'langandan so'ng ko'rsatiladi."
+    },
+    "similar": {
+      "viewAll": "Barchasini ko'rish"
+    },
+    "facts": {
+      "rooms": "Xonalar",
+      "area": "Maydon",
+      "floor": "Qavat",
+      "floorOf": "{floor} / {total}",
+      "year": "Qurilgan yili"
+    },
+    "contact": {
+      "greeting": "Assalomu alaykum! E'lon hali dolzarbmi?",
+      "chatError": "Suhbatni boshlab bo'lmadi",
+      "proBadge": "Avino Pro",
+      "owner": "Mulk egasi",
+      "showPhone": "Telefonni ko'rsatish",
+      "message": "Yozish",
+      "share": "Ulashish"
+    }
+  },
+  "sell": {
+    "meta": {
+      "title": "Ko'chmas mulkni sotish yoki ijaraga berish — Avino",
+      "description": "O'zbekistonda ko'chmas mulkni sotish yoki ijaraga berish e'lonini bepul joylashtiring. Xaridorlar bilan to'g'ridan-to'g'ri aloqa, 3 tilga avtotarjima, TOP va VIP ilgari surish."
+    },
+    "hero": {
+      "badge": "Bepul joylashtirish",
+      "title": "Uy-joyingizni <accent>foydali</accent> soting yoki ijaraga bering",
+      "subtitle": "O'zbekistonning eng yirik ko'chmas mulk portalida e'lon joylashtiring va xaridorlar bilan to'g'ridan-to'g'ri muloqot qiling.",
+      "ctaPost": "E'lon joylashtirish",
+      "ctaHow": "Bu qanday ishlaydi",
+      "stats": {
+        "free": { "value": "Bepul", "label": "oddiy joylashtirish" },
+        "langs": { "value": "3 til", "label": "avtotarjima" },
+        "buyers": { "value": "12 000+", "label": "kunlik xaridorlar" }
+      }
+    },
+    "paths": {
+      "title": "Qanday sotishni tanlang",
+      "subtitle": "To'liq nazorat yoki mutaxassis yordami — tanlov sizniki.",
+      "self": {
+        "title": "Mustaqil joylashtirish",
+        "text": "Bepul e'lon, xaridorlar bilan to'g'ridan-to'g'ri aloqa va e'lon ustidan to'liq nazorat.",
+        "cta": "Bepul joylashtirish"
+      },
+      "agent": {
+        "title": "Avino Pro agenti bilan sotish",
+        "text": "Mutaxassis ko'rsatuvlar, muzokaralar va rasmiylashtirishni o'z zimmasiga oladi. Siz vaqtingizni tejaysiz.",
+        "cta": "Agent topish"
+      },
+      "rent": {
+        "title": "Ijaraga berish",
+        "text": "Ishonchli ijarachini tez toping — obyektni joylashtiring va chatda muloqot qiling.",
+        "cta": "Ijara e'lonini joylashtirish"
+      }
+    },
+    "how": {
+      "title": "Avinoda qanday sotish mumkin",
+      "steps": {
+        "post": { "title": "E'lon joylashtiring", "text": "Formani bir necha daqiqada to'ldiring: foto, narx, xaritadagi manzil." },
+        "moderation": { "title": "Moderatsiyadan o'ting", "text": "Biz e'lonni tekshirib, uni barcha tillarda e'lon qilamiz." },
+        "replies": { "title": "Murojaatlar oling", "text": "Xaridorlar chatda yozadi va sizga to'g'ridan-to'g'ri qo'ng'iroq qiladi." },
+        "deal": { "title": "Bitimni yakunlang", "text": "Shartlarni kelishib oling va xavfsiz bitim o'tkazing." }
+      }
+    },
+    "promo": {
+      "badge": "Ilgari surish",
+      "title": "TOP va VIP bilan tezroq soting",
+      "subtitle": "E'lonni qidiruv natijalarida yuqoriga ko'taring va 5 barobargacha ko'proq ko'rishlar oling.",
+      "top": { "text": "Qidiruv ro'yxatida oddiy e'lonlardan yuqorida", "price": "50 000 so'mdan" },
+      "vip": { "text": "Premium belgi va maksimal qamrov", "price": "120 000 so'mdan" },
+      "cta": "Joylashtirish va ilgari surish"
+    },
+    "faq": {
+      "title": "Ko'p so'raladigan savollar",
+      "items": {
+        "price": {
+          "q": "E'lon joylashtirish qancha turadi?",
+          "a": "Avinoda oddiy joylashtirish — bepul. Faqat e'lonni qidiruvda yuqoriga ko'taradigan TOP va VIP ilgari surish xizmatlari pullik."
+        },
+        "speed": {
+          "q": "E'lon saytda qachon paydo bo'ladi?",
+          "a": "Forma to'ldirilgach, e'lon moderatsiyaga yuboriladi. Tekshiruv odatda bir necha soat davom etadi; tasdiqlangach, e'lon faollashadi va qidiruvda paydo bo'ladi."
+        },
+        "agent": {
+          "q": "Agent bilan ishlash shartmi?",
+          "a": "Yo'q. Siz mustaqil sotishingiz va Avino chati orqali xaridorlar bilan to'g'ridan-to'g'ri muloqot qilishingiz mumkin. Yoki ko'rsatuv va muzokaralarni Avino Pro agentiga topshirishingiz mumkin."
+        },
+        "languages": {
+          "q": "E'lon qaysi tillarda chop etiladi?",
+          "a": "Siz e'lonni bitta tilda to'ldirasiz, Avino esa uni avtomatik ravishda o'zbek, rus va ingliz tillariga tarjima qiladi."
+        }
+      }
+    },
+    "finalCta": {
+      "title": "E'lon joylashtirishga tayyormisiz?",
+      "subtitle": "Bu bor-yo'g'i bir necha daqiqa vaqt oladi.",
+      "cta": "Bepul joylashtirish"
+    }
+  },
+  "listingNew": {
+    "meta": {
+      "title": "E'lon joylashtirish — Avino",
+      "description": "Ko'chmas mulkni sotish yoki ijaraga berish e'lonini yarating: tur, manzil, parametrlar, narx, foto, tavsif va kontaktlar."
+    },
+    "title": "E'lon joylashtirish",
+    "cancel": "Bekor qilish",
+    "stepOf": "Qadam {step} / {total}",
+    "steps": {
+      "type": "Tur",
+      "address": "Manzil",
+      "params": "Parametrlar",
+      "price": "Narx",
+      "photos": "Foto",
+      "description": "Tavsif",
+      "contacts": "Kontaktlar",
+      "preview": "Ko'rish"
+    },
+    "languages": { "RU": "Русский", "UZ": "O‘zbekcha", "EN": "English" },
+    "fields": {
+      "txType": "Bitim turi",
+      "propertyType": "Ko'chmas mulk turi",
+      "address": {
+        "label": "Manzil",
+        "hint": "Shahar, tuman, ko'cha, uy",
+        "placeholder": "Toshkent, Yunusobod, Amir Temur ko'chasi 12"
+      },
+      "mapPoint": "Xaritadagi nuqta",
+      "rooms": { "label": "Xonalar soni", "studio": "Studiya" },
+      "area": { "label": "Maydon, m²", "placeholder": "masalan, 78" },
+      "floor": "Qavat",
+      "totalFloors": "Qavatlar soni",
+      "yearBuilt": "Qurilgan yili",
+      "currency": "Valyuta",
+      "currencyUSD": "$ USD",
+      "currencyUZS": "so'm UZS",
+      "price": {
+        "label": "Narx",
+        "labelRent": "Oylik narx",
+        "hint": "Haqiqiy narxni ko'rsating — bu xaridorlar ishonchiga ta'sir qiladi."
+      },
+      "photos": "Fotosuratlar",
+      "lang": { "label": "Asl til", "hint": "Boshqa tillar avtotarjima orqali yaratiladi." },
+      "title": { "label": "Sarlavha", "placeholder": "Metro yonidagi keng 3 xonali kvartira" },
+      "desc": { "label": "Tavsif", "placeholder": "Kvartira haqida gapirib bering: ta'mir, infratuzilma, atrofda nimalar bor…" },
+      "name": { "label": "Ismingiz", "placeholder": "Masalan, Alisher" },
+      "phone": { "label": "Telefon", "hint": "Xaridorlar uni bog'lanish uchun ko'radi." }
+    },
+    "photoUploader": {
+      "dropTitle": "Fotolarni shu yerga tashlang yoki tanlash uchun bosing",
+      "dropHint": "JPG/PNG, 20 tagacha foto. Birinchi foto — muqova.",
+      "addDemo": "Demo foto qo'shish",
+      "cover": "Muqova",
+      "makeCover": "Muqova qilish",
+      "remove": "O'chirish"
+    },
+    "map": {
+      "marker": "Obyekt nuqtasi",
+      "clickToPlace": "Nuqta qo'yish uchun xaritani bosing",
+      "pointLabel": "Xaritadagi nuqta:",
+      "helpEmpty": "Obyekt nuqtasini qo'yish uchun xaritani bosing (koordinatalar faqat xaritadan olinadi)."
+    },
+    "preview": {
+      "noTitle": "Sarlavhasiz",
+      "photosCount": "{count} ta",
+      "note": "Ma'lumotlarni tekshiring. Chop etilgach, e'lon moderatsiyaga yuboriladi.",
+      "rows": {
+        "tx": "Bitim",
+        "type": "Tur",
+        "address": "Manzil",
+        "coords": "Koordinatalar",
+        "rooms": "Xonalar",
+        "area": "Maydon",
+        "floor": "Qavat",
+        "year": "Yil",
+        "photos": "Foto",
+        "contact": "Kontakt"
+      }
+    },
+    "nav": { "back": "Orqaga", "next": "Keyingi", "publish": "Chop etish", "publishing": "Chop etilmoqda…" },
+    "errors": {
+      "loginRequired": "E'lonni chop etish uchun tizimga kiring.",
+      "guestHint": "E'lonni chop etish uchun hisobingizga kiring (kirish tugmasi — sahifa yuqorisida)."
+    },
+    "success": {
+      "title": "E'lon moderatsiyaga\nyuborildi",
+      "status": "Holat: NEW · Tekshiruvda",
+      "body": "«{title}» e'loni moderatsiyaga yuborildi. Moderator uni odatda bir necha soat ichida tekshiradi. Tasdiqlangach, e'lon faollashadi va qidiruvda paydo bo'ladi. Boshqa tillarga avtotarjima avtomatik bajariladi.",
+      "mediaFailures": "{count} ta fotoni yuklab bo'lmadi. E'lon yaratildi — fotolarni keyinroq shaxsiy kabinetda qo'shishingiz mumkin.",
+      "myListings": "Mening e'lonlarim",
+      "home": "Bosh sahifaga"
+    }
+  },
+  "help": {
+    "meta": {
+      "title": "Yordam — Avino",
+      "description": "Avino ma'lumot markazi: qidiruv, e'lon joylash va ilgari surish, akkaunt va xavfsiz bitim bo'yicha ko'p beriladigan savollar. Qo'llab-quvvatlash: Support@avino.uz."
+    },
+    "hero": {
+      "title": "Qanday yordam bera olamiz?",
+      "subtitle": "Javobni ma'lumotnomadan toping yoki Avino qo'llab-quvvatlash xizmatiga yozing.",
+      "searchPlaceholder": "Masalan: e'lonni qanday joylash mumkin"
+    },
+    "cats": {
+      "buyers": {
+        "title": "Xaridorlar va ijarachilarga",
+        "text": "Qidiruv, sevimlilar, saqlangan qidiruvlar, muallif bilan aloqa"
+      },
+      "owners": {
+        "title": "Mulk egalari va agentlarga",
+        "text": "E'lon joylash, moderatsiya, TOP/VIP ilgari surish, lidlar"
+      },
+      "account": {
+        "title": "Akkaunt va xavfsizlik",
+        "text": "Kod orqali kirish, profil, bildirishnomalar, xavfsiz bitim"
+      }
+    },
+    "faq": {
+      "title": "Ko'p beriladigan savollar",
+      "showAll": "Hammasini ko'rsatish",
+      "empty": "So'rov bo'yicha hech narsa topilmadi. Boshqacha yozib ko'ring yoki qo'llab-quvvatlash xizmatiga yozing.",
+      "items": {
+        "favorites": {
+          "q": "E'lonni sevimlilarga qanday saqlayman?",
+          "a": "E'lon kartochkasining yuqori o'ng burchagidagi yurakcha belgisini bosing. E'lonlarni saqlash va ularga qaytish uchun SMS orqali keladigan kod bilan akkauntga kirish kerak."
+        },
+        "savedSearch": {
+          "q": "Saqlangan qidiruv nima?",
+          "a": "Bu shaxsiy kabinetda saqlangan qidiruv parametrlaringiz (tuman, narx, xonalar soni). Bildirishnomalarni yoqing — yangi mos e'lonlar paydo bo'lganda Avino sizga xat yuboradi."
+        },
+        "contactAuthor": {
+          "q": "E'lon muallifi bilan qanday bog'lanaman?",
+          "a": "E'lon sahifasida «Yozish» tugmasini bosing — muallif bilan chat ochiladi, yoki «Telefonni ko'rsatish»ni tanlang. Buning uchun akkauntga kirish kerak."
+        },
+        "postListing": {
+          "q": "E'lonni qanday joylayman?",
+          "a": "Sarlavhadagi «Joylash» tugmasini bosing, kod orqali kiring va 6 bosqichli formani to'ldiring: tur, parametrlar, narx, xaritadagi manzil, foto va tavsif. Yuborilgach e'lon moderatsiyaga tushadi."
+        },
+        "moderation": {
+          "q": "Moderatsiya qancha davom etadi?",
+          "a": "Odatda bir necha soat. Tasdiqlangach e'lon faollashadi, qidiruvda paydo bo'ladi va avtomatik ravishda o'zbek, rus va ingliz tillariga tarjima qilinadi."
+        },
+        "topVip": {
+          "q": "TOP va VIP nimasi bilan farq qiladi?",
+          "a": "TOP e'lonni ro'yxatda oddiy e'lonlardan yuqoriga ko'taradi. VIP premium belgisini qo'shadi va maksimal qamrov beradi. Tariflar — 7, 14 va 30 kunga."
+        },
+        "rejected": {
+          "q": "Nega e'lon rad etildi?",
+          "a": "Ko'pincha noto'g'ri fotosuratlar, dublikat, noto'g'ri narx yoki to'liq bo'lmagan tavsif sabab bo'ladi. Bildirishnomadagi izohni tuzating va e'lonni qayta yuboring."
+        },
+        "login": {
+          "q": "Akkauntga qanday kiraman?",
+          "a": "Telefon raqamingizni kiriting — SMS orqali tasdiqlash kodi keladi. Kodni kiriting va siz akkauntdasiz. Parol kerak emas."
+        },
+        "language": {
+          "q": "Interfeys tilini qanday almashtiraman?",
+          "a": "Sarlavhadagi til almashtirgichidan foydalaning (UZ / RU / EN) yoki shaxsiy kabinetning «Profil» bo'limida tilni o'zgartiring."
+        },
+        "safeDeal": {
+          "q": "Xavfsiz bitim nima?",
+          "a": "Bu Avinoning obyekt va hujjatlarni tekshirish, xavfsiz joylarda uchrashish va firibgarlikdan himoyalanish bo'yicha tavsiyalari. Avino ko'rik uchun oldindan to'lov so'ramaydi."
+        }
+      }
+    },
+    "contact": {
+      "title": "Javob topolmadingizmi?",
+      "text": "Qo'llab-quvvatlash xizmatiga yozing — har kuni 9:00 dan 21:00 gacha javob beramiz. Email: <b>Support@avino.uz</b>",
+      "write": "Qo'llab-quvvatlashga yozish",
+      "openChat": "Chatni ochish"
+    }
+  },
+  "account": {
+    "tabs": {
+      "myListings": "Mening e'lonlarim",
+      "favorites": "Sevimlilar",
+      "saved": "Saqlangan qidiruvlar",
+      "inbox": "Xabarlar",
+      "notifications": "Bildirishnomalar",
+      "profile": "Profil",
+      "settings": "Sozlamalar"
+    },
+    "favorites": {
+      "title": "Sevimlilar",
+      "authTitle": "Sevimlilarni ko'rish uchun tizimga kiring",
+      "authText": "Yoqqan e'lonlaringizni saqlang — kirgandan so'ng ular barcha qurilmalaringizda shu yerda paydo bo'ladi.",
+      "goHome": "Bosh sahifaga",
+      "errorTitle": "Sevimlilarni yuklab bo'lmadi",
+      "errorText": "Birozdan so'ng sahifani yangilab ko'ring.",
+      "emptyTitle": "Bu yer hozircha bo'sh",
+      "emptyText": "Yoqqan e'lonlaringizni saqlang — keyinroq qaytish uchun kartochkalardagi yurakchani bosing.",
+      "startSearch": "Qidiruvni boshlash"
+    },
+    "inbox": {
+      "title": "Xabarlar",
+      "authTitle": "Xabarlarni ko'rish uchun tizimga kiring",
+      "authText": "Bu yerda e'lon mualliflari bilan suhbatlaringiz paydo bo'ladi.",
+      "goHome": "Bosh sahifaga",
+      "emptyList": "Hozircha xabarlar yo'q",
+      "selectThreadTitle": "Suhbatni tanlang",
+      "selectThreadText": "Chap tomonda — yozishmalaringiz ro'yxati.",
+      "inputPlaceholder": "Xabar yozing…",
+      "send": "Yuborish",
+      "sendError": "Xabarni yuborib bo'lmadi"
+    },
+    "myListings": {
+      "title": "Mening e'lonlarim",
+      "summary": "{total, plural, other {# ta e'lon}} · {moderation} tasi moderatsiyada",
+      "post": "E'lon joylash",
+      "authTitle": "Akkauntga kiring",
+      "authText": "E'lonlaringizni ko'rish uchun akkauntga kiring.",
+      "goHome": "Bosh sahifaga",
+      "emptyTitle": "Sizda hali e'lonlar yo'q",
+      "emptyText": "Birinchi e'loningizni joylang — bu bepul.",
+      "edit": "Tahrirlash",
+      "promote": "Ilgari surish",
+      "archive": "Arxivga",
+      "status": {
+        "ACTIVE": "Faol",
+        "NEW": "Moderatsiyada",
+        "DRAFT": "Qoralama",
+        "REJECTED": "Rad etilgan",
+        "ARCHIVED": "Arxivda",
+        "SOLD": "Sotilgan",
+        "RENTED": "Ijaraga berilgan"
+      }
+    },
+    "notifications": {
+      "title": "Bildirishnomalar",
+      "authTitle": "Bildirishnomalarni ko'rish uchun tizimga kiring",
+      "authText": "Bu yerda chatlardagi javoblar, moderatsiya holatlari va saqlangan qidiruvlar bo'yicha yangi e'lonlar paydo bo'ladi.",
+      "goHome": "Bosh sahifaga",
+      "empty": "Hozircha bildirishnomalar yo'q",
+      "readAll": "Hammasini o'qilgan deb belgilash"
+    },
+    "profile": {
+      "title": "Profil",
+      "authTitle": "Akkauntga kiring",
+      "authText": "Profilni ko'rish va tahrirlash uchun Avino tizimiga kiring.",
+      "login": "Kirish",
+      "changePhoto": "Suratni almashtirish",
+      "name": "Ism",
+      "phone": "Telefon",
+      "email": "Email",
+      "language": "Interfeys tili",
+      "emailTaken": "Bu email allaqachon boshqa akkauntda ishlatilmoqda.",
+      "saveError": "O'zgarishlarni saqlab bo'lmadi. Yana bir bor urinib ko'ring.",
+      "saved": "O'zgarishlar saqlandi.",
+      "saving": "Saqlanmoqda…",
+      "save": "O'zgarishlarni saqlash"
+    },
+    "savedSearches": {
+      "title": "Saqlangan qidiruvlar",
+      "authTitle": "Qidiruvlarni saqlash uchun tizimga kiring",
+      "authText": "Filtr to'plamlarini saqlang va yangi e'lonlar haqida bildirishnomalar oling — kirgandan so'ng ular shu yerda paydo bo'ladi.",
+      "goHome": "Bosh sahifaga",
+      "errorTitle": "Saqlangan qidiruvlarni yuklab bo'lmadi",
+      "errorText": "Birozdan so'ng sahifani yangilab ko'ring.",
+      "emptyTitle": "Bu yer hozircha bo'sh",
+      "emptyText": "Qidiruvda filtrlarni sozlang va keyinroq qaytish uchun «Qidiruvni saqlash» tugmasini bosing.",
+      "startSearch": "Qidiruvni boshlash",
+      "notifyOn": "Bildirishnomalar yoqilgan",
+      "notifyOff": "Bildirishnomalar o'chirilgan",
+      "deleteAria": "Qidiruvni o'chirish"
+    },
+    "settings": {
+      "title": "Sozlamalar",
+      "langCurrency": "Til va valyuta",
+      "uiLanguage": "Interfeys tili",
+      "loginToSaveLang": "Interfeys tilini saqlash uchun tizimga kiring.",
+      "langError": "Tilni almashtirib bo'lmadi. Yana bir bor urinib ko'ring.",
+      "currency": "Narx valyutasi",
+      "currencyUsd": "Dollar $",
+      "currencyUzs": "So'm",
+      "notificationsTitle": "Bildirishnomalar",
+      "notif": {
+        "searches": {
+          "title": "Saqlangan qidiruvlar bo'yicha yangiliklar",
+          "text": "Mos e'lonlar paydo bo'lganda xat yuboramiz."
+        },
+        "messages": {
+          "title": "Chatdagi xabarlar",
+          "text": "E'lon mualliflaridan yangi xabarlar haqida xabardor qilish."
+        },
+        "moderation": {
+          "title": "Moderatsiya holati",
+          "text": "E'lon tasdiqlanganda yoki rad etilganda."
+        },
+        "promo": {
+          "title": "Aksiyalar va ilgari surish",
+          "text": "TOP/VIP chegirmalari va Avino yangiliklari."
+        }
+      }
+    }
+  },
+  "savedSearch": {
+    "txSale": "Sotib olish",
+    "txRent": "Ijara",
+    "upTo": "{value} gacha",
+    "from": "{value} dan",
+    "rooms": "{count} xona"
+  },
+  "units": {
+    "sum": "so'm",
+    "perMonth": "/oy",
+    "area": "{value} m²",
+    "rooms": "{count} xonali",
+    "roomsShort": "{count} xona",
+    "floorOf": "{floor}/{total}-qavat",
+    "floor": "{floor}-qavat",
+    "landArea": "{value} m² uchastka",
+    "billion": "mlrd",
+    "million": "mln"
+  },
+  "enums": {
+    "tx": {
+      "SALE": "Sotuv",
+      "RENT": "Ijara"
+    },
+    "propertyType": {
+      "APARTMENT": "Kvartira",
+      "HOUSE": "Uy",
+      "NEW_BUILDING": "Yangi bino",
+      "LAND": "Yer uchastkasi",
+      "COMMERCIAL": "Tijorat"
+    }
+  }
+}

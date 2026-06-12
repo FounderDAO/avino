@@ -5,28 +5,31 @@
  */
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { getListingById } from '@/lib/api/listings';
 import { formatPrice } from '@/lib/format';
 import { Detail } from '@/features/detail/Detail';
 
 interface PageProps {
   // В Next 15 params — асинхронные.
-  params: Promise<{ id: string }>;
+  params: Promise<{ locale: string; id: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params;
-  const listing = await getListingById(id);
-  if (!listing) return { title: 'Объявление не найдено — Avino' };
+  const { locale, id } = await params;
+  const listing = await getListingById(id, locale);
+  const t = await getTranslations({ locale, namespace: 'listing' });
+  if (!listing) return { title: t('meta.notFoundTitle') };
+  const tUnits = await getTranslations({ locale, namespace: 'units' });
   return {
-    title: `${listing.title} — ${formatPrice(listing)} | Avino`,
+    title: t('meta.title', { title: listing.title, price: formatPrice(listing, tUnits) }),
     description: listing.desc,
   };
 }
 
 export default async function ListingPage({ params }: PageProps) {
-  const { id } = await params;
-  const listing = await getListingById(id);
+  const { locale, id } = await params;
+  const listing = await getListingById(id, locale);
   if (!listing) notFound();
   return <Detail listing={listing} />;
 }

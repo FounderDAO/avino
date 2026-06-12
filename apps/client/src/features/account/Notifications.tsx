@@ -12,7 +12,7 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import {
   Bell,
   Home,
@@ -25,8 +25,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useFormatter, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
-import { formatRelativeDate } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import {
@@ -52,6 +52,8 @@ function iconFor(type: NotificationType): LucideIcon {
 }
 
 export function Notifications() {
+  const format = useFormatter();
+  const t = useTranslations('account');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   const { data, isLoading } = useGetNotificationsQuery(undefined, {
@@ -67,7 +69,7 @@ export function Notifications() {
 
   const header = (action?: React.ReactNode) => (
     <div className="mb-[18px] flex items-center justify-between">
-      <h1 className="text-[28px]">Уведомления</h1>
+      <h1 className="text-[28px]">{t('notifications.title')}</h1>
       {action}
     </div>
   );
@@ -78,12 +80,12 @@ export function Notifications() {
         {header()}
         <EmptyState
           icon={Bell}
-          title="Войдите, чтобы видеть уведомления"
-          text="Здесь появятся ответы в чатах, статусы модерации и новинки по сохранённым поискам."
+          title={t('notifications.authTitle')}
+          text={t('notifications.authText')}
           action={
             <Button asChild>
               {/* Вход — модалка в Header; /login-маршрута нет. */}
-              <Link href="/">На главную</Link>
+              <Link href="/">{t('notifications.goHome')}</Link>
             </Button>
           }
         />
@@ -108,7 +110,7 @@ export function Notifications() {
     return (
       <div>
         {header()}
-        <EmptyState icon={Bell} title="Уведомлений пока нет" />
+        <EmptyState icon={Bell} title={t('notifications.empty')} />
       </div>
     );
   }
@@ -123,7 +125,7 @@ export function Notifications() {
             disabled={isMarkingAll}
             onClick={() => void markAll()}
           >
-            Прочитать все
+            {t('notifications.readAll')}
           </Button>
         ) : null,
       )}
@@ -150,7 +152,7 @@ export function Notifications() {
                 <div className="flex items-center justify-between gap-2.5">
                   <b className="text-[15px]">{n.title}</b>
                   <span className="whitespace-nowrap text-xs text-muted-foreground">
-                    {formatRelativeDate(n.created_at)}
+                    {format.relativeTime(new Date(n.created_at))}
                   </span>
                 </div>
                 <p className="mt-[3px] text-sm text-muted-foreground">{n.body}</p>

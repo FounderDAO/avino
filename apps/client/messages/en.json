@@ -1,0 +1,660 @@
+{
+  "meta": {
+    "title": "Avino — Real Estate in Uzbekistan",
+    "description": "The national real estate portal of Uzbekistan. Buy and rent property nationwide — search, filters, map."
+  },
+  "common": {
+    "showMore": "Show more",
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "addToFavorites": "Add to favorites",
+    "removeFromFavorites": "Remove from favorites",
+    "close": "Close",
+    "previous": "Previous",
+    "next": "Next",
+    "badgeVip": "VIP",
+    "badgeTop": "TOP",
+    "badgeNew": "New"
+  },
+  "nav": {
+    "buy": "Buy",
+    "rent": "Rent",
+    "newBuildings": "New buildings",
+    "sell": "Sell",
+    "help": "Help",
+    "account": "Account",
+    "favorites": "Favorites",
+    "login": "Log in",
+    "logout": "Log out",
+    "postListing": "Post a listing",
+    "postListingFull": "Post a listing",
+    "menu": "Menu",
+    "close": "Close",
+    "logoAria": "Avino — home"
+  },
+  "footer": {
+    "aboutCompany": "Company",
+    "aboutUs": "About us",
+    "careers": "Careers",
+    "press": "Press",
+    "contacts": "Contacts",
+    "forBuyers": "For buyers",
+    "buy": "Buy",
+    "rent": "Rent",
+    "newBuildings": "New buildings",
+    "mortgage": "Mortgage",
+    "forProfessionals": "For professionals",
+    "postProperty": "List a property",
+    "pricing": "Pricing",
+    "advertisers": "For advertisers",
+    "help": "Help",
+    "support": "Support",
+    "safeDeal": "Safe deal",
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "slogan": "The national real estate portal of Uzbekistan. Buy and rent homes across the country.",
+    "copyright": "© 2026 Avino · www.avino.uz · Support@avino.uz",
+    "location": "Tashkent, Uzbekistan · Currency: UZS / $"
+  },
+  "auth": {
+    "title": "Log in to Avino",
+    "phoneDescription": "Enter your phone number — we'll send a confirmation code by SMS.",
+    "phoneLabel": "Phone number",
+    "phonePlaceholder": "+998 90 123 45 67",
+    "sending": "Sending…",
+    "requestCode": "Get code",
+    "codeTitle": "Enter the code",
+    "codeSentTo": "Code sent to {destination}.",
+    "yourNumber": "your number",
+    "change": "Change",
+    "verifying": "Verifying…",
+    "verify": "Confirm",
+    "resendCode": "Resend code",
+    "close": "Close",
+    "errors": {
+      "otpInvalid": "Invalid code. Check it and try again.",
+      "otpExpired": "The code has expired. Request a new one.",
+      "otpAttemptsExceeded": "Too many attempts. Request a new code later.",
+      "userBlocked": "Account blocked. Contact support.",
+      "rateLimited": "Too many requests. Please wait a moment before retrying.",
+      "validationError": "Please check the phone number.",
+      "requestFailed": "Couldn't send the code. Please try again.",
+      "verifyFailed": "Couldn't verify the code. Please try again."
+    }
+  },
+  "home": {
+    "hero": {
+      "title1": "Real estate in Uzbekistan",
+      "title2": "all in one place",
+      "subtitle": "Find an apartment, house, or new development to buy or rent — on the map and with filters.",
+      "buy": "Buy",
+      "rent": "Rent",
+      "locationPlaceholder": "City, district, or address",
+      "locationAria": "Location",
+      "propertyType": "Property type",
+      "search": "Search"
+    },
+    "categories": {
+      "APARTMENT": "Apartments",
+      "HOUSE": "Houses",
+      "NEW_BUILDING": "New buildings",
+      "COMMERCIAL": "Commercial",
+      "LAND": "Land plots"
+    },
+    "featured": {
+      "recommended": {
+        "title": "Recommended",
+        "subtitle": "VIP and TOP listings come first"
+      },
+      "rent": {
+        "title": "Fresh rentals",
+        "subtitle": "New offers from recent days"
+      },
+      "prev": "Previous",
+      "next": "Next"
+    },
+    "districts": {
+      "title": "Popular districts of Tashkent",
+      "listingsCount": "{count, number} listings"
+    },
+    "agents": {
+      "title": "Agents and agencies",
+      "subtitle": "Verified Avino Pro professionals",
+      "listingsCount": "{count} listings"
+    },
+    "cta": {
+      "title": "Selling or renting out a property?",
+      "text": "Post your listing in a couple of minutes. Free publication, TOP/VIP promotion, and access to leads.",
+      "button": "Post a listing",
+      "perks": {
+        "top": { "title": "TOP", "text": "Higher in search results" },
+        "vip": { "title": "VIP", "text": "Maximum exposure" },
+        "leads": { "title": "Leads", "text": "Chat and calls" }
+      }
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "all": "All questions",
+      "items": {
+        "price": {
+          "q": "How much does it cost to post a listing?",
+          "a": "Basic publication on Avino is free. The paid options are TOP and VIP promotion, which push a listing higher in search results and increase the number of views."
+        },
+        "contact": {
+          "q": "How do I contact an owner or agent?",
+          "a": "The listing page shows the author's contacts — phone and chat. Avino Pro marks verified professionals with a special badge."
+        },
+        "moderation": {
+          "q": "Are listings reviewed before publication?",
+          "a": "Yes. All listings go through moderation: we check the accuracy of the data, photos, and price to keep search results honest."
+        },
+        "languages": {
+          "q": "What languages does the portal support?",
+          "a": "The Avino interface is available in three languages: Uzbek, Russian, and English. You can switch the language in the site header."
+        },
+        "map": {
+          "q": "Can I search for properties on the map?",
+          "a": "Yes, search results include a map mode — properties are shown as pins with prices, which makes it easy to choose by location."
+        }
+      }
+    }
+  },
+  "search": {
+    "metaTitle": "Property search — Avino",
+    "metaDescription": "Buy and rent homes in Uzbekistan: filters, list and map.",
+    "headingSale": "Homes for sale · {query}",
+    "headingRent": "Homes for rent · {query}",
+    "defaultLocation": "Tashkent",
+    "filters": {
+      "searchPlaceholder": "District, address…",
+      "searchAria": "Search by district or address",
+      "buy": "Buy",
+      "rent": "Rent",
+      "price": "Price",
+      "priceRange": "Price: {min}–{max}",
+      "priceTitle": "Price, $",
+      "priceFrom": "from",
+      "priceTo": "to",
+      "rooms": "Rooms",
+      "roomsCount": "Rooms: {count}",
+      "propertyType": "Property type",
+      "anyType": "Any type",
+      "district": "District",
+      "allDistricts": "All districts",
+      "sortAria": "Sort by",
+      "sort": {
+        "promotion": "Recommended first",
+        "price_asc": "Cheapest first",
+        "price_desc": "Most expensive first",
+        "area_desc": "Largest area first",
+        "date_desc": "Newest first"
+      },
+      "mySearch": "My search",
+      "saveSearch": "Save search",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "saveError": "Error",
+      "listView": "List",
+      "mapView": "Map"
+    },
+    "results": {
+      "count": "{count, plural, one {# listing} other {# listings}}",
+      "emptyTitle": "No results found",
+      "emptyText": "Try relaxing your filters or widening the search area — for example, search by city instead of a specific address.",
+      "resetFilters": "Reset filters",
+      "list": "List",
+      "map": "Map"
+    },
+    "map": {
+      "ariaLabel": "Map of listings"
+    }
+  },
+  "listing": {
+    "meta": {
+      "title": "{title} — {price} | Avino",
+      "notFoundTitle": "Listing not found — Avino"
+    },
+    "notFound": {
+      "title": "Listing not found",
+      "text": "It may have been removed from publication.",
+      "cta": "Go to search"
+    },
+    "backToSearch": "Back to search",
+    "addressLine": "{address}, {district} district, Tashkent",
+    "sections": {
+      "description": "Description",
+      "features": "Features",
+      "map": "On the map",
+      "similar": "Similar listings"
+    },
+    "map": {
+      "pin": "{district} district · {address}",
+      "note": "The exact location is shown after contacting the author."
+    },
+    "similar": {
+      "viewAll": "View all"
+    },
+    "facts": {
+      "rooms": "Rooms",
+      "area": "Area",
+      "floor": "Floor",
+      "floorOf": "{floor} of {total}",
+      "year": "Year built"
+    },
+    "contact": {
+      "greeting": "Hello! Is this listing still available?",
+      "chatError": "Could not start the conversation",
+      "proBadge": "Avino Pro",
+      "owner": "Owner",
+      "showPhone": "Show phone",
+      "message": "Send message",
+      "share": "Share"
+    }
+  },
+  "sell": {
+    "meta": {
+      "title": "Sell or Rent Out Property — Avino",
+      "description": "Post your property listing for sale or rent in Uzbekistan for free. Direct contact with buyers, automatic translation into 3 languages, TOP and VIP promotion."
+    },
+    "hero": {
+      "badge": "Free listing",
+      "title": "Sell or rent out your home <accent>profitably</accent>",
+      "subtitle": "Post your listing on Uzbekistan's largest real estate portal and talk to buyers directly.",
+      "ctaPost": "Post a listing",
+      "ctaHow": "How it works",
+      "stats": {
+        "free": { "value": "Free", "label": "basic listing" },
+        "langs": { "value": "3 languages", "label": "auto-translation" },
+        "buyers": { "value": "12,000+", "label": "buyers daily" }
+      }
+    },
+    "paths": {
+      "title": "Choose how to sell",
+      "subtitle": "Full control or professional help — it's up to you.",
+      "self": {
+        "title": "Post it yourself",
+        "text": "Free publication, direct contact with buyers, and full control over your listing.",
+        "cta": "Post for free"
+      },
+      "agent": {
+        "title": "Sell with an Avino Pro agent",
+        "text": "A professional handles showings, negotiations, and paperwork. You save time.",
+        "cta": "Find an agent"
+      },
+      "rent": {
+        "title": "Rent it out",
+        "text": "Find a reliable tenant fast — post your property and chat with candidates.",
+        "cta": "Post a rental"
+      }
+    },
+    "how": {
+      "title": "How to sell on Avino",
+      "steps": {
+        "post": { "title": "Post a listing", "text": "Fill out the form in a couple of minutes: photos, price, address on the map." },
+        "moderation": { "title": "Pass moderation", "text": "We review your listing and publish it in all languages." },
+        "replies": { "title": "Get responses", "text": "Buyers message you in chat and call you directly." },
+        "deal": { "title": "Close the deal", "text": "Agree on terms and complete a safe transaction." }
+      }
+    },
+    "promo": {
+      "badge": "Promotion",
+      "title": "Sell faster with TOP and VIP",
+      "subtitle": "Boost your listing higher in search results and get up to 5× more views.",
+      "top": { "text": "Ranks above regular listings in search results", "price": "from 50,000 UZS" },
+      "vip": { "text": "Premium badge and maximum reach", "price": "from 120,000 UZS" },
+      "cta": "Post and promote"
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": {
+        "price": {
+          "q": "How much does it cost to post a listing?",
+          "a": "Basic listings on Avino are free. Only the TOP and VIP promotion services, which rank your listing higher in search results, are paid."
+        },
+        "speed": {
+          "q": "How soon will my listing appear on the site?",
+          "a": "After you submit the form, the listing goes to moderation. Review usually takes a few hours; once approved, it becomes active and appears in search."
+        },
+        "agent": {
+          "q": "Do I need to work with an agent?",
+          "a": "No. You can sell on your own and talk to buyers directly via Avino chat. Or entrust showings and negotiations to an Avino Pro agent."
+        },
+        "languages": {
+          "q": "In which languages is the listing published?",
+          "a": "You fill out the listing in one language, and Avino automatically translates it into Uzbek, Russian, and English."
+        }
+      }
+    },
+    "finalCta": {
+      "title": "Ready to post your listing?",
+      "subtitle": "It only takes a couple of minutes.",
+      "cta": "Post for free"
+    }
+  },
+  "listingNew": {
+    "meta": {
+      "title": "Post a Listing — Avino",
+      "description": "Create a listing to sell or rent out property: type, address, details, price, photos, description, and contacts."
+    },
+    "title": "Post a listing",
+    "cancel": "Cancel",
+    "stepOf": "Step {step} of {total}",
+    "steps": {
+      "type": "Type",
+      "address": "Address",
+      "params": "Details",
+      "price": "Price",
+      "photos": "Photos",
+      "description": "Description",
+      "contacts": "Contacts",
+      "preview": "Preview"
+    },
+    "languages": { "RU": "Русский", "UZ": "O‘zbekcha", "EN": "English" },
+    "fields": {
+      "txType": "Transaction type",
+      "propertyType": "Property type",
+      "address": {
+        "label": "Address",
+        "hint": "City, district, street, building",
+        "placeholder": "Tashkent, Yunusabad, Amir Temur St 12"
+      },
+      "mapPoint": "Point on the map",
+      "rooms": { "label": "Number of rooms", "studio": "Studio" },
+      "area": { "label": "Area, m²", "placeholder": "e.g. 78" },
+      "floor": "Floor",
+      "totalFloors": "Total floors",
+      "yearBuilt": "Year built",
+      "currency": "Currency",
+      "currencyUSD": "$ USD",
+      "currencyUZS": "UZS",
+      "price": {
+        "label": "Price",
+        "labelRent": "Price per month",
+        "hint": "Set a realistic price — it builds buyer trust."
+      },
+      "photos": "Photos",
+      "lang": { "label": "Original language", "hint": "Other languages will be generated by auto-translation." },
+      "title": { "label": "Title", "placeholder": "Spacious 3-room apartment near the metro" },
+      "desc": { "label": "Description", "placeholder": "Tell us about the property: renovation, infrastructure, what's nearby…" },
+      "name": { "label": "Your name", "placeholder": "e.g. Alisher" },
+      "phone": { "label": "Phone", "hint": "Buyers will see it to contact you." }
+    },
+    "photoUploader": {
+      "dropTitle": "Drag photos here or click to choose",
+      "dropHint": "JPG/PNG, up to 20 photos. The first photo is the cover.",
+      "addDemo": "Add demo photos",
+      "cover": "Cover",
+      "makeCover": "Make cover",
+      "remove": "Remove"
+    },
+    "map": {
+      "marker": "Property location",
+      "clickToPlace": "Click the map to drop a pin",
+      "pointLabel": "Point on the map:",
+      "helpEmpty": "Click the map to drop a pin for the property (coordinates are taken from the map only)."
+    },
+    "preview": {
+      "noTitle": "Untitled",
+      "photosCount": "{count, plural, one {# photo} other {# photos}}",
+      "note": "Check the details. After publishing, the listing will go to moderation.",
+      "rows": {
+        "tx": "Transaction",
+        "type": "Type",
+        "address": "Address",
+        "coords": "Coordinates",
+        "rooms": "Rooms",
+        "area": "Area",
+        "floor": "Floor",
+        "year": "Year",
+        "photos": "Photos",
+        "contact": "Contact"
+      }
+    },
+    "nav": { "back": "Back", "next": "Next", "publish": "Publish", "publishing": "Publishing…" },
+    "errors": {
+      "loginRequired": "Sign in to publish your listing.",
+      "guestHint": "To publish a listing, sign in to your account (the sign-in button is in the header)."
+    },
+    "success": {
+      "title": "Your listing has been\nsent for moderation",
+      "status": "Status: NEW · Under review",
+      "body": "Your listing “{title}” has been sent for moderation. A moderator usually reviews it within a few hours. Once approved, it becomes active and appears in search. Auto-translation into other languages happens automatically.",
+      "mediaFailures": "Failed to upload {count, plural, one {# photo} other {# photos}}. The listing was created — you can add photos later in your account.",
+      "myListings": "My listings",
+      "home": "Back to home"
+    }
+  },
+  "help": {
+    "meta": {
+      "title": "Help — Avino",
+      "description": "Avino help center: frequently asked questions about searching, posting and promoting listings, your account and safe deals. Support: Support@avino.uz."
+    },
+    "hero": {
+      "title": "How can we help?",
+      "subtitle": "Find an answer in the help center or contact Avino support.",
+      "searchPlaceholder": "For example: how to post a listing"
+    },
+    "cats": {
+      "buyers": {
+        "title": "For buyers and renters",
+        "text": "Search, favorites, saved searches, contacting the author"
+      },
+      "owners": {
+        "title": "For owners and agents",
+        "text": "Posting, moderation, TOP/VIP promotion, leads"
+      },
+      "account": {
+        "title": "Account and security",
+        "text": "Code login, profile, notifications, safe deal"
+      }
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "showAll": "Show all",
+      "empty": "Nothing found for your query. Try rephrasing it or contact support.",
+      "items": {
+        "favorites": {
+          "q": "How do I save a listing to favorites?",
+          "a": "Tap the heart icon in the top right corner of a listing card. To save listings and come back to them, sign in to your account with a code from SMS."
+        },
+        "savedSearch": {
+          "q": "What is a saved search?",
+          "a": "It is your search parameters (district, price, number of rooms) saved in your account. Turn on notifications — and Avino will email you when new matching listings appear."
+        },
+        "contactAuthor": {
+          "q": "How do I contact the listing author?",
+          "a": "On the listing page, click “Message” to open a chat with the author, or “Show phone”. You need to sign in to do this."
+        },
+        "postListing": {
+          "q": "How do I post a listing?",
+          "a": "Click “Post” in the header, sign in with a code and fill out the 6-step form: type, parameters, price, address on the map, photos and description. After submission the listing goes to moderation."
+        },
+        "moderation": {
+          "q": "How long does moderation take?",
+          "a": "Usually a few hours. Once approved, the listing becomes active, appears in search and is automatically translated into Uzbek, Russian and English."
+        },
+        "topVip": {
+          "q": "What is the difference between TOP and VIP?",
+          "a": "TOP raises your listing above regular ones in search results. VIP adds a premium badge and gives maximum reach. Plans are available for 7, 14 and 30 days."
+        },
+        "rejected": {
+          "q": "Why was my listing rejected?",
+          "a": "Most often because of incorrect photos, a duplicate, a wrong price or an incomplete description. Fix the issue mentioned in the notification and submit the listing again."
+        },
+        "login": {
+          "q": "How do I sign in?",
+          "a": "Enter your phone number — you will receive a confirmation code by SMS. Enter the code and you are in. No password needed."
+        },
+        "language": {
+          "q": "How do I change the interface language?",
+          "a": "Use the language switcher in the header (UZ / RU / EN) or change the language in the “Profile” section of your account."
+        },
+        "safeDeal": {
+          "q": "What is a safe deal?",
+          "a": "These are Avino's recommendations on checking the property and documents, meeting in safe places and protecting yourself from fraud. Avino never asks for prepayment for a viewing."
+        }
+      }
+    },
+    "contact": {
+      "title": "Didn't find an answer?",
+      "text": "Write to our support team — we reply daily from 9:00 to 21:00. Email: <b>Support@avino.uz</b>",
+      "write": "Contact support",
+      "openChat": "Open chat"
+    }
+  },
+  "account": {
+    "tabs": {
+      "myListings": "My listings",
+      "favorites": "Favorites",
+      "saved": "Saved searches",
+      "inbox": "Messages",
+      "notifications": "Notifications",
+      "profile": "Profile",
+      "settings": "Settings"
+    },
+    "favorites": {
+      "title": "Favorites",
+      "authTitle": "Sign in to see your favorites",
+      "authText": "Save listings you like — after signing in they will appear here on all your devices.",
+      "goHome": "Go to homepage",
+      "errorTitle": "Couldn't load favorites",
+      "errorText": "Try refreshing the page a little later.",
+      "emptyTitle": "Nothing here yet",
+      "emptyText": "Save listings you like — tap the heart on a card to come back to it later.",
+      "startSearch": "Start searching"
+    },
+    "inbox": {
+      "title": "Messages",
+      "authTitle": "Sign in to see your messages",
+      "authText": "Your conversations with listing authors will appear here.",
+      "goHome": "Go to homepage",
+      "emptyList": "No messages yet",
+      "selectThreadTitle": "Select a conversation",
+      "selectThreadText": "Your conversations are listed on the left.",
+      "inputPlaceholder": "Write a message…",
+      "send": "Send",
+      "sendError": "Couldn't send the message"
+    },
+    "myListings": {
+      "title": "My listings",
+      "summary": "{total, plural, one {# listing} other {# listings}} · {moderation} under review",
+      "post": "Post listing",
+      "authTitle": "Sign in",
+      "authText": "Sign in to see your listings.",
+      "goHome": "Go to homepage",
+      "emptyTitle": "You don't have any listings yet",
+      "emptyText": "Post your first listing — it's free.",
+      "edit": "Edit",
+      "promote": "Promote",
+      "archive": "Archive",
+      "status": {
+        "ACTIVE": "Active",
+        "NEW": "Under review",
+        "DRAFT": "Draft",
+        "REJECTED": "Rejected",
+        "ARCHIVED": "Archived",
+        "SOLD": "Sold",
+        "RENTED": "Rented"
+      }
+    },
+    "notifications": {
+      "title": "Notifications",
+      "authTitle": "Sign in to see notifications",
+      "authText": "Chat replies, moderation statuses and new listings from your saved searches will appear here.",
+      "goHome": "Go to homepage",
+      "empty": "No notifications yet",
+      "readAll": "Mark all as read"
+    },
+    "profile": {
+      "title": "Profile",
+      "authTitle": "Sign in",
+      "authText": "Sign in to Avino to view and edit your profile.",
+      "login": "Sign in",
+      "changePhoto": "Change photo",
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "language": "Interface language",
+      "emailTaken": "This email is already used by another account.",
+      "saveError": "Couldn't save changes. Please try again.",
+      "saved": "Changes saved.",
+      "saving": "Saving…",
+      "save": "Save changes"
+    },
+    "savedSearches": {
+      "title": "Saved searches",
+      "authTitle": "Sign in to save searches",
+      "authText": "Save filter sets and get notified about new listings — after signing in they will appear here.",
+      "goHome": "Go to homepage",
+      "errorTitle": "Couldn't load saved searches",
+      "errorText": "Try refreshing the page a little later.",
+      "emptyTitle": "Nothing here yet",
+      "emptyText": "Set up filters in search and click “Save search” to come back to them later.",
+      "startSearch": "Start searching",
+      "notifyOn": "Notifications on",
+      "notifyOff": "Notifications off",
+      "deleteAria": "Delete search"
+    },
+    "settings": {
+      "title": "Settings",
+      "langCurrency": "Language and currency",
+      "uiLanguage": "Interface language",
+      "loginToSaveLang": "Sign in to save your interface language.",
+      "langError": "Couldn't change the language. Please try again.",
+      "currency": "Price currency",
+      "currencyUsd": "Dollar $",
+      "currencyUzs": "Som",
+      "notificationsTitle": "Notifications",
+      "notif": {
+        "searches": {
+          "title": "New in saved searches",
+          "text": "An email when matching listings appear."
+        },
+        "messages": {
+          "title": "Chat messages",
+          "text": "Notify about new messages from listing authors."
+        },
+        "moderation": {
+          "title": "Moderation status",
+          "text": "When a listing is approved or rejected."
+        },
+        "promo": {
+          "title": "Promotions and offers",
+          "text": "TOP/VIP discounts and Avino news."
+        }
+      }
+    }
+  },
+  "savedSearch": {
+    "txSale": "Buy",
+    "txRent": "Rent",
+    "upTo": "up to {value}",
+    "from": "from {value}",
+    "rooms": "{count} rm"
+  },
+  "units": {
+    "sum": "UZS",
+    "perMonth": "/mo",
+    "area": "{value} m²",
+    "rooms": "{count}-room",
+    "roomsShort": "{count} rm",
+    "floorOf": "{floor}/{total} fl",
+    "floor": "{floor} fl",
+    "landArea": "{value} m² lot",
+    "billion": "bln",
+    "million": "mln"
+  },
+  "enums": {
+    "tx": {
+      "SALE": "Sale",
+      "RENT": "Rent"
+    },
+    "propertyType": {
+      "APARTMENT": "Apartment",
+      "HOUSE": "House",
+      "NEW_BUILDING": "New building",
+      "LAND": "Land",
+      "COMMERCIAL": "Commercial"
+    }
+  }
+}

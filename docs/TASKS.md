@@ -486,53 +486,7 @@ _TASK-132 completed — see docs/DONE.md._
 > TASK-140 — DONE (см. docs/DONE.md).
 
 
-### TASK-142 — Add i18n foundation
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/web-i18n
-```
-
-Scope:
-
-```text
-Add language detection and language switcher foundation.
-```
-
-Files expected:
-
-```text
-apps/web/src/i18n/
-apps/web/src/components/language-switcher/
-```
-
-Acceptance criteria:
-
-```text
-Supports uz/ru/en
-Detects browser language
-User can switch language manually
-Language state persists
-```
-
-Suggested commits:
-
-```text
-feat(web): add i18n foundation
-```
-
-Dependencies:
-
-```text
-TASK-140
-```
+_TASK-142 completed — see docs/DONE.md._
 
 ## 19. M15 — Web user features
 

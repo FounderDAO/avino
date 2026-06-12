@@ -3,6 +3,7 @@
  * Данные из getAgents(); карточки с инициалом-аватаром, именем, агентством
  * и счётчиком объявлений. Server component (статичные данные).
  */
+import { useTranslations } from 'next-intl';
 import { BadgeCheck } from 'lucide-react';
 import { SectionTitle } from '@/components/ui/section-title';
 import { getAgents } from '@/lib/mock';
@@ -11,13 +12,14 @@ import { getAgents } from '@/lib/mock';
 const initial = (name: string) => name.trim().charAt(0).toUpperCase();
 
 export function Agents() {
+  const t = useTranslations('home');
   const agents = getAgents();
 
   return (
     <section className="mx-auto max-w-[1280px] px-4 pt-14 sm:px-6">
       <SectionTitle
-        title="Агенты и агентства"
-        subtitle="Проверенные профессионалы Avino Pro"
+        title={t('agents.title')}
+        subtitle={t('agents.subtitle')}
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {agents.map((a) => (
@@ -40,7 +42,7 @@ export function Agents() {
                 {a.agency}
               </div>
               <div className="mt-1.5 text-[13px] font-semibold text-teal">
-                {a.listingsCount} объявлений
+                {t('agents.listingsCount', { count: a.listingsCount })}
               </div>
             </div>
           </div>

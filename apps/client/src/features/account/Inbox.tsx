@@ -16,14 +16,15 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fieldClass } from '@/components/ui/field';
-import { formatMoney, formatRelativeDate } from '@/lib/format';
+import { useFormatter, useTranslations } from 'next-intl';
+import { formatMoney, type T } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser, selectIsAuthenticated } from '@/store/slices/authSlice';
 import { getApiError } from '@/store/api/apiError';
@@ -46,12 +47,12 @@ function threadInitial(t: ApiThread): string {
 }
 
 /** Вторичная строка строки списка: цена объявления либо статус. */
-function threadSubtitle(t: ApiThread): string {
+function threadSubtitle(t: ApiThread, tUnits: T): string {
   const { price, currency, status } = t.listing_preview;
   const n = Number(price);
   if (Number.isFinite(n) && n > 0) {
     // API возвращает currency строкой; formatMoney различает только USD vs прочее.
-    return formatMoney(price, currency === 'USD' ? 'USD' : 'UZS');
+    return formatMoney(price, currency === 'USD' ? 'USD' : 'UZS', tUnits);
   }
   return status;
 }
@@ -64,6 +65,9 @@ function msgTime(iso: string): string {
 }
 
 export function Inbox() {
+  const format = useFormatter();
+  const tUnits = useTranslations('units');
+  const tAccount = useTranslations('account');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const currentUser = useAppSelector(selectCurrentUser);
   const currentUserId = currentUser?.id ?? null;
@@ -135,7 +139,7 @@ export function Inbox() {
       const apiErr = getApiError(
         err as Parameters<typeof getApiError>[0],
       );
-      setSendError(apiErr?.message ?? 'Не удалось отправить сообщение');
+      setSendError(apiErr?.message ?? tAccount('inbox.sendError'));
     }
   };
 
@@ -143,15 +147,15 @@ export function Inbox() {
   if (!isAuthenticated) {
     return (
       <div>
-        <h1 className="mb-[18px] text-[28px]">Сообщения</h1>
+        <h1 className="mb-[18px] text-[28px]">{tAccount('inbox.title')}</h1>
         <EmptyState
           icon={MessageCircle}
-          title="Войдите, чтобы видеть сообщения"
-          text="Здесь появятся ваши диалоги с авторами объявлений."
+          title={tAccount('inbox.authTitle')}
+          text={tAccount('inbox.authText')}
           action={
             <Button asChild>
               {/* Вход — модалка в Header; /login-маршрута нет. */}
-              <Link href="/">На главную</Link>
+              <Link href="/">{tAccount('inbox.goHome')}</Link>
             </Button>
           }
         />
@@ -163,7 +167,7 @@ export function Inbox() {
 
   return (
     <div>
-      <h1 className="mb-[18px] text-[28px]">Сообщения</h1>
+      <h1 className="mb-[18px] text-[28px]">{tAccount('inbox.title')}</h1>
       <div className="grid h-[540px] grid-cols-1 overflow-hidden rounded-card border border-border/60 bg-surface shadow-card sm:grid-cols-[300px_1fr]">
         {/* Список диалогов */}
         <div className="hidden overflow-y-auto border-r border-border sm:block">
@@ -176,7 +180,7 @@ export function Inbox() {
           ) : list.length === 0 ? (
             <EmptyState
               icon={MessageCircle}
-              title="Сообщений пока нет"
+              title={tAccount('inbox.emptyList')}
               className="py-10"
             />
           ) : (
@@ -200,11 +204,13 @@ export function Inbox() {
                       {t.listing_preview.title}
                     </b>
                     <span className="whitespace-nowrap text-xs text-muted-foreground">
-                      {formatRelativeDate(t.last_message_at)}
+                      {t.last_message_at
+                        ? format.relativeTime(new Date(t.last_message_at))
+                        : null}
                     </span>
                   </span>
                   <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
-                    {threadSubtitle(t)}
+                    {threadSubtitle(t, tUnits)}
                   </span>
                 </span>
                 {t.unread_count > 0 && (
@@ -230,7 +236,7 @@ export function Inbox() {
                     {selectedThread.listing_preview.title}
                   </div>
                   <div className="text-[12.5px] text-muted-foreground">
-                    {threadSubtitle(selectedThread)}
+                    {threadSubtitle(selectedThread, tUnits)}
                   </div>
                 </div>
               </div>
@@ -283,7 +289,7 @@ export function Inbox() {
                 <div className="flex gap-2">
                   <input
                     className={cn(fieldClass, 'rounded-pill')}
-                    placeholder="Напишите сообщение…"
+                    placeholder={tAccount('inbox.inputPlaceholder')}
                     value={text}
                     disabled={isSending}
                     onChange={(e) => setText(e.target.value)}
@@ -297,7 +303,7 @@ export function Inbox() {
                     disabled={isSending || !text.trim()}
                     className="shrink-0"
                   >
-                    Отправить
+                    {tAccount('inbox.send')}
                   </Button>
                 </div>
               </div>
@@ -306,8 +312,8 @@ export function Inbox() {
             <div className="flex flex-1 items-center justify-center">
               <EmptyState
                 icon={MessageCircle}
-                title="Выберите диалог"
-                text="Слева — список ваших переписок."
+                title={tAccount('inbox.selectThreadTitle')}
+                text={tAccount('inbox.selectThreadText')}
               />
             </div>
           )}

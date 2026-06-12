@@ -13,9 +13,10 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { Home } from 'lucide-react';
 import type { Listing, ListingStatus } from '@/lib/mock/types';
+import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/format';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { PromoBadge } from '@/components/ui/promo-badge';
@@ -27,33 +28,37 @@ import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import { useGetMyListingsQuery } from '@/store/api/myListingsApi';
 
 /**
- * Подпись + классы цвета для статус-пилла. Покрывает все реальные статусы
+ * Классы цвета для статус-пилла. Покрывает все реальные статусы
  * (NEW|ACTIVE|DRAFT|REJECTED|ARCHIVED|SOLD|RENTED). DELETED API не отдаёт.
+ * Подпись — в словаре account.myListings.status.{STATUS}.
  */
-const STATUS_META: Record<Exclude<ListingStatus, 'DELETED'>, { label: string; cls: string }> = {
-  ACTIVE: { label: 'Активно', cls: 'bg-green-bg text-green' },
-  NEW: { label: 'На модерации', cls: 'bg-[#FBF0DE] text-[#C77A12]' },
-  DRAFT: { label: 'Черновик', cls: 'bg-mint text-teal' },
-  REJECTED: { label: 'Отклонено', cls: 'bg-[#FBE0E0] text-[#C0392B]' },
-  ARCHIVED: { label: 'В архиве', cls: 'bg-muted text-muted-foreground' },
-  SOLD: { label: 'Продано', cls: 'bg-muted text-muted-foreground' },
-  RENTED: { label: 'Сдано', cls: 'bg-muted text-muted-foreground' },
+const STATUS_META: Record<Exclude<ListingStatus, 'DELETED'>, { cls: string }> = {
+  ACTIVE: { cls: 'bg-green-bg text-green' },
+  NEW: { cls: 'bg-[#FBF0DE] text-[#C77A12]' },
+  DRAFT: { cls: 'bg-mint text-teal' },
+  REJECTED: { cls: 'bg-[#FBE0E0] text-[#C0392B]' },
+  ARCHIVED: { cls: 'bg-muted text-muted-foreground' },
+  SOLD: { cls: 'bg-muted text-muted-foreground' },
+  RENTED: { cls: 'bg-muted text-muted-foreground' },
 };
 
 function StatusPill({ s }: { s: ListingStatus | undefined }) {
+  const t = useTranslations('account');
   const meta = s && s !== 'DELETED' ? STATUS_META[s] : undefined;
-  if (!meta) return null;
+  if (!meta || !s) return null;
   return (
     <span
       className={cn('whitespace-nowrap rounded-pill px-[11px] py-1 text-xs font-extrabold', meta.cls)}
     >
-      {meta.label}
+      {t(`myListings.status.${s}`)}
     </span>
   );
 }
 
 /** Строка объявления в кабинете. */
 function ListingRow({ l }: { l: Listing }) {
+  const t = useTranslations('account');
+  const tUnits = useTranslations('units');
   return (
     <div className="grid grid-cols-[120px_1fr] items-center gap-4 rounded-card border border-border/60 bg-surface p-3.5 shadow-card sm:grid-cols-[120px_1fr_auto]">
       {/* Превью */}
@@ -72,7 +77,7 @@ function ListingRow({ l }: { l: Listing }) {
         </div>
         <div className="truncate text-base font-bold">{l.title}</div>
         <div className="mt-[3px] text-[13.5px] text-muted-foreground">
-          {formatPrice(l)} · {l.district}
+          {formatPrice(l, tUnits)} · {l.district}
         </div>
         {/* TODO(listing-analytics): API /listings/mine не отдаёт views/leads. */}
       </div>
@@ -80,15 +85,15 @@ function ListingRow({ l }: { l: Listing }) {
       {/* Действия (заглушки) */}
       <div className="col-span-2 flex gap-2 sm:col-span-1 sm:flex-col">
         <Button asChild variant="outline" size="sm">
-          <Link href="/sell/new">Редактировать</Link>
+          <Link href="/sell/new">{t('myListings.edit')}</Link>
         </Button>
         {l.promo === 'NORMAL' ? (
           <Button size="sm" type="button">
-            Продвинуть
+            {t('myListings.promote')}
           </Button>
         ) : (
           <Button variant="outline" size="sm" type="button">
-            В архив
+            {t('myListings.archive')}
           </Button>
         )}
       </div>
@@ -111,6 +116,7 @@ function SkeletonRow() {
 }
 
 export function MyListings() {
+  const t = useTranslations('account');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const { data, isLoading } = useGetMyListingsQuery(undefined, {
     skip: !isAuthenticated,
@@ -119,17 +125,19 @@ export function MyListings() {
   const header = (
     <div className="mb-[18px] flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 className="text-[28px]">Мои объявления</h1>
+        <h1 className="text-[28px]">{t('myListings.title')}</h1>
         {data && (
           <p className="mt-0.5 text-muted-foreground">
-            {data.total} объявления · {data.items.filter((l) => l.status === 'NEW').length} на
-            модерации
+            {t('myListings.summary', {
+              total: data.total,
+              moderation: data.items.filter((l) => l.status === 'NEW').length,
+            })}
           </p>
         )}
       </div>
       <Button asChild>
         <Link href="/sell/new">
-          <Home size={17} /> Разместить
+          <Home size={17} /> {t('myListings.post')}
         </Link>
       </Button>
     </div>
@@ -142,11 +150,11 @@ export function MyListings() {
         {header}
         <EmptyState
           icon={Home}
-          title="Войдите в аккаунт"
-          text="Чтобы видеть свои объявления, войдите в аккаунт."
+          title={t('myListings.authTitle')}
+          text={t('myListings.authText')}
           action={
             <Button asChild>
-              <Link href="/">На главную</Link>
+              <Link href="/">{t('myListings.goHome')}</Link>
             </Button>
           }
         />
@@ -175,12 +183,12 @@ export function MyListings() {
         {header}
         <EmptyState
           icon={Home}
-          title="У вас пока нет объявлений"
-          text="Разместите первое объявление — это бесплатно."
+          title={t('myListings.emptyTitle')}
+          text={t('myListings.emptyText')}
           action={
             <Button asChild>
               <Link href="/sell/new">
-                <Home size={17} /> Разместить
+                <Home size={17} /> {t('myListings.post')}
               </Link>
             </Button>
           }

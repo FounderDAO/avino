@@ -20,6 +20,15 @@ export type PropertyType =
   | 'LAND'
   | 'COMMERCIAL';
 
+/** Все типы недвижимости (порядок — как в выпадающих списках UI). */
+export const PROPERTY_TYPES: PropertyType[] = [
+  'APARTMENT',
+  'HOUSE',
+  'NEW_BUILDING',
+  'LAND',
+  'COMMERCIAL',
+];
+
 export type ListingStatus =
   | 'NEW'
   | 'ACTIVE'
@@ -103,8 +112,8 @@ export interface Listing {
   /** Автор/контакт. */
   agent: ListingAgent;
 
-  /** Относительная дата публикации («2 дня назад»). */
-  created: string;
+  /** Дата публикации (ISO-строка; рендер — locale-aware relativeTime). */
+  createdAt: string;
 
   /** Язык оригинала (на будущее, дефолт RU в моках). */
   originalLanguage?: Language;
@@ -156,12 +165,3 @@ export type SortOption =
   | 'date_desc'
   | 'area_asc'
   | 'area_desc';
-
-/** Человекочитаемые названия типов недвижимости. */
-export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
-  APARTMENT: 'Квартира',
-  HOUSE: 'Дом',
-  NEW_BUILDING: 'Новостройка',
-  LAND: 'Участок',
-  COMMERCIAL: 'Коммерция',
-};

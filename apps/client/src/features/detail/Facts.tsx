@@ -3,6 +3,7 @@
  * Перенос блока facts-grid + Fact из claudeDesign/detail.jsx на токены проекта.
  */
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Bed, Ruler, Layers, CalendarDays, type LucideIcon } from 'lucide-react';
 import { formatArea } from '@/lib/format';
 import type { Listing } from '@/lib/mock/types';
@@ -28,21 +29,28 @@ export interface FactsProps {
 }
 
 export function Facts({ listing, className }: FactsProps) {
+  const t = useTranslations('listing');
+  const tUnits = useTranslations('units');
   // Собираем только заполненные характеристики (у участка/коммерции часть пуста).
   const items: React.ReactNode[] = [];
   if (listing.rooms) {
-    items.push(<Fact key="rooms" icon={Bed} label="Комнат" value={listing.rooms} />);
+    items.push(<Fact key="rooms" icon={Bed} label={t('facts.rooms')} value={listing.rooms} />);
   }
   if (listing.area) {
-    items.push(<Fact key="area" icon={Ruler} label="Площадь" value={formatArea(listing.area)} />);
+    items.push(<Fact key="area" icon={Ruler} label={t('facts.area')} value={formatArea(listing.area, tUnits)} />);
   }
   if (listing.floor && listing.totalFloors) {
     items.push(
-      <Fact key="floor" icon={Layers} label="Этаж" value={`${listing.floor} из ${listing.totalFloors}`} />,
+      <Fact
+        key="floor"
+        icon={Layers}
+        label={t('facts.floor')}
+        value={t('facts.floorOf', { floor: listing.floor, total: listing.totalFloors })}
+      />,
     );
   }
   if (listing.year) {
-    items.push(<Fact key="year" icon={CalendarDays} label="Год постройки" value={listing.year} />);
+    items.push(<Fact key="year" icon={CalendarDays} label={t('facts.year')} value={listing.year} />);
   }
 
   if (items.length === 0) return null;

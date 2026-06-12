@@ -6,7 +6,8 @@
  * контакт) → похожие объявления. Server component; интерактив (галерея,
  * лайтбокс, контакт, избранное) — внутри дочерних 'use client'-компонентов.
  */
-import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
 import { ChevronLeft, MapPin, Check } from 'lucide-react';
 import { Gallery } from '@/components/ui/gallery';
 import { PromoBadge } from '@/components/ui/promo-badge';
@@ -24,8 +25,12 @@ export interface DetailProps {
 }
 
 export async function Detail({ listing }: DetailProps) {
-  const parts = specs(listing);
-  const similar = await getSimilarListings(listing, 4);
+  const locale = await getLocale();
+  const t = await getTranslations('listing');
+  const tUnits = await getTranslations('units');
+  const tEnums = await getTranslations('enums');
+  const parts = specs(listing, tUnits);
+  const similar = await getSimilarListings(listing, 4, locale);
   // Ссылка «Назад к поиску» сохраняет тип сделки текущего объекта.
   const backHref = `/search?tx=${listing.tx}`;
 
@@ -37,7 +42,7 @@ export async function Detail({ listing }: DetailProps) {
           href={backHref}
           className="inline-flex items-center gap-1.5 text-[14.5px] font-bold text-teal hover:text-teal-deep"
         >
-          <ChevronLeft size={18} /> Назад к поиску
+          <ChevronLeft size={18} /> {t('backToSearch')}
         </Link>
       </div>
 
@@ -52,15 +57,15 @@ export async function Detail({ listing }: DetailProps) {
           <div className="flex flex-wrap items-center gap-2.5">
             <PromoBadge promo={listing.promo} />
             <span className="rounded-badge border border-border bg-surface-2 px-2.5 py-1 text-[12.5px] font-bold text-teal">
-              {propertyTypeLabel(listing.type)}
+              {propertyTypeLabel(listing.type, tEnums)}
             </span>
             <span className="rounded-badge border border-border bg-surface-2 px-2.5 py-1 text-[12.5px] font-bold">
-              {txLabel(listing.tx)}
+              {txLabel(listing.tx, tEnums)}
             </span>
           </div>
 
           {/* Цена */}
-          <div className="display mt-3.5 text-[40px]">{formatPrice(listing)}</div>
+          <div className="display mt-3.5 text-[40px]">{formatPrice(listing, tUnits)}</div>
 
           {/* Характеристики строкой */}
           {parts.length > 0 && (
@@ -78,7 +83,7 @@ export async function Detail({ listing }: DetailProps) {
           <div className="mt-2.5 flex items-center gap-2 text-[15.5px] text-muted-foreground">
             <MapPin size={18} strokeWidth={1.9} className="shrink-0" />
             <span>
-              {listing.address}, {listing.district} р-н, Ташкент
+              {t('addressLine', { address: listing.address, district: listing.district })}
             </span>
           </div>
 
@@ -88,7 +93,7 @@ export async function Detail({ listing }: DetailProps) {
           {/* Описание */}
           {listing.desc && (
             <div className="mt-8">
-              <h2 className="text-[22px]">Описание</h2>
+              <h2 className="text-[22px]">{t('sections.description')}</h2>
               <p className="mt-2.5 text-base leading-relaxed text-ink-soft">{listing.desc}</p>
             </div>
           )}
@@ -96,7 +101,7 @@ export async function Detail({ listing }: DetailProps) {
           {/* Особенности */}
           {listing.features && listing.features.length > 0 && (
             <div className="mt-7">
-              <h2 className="text-[22px]">Особенности</h2>
+              <h2 className="text-[22px]">{t('sections.features')}</h2>
               <div className="mt-3 flex flex-wrap gap-2">
                 {listing.features.map((ft) => (
                   <span
@@ -112,7 +117,7 @@ export async function Detail({ listing }: DetailProps) {
 
           {/* Локация — стилизованная заглушка карты (без Leaflet) */}
           <div className="mt-8">
-            <h2 className="text-[22px]">На карте</h2>
+            <h2 className="text-[22px]">{t('sections.map')}</h2>
             <div className="relative mt-3 h-[280px] overflow-hidden rounded-feature border border-border bg-mint">
               {/* Декоративная сетка-«карта» */}
               <div
@@ -129,12 +134,12 @@ export async function Detail({ listing }: DetailProps) {
                   <MapPin size={24} />
                 </div>
                 <div className="mt-3 rounded-card bg-surface/90 px-4 py-2 text-sm font-semibold text-ink shadow-card backdrop-blur">
-                  {listing.district} р-н · {listing.address}
+                  {t('map.pin', { district: listing.district, address: listing.address })}
                 </div>
               </div>
             </div>
             <p className="mt-2 text-[13.5px] text-muted-foreground">
-              Точное местоположение показывается после связи с автором.
+              {t('map.note')}
             </p>
           </div>
         </div>
@@ -149,10 +154,10 @@ export async function Detail({ listing }: DetailProps) {
       {similar.length > 0 && (
         <div className="mt-12">
           <SectionTitle
-            title="Похожие объявления"
+            title={t('sections.similar')}
             action={
               <Button variant="ghost" asChild className="text-[15px]">
-                <Link href={backHref}>Смотреть все</Link>
+                <Link href={backHref}>{t('similar.viewAll')}</Link>
               </Button>
             }
           />

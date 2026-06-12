@@ -6,26 +6,28 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { Home, Heart, Bell, MessageCircle, User, Settings as SettingsIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /** Описание вкладки кабинета. */
 export interface AccountTab {
   key: string;
-  label: string;
+  /** Ключ подписи в словаре account.tabs.*. */
+  labelKey: string;
   icon: typeof Home;
 }
 
 /** Список вкладок и их порядок в боковой навигации. */
 export const ACCOUNT_TABS: AccountTab[] = [
-  { key: 'my-listings', label: 'Мои объявления', icon: Home },
-  { key: 'favorites', label: 'Избранное', icon: Heart },
-  { key: 'saved', label: 'Сохранённые поиски', icon: Bell },
-  { key: 'inbox', label: 'Сообщения', icon: MessageCircle },
-  { key: 'notifications', label: 'Уведомления', icon: Bell },
-  { key: 'profile', label: 'Профиль', icon: User },
-  { key: 'settings', label: 'Настройки', icon: SettingsIcon },
+  { key: 'my-listings', labelKey: 'myListings', icon: Home },
+  { key: 'favorites', labelKey: 'favorites', icon: Heart },
+  { key: 'saved', labelKey: 'saved', icon: Bell },
+  { key: 'inbox', labelKey: 'inbox', icon: MessageCircle },
+  { key: 'notifications', labelKey: 'notifications', icon: Bell },
+  { key: 'profile', labelKey: 'profile', icon: User },
+  { key: 'settings', labelKey: 'settings', icon: SettingsIcon },
 ];
 
 export interface AccountLayoutProps {
@@ -35,6 +37,8 @@ export interface AccountLayoutProps {
 }
 
 export function AccountLayout({ tab, children }: AccountLayoutProps) {
+  const t = useTranslations('account');
+
   return (
     <div className="mx-auto max-w-[1200px] px-6 pb-16 pt-7">
       <div className="grid items-start gap-8 md:grid-cols-[248px_1fr]">
@@ -52,13 +56,13 @@ export function AccountLayout({ tab, children }: AccountLayoutProps) {
           </div>
 
           <nav className="flex flex-col gap-0.5">
-            {ACCOUNT_TABS.map((t) => {
-              const on = tab === t.key;
-              const Icon = t.icon;
+            {ACCOUNT_TABS.map((item) => {
+              const on = tab === item.key;
+              const Icon = item.icon;
               return (
                 <Link
-                  key={t.key}
-                  href={`/account/${t.key}`}
+                  key={item.key}
+                  href={`/account/${item.key}`}
                   className={cn(
                     'flex items-center gap-3 whitespace-nowrap rounded-[10px] px-3.5 py-[11px] text-[14.5px]',
                     on
@@ -66,7 +70,8 @@ export function AccountLayout({ tab, children }: AccountLayoutProps) {
                       : 'font-semibold text-ink hover:bg-surface-2',
                   )}
                 >
-                  <Icon size={19} strokeWidth={1.9} className="shrink-0" /> {t.label}
+                  <Icon size={19} strokeWidth={1.9} className="shrink-0" />{' '}
+                  {t(`tabs.${item.labelKey}`)}
                 </Link>
               );
             })}

@@ -5,7 +5,8 @@
  * По умолчанию ведёт на главную (<Link>). `light` — белый текст для тёмных
  * поверхностей (футер, CTA).
  */
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import logoIcon from '@/assets/logo/avino-appicon.svg';
@@ -21,11 +22,12 @@ export interface LogoProps {
 }
 
 export function Logo({ size = 22, light = false, href = '/', className }: LogoProps) {
+  const t = useTranslations('nav');
   const box = Math.round(size * 1.45);
   return (
     <Link
       href={href}
-      aria-label="Avino — на главную"
+      aria-label={t('logoAria')}
       className={cn('inline-flex items-center gap-[9px]', className)}
     >
       <Image

@@ -3,6 +3,7 @@
  * Server component: собирает секции и тянет мок-данные синхронно через @/lib/mock.
  * Интерактив (поиск, карусель, FAQ) вынесен в дочерние 'use client' компоненты.
  */
+import { getTranslations } from 'next-intl/server';
 import { getFeaturedListings, searchListings } from '@/lib/api/listings';
 import { Hero } from '@/features/home/Hero';
 import { Categories } from '@/features/home/Categories';
@@ -12,11 +13,17 @@ import { Agents } from '@/features/home/Agents';
 import { AgentCTA } from '@/features/home/AgentCTA';
 import { Faq } from '@/features/home/Faq';
 
-export default async function HomePage() {
+export default async function HomePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const t = await getTranslations('home');
   // Рекомендованные (VIP/TOP в приоритете) и свежее в аренде.
   const [featured, rent] = await Promise.all([
-    getFeaturedListings(8),
-    searchListings({ tx: 'RENT' }),
+    getFeaturedListings(8, locale),
+    searchListings({ tx: 'RENT' }, locale),
   ]);
 
   return (
@@ -24,13 +31,13 @@ export default async function HomePage() {
       <Hero />
       <Categories />
       <FeaturedCarousel
-        title="Рекомендуем"
-        subtitle="VIP и TOP объявления в приоритете"
+        title={t('featured.recommended.title')}
+        subtitle={t('featured.recommended.subtitle')}
         listings={featured}
       />
       <FeaturedCarousel
-        title="Свежее в аренде"
-        subtitle="Новые предложения за последние дни"
+        title={t('featured.rent.title')}
+        subtitle={t('featured.rent.subtitle')}
         listings={rent}
       />
       <Districts />

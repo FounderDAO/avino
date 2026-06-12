@@ -10,7 +10,8 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { Bell, BookmarkX, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
@@ -27,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
 export function SavedSearches() {
+  const tAccount = useTranslations('account');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   const {
@@ -37,17 +39,17 @@ export function SavedSearches() {
 
   return (
     <div>
-      <h1 className="mb-[18px] text-[28px]">Сохранённые поиски</h1>
+      <h1 className="mb-[18px] text-[28px]">{tAccount('savedSearches.title')}</h1>
 
       {!isAuthenticated ? (
         <EmptyState
           icon={BookmarkX}
-          title="Войдите, чтобы сохранять поиски"
-          text="Сохраняйте наборы фильтров и получайте уведомления о новых объявлениях — после входа они появятся здесь."
+          title={tAccount('savedSearches.authTitle')}
+          text={tAccount('savedSearches.authText')}
           action={
             <Button asChild>
               {/* Вход — модалка в Header; /login-маршрута нет. TODO(account-auth-guard). */}
-              <Link href="/">На главную</Link>
+              <Link href="/">{tAccount('savedSearches.goHome')}</Link>
             </Button>
           }
         />
@@ -60,17 +62,17 @@ export function SavedSearches() {
       ) : isError ? (
         <EmptyState
           icon={BookmarkX}
-          title="Не удалось загрузить сохранённые поиски"
-          text="Попробуйте обновить страницу чуть позже."
+          title={tAccount('savedSearches.errorTitle')}
+          text={tAccount('savedSearches.errorText')}
         />
       ) : !items || items.length === 0 ? (
         <EmptyState
           icon={BookmarkX}
-          title="Здесь пока пусто"
-          text="Настройте фильтры в поиске и нажмите «Сохранить поиск», чтобы вернуться к ним позже."
+          title={tAccount('savedSearches.emptyTitle')}
+          text={tAccount('savedSearches.emptyText')}
           action={
             <Button asChild>
-              <Link href="/search">Начать поиск</Link>
+              <Link href="/search">{tAccount('savedSearches.startSearch')}</Link>
             </Button>
           }
         />
@@ -87,10 +89,12 @@ export function SavedSearches() {
 
 /** Одна строка списка — изолирует per-item pending-состояния мутаций. */
 function SavedSearchRow({ item }: { item: SavedSearch }) {
+  const t = useTranslations();
+  const tAccount = useTranslations('account');
   const [updateSearch, { isLoading: isUpdating }] = useUpdateSavedSearchMutation();
   const [deleteSearch, { isLoading: isDeleting }] = useDeleteSavedSearchMutation();
 
-  const meta = describeFilters(item.filters_json.filters);
+  const meta = describeFilters(item.filters_json.filters, t);
   const href = filtersToSearchHref(item.filters_json.filters);
 
   return (
@@ -115,13 +119,15 @@ function SavedSearchRow({ item }: { item: SavedSearch }) {
           )}
         >
           <Bell size={17} fill={item.is_active ? 'currentColor' : 'none'} />
-          {item.is_active ? 'Уведомления вкл.' : 'Уведомления выкл.'}
+          {item.is_active
+            ? tAccount('savedSearches.notifyOn')
+            : tAccount('savedSearches.notifyOff')}
         </button>
         <button
           type="button"
           disabled={isDeleting}
           onClick={() => deleteSearch(item.id)}
-          aria-label="Удалить поиск"
+          aria-label={tAccount('savedSearches.deleteAria')}
           className="p-1 text-muted-foreground hover:text-ink disabled:opacity-50"
         >
           <X size={18} />

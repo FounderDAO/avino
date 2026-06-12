@@ -6,6 +6,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsFavorite, useToggleFavorite } from '@/store/favorites';
@@ -19,13 +20,14 @@ export interface FavButtonProps {
 }
 
 export function FavButton({ listingId, size = 38, className }: FavButtonProps) {
+  const t = useTranslations('common');
   const active = useIsFavorite(listingId);
   const toggle = useToggleFavorite();
 
   return (
     <button
       type="button"
-      aria-label={active ? 'Убрать из избранного' : 'В избранное'}
+      aria-label={active ? t('removeFromFavorites') : t('addToFavorites')}
       aria-pressed={active}
       onClick={(e) => {
         e.stopPropagation();

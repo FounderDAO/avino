@@ -14,7 +14,8 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import dynamic from 'next/dynamic';
 import { List as ListIcon, Map as MapIcon } from 'lucide-react';
 import { PropertyCard } from '@/features/search/PropertyCard';
@@ -43,16 +44,9 @@ export interface SearchResultsProps {
   loading?: boolean;
 }
 
-/** Русское склонение слова «объявление». */
-function pluralListings(n: number): string {
-  const m = n % 10;
-  const h = n % 100;
-  if (m === 1 && h !== 11) return 'объявление';
-  if (m >= 2 && m <= 4 && (h < 10 || h >= 20)) return 'объявления';
-  return 'объявлений';
-}
-
 export function SearchResults({ listings, view, heading, loading }: SearchResultsProps) {
+  const t = useTranslations('search');
+  const tCommon = useTranslations('common');
   const [activeId, setActiveId] = React.useState<string | null>(null);
   // Мобильный вид: список или карта (по умолчанию — из URL).
   const [mobView, setMobView] = React.useState<'list' | 'map'>(view);
@@ -78,7 +72,7 @@ export function SearchResults({ listings, view, heading, loading }: SearchResult
           <div>
             <h1 className="text-2xl">{heading}</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {loading ? 'Загрузка…' : `${total} ${pluralListings(total)}`}
+              {loading ? tCommon('loading') : t('results.count', { count: total })}
             </p>
           </div>
         </div>
@@ -91,11 +85,11 @@ export function SearchResults({ listings, view, heading, loading }: SearchResult
           </div>
         ) : total === 0 ? (
           <EmptyState
-            title="Ничего не найдено"
-            text="Попробуйте смягчить фильтры или расширить район поиска — например, искать по городу, а не по конкретному адресу."
+            title={t('results.emptyTitle')}
+            text={t('results.emptyText')}
             action={
               <Button asChild variant="outline">
-                <Link href="/search">Сбросить фильтры</Link>
+                <Link href="/search">{t('results.resetFilters')}</Link>
               </Button>
             }
           />
@@ -147,11 +141,11 @@ export function SearchResults({ listings, view, heading, loading }: SearchResult
       >
         {mobView === 'list' ? (
           <>
-            <MapIcon size={18} /> Карта
+            <MapIcon size={18} /> {t('results.map')}
           </>
         ) : (
           <>
-            <ListIcon size={18} /> Список
+            <ListIcon size={18} /> {t('results.list')}
           </>
         )}
       </button>

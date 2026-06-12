@@ -6,7 +6,8 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { MapPin } from 'lucide-react';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { PromoBadge, NewBadge } from '@/components/ui/promo-badge';
@@ -20,8 +21,10 @@ export interface PropertyCardProps {
 }
 
 export function PropertyCard({ listing, className }: PropertyCardProps) {
-  const parts = specs(listing);
-  const fresh = isFresh(listing.created);
+  const tUnits = useTranslations('units');
+  const tEnums = useTranslations('enums');
+  const parts = specs(listing, tUnits);
+  const fresh = isFresh(listing.createdAt);
 
   return (
     <Link
@@ -50,10 +53,10 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
       {/* Тело */}
       <div className="flex flex-1 flex-col px-4 pb-4 pt-3.5">
         <span className="text-xs font-bold uppercase tracking-[0.03em] text-teal">
-          {txLabel(listing.tx)}
+          {txLabel(listing.tx, tEnums)}
         </span>
         <div className="mt-0.5 truncate text-[23px] font-extrabold tracking-[-0.02em]">
-          {formatPrice(listing)}
+          {formatPrice(listing, tUnits)}
         </div>
 
         {/* Характеристики */}
@@ -91,7 +94,7 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
         {/* Низ: тип + агентство */}
         <div className="mt-auto flex items-center gap-1.5 border-t border-border pt-[11px] text-[12.5px] text-muted-foreground">
           <span className={listing.agent.pro ? 'font-semibold text-teal' : 'font-semibold'}>
-            {propertyTypeLabel(listing.type)}
+            {propertyTypeLabel(listing.type, tEnums)}
           </span>
           <span>·</span>
           <span className="truncate">{listing.agent.agency}</span>
