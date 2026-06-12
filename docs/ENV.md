@@ -134,11 +134,13 @@ Notes:
 | Variable                       | Req? | Secret | Client | Example | Description                              |
 |--------------------------------|------|--------|--------|---------|------------------------------------------|
 | YANDEX_MAPS_API_KEY            | yes  | yes    | no     | (set)   | Server-side Yandex Maps / geocoder key   |
-| NEXT_PUBLIC_YANDEX_MAPS_API_KEY| yes  | no     | yes    | (set)   | Browser key for the web map (apps/web)   |
+| NEXT_PUBLIC_YANDEX_MAPS_API_KEY| yes  | no     | yes    | (set)   | Browser key for the Yandex Maps JS API. Used by apps/client (public portal: `/map` draw-territory search + `/search` map) and apps/web (admin). Empty → map degrades to a hint, page still renders. |
 
 ```text
 - Geo SEARCH (radius/bounds/near-me/clustering) is PostGIS on the backend
   (ARCHITECTURE §12); Yandex provides the map UI/geocoding only.
+- apps/client loads the Yandex Maps JS API 2.1 client-side by this key
+  (features/map/useYmaps). Без ключа карта показывает подсказку, не падает.
 ```
 
 ## 11. Eskiz.uz (SMS)

@@ -20,6 +20,7 @@
     "buy": "Buy",
     "rent": "Rent",
     "newBuildings": "New buildings",
+    "map": "Map",
     "sell": "Sell",
     "help": "Help",
     "account": "Account",
@@ -208,7 +209,23 @@
       "map": "Map"
     },
     "map": {
-      "ariaLabel": "Map of listings"
+      "ariaLabel": "Map of listings",
+      "heading": "Search on the map",
+      "metaTitle": "Map search — Avino",
+      "metaDescription": "Search real estate on the map: see listings in the visible area and draw your own territory.",
+      "loading": "Loading…",
+      "missingKey": "Map unavailable: Yandex Maps key is not set.",
+      "loadError": "Failed to load the map. Please refresh the page.",
+      "drawTerritory": "Draw territory",
+      "drawHint": "Mark corners by clicking the map · points: {count, number}",
+      "finish": "Done",
+      "cancel": "Cancel",
+      "clear": "Clear",
+      "areaCount": "{count, plural, one {# listing in area} other {# listings in area}}",
+      "emptyArea": "No listings in this area — pan the map or change the territory.",
+      "preview": {
+        "close": "Close preview"
+      }
     },
     "radius": {
       "draw": "Radius",
