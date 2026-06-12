@@ -546,13 +546,13 @@ TASK-042
 Status:
 
 ```text
-TODO
+REVIEW
 ```
 
 Branch:
 
 ```text
-feat/web-map-search
+feat/client-map-yandex
 ```
 
 Scope:
