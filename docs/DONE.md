@@ -39,6 +39,52 @@ Related ADR:
 
 ## 2026-06-13
 
+### TASK-152 — Web map search on Yandex Maps + draw-territory (client)
+
+Status: DONE
+Branch: feat/client-map-yandex
+PR: https://github.com/FounderDAO/avino/pull/134 (#134)
+
+Files changed:
+- apps/client/src/features/map/MapView.tsx — карта на Yandex Maps JS API (кластеризация, брендовые ценовые пины), оверлеи круга/территории, рисование
+- apps/client/src/features/map/MapSearch.tsx — клиентский контроллер /map (bounds + draw-territory, hover-sync, превью)
+- apps/client/src/features/map/useYmaps.ts — singleton-загрузчик SDK по ключу, graceful-деградация
+- apps/client/src/store/api/searchApi.ts — RTK Query searchByBounds → GET /api/v1/search/bounds
+- apps/client/src/lib/geo.ts — bbox (polygonBounds), point-in-polygon, isValidBounds
+- apps/client/src/app/[locale]/map/page.tsx — маршрут /map (SSR стартовой выдачи)
+- apps/client/src/features/search/SearchResults.tsx — миграция /search на Yandex MapView; старый Leaflet MapView удалён
+- apps/client/src/lib/api/listings.ts — экспорт SearchEnvelope/ApiSearchItem (переиспользование mapListing)
+- apps/client/src/components/layout/{Nav,Header}.tsx — пункт навигации /map
+- apps/client/messages/{ru,uz,en}.json — i18n карты
+- apps/client/package.json, pnpm-lock.yaml — удалены leaflet/react-leaflet/@types/leaflet
+- docs/adr/ADR-0066-client-yandex-map-draw-territory.md, docs/ENV.md, docs/TASKS.md
+
+Summary:
+- Публичный поиск по карте на Yandex Maps (CLAUDE.md §12); Leaflet/OSM удалён полностью.
+- /map — client-driven: searchByBounds по видимой области (debounce) + рисование
+  территории, bbox → /search/bounds → клиентский point-in-polygon. Кластеризация,
+  брендовые пины (VIP золотой/TOP красный), превью PropertyCard по клику на пин,
+  связь список↔карта (panTo + подсветка).
+- /search мигрирован на тот же Yandex MapView (радиусный поиск сохранён).
+- Live-verify (Docker-стек + реальный ключ): /search/bounds отдаёт корректный
+  envelope; /map и /search SSR-ятся с реальными листингами. Найден и исправлен
+  баг: /map отдавал пустой CSR-шелл из-за useSearchParams в MapSearch (фикс — tx
+  приходит пропом с сервер-страницы).
+- UX рисования доведён до freehand-лассо (зажал → обвёл → отпустил) — follow-up
+  на ветке feat/client-map-lasso-draw.
+
+Commit messages:
+- feat(client): Yandex map search with draw-territory (/map), remove Leaflet
+- docs(client): ADR-0066 Yandex map + draw-territory; ENV key, TASK-152 REVIEW
+- docs(tasks): add TASK-193 server-side polygon search (apps/api follow-up)
+- fix(client): SSR /map — pass tx as prop, drop useSearchParams (CSR de-opt)
+
+Related ADR:
+- docs/adr/ADR-0066-client-yandex-map-draw-territory.md
+
+Follow-up tasks:
+- TASK-193 — server-side polygon search (apps/api, /search/polygon, ST_Within)
+
 ### TASK-195 — Google sign-in, Telegram admin auth-alerts, runtime toggle
 
 Status: DONE

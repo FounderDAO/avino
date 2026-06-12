@@ -217,7 +217,7 @@
       "missingKey": "Xarita mavjud emas: Yandex Maps kaliti kiritilmagan.",
       "loadError": "Xaritani yuklab bo'lmadi. Sahifani yangilang.",
       "drawTerritory": "Hudud chizish",
-      "drawHint": "Xaritani bosib burchaklarni belgilang · nuqtalar: {count, number}",
+      "drawHint": "Kerakli hududni bosib torting, so'ng qo'yib yuboring",
       "finish": "Tayyor",
       "cancel": "Bekor qilish",
       "clear": "Tozalash",
