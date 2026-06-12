@@ -15,6 +15,7 @@ describe('AuthService.verifyOtp', () => {
   let prisma: any;
   let tokenService: any;
   let config: any;
+  let telegram: any;
   let service: AuthService;
 
   const baseUser = {
@@ -53,7 +54,8 @@ describe('AuthService.verifyOtp', () => {
       }),
     };
     config = { get: jest.fn().mockReturnValue(5) }; // otp.maxAttempts
-    service = new AuthService(prisma, config, tokenService);
+    telegram = { sendAdminAlert: jest.fn().mockResolvedValue(undefined) };
+    service = new AuthService(prisma, config, tokenService, telegram);
   });
 
   const dto = (code = CODE) => ({
@@ -231,6 +233,33 @@ describe('AuthService.verifyOtp', () => {
       expect.objectContaining({ userId: 'new', roles: ['USER'] }),
     );
   });
+
+  it('fires a telegram success alert after a successful login', async () => {
+    prisma.otpCode.findFirst.mockResolvedValue({
+      id: 'o1',
+      codeHash: await hashOtpCode(CODE),
+      attempts: 0,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    prisma.user.findFirst.mockResolvedValue(baseUser);
+    prisma.user.update.mockResolvedValue(baseUser);
+
+    await service.verifyOtp(dto(), '1.2.3.4', 'jest-agent');
+
+    expect(telegram.sendAdminAlert).toHaveBeenCalledWith(
+      expect.stringContaining('вход выполнен'),
+    );
+  });
+
+  it('fires a telegram failure alert on OTP_INVALID and still rejects', async () => {
+    prisma.otpCode.findFirst.mockResolvedValue(null); // → OTP_INVALID
+    await expect(
+      service.verifyOtp(dto(), '1.2.3.4'),
+    ).rejects.toBeInstanceOf(HttpException);
+    expect(telegram.sendAdminAlert).toHaveBeenCalledWith(
+      expect.stringContaining('OTP_INVALID'),
+    );
+  });
 });
 
 /**
@@ -263,7 +292,12 @@ describe('AuthService.getMe', () => {
 
   beforeEach(() => {
     prisma = { user: { findFirst: jest.fn() } };
-    service = new AuthService(prisma, { get: jest.fn() } as any, {} as any);
+    service = new AuthService(
+      prisma,
+      { get: jest.fn() } as any,
+      {} as any,
+      { sendAdminAlert: jest.fn() } as any,
+    );
   });
 
   it('returns the full contract for a user with a profile', async () => {

@@ -10,6 +10,11 @@ import { Language, OtpChannel, OtpPurpose, UserStatus } from '@prisma/client';
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { PrismaService } from '../prisma';
+import {
+  TelegramService,
+  formatLoginFailed,
+  formatLoginSuccess,
+} from '../telegram';
 import { normalizeContact } from './contact.util';
 import { verifyOtpCode } from './otp-hash.util';
 import { TokenService } from './token.service';
@@ -56,6 +61,8 @@ interface ResolvedUser {
   isPhoneVerified: boolean;
   isEmailVerified: boolean;
   roles: string[];
+  /** true, если пользователь создан этим логином (signup-as-login). */
+  isNew: boolean;
 }
 
 /**
@@ -81,7 +88,27 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly tokenService: TokenService,
+    private readonly telegram: TelegramService,
   ) {}
+
+  /** Коды OTP-ошибок, на которые шлём admin-алерт о неудачном входе. */
+  private static readonly ALERT_FAILURE_CODES = new Set<string>([
+    ApiErrorCode.OTP_INVALID,
+    ApiErrorCode.OTP_EXPIRED,
+    ApiErrorCode.OTP_ATTEMPTS_EXCEEDED,
+    ApiErrorCode.USER_BLOCKED,
+  ]);
+
+  /** Достаёт стабильный код ошибки из HttpException-пейлоада (или undefined). */
+  private extractErrorCode(err: unknown): string | undefined {
+    if (err instanceof HttpException) {
+      const res = err.getResponse();
+      if (typeof res === 'object' && res !== null && 'code' in res) {
+        return (res as { code?: string }).code;
+      }
+    }
+    return undefined;
+  }
 
   async verifyOtp(
     dto: VerifyOtpDto,
@@ -105,101 +132,128 @@ export class AuthService {
       });
     }
 
-    const maxAttempts = this.config.get<number>('otp.maxAttempts') ?? 5;
+    try {
+      const maxAttempts = this.config.get<number>('otp.maxAttempts') ?? 5;
 
-    // Последний активный код на контакт: request гасит прежние, поэтому валиден
-    // только самый свежий неиспользованный.
-    const otp = await this.prisma.otpCode.findFirst({
-      where: {
-        destination,
-        purpose: OtpPurpose.LOGIN,
-        consumedAt: null,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+      // Последний активный код на контакт: request гасит прежние, поэтому валиден
+      // только самый свежий неиспользованный.
+      const otp = await this.prisma.otpCode.findFirst({
+        where: {
+          destination,
+          purpose: OtpPurpose.LOGIN,
+          consumedAt: null,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
 
-    if (!otp) {
-      throw this.otpError(
-        ApiErrorCode.OTP_INVALID,
-        HttpStatus.BAD_REQUEST,
-        'Invalid verification code',
-      );
-    }
+      if (!otp) {
+        throw this.otpError(
+          ApiErrorCode.OTP_INVALID,
+          HttpStatus.BAD_REQUEST,
+          'Invalid verification code',
+        );
+      }
 
-    if (otp.expiresAt.getTime() <= Date.now()) {
+      if (otp.expiresAt.getTime() <= Date.now()) {
+        await this.prisma.otpCode.update({
+          where: { id: otp.id },
+          data: { consumedAt: new Date() },
+        });
+        throw this.otpError(
+          ApiErrorCode.OTP_EXPIRED,
+          HttpStatus.BAD_REQUEST,
+          'Verification code has expired',
+        );
+      }
+
+      if (otp.attempts >= maxAttempts) {
+        throw this.otpError(
+          ApiErrorCode.OTP_ATTEMPTS_EXCEEDED,
+          HttpStatus.TOO_MANY_REQUESTS,
+          'Too many invalid attempts, request a new code',
+        );
+      }
+
+      const matches = await verifyOtpCode(dto.code, otp.codeHash);
+      if (!matches) {
+        const attempts = otp.attempts + 1;
+        await this.prisma.otpCode.update({
+          where: { id: otp.id },
+          data: { attempts },
+        });
+        // Если эта попытка исчерпала лимит — сразу локаут, иначе обычный мисс.
+        throw attempts >= maxAttempts
+          ? this.otpError(
+              ApiErrorCode.OTP_ATTEMPTS_EXCEEDED,
+              HttpStatus.TOO_MANY_REQUESTS,
+              'Too many invalid attempts, request a new code',
+            )
+          : this.otpError(
+              ApiErrorCode.OTP_INVALID,
+              HttpStatus.BAD_REQUEST,
+              'Invalid verification code',
+            );
+      }
+
+      // Успех: код одноразовый — гасим, чтобы повторный verify не прошёл.
       await this.prisma.otpCode.update({
         where: { id: otp.id },
         data: { consumedAt: new Date() },
       });
-      throw this.otpError(
-        ApiErrorCode.OTP_EXPIRED,
-        HttpStatus.BAD_REQUEST,
-        'Verification code has expired',
-      );
-    }
 
-    if (otp.attempts >= maxAttempts) {
-      throw this.otpError(
-        ApiErrorCode.OTP_ATTEMPTS_EXCEEDED,
-        HttpStatus.TOO_MANY_REQUESTS,
-        'Too many invalid attempts, request a new code',
-      );
-    }
+      const user = await this.resolveUser(dto.channel, destination);
 
-    const matches = await verifyOtpCode(dto.code, otp.codeHash);
-    if (!matches) {
-      const attempts = otp.attempts + 1;
-      await this.prisma.otpCode.update({
-        where: { id: otp.id },
-        data: { attempts },
-      });
-      // Если эта попытка исчерпала лимит — сразу локаут, иначе обычный мисс.
-      throw attempts >= maxAttempts
-        ? this.otpError(
-            ApiErrorCode.OTP_ATTEMPTS_EXCEEDED,
-            HttpStatus.TOO_MANY_REQUESTS,
-            'Too many invalid attempts, request a new code',
-          )
-        : this.otpError(
-            ApiErrorCode.OTP_INVALID,
-            HttpStatus.BAD_REQUEST,
-            'Invalid verification code',
-          );
-    }
-
-    // Успех: код одноразовый — гасим, чтобы повторный verify не прошёл.
-    await this.prisma.otpCode.update({
-      where: { id: otp.id },
-      data: { consumedAt: new Date() },
-    });
-
-    const user = await this.resolveUser(dto.channel, destination);
-
-    const tokens = await this.tokenService.issueSession({
-      userId: user.id,
-      roles: user.roles,
-      ip,
-      userAgent,
-    });
-
-    await this.writeLoginAudit(user.id, ip, userAgent, dto.channel);
-
-    return {
-      access_token: tokens.accessToken,
-      refresh_token: tokens.refreshToken,
-      token_type: 'Bearer',
-      expires_in: tokens.expiresIn,
-      user: {
-        id: user.id,
-        phone: user.phone,
-        email: user.email,
-        default_language: user.defaultLanguage,
-        status: user.status,
+      const tokens = await this.tokenService.issueSession({
+        userId: user.id,
         roles: user.roles,
-        is_phone_verified: user.isPhoneVerified,
-        is_email_verified: user.isEmailVerified,
-      },
-    };
+        ip,
+        userAgent,
+      });
+
+      await this.writeLoginAudit(user.id, ip, userAgent, dto.channel);
+
+      // Admin-алерт об успешном входе (best-effort, fire-and-forget).
+      void this.telegram.sendAdminAlert(
+        formatLoginSuccess({
+          destination,
+          channel: dto.channel,
+          ip,
+          isNewUser: user.isNew,
+          roles: user.roles,
+        }),
+      );
+
+      return {
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken,
+        token_type: 'Bearer',
+        expires_in: tokens.expiresIn,
+        user: {
+          id: user.id,
+          phone: user.phone,
+          email: user.email,
+          default_language: user.defaultLanguage,
+          status: user.status,
+          roles: user.roles,
+          is_phone_verified: user.isPhoneVerified,
+          is_email_verified: user.isEmailVerified,
+        },
+      };
+    } catch (err) {
+      // Доменные OTP-ошибки → admin-алерт о неудачном входе, затем пробрасываем.
+      const code = this.extractErrorCode(err);
+      if (code && AuthService.ALERT_FAILURE_CODES.has(code)) {
+        void this.telegram.sendAdminAlert(
+          formatLoginFailed({
+            destination,
+            channel: dto.channel,
+            ip,
+            reason: code,
+          }),
+        );
+      }
+      throw err;
+    }
   }
 
   /**
@@ -330,7 +384,7 @@ export class AuthService {
         data: { ...verified, lastLoginAt: new Date() },
         include: { roles: { include: { role: true } } },
       });
-      return this.toResolved(updated);
+      return this.toResolved(updated, false);
     }
 
     // Новый пользователь + роль USER в одной транзакции (атомарность signup).
@@ -357,19 +411,22 @@ export class AuthService {
       });
     });
 
-    return this.toResolved(created);
+    return this.toResolved(created, true);
   }
 
-  private toResolved(user: {
-    id: string;
-    phone: string | null;
-    email: string | null;
-    defaultLanguage: Language;
-    status: UserStatus;
-    isPhoneVerified: boolean;
-    isEmailVerified: boolean;
-    roles: { role: { code: string } }[];
-  }): ResolvedUser {
+  private toResolved(
+    user: {
+      id: string;
+      phone: string | null;
+      email: string | null;
+      defaultLanguage: Language;
+      status: UserStatus;
+      isPhoneVerified: boolean;
+      isEmailVerified: boolean;
+      roles: { role: { code: string } }[];
+    },
+    isNew: boolean,
+  ): ResolvedUser {
     return {
       id: user.id,
       phone: user.phone,
@@ -379,6 +436,7 @@ export class AuthService {
       isPhoneVerified: user.isPhoneVerified,
       isEmailVerified: user.isEmailVerified,
       roles: user.roles.map((r) => r.role.code),
+      isNew,
     };
   }
 
