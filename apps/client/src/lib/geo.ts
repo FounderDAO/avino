@@ -42,9 +42,9 @@ export function parseCircleParams(
 //
 // Используется новым поиском по карте (TASK-152, features/map). Координаты
 // храним как `[lat, lng]` — порядок Yandex Maps (geographical), поэтому
-// конвертация map↔helpers тривиальна. Точность по полигону на клиенте
-// (point-in-polygon) — это MVP поверх bbox-запроса GET /search/bounds; серверный
-// ST_Within(polygon) — отдельная задача на apps/api (см. предложение в PR).
+// конвертация map↔helpers тривиальна. Точная фильтрация по территории —
+// серверная (GET /search/polygon, ST_Within, TASK-193): кольцо обводки
+// сериализуется в параметр `points` через {@link serializePolygonRing}.
 
 /** Точка `[lat, lng]` (порядок Yandex Maps). */
 export type LatLng = [number, number];
@@ -130,4 +130,49 @@ export function circleFromBounds(bounds: LatLngBounds | null): RadiusCircle | nu
   const lng = (bounds.swLng + bounds.neLng) / 2;
   const diagM = haversineM(bounds.swLat, bounds.swLng, bounds.neLat, bounds.neLng);
   return { lat, lng, radiusM: clampRadius(diagM / 2) };
+}
+
+// ─── Сериализация кольца территории для GET /search/polygon (TASK-193) ───
+
+/**
+ * Верхняя граница числа вершин в query-параметре `points`. Freehand-обводка
+ * может дать сотни точек (несмотря на прореживание по шагу на карте) — ограничиваем
+ * длину query и стоимость серверного ST_Within равномерной децимацией.
+ */
+export const MAX_POLYGON_VERTICES = 120;
+
+/** Округление координаты до 6 знаков (≈0.1 м) без хвостовых нулей. */
+function roundCoord(v: number): string {
+  return String(Math.round(v * 1e6) / 1e6);
+}
+
+/** Равномерно прореживает кольцо до `max` вершин, сохраняя порядок обхода. */
+function decimateRing(points: LatLng[], max: number): LatLng[] {
+  if (points.length <= max) return points;
+  const step = points.length / max;
+  const out: LatLng[] = [];
+  for (let i = 0; i < max; i++) out.push(points[Math.floor(i * step)]);
+  return out;
+}
+
+/**
+ * Кольцо обводки `[lat, lng]` → параметр `points` для `GET /api/v1/search/polygon`:
+ * строка `lat,lng` пар через `;` (бэкенд замыкает кольцо сам, ST_MakePolygon).
+ *
+ * Требует ≥ 3 валидных вершины (WGS84); иначе — `null` (вызывающий не делает
+ * запрос и оставляет прежнюю выдачу). Длинная обводка прореживается до
+ * {@link MAX_POLYGON_VERTICES}. Координаты округляются до 6 знаков.
+ */
+export function serializePolygonRing(
+  points: LatLng[],
+  maxVertices = MAX_POLYGON_VERTICES,
+): string | null {
+  if (!points || points.length < 3) return null;
+  for (const [lat, lng] of points) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  }
+  const ring = decimateRing(points, Math.max(3, maxVertices));
+  if (ring.length < 3) return null;
+  return ring.map(([lat, lng]) => `${roundCoord(lat)},${roundCoord(lng)}`).join(';');
 }

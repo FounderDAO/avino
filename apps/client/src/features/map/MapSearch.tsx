@@ -2,13 +2,12 @@
  * MapSearch — интерактивный поиск по карте (/map, TASK-152).
  *
  * Клиентский контроллер: владеет динамической выдачей карты через RTK Query
- * `searchByBounds` (CLAUDE.md §4) и связывает список ↔ карту:
+ * `searchByBounds`/`searchByPolygon` (CLAUDE.md §4) и связывает список ↔ карту:
  *  - сдвиг/зум карты (без активной территории) → подгрузка листингов видимой
  *    области (MapView дебаунсит `onBoundsChange`);
  *  - режим рисования территории → freehand-лассо (зажал, обвёл, отпустил),
- *    запрашиваем bbox территории и отсекаем точную форму на клиенте
- *    (point-in-polygon, lib/geo) — MVP поверх /search/bounds; серверный
- *    ST_Within(polygon) — отдельная задача apps/api;
+ *    отправляем кольцо обводки в `GET /search/polygon`; точную фильтрацию
+ *    ST_Within выполняет сервер (TASK-193, без client point-in-polygon);
  *  - наведение на карточку → панорам/подсветка пина; клик по пину → превью
  *    карточки (PropertyCard) и выбор в списке.
  *
@@ -23,13 +22,15 @@ import { Pencil, X, Trash2 } from 'lucide-react';
 import { PropertyCard } from '@/features/search/PropertyCard';
 import { cn } from '@/lib/utils';
 import {
-  polygonBounds,
-  pointInPolygon,
+  serializePolygonRing,
   isValidBounds,
   type LatLng,
   type LatLngBounds,
 } from '@/lib/geo';
-import { useLazySearchByBoundsQuery } from '@/store/api/searchApi';
+import {
+  useLazySearchByBoundsQuery,
+  useLazySearchByPolygonQuery,
+} from '@/store/api/searchApi';
 import type { Listing, ListingFilter, TransactionType } from '@/lib/mock/types';
 
 // Карта — только на клиенте (Yandex JS API требует window).
@@ -61,46 +62,59 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
   const [polygon, setPolygon] = React.useState<LatLng[] | null>(null);
   const [mobView, setMobView] = React.useState<'list' | 'map'>('list');
 
-  const [trigger, { isFetching }] = useLazySearchByBoundsQuery();
+  const [triggerBounds, { isFetching: fetchingBounds }] = useLazySearchByBoundsQuery();
+  const [triggerPolygon, { isFetching: fetchingPolygon }] = useLazySearchByPolygonQuery();
+  const isFetching = fetchingBounds || fetchingPolygon;
+
+  // Последняя видимая область — чтобы восстановить выдачу при сбросе территории.
+  const lastBoundsRef = React.useRef<LatLngBounds | null>(null);
 
   const runBounds = React.useCallback(
     (bounds: LatLngBounds) => {
       if (!isValidBounds(bounds)) return;
-      trigger({ bounds, filter, limit: 100 })
+      triggerBounds({ bounds, filter, limit: 100 })
         .unwrap()
         .then(setRaw)
         .catch(() => {
           /* сеть/5xx — оставляем прежнюю выдачу */
         });
     },
-    [trigger, filter],
+    [triggerBounds, filter],
   );
 
   // Видимая область (без активной территории) → подгрузка листингов.
   const handleBoundsChange = React.useCallback(
     (b: LatLngBounds) => {
+      lastBoundsRef.current = b;
       if (polygon) return;
       runBounds(b);
     },
     [polygon, runBounds],
   );
 
-  // Территория замкнута: bbox → запрос, точную форму отсечём на клиенте.
+  // Территория замкнута: отправляем кольцо в /search/polygon (ST_Within на сервере).
   const handlePolygonComplete = React.useCallback(
     (pts: LatLng[]) => {
       setDrawing(false);
+      const points = serializePolygonRing(pts);
+      if (!points) {
+        setPolygon(null);
+        return;
+      }
       setPolygon(pts);
-      const bbox = polygonBounds(pts);
-      if (bbox) runBounds(bbox);
+      setPreviewId(null);
+      triggerPolygon({ points, filter, limit: 100 })
+        .unwrap()
+        .then(setRaw)
+        .catch(() => {
+          /* сеть/5xx — оставляем прежнюю выдачу */
+        });
     },
-    [runBounds],
+    [triggerPolygon, filter],
   );
 
-  // Внутри территории — фильтр point-in-polygon; иначе вся выдача области.
-  const displayed = React.useMemo(() => {
-    if (!polygon) return raw;
-    return raw.filter((l) => l.lat != null && l.lng != null && pointInPolygon(l.lat, l.lng, polygon));
-  }, [raw, polygon]);
+  // Серверная фильтрация (ST_Within / bbox) — клиентского отсечения больше нет.
+  const displayed = raw;
 
   const startDraw = () => {
     setPolygon(null);
@@ -108,7 +122,11 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
     setDrawing(true);
   };
   const cancelDraw = () => setDrawing(false);
-  const clearTerritory = () => setPolygon(null);
+  // Сброс территории → возвращаемся к выдаче текущей видимой области.
+  const clearTerritory = () => {
+    setPolygon(null);
+    if (lastBoundsRef.current) runBounds(lastBoundsRef.current);
+  };
 
   const handleSelect = (id: string) => {
     setActiveId(id);

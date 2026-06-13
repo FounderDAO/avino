@@ -3,11 +3,12 @@
  *
  * `searchByBounds` — поиск ACTIVE-листингов внутри видимой области карты:
  * GET /api/v1/search/bounds (API.md §10, PostGIS ST_MakeEnvelope/ST_Within).
+ * `searchByPolygon` — поиск внутри нарисованной территории (freehand-ласо):
+ * GET /api/v1/search/polygon (API.md §10, PostGIS ST_MakePolygon/ST_Within, TASK-193).
  * Используется новым поиском по карте (TASK-152, features/map):
  *  - при сдвиге/зуме карты (debounce) — подгружаем листинги текущего bbox;
- *  - при рисовании территории — берём bbox полигона, а точную форму отсекаем
- *    на клиенте (point-in-polygon, lib/geo). Серверный ST_Within(polygon) —
- *    отдельная задача на apps/api (/search/polygon).
+ *  - при рисовании территории — отправляем кольцо обводки (`points`), точную
+ *    фильтрацию ST_Within выполняет сервер (без client point-in-polygon).
  *
  * Ответ маппится в UI-модель {@link Listing} тем же {@link mapListing}, что и
  * серверный слой `lib/api/listings` (без дублирования; функция чистая, серверный
@@ -26,6 +27,14 @@ export interface BoundsSearchArgs {
   limit?: number;
 }
 
+/** Аргументы поиска по территории: сериализованное кольцо `points` + фильтры §9. */
+export interface PolygonSearchArgs {
+  /** Кольцо обводки `lat,lng;...` (см. lib/geo.serializePolygonRing). */
+  points: string;
+  filter?: ListingFilter;
+  limit?: number;
+}
+
 /** UI-сортировка → значение API (как в lib/api/listings.toApiSort). */
 function toApiSort(sort: ListingFilter['sort']): string | undefined {
   if (!sort) return undefined;
@@ -33,21 +42,12 @@ function toApiSort(sort: ListingFilter['sort']): string | undefined {
   return sort;
 }
 
-/**
- * Углы bbox + фильтры §9 → query-параметры `/search/bounds`. `district` НЕ
- * отправляется (бэкенд ждёт district_id-uuid, а UI хранит имя — см.
- * TODO(geo-reference) в lib/api/listings).
- */
-function boundsParams({ bounds, filter = {}, limit = 100 }: BoundsSearchArgs) {
-  const params: Record<string, string | number> = {
-    sw_lat: bounds.swLat,
-    sw_lng: bounds.swLng,
-    ne_lat: bounds.neLat,
-    ne_lng: bounds.neLng,
-    limit,
-  };
+/** Общие фильтры §9 (tx/тип/цена/комнаты/q/sort/район) → query-параметры. */
+function filterParams(filter: ListingFilter): Record<string, string | number> {
+  const params: Record<string, string | number> = {};
   if (filter.tx) params.transaction_type = filter.tx;
   if (filter.type) params.property_type = filter.type;
+  if (filter.districtId) params.district_id = filter.districtId;
   if (filter.priceMin != null) params.price_min = filter.priceMin;
   if (filter.priceMax != null) params.price_max = filter.priceMax;
   if (filter.rooms != null) params.rooms = filter.rooms;
@@ -55,6 +55,23 @@ function boundsParams({ bounds, filter = {}, limit = 100 }: BoundsSearchArgs) {
   const sort = toApiSort(filter.sort);
   if (sort) params.sort = sort;
   return params;
+}
+
+/** Углы bbox + фильтры §9 → query-параметры `/search/bounds`. */
+function boundsParams({ bounds, filter = {}, limit = 100 }: BoundsSearchArgs) {
+  return {
+    sw_lat: bounds.swLat,
+    sw_lng: bounds.swLng,
+    ne_lat: bounds.neLat,
+    ne_lng: bounds.neLng,
+    limit,
+    ...filterParams(filter),
+  };
+}
+
+/** Кольцо `points` + фильтры §9 → query-параметры `/search/polygon`. */
+function polygonParams({ points, filter = {}, limit = 100 }: PolygonSearchArgs) {
+  return { points, limit, ...filterParams(filter) };
 }
 
 export const searchApi = baseApi.injectEndpoints({
@@ -65,8 +82,20 @@ export const searchApi = baseApi.injectEndpoints({
       transformResponse: (env: SearchEnvelope) => env.data.map(mapListing),
       providesTags: ['Search'],
     }),
+
+    /** Листинги внутри нарисованной территории (ST_Within, TASK-193). */
+    searchByPolygon: build.query<Listing[], PolygonSearchArgs>({
+      query: (args) => ({ url: '/search/polygon', params: polygonParams(args) }),
+      transformResponse: (env: SearchEnvelope) => env.data.map(mapListing),
+      providesTags: ['Search'],
+    }),
   }),
   overrideExisting: false,
 });
 
-export const { useSearchByBoundsQuery, useLazySearchByBoundsQuery } = searchApi;
+export const {
+  useSearchByBoundsQuery,
+  useLazySearchByBoundsQuery,
+  useSearchByPolygonQuery,
+  useLazySearchByPolygonQuery,
+} = searchApi;
