@@ -502,15 +502,22 @@ Query-фильтры (`ARCHITECTURE` §12):
 | `price_min`, `price_max` | decimal | в пределах `currency`, без FX |
 | `currency` | `UZS \| USD` | валюта диапазона цен |
 | `area_min`, `area_max` | decimal | |
-| `rooms`, `floor`, `total_floors`, `year_built` | int | |
+| `rooms` | int | число комнат: 0..3 — точное совпадение; **4 = «4+»** (`rooms >= 4`) |
+| `floor`, `total_floors`, `year_built` | int | |
 | `feature_ids` | uuid[] | амenities (CSV или повтор параметра) |
 | `promotion_type` | `NORMAL \| TOP \| VIP` | фильтр по тиру (опц.) |
-| `sort` | enum | см. §4; default `promotion_priority_desc` |
+| `sort` | `date_desc \| price_asc \| price_desc \| area_desc` | вторичный ключ сортировки; **умолчание** `date_desc`; невалидное значение → 400 |
 | `cursor`, `limit` | | keyset-пагинация |
 
-**Сортировка по умолчанию** (ADR-006/007, `DB_SCHEMA` §8):
-`VIP > TOP > NORMAL` (тир time-guarded: `promotion_expires_at > now()`, иначе
-`NORMAL`) → `created_at DESC` → `id DESC`.
+**Сортировка** (TASK-207, ADR-0004):
+Promotion-тир **всегда первичен**: `VIP > TOP > NORMAL` (time-guarded: `promotion_expires_at > now()`, иначе `NORMAL`).
+Вторичный ключ задаётся параметром `sort`:
+- `date_desc` — `created_at DESC` (поведение по умолчанию и при отсутствии `sort`)
+- `price_asc` — `price ASC`
+- `price_desc` — `price DESC`
+- `area_desc` — `area DESC`; объявления без площади (`area = NULL`) — последними
+
+Tie-break по `id DESC` гарантирует детерминированность keyset-пагинации.
 
 200:
 ```json

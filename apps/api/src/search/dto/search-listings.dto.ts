@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -16,6 +17,19 @@ import {
   PropertyType,
   TransactionType,
 } from '@prisma/client';
+
+/**
+ * Допустимые значения параметра `sort` (TASK-207, API.md §9).
+ * `date_desc` — умолчание (promotion-приоритетный ORDER BY тир→created_at DESC→id DESC).
+ * Promotion-тир всегда остаётся ПЕРВИЧНЫМ ключом сортировки независимо от выбранного режима.
+ */
+export const SORT_MODES = [
+  'date_desc',
+  'price_asc',
+  'price_desc',
+  'area_desc',
+] as const;
+export type SortMode = (typeof SORT_MODES)[number];
 
 /**
  * Денежные поля — строки-Decimal, никогда float (ADR-002). До 12 цифр целой
@@ -76,17 +90,26 @@ export class SearchListingsQueryDto {
   // сортировка по ним НЕ применяется (см. SearchService.buildWhereSql). При
   // реализации 081/082 — подключить в where/orderBy и убрать этот раздел.
 
-  /** Сортировка выдачи. Пока игнорируется — порядок promotion-priority. */
+  /**
+   * Сортировка выдачи (TASK-207). Promotion-тир всегда первичен.
+   * `date_desc` — умолчание (created_at DESC); `price_asc`/`price_desc` — по цене;
+   * `area_desc` — по площади (NULL-area последними). Невалидное значение → 400.
+   */
   @IsOptional()
-  @IsString()
-  sort?: string;
+  @IsIn(SORT_MODES, {
+    message: `sort must be one of: ${SORT_MODES.join(', ')}`,
+  })
+  sort?: SortMode;
 
   /** Свободнотекстовый поиск. Пока игнорируется. */
   @IsOptional()
   @IsString()
   q?: string;
 
-  /** Число комнат. Пока игнорируется. */
+  /**
+   * Число комнат (TASK-207). 0..3 — точное совпадение; 4 = «4 и более».
+   * Применяется во всех эндпоинтах поиска (включая гео-варианты).
+   */
   @IsOptional()
   @Type(() => Number)
   @IsInt()

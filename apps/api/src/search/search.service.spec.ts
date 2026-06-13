@@ -40,6 +40,8 @@ describe('SearchService', () => {
       id: 'l1',
       created_at: new Date('2026-06-01T12:00:00.000Z'),
       tier_rank: 0,
+      // sort_val — вторичный ключ сортировки (TASK-207); для date_desc = created_at.
+      sort_val: new Date('2026-06-01T12:00:00.000Z'),
       ...over,
     };
   }
@@ -142,7 +144,8 @@ describe('SearchService', () => {
     expect(text).toContain("promotion_type = 'TOP'");
     expect(text).toContain('promotion_expires_at > now()');
     expect(text).toContain('ORDER BY');
-    expect(text).toContain('DESC, created_at DESC, id DESC');
+    // TASK-207: вторичный ключ обёрнут в () для поддержки произвольных выражений (COALESCE и т.д.).
+    expect(text).toContain('DESC, (created_at) DESC, id DESC');
   });
 
   it('builds basic filters and a currency-scoped price range as SQL params', async () => {
@@ -204,16 +207,19 @@ describe('SearchService', () => {
         id: 'l0',
         created_at: new Date('2026-06-01T00:00:00.000Z'),
         tier_rank: 2,
+        sort_val: new Date('2026-06-01T00:00:00.000Z'),
       }),
       pageRow({
         id: 'l1',
         created_at: new Date('2026-06-02T00:00:00.000Z'),
         tier_rank: 1,
+        sort_val: new Date('2026-06-02T00:00:00.000Z'),
       }),
       pageRow({
         id: 'l2',
         created_at: new Date('2026-06-03T00:00:00.000Z'),
         tier_rank: 0,
+        sort_val: new Date('2026-06-03T00:00:00.000Z'),
       }),
     ];
     mockQuery(rows, 9); // limit 2 → take 3, hasMore
@@ -230,7 +236,8 @@ describe('SearchService', () => {
     expect(first.meta).toMatchObject({ limit: 2, total: 9 });
     expect(first.meta.next_cursor).toBeTruthy();
 
-    // Курсор указывает на последний показанный элемент (l1, rank 1, 2026-06-02).
+    // TASK-207: курсор содержит { rank, val, id }; val — ISO-дата (date_desc).
+    // Последний показанный элемент — l1 (rank=1, sort_val=2026-06-02).
     const decoded = JSON.parse(
       Buffer.from(first.meta.next_cursor as string, 'base64url').toString(
         'utf8',
@@ -238,7 +245,7 @@ describe('SearchService', () => {
     );
     expect(decoded).toEqual({
       rank: 1,
-      createdAt: '2026-06-02T00:00:00.000Z',
+      val: '2026-06-02T00:00:00.000Z',
       id: 'l1',
     });
 
@@ -248,7 +255,7 @@ describe('SearchService', () => {
       limit: 2,
     });
     const nextPageSql = prisma.$queryRaw.mock.calls[2][0] as Prisma.Sql;
-    // Keyset «строго после позиции» по (tier_rank, created_at, id).
+    // Keyset «строго после позиции» по (tier_rank, secondary, id): rank, val, id в params.
     expect(nextPageSql.values).toEqual(
       expect.arrayContaining([1, '2026-06-02T00:00:00.000Z', 'l1']),
     );
@@ -262,9 +269,10 @@ describe('SearchService', () => {
     expect(prisma.$queryRaw).not.toHaveBeenCalled();
   });
 
-  it('rejects a structurally-invalid cursor (missing tier rank)', async () => {
+  it('rejects a structurally-invalid cursor (missing rank and/or val)', async () => {
+    // TASK-207: новая форма курсора { rank, val, id }; отсутствие rank → 400.
     const token = Buffer.from(
-      JSON.stringify({ createdAt: '2026-06-02T00:00:00.000Z', id: 'l1' }),
+      JSON.stringify({ val: '2026-06-02T00:00:00.000Z', id: 'l1' }),
       'utf8',
     ).toString('base64url');
     await expectCode(

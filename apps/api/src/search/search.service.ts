@@ -16,7 +16,7 @@ import {
   NearMeSearchQueryDto,
   RadiusSearchQueryDto,
 } from './dto/geo-search.dto';
-import { SearchListingsQueryDto } from './dto/search-listings.dto';
+import { SearchListingsQueryDto, SortMode } from './dto/search-listings.dto';
 
 /** Дефолт/максимум размера страницы (API.md §4: default 20, max 100). */
 const DEFAULT_LIMIT = 20;
@@ -75,13 +75,13 @@ export interface SavedSearchMatch {
 }
 
 /**
- * Позиция keyset-курсора: `(tier_rank, created_at, id)` последнего элемента
- * страницы. `tier_rank` — time-guarded числовой ранг промо-тира (2/1/0),
- * первичный ключ сортировки (TASK-081, ADR-0004).
+ * Обобщённый keyset-курсор (TASK-207): `rank` — time-guarded числовой ранг
+ * промо-тира (первичный ключ), `val` — строковое представление вторичного ключа
+ * сортировки (ISO-дата, числовая строка — зависит от `SortMode`), `id` — tie-break.
  */
 interface SearchCursor {
   rank: number;
-  createdAt: string;
+  val: string;
   id: string;
 }
 
@@ -101,14 +101,70 @@ const TIER_RANK_SQL = Prisma.sql`
 
 /**
  * Строка страницы из raw-запроса ранжирования (ключи сортировки + опц. дистанция).
- * `distance_m` присутствует только в гео-запросах (`ST_Distance`, метры).
+ * `sort_val` — строковое значение вторичного ключа сортировки (ISO-дата или число),
+ * используется для кодирования курсора. `distance_m` присутствует только в
+ * гео-запросах (`ST_Distance`, метры).
  */
 interface RankedRow {
   id: string;
   created_at: Date;
   tier_rank: number;
+  sort_val: string | Date | number | null;
   distance_m?: number | null;
 }
+
+/**
+ * Конфигурация вторичного ключа сортировки (TASK-207). Описывает:
+ * - SQL-выражение вторичного ключа для SELECT/ORDER BY,
+ * - направление сортировки,
+ * - как читать `sort_val` из строки raw-результата,
+ * - как биндить значение из курсора обратно в SQL.
+ */
+interface SortConfig {
+  /** SQL-выражение вторичного ключа (без алиаса). */
+  secondary: Prisma.Sql;
+  /** Направление сортировки вторичного ключа. */
+  dir: 'ASC' | 'DESC';
+  /** Прочитать `sort_val` из raw-строки в строку для курсора. */
+  encodeVal: (row: RankedRow) => string;
+  /** Строку из курсора в параметр для keyset-условия (с кастом типа). */
+  bindVal: (val: string) => Prisma.Sql;
+}
+
+/**
+ * Карта конфигураций сортировки (TASK-207, API.md §9).
+ * Promotion-тир — ВСЕГДА первичный ключ; вторичный ключ зависит от `sort`.
+ * `area_desc`: NULL-area → COALESCE(area, -1) (area ≥ 0 по CHECK → -1 всегда < 0 → NULL-area последними).
+ */
+const SORTS: Record<SortMode, SortConfig> = {
+  date_desc: {
+    secondary: Prisma.sql`created_at`,
+    dir: 'DESC',
+    encodeVal: (row) =>
+      row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : String(row.sort_val ?? row.created_at),
+    bindVal: (val) => Prisma.sql`${val}::timestamptz`,
+  },
+  price_asc: {
+    secondary: Prisma.sql`price`,
+    dir: 'ASC',
+    encodeVal: (row) => String(row.sort_val ?? '0'),
+    bindVal: (val) => Prisma.sql`${val}::numeric`,
+  },
+  price_desc: {
+    secondary: Prisma.sql`price`,
+    dir: 'DESC',
+    encodeVal: (row) => String(row.sort_val ?? '0'),
+    bindVal: (val) => Prisma.sql`${val}::numeric`,
+  },
+  area_desc: {
+    secondary: Prisma.sql`COALESCE(area, -1)`,
+    dir: 'DESC',
+    encodeVal: (row) => String(row.sort_val ?? '-1'),
+    bindVal: (val) => Prisma.sql`${val}::numeric`,
+  },
+};
 
 const SEARCH_SELECT = {
   id: true,
@@ -143,11 +199,15 @@ type SearchRow = Prisma.ListingGetPayload<{ select: typeof SEARCH_SELECT }>;
  *
  * Возвращает ТОЛЬКО `status = ACTIVE` (`DELETED` и прочие непубличные статусы
  * исключены, DB_SCHEMA §15). Сортировка — promotion-приоритетная (TASK-081,
- * ADR-0004): `effective_tier DESC, created_at DESC, id DESC`, где `effective_tier`
- * — time-guarded ранг промо ({@link TIER_RANK_SQL}). Гео-поиск (PostGIS) —
- * {@link SearchService.searchRadius} (`ST_DWithin`, GIST) и
+ * ADR-0004): `effective_tier DESC, <secondary> <dir>, id DESC`, где `effective_tier`
+ * — time-guarded ранг промо ({@link TIER_RANK_SQL}), вторичный ключ зависит от
+ * параметра `sort` (TASK-207: date_desc/price_asc/price_desc/area_desc).
+ *
+ * Гео-поиск (PostGIS) — {@link SearchService.searchRadius} (`ST_DWithin`, GIST) и
  * {@link SearchService.searchNearMe} (`ST_Distance` сортировка), TASK-082;
  * {@link SearchService.searchBounds} (bbox `ST_MakeEnvelope`/`ST_Within`), TASK-083.
+ * Гео-эндпоинты всегда используют `date_desc`-конфиг (сортировка по дате, keyset
+ * не зависит от user-sort).
  *
  * Ранжирование, keyset-пагинация и `total` считаются raw-SQL (Prisma `orderBy`
  * не выражает CASE с гардом по времени, ADR-0004 §2/§4); далее страница
@@ -170,21 +230,26 @@ export class SearchService {
     acceptLanguage?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const cfg = SORTS[query.sort ?? 'date_desc'];
     const cursor = this.decodeCursor(query.cursor);
     const filterSql = this.buildWhereSql(query);
     const pageWhere = cursor
-      ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor)}`
+      ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
 
     // Ранжирование + keyset + total в raw-SQL: ORDER BY по time-guarded тиру
-    // (effective_tier DESC, created_at DESC, id DESC), +1 строка — индикатор
+    // (effective_tier DESC, <secondary> <dir>, id DESC), +1 строка — индикатор
     // следующей страницы. total — отдельный count по тем же фильтрам (без курсора).
+    // sort_val — вторичный ключ в SELECT для кодирования курсора.
+    const orderDir =
+      cfg.dir === 'DESC' ? Prisma.sql`DESC` : Prisma.sql`ASC`;
     const [ranked, countRows] = await Promise.all([
       this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
-        SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank
+        SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank,
+               (${cfg.secondary}) AS sort_val
         FROM listings
         WHERE ${pageWhere}
-        ORDER BY ${TIER_RANK_SQL} DESC, created_at DESC, id DESC
+        ORDER BY ${TIER_RANK_SQL} DESC, (${cfg.secondary}) ${orderDir}, id DESC
         LIMIT ${limit + 1}
       `),
       this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
@@ -196,6 +261,7 @@ export class SearchService {
       ranked,
       countRows[0]?.count ?? 0,
       limit,
+      cfg,
       langParam,
       acceptLanguage,
     );
@@ -206,6 +272,7 @@ export class SearchService {
    * точки (`ST_DWithin` по GIST-индексу `idx_listings_location`). Порядок —
    * promotion-приоритетный, как у `/search` (keyset с тиром), каждый элемент
    * получает `distance_m` (`ST_Distance`, метры). API.md §10, ADR-0003.
+   * Гео-эндпоинт всегда использует `date_desc`-конфиг (создан_at DESC).
    */
   async searchRadius(
     query: RadiusSearchQueryDto,
@@ -213,17 +280,19 @@ export class SearchService {
     acceptLanguage?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const cfg = SORTS['date_desc'];
     const cursor = this.decodeCursor(query.cursor);
     const point = this.pointSql(query.lng, query.lat);
     // ST_DWithin по GIST-индексу; NULL-location отсекается (NULL не проходит WHERE).
     const filterSql = Prisma.sql`${this.buildWhereSql(query)} AND location IS NOT NULL AND ST_DWithin(location, ${point}, ${query.radius_m})`;
     const pageWhere = cursor
-      ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor)}`
+      ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
 
     const [ranked, countRows] = await Promise.all([
       this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
         SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank,
+               (${cfg.secondary}) AS sort_val,
                ST_Distance(location, ${point}) AS distance_m
         FROM listings
         WHERE ${pageWhere}
@@ -239,6 +308,7 @@ export class SearchService {
       ranked,
       countRows[0]?.count ?? 0,
       limit,
+      cfg,
       langParam,
       acceptLanguage,
     );
@@ -253,6 +323,7 @@ export class SearchService {
    * точный `ST_Within(location::geometry, envelope)`. Для точечной геометрии `&&`
    * по осевому прямоугольнику уже эквивалентен «точка внутри», но `ST_Within`
    * оставлен явно (контракт API.md §10, комментарий миграции idx_listings_location).
+   * Гео-эндпоинт всегда использует `date_desc`-конфиг (created_at DESC).
    */
   async searchBounds(
     query: BoundsSearchQueryDto,
@@ -260,17 +331,19 @@ export class SearchService {
     acceptLanguage?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const cfg = SORTS['date_desc'];
     const cursor = this.decodeCursor(query.cursor);
     const envelope = this.envelopeSql(query);
     // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
     const filterSql = Prisma.sql`${this.buildWhereSql(query)} AND location IS NOT NULL AND location && ${envelope}::geography AND ST_Within(location::geometry, ${envelope})`;
     const pageWhere = cursor
-      ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor)}`
+      ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
 
     const [ranked, countRows] = await Promise.all([
       this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
-        SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank
+        SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank,
+               (${cfg.secondary}) AS sort_val
         FROM listings
         WHERE ${pageWhere}
         ORDER BY ${TIER_RANK_SQL} DESC, created_at DESC, id DESC
@@ -285,6 +358,7 @@ export class SearchService {
       ranked,
       countRows[0]?.count ?? 0,
       limit,
+      cfg,
       langParam,
       acceptLanguage,
     );
@@ -309,6 +383,7 @@ export class SearchService {
     const [rows, countRows] = await Promise.all([
       this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
         SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank,
+               created_at AS sort_val,
                ST_Distance(location, ${point}) AS distance_m
         FROM listings
         WHERE ${filterSql}
@@ -348,13 +423,14 @@ export class SearchService {
   /**
    * Сборка keyset-envelope из ранжированных строк (+1 строка — индикатор
    * следующей страницы): срез до `limit`, гидратация карточек, tier-aware
-   * `next_cursor` по последнему показанному элементу. Общая для `/search` и
-   * `/search/radius`.
+   * `next_cursor` по последнему показанному элементу. `cfg` определяет, как
+   * читать вторичный ключ из raw-строки для кодирования курсора.
    */
   private async buildKeysetEnvelope(
     ranked: RankedRow[],
     total: number,
     limit: number,
+    cfg: SortConfig,
     langParam?: string,
     acceptLanguage?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
@@ -371,7 +447,7 @@ export class SearchService {
           hasMore && last
             ? this.encodeCursor({
                 rank: Number(last.tier_rank),
-                createdAt: last.created_at.toISOString(),
+                val: cfg.encodeVal(last),
                 id: last.id,
               })
             : null,
@@ -488,10 +564,13 @@ export class SearchService {
   }
 
   /**
-   * `WHERE`-фрагмент: обязательный `status = ACTIVE` + базовые фильтры (TASK-080).
-   * Параметры биндятся через `Prisma.sql` (защита от инъекций). Enum-колонки
-   * сравниваются через `::text` (не зависит от имени PG-типа); диапазон цены —
-   * в пределах одной валюты (`currency`), FX-конвертации нет (API.md §9).
+   * `WHERE`-фрагмент: обязательный `status = ACTIVE` + базовые фильтры (TASK-080)
+   * + `rooms` (TASK-207). Параметры биндятся через `Prisma.sql` (защита от инъекций).
+   * Enum-колонки сравниваются через `::text` (не зависит от имени PG-типа); диапазон
+   * цены — в пределах одной валюты (`currency`), FX-конвертации нет (API.md §9).
+   *
+   * `rooms` (TASK-207): 0..3 — точное совпадение; 4 = «4+» (rooms >= 4).
+   * Применяется во всех эндпоинтах поиска (включая гео-варианты).
    */
   private buildWhereSql(query: SearchListingsQueryDto): Prisma.Sql {
     const conds: Prisma.Sql[] = [Prisma.sql`status = 'ACTIVE'`];
@@ -512,20 +591,33 @@ export class SearchService {
       conds.push(Prisma.sql`price >= ${query.price_min}::numeric`);
     if (query.price_max !== undefined)
       conds.push(Prisma.sql`price <= ${query.price_max}::numeric`);
+    if (query.rooms !== undefined)
+      conds.push(
+        query.rooms >= 4
+          ? Prisma.sql`rooms >= 4`
+          : Prisma.sql`rooms = ${query.rooms}`,
+      );
 
     return Prisma.join(conds, ' AND ');
   }
 
   /**
-   * Keyset-условие «строго после позиции» по `(tier_rank, created_at, id)`:
-   * `rank < c.rank OR (rank = c.rank AND created_at < c.createdAt)
-   *  OR (rank = c.rank AND created_at = c.createdAt AND id < c.id)`.
+   * Keyset-условие «строго после позиции» по `(tier_rank, secondary, id)` (TASK-207).
+   * Обобщённый вариант поддерживает любой `SortConfig`; направление сравнения
+   * вторичного ключа зависит от `cfg.dir` (`<` для DESC, `>` для ASC).
+   *
+   * `rank < c.rank
+   *  OR (rank = c.rank AND secondary <after> bindVal(c.val))
+   *  OR (rank = c.rank AND secondary = bindVal(c.val) AND id < c.id::uuid)`
    */
-  private cursorConditionSql(cursor: SearchCursor): Prisma.Sql {
+  private cursorConditionSql(cursor: SearchCursor, cfg: SortConfig): Prisma.Sql {
+    const afterOp =
+      cfg.dir === 'DESC' ? Prisma.sql`<` : Prisma.sql`>`;
+    const boundVal = cfg.bindVal(cursor.val);
     return Prisma.sql`(
       ${TIER_RANK_SQL} < ${cursor.rank}
-      OR (${TIER_RANK_SQL} = ${cursor.rank} AND created_at < ${cursor.createdAt}::timestamptz)
-      OR (${TIER_RANK_SQL} = ${cursor.rank} AND created_at = ${cursor.createdAt}::timestamptz AND id < ${cursor.id}::uuid)
+      OR (${TIER_RANK_SQL} = ${cursor.rank} AND (${cfg.secondary}) ${afterOp} ${boundVal})
+      OR (${TIER_RANK_SQL} = ${cursor.rank} AND (${cfg.secondary}) = ${boundVal} AND id < ${cursor.id}::uuid)
     )`;
   }
 
@@ -596,8 +688,9 @@ export class SearchService {
   }
 
   /**
-   * Разбор keyset-токена. Невалидный/повреждённый `cursor` → `400` (не молчаливый
-   * сброс к первой странице, чтобы клиент заметил ошибку пагинации).
+   * Разбор keyset-токена (TASK-207). Ожидаемая форма: `{ rank: number, val: string, id: string }`.
+   * Невалидный/повреждённый `cursor` → `400` (не молчаливый сброс к первой странице,
+   * чтобы клиент заметил ошибку пагинации).
    */
   private decodeCursor(raw: string | undefined): SearchCursor | null {
     if (raw === undefined) {
@@ -609,13 +702,12 @@ export class SearchService {
       if (
         typeof parsed.rank !== 'number' ||
         !Number.isFinite(parsed.rank) ||
-        typeof parsed.createdAt !== 'string' ||
-        typeof parsed.id !== 'string' ||
-        Number.isNaN(new Date(parsed.createdAt).getTime())
+        typeof parsed.val !== 'string' ||
+        typeof parsed.id !== 'string'
       ) {
         throw new Error('malformed cursor');
       }
-      return { rank: parsed.rank, createdAt: parsed.createdAt, id: parsed.id };
+      return { rank: parsed.rank, val: parsed.val, id: parsed.id };
     } catch {
       throw new BadRequestException({
         code: ApiErrorCode.VALIDATION_ERROR,
