@@ -376,7 +376,12 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`.
 ### GET /api/v1/listings/:id
 Детали листинга. Auth: **public** для `ACTIVE`; владелец/AGENCY/MODERATOR/ADMIN
 видят и непубличные статусы. Перевод — по `Accept-Language`/`?lang` с фолбэком на
-`original_language` (ADR-012).
+`original_language` (ADR-012). `district_name` — имя района по языку ответа
+(`null`, если `district_id` не найден в справочнике; TASK-209, ADR-0068).
+`contact` — публичный контакт автора (TASK-210, ADR-0069): `display_name`,
+`type` (`owner`/`agent`/`agency`, выведен из ролей владельца), `is_pro`
+(MVP-эвристика: agent/agency), `phone` (`contact_phone` профиля → телефон
+аккаунта). Телефон **публичен** на `ACTIVE`-объявлениях.
 
 200:
 ```json
@@ -385,10 +390,13 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`.
   "transaction_type": "RENT", "property_type": "APARTMENT",
   "price": "4500000.00", "currency": "UZS", "area": "62.50",
   "rooms": 2, "floor": 4, "total_floors": 9, "year_built": 2018,
-  "city_id": "c1", "district_id": "d1", "address": "Yunusobod 12-23",
+  "city_id": "c1", "district_id": "d1", "district_name": "Юнусабад",
+  "address": "Yunusobod 12-23",
   "latitude": "41.350000", "longitude": "69.290000",
   "promotion_type": "VIP", "promotion_expires_at": "2026-06-20T00:00:00Z",
   "owner_id": "u1", "agency_id": null,
+  "contact": { "display_name": "Алишер", "type": "owner",
+               "is_pro": false, "phone": "+998901234567" },
   "language": "RU",
   "title": "2-комн квартира", "description": "Светлая...",
   "address_note": "рядом метро", "features_text": "балкон, кондиционер",
@@ -495,7 +503,7 @@ Query-фильтры (`ARCHITECTURE` §12):
 
 | Параметр | Тип | Описание |
 |---|---|---|
-| `q` | string | свободный текст по `title/description/address_note` языка пользователя, фолбэк на оригинал (ILIKE/pg_trgm, ADR-012) |
+| `q` | string | свободный текст (TASK-208, ADR-0067): ILIKE-подстрока (pg_trgm GIN, case-insensitive) по `listing_translations.title`/`description` на **любом** языке (uz/ru/en) и по `listings.address`; пустая строка игнорируется; максимум 200 символов |
 | `city_id`, `district_id` | uuid | локация |
 | `transaction_type` | `SALE \| RENT` | |
 | `property_type` | `APARTMENT \| HOUSE \| NEW_BUILDING \| LAND \| COMMERCIAL` | |
@@ -525,7 +533,7 @@ Tie-break по `id DESC` гарантирует детерминированно
   "data": [
     { "id": "l9", "status": "ACTIVE", "transaction_type": "SALE",
       "property_type": "APARTMENT", "price": "950000000.00", "currency": "UZS",
-      "rooms": 3, "city_id": "c1", "district_id": "d2",
+      "rooms": 3, "city_id": "c1", "district_id": "d2", "district_name": "Чиланзар",
       "latitude": "41.31", "longitude": "69.28",
       "promotion_type": "VIP", "promotion_expires_at": "2026-06-25T00:00:00Z",
       "effective_tier": "VIP",
@@ -537,6 +545,9 @@ Tie-break по `id DESC` гарантирует детерминированно
 }
 ```
 - `effective_tier` отражает time-guarded тир (expired промо → `NORMAL`).
+- `district_name` — имя района по `Accept-Language`/`?lang` (`null`, если
+  `district_id` нет в справочнике районов; TASK-209, ADR-0068). Справочник —
+  `GET /api/v1/geo/districts` (§10).
 Errors: `400 VALIDATION_ERROR`.
 
 ---
@@ -546,6 +557,21 @@ Errors: `400 VALIDATION_ERROR`.
 Геопоиск — **PostgreSQL + PostGIS** на бэке (`location geography(Point,4326)`,
 ADR-001). Карты — Yandex Maps (клиент). Все гео-эндпоинты возвращают только
 `ACTIVE` и применяют то же promotion-упорядочивание, что и `/search`.
+
+### GET /api/v1/geo/districts
+Справочник районов для дропдаунов и резолва `district_id → name` (TASK-209,
+ADR-0068). Auth: **public**. Без параметров. MVP — районы Ташкента (плоский
+список, без гео-геометрии).
+200:
+```json
+[
+  { "id": "d0000000-0000-4000-8000-000000000011", "code": "yunusobod",
+    "name_uz": "Yunusobod", "name_ru": "Юнусабад", "name_en": "Yunusabad" }
+]
+```
+Имена доступны на трёх языках; клиент выбирает нужный. В элементах `/search`
+(§9) и детали `/listings/:id` (§7) бэкенд уже встраивает готовое `district_name`
+по `Accept-Language`.
 
 ### GET /api/v1/search/radius
 Поиск по радиусу (`ST_DWithin`). Auth: **public**.
@@ -570,6 +596,40 @@ Query: `lat`, `lng`, `limit` + фильтры.
 200 → тот же envelope, что `/search` (`next_cursor = null`, одна страница
 размером `limit`); листинги отсортированы по `distance_m` ASC (промо — вторичный
 ключ при равенстве), каждый элемент несёт `distance_m` (метры, `ST_Distance`).
+
+### GET /api/v1/search/polygon
+Поиск по произвольному полигону (freehand-ласо, `ST_MakePolygon`/`ST_Within`,
+TASK-193). Auth: **public**.
+
+Query: `points` (обязательный) + любые фильтры из §9 (`cursor`, `limit`, и др.).
+
+```text
+GET /api/v1/search/polygon?points=41.30,69.27;41.30,69.29;41.32,69.29;41.32,69.27
+```
+
+**Параметр `points`** — строка вершин кольца в формате `lat,lng;lat,lng;...`:
+- разделитель вершин: `;`;
+- каждая вершина: `lat,lng` (широта, долгота WGS84);
+- минимум **3 вершины**;
+- `lat` ∈ [−90, 90], `lng` ∈ [−180, 180], числовые значения;
+- кольцо **замыкается на сервере**: если первая и последняя вершина не совпадают,
+  первая добавляется в конец (`ST_MakePolygon` требует замкнутое кольцо ≥ 4 точек).
+
+Невалидный `points` (менее 3 вершин, нечисловые координаты, выход за диапазон) →
+`400 VALIDATION_ERROR`.
+
+**Семантика фильтра.** Точный `ST_Within(location::geometry, polygon)` + GIST-префильтр
+`&&` по geography. Листинги без координат (`NULL location`) исключаются. Тот же
+promotion-приоритетный keyset, что и `/search/bounds` (`date_desc`); `distance_m` не
+возвращается (центральной точки нет).
+
+**Ограничение MVP.** Полигон должен быть простым (без самопересечений); для
+невыпуклых ласо из рук пользователя — ожидается простое кольцо. `ST_MakeValid`
+не применяется.
+
+200 → тот же `CursorPaginatedResponse<SearchListItem>` envelope/keyset, что
+`/search/bounds`.
+Errors: `400 VALIDATION_ERROR`.
 
 ### GET /api/v1/search/clusters
 Кластеризация маркеров для зума карты. Auth: **public**.

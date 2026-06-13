@@ -1,6 +1,62 @@
 import { Type } from 'class-transformer';
-import { IsLatitude, IsLongitude, IsNumber, Max, Min } from 'class-validator';
+import {
+  IsLatitude,
+  IsLongitude,
+  IsNumber,
+  IsString,
+  Max,
+  Min,
+  registerDecorator,
+  ValidationArguments,
+  ValidationOptions,
+} from 'class-validator';
 import { SearchListingsQueryDto } from './search-listings.dto';
+import { parsePolygonRing, PolygonVertex } from './polygon-ring.util';
+
+// Re-export so callers that previously imported from here continue to work.
+export { parsePolygonRing, PolygonVertex };
+
+// ─── @IsPolygonRing() decorator ───────────────────────────────────────────────
+
+/**
+ * Кастомный декоратор class-validator для поля `points` полигонального поиска
+ * (TASK-193). Вызывает {@link parsePolygonRing}; при ошибке — сообщение
+ * возвращается в 400 VALIDATION_ERROR. При успехе не мутирует значение
+ * (парсинг повторно вызывается в сервисе через тот же хелпер).
+ */
+export function IsPolygonRing(options?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isPolygonRing',
+      target: (object as { constructor: new (...args: unknown[]) => unknown }).constructor,
+      propertyName,
+      options,
+      validator: {
+        validate(value: unknown): boolean {
+          if (typeof value !== 'string') return false;
+          try {
+            parsePolygonRing(value);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        defaultMessage(args: ValidationArguments): string {
+          const raw = args.value;
+          if (typeof raw !== 'string') {
+            return 'points must be a string';
+          }
+          try {
+            parsePolygonRing(raw);
+            return '';
+          } catch (err) {
+            return (err as Error).message;
+          }
+        },
+      },
+    });
+  };
+}
 
 /** Верхняя граница радиуса (метры) — ограничивает стоимость гео-запроса. */
 const MAX_RADIUS_M = 50_000;
@@ -56,6 +112,34 @@ export class RadiusSearchQueryDto extends GeoSearchQueryDto {
  * (наследуется из §9, default 20 / max 100); keyset-курсор не применяется.
  */
 export class NearMeSearchQueryDto extends GeoSearchQueryDto {}
+
+/**
+ * Query-параметры `GET /api/v1/search/polygon` (TASK-193, API.md §10).
+ *
+ * Поиск ACTIVE-листингов внутри произвольного полигона (результат freehand-ласо
+ * на карте, TASK-152). Полигон задаётся параметром `points` — строка вершин
+ * `lat,lng` через `;`. Требуется ≥ 3 вершин в диапазоне WGS84; кольцо замыкается
+ * на бэке (первая вершина дублируется, если не совпадает с последней).
+ *
+ * Порядок — promotion-приоритетный (keyset с тиром), как у `/search/bounds`;
+ * `distance_m` не возвращается (центральной точки нет). Базовые фильтры §9
+ * наследуются из `SearchListingsQueryDto`.
+ *
+ * Пример: `?points=41.30,69.27;41.30,69.29;41.32,69.29;41.32,69.27`
+ */
+export class PolygonSearchQueryDto extends SearchListingsQueryDto {
+  /**
+   * Вершины кольца полигона — строка `lat,lng` пар, разделённых `;`. Минимум
+   * 3 вершины; каждая: lat ∈ [-90,90], lng ∈ [-180,180]; числовые. Кольцо
+   * замыкается на сервере (ST_MakePolygon требует замкнутого кольца).
+   * Невалидный формат/диапазон/число вершин → `400 VALIDATION_ERROR`.
+   *
+   * @example "41.30,69.27;41.30,69.29;41.32,69.29;41.32,69.27"
+   */
+  @IsString()
+  @IsPolygonRing()
+  points!: string;
+}
 
 /**
  * Query-параметры `GET /api/v1/search/bounds` (TASK-083, API.md §10).

@@ -7,6 +7,7 @@ import { ChatModule } from './chat';
 import { ComplaintsModule } from './complaints';
 import { AppConfigModule } from './config';
 import { FavoritesModule } from './favorites';
+import { GeoModule } from './geo';
 import { HealthModule } from './health/health.module';
 import { ListingMediaModule } from './listing-media';
 import { ListingsModule } from './listings/listings.module';
@@ -34,6 +35,7 @@ import { UsersModule } from './users/users.module';
     ListingsModule,
     ListingMediaModule,
     SearchModule,
+    GeoModule,
     FavoritesModule,
     SavedSearchesModule,
     PromotionsModule,
