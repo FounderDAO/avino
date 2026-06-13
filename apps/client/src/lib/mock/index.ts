@@ -6,7 +6,7 @@
  * можно подставить RTK Query, не меняя вызовы в компонентах.
  */
 import { LISTINGS, FALLBACK_PHOTO } from './listings';
-import { DISTRICT_NAMES } from './districts';
+import { DISTRICTS } from './districts';
 import { AGENTS } from './agents';
 import type {
   Agent,
@@ -90,10 +90,11 @@ export function getListingById(id: string): Listing | undefined {
 
 /** Районы с подсчётом активных объявлений. */
 export function getDistricts(): District[] {
-  return DISTRICT_NAMES.map((name) => ({
+  return DISTRICTS.map(({ name, aliases }) => ({
     id: name,
     name,
     count: LISTINGS.filter((l) => l.district === name).length,
+    aliases,
   }));
 }
 
