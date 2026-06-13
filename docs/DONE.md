@@ -39,6 +39,33 @@ Related ADR:
 
 ## 2026-06-13
 
+### TASK-210 — Контакт владельца/агента в детальной
+
+Status: DONE
+Branch: feat/api-listing-owner-contact
+PR: https://github.com/FounderDAO/avino/pull/146 (#146)
+
+Files changed:
+- apps/api/src/listings/listings.service.ts — `ContactBlock` + `contact` в `ListingDetailResponse`; `LISTING_DETAIL_SELECT` расширен owner (phone/profile/roles); `buildContact` (type/is_pro из ролей, телефон contact_phone→аккаунт)
+- apps/api/src/listings/listings.service.spec.ts — owner в фикстуре + ассерт контакта
+- apps/api/src/listings/listings.service.int-spec.ts — 2 live-кейса (агент vs обычный владелец)
+- docs/API.md §7 — контактный блок в детали
+- docs/adr/ADR-0069-listing-contact-exposure.md — решение (телефон публичен на ACTIVE)
+
+Summary:
+- `GET /api/v1/listings/:id` отдаёт `contact` (display_name, type owner/agent/agency, is_pro, phone).
+- **Приватность (ADR-0069): телефон публичен на ACTIVE** (продуктовое решение владельца); type/is_pro выведены из ролей владельца (MVP-эвристика), телефон — contact_phone профиля с фолбэком на телефон аккаунта.
+- Проверено вживую: 31/31 интеграционных теста (2 контактных) + 378 unit.
+- Клиент уберёт плейсхолдеры ContactCard отдельным PR в `apps/client`.
+
+Commit messages:
+- feat(listings): embed owner/agent contact in detail response
+
+Related ADR:
+- docs/adr/ADR-0069-listing-contact-exposure.md
+
+---
+
 ### TASK-209 — Гео-справочник районов + имя района в ответах
 
 Status: DONE
