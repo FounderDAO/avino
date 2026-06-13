@@ -171,6 +171,9 @@
     "filters": {
       "searchPlaceholder": "District, address…",
       "searchAria": "Search by district or address",
+      "suggestGroupDistricts": "Districts",
+      "suggestGroupAddresses": "Addresses",
+      "suggestEmpty": "Nothing found",
       "buy": "Buy",
       "rent": "Rent",
       "price": "Price",

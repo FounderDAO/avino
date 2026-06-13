@@ -105,3 +105,29 @@ export function pointInPolygon(lat: number, lng: number, points: LatLng[]): bool
   }
   return inside;
 }
+
+/** Дистанция между двумя точками в метрах (haversine). */
+function haversineM(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6_371_000;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const lat1 = (aLat * Math.PI) / 180;
+  const lat2 = (bLat * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Прямоугольная область → круг: центр = середина bbox, радиус = половина
+ * диагонали (clamp 250..50000). Невалидный/вырожденный bbox → null (тогда
+ * вызывающий падает на текстовый поиск без гео).
+ */
+export function circleFromBounds(bounds: LatLngBounds | null): RadiusCircle | null {
+  if (!isValidBounds(bounds)) return null;
+  const lat = (bounds.swLat + bounds.neLat) / 2;
+  const lng = (bounds.swLng + bounds.neLng) / 2;
+  const diagM = haversineM(bounds.swLat, bounds.swLng, bounds.neLat, bounds.neLng);
+  return { lat, lng, radiusM: clampRadius(diagM / 2) };
+}

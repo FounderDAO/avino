@@ -171,6 +171,9 @@
     "filters": {
       "searchPlaceholder": "Район, адрес…",
       "searchAria": "Поиск по району или адресу",
+      "suggestGroupDistricts": "Районы",
+      "suggestGroupAddresses": "Адреса",
+      "suggestEmpty": "Ничего не найдено",
       "buy": "Купить",
       "rent": "Аренда",
       "price": "Цена",

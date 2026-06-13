@@ -10,7 +10,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useRouter, usePathname } from '@/i18n/navigation';
-import { Search, Bell, List, Map as MapIcon } from 'lucide-react';
+import { Bell, List, Map as MapIcon } from 'lucide-react';
 import { Segment } from '@/components/ui/segment';
 import { Pill } from '@/components/ui/pill';
 import { Field, fieldClass } from '@/components/ui/field';
@@ -25,7 +25,10 @@ import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import { useCreateSavedSearchMutation } from '@/store/api/savedSearchesApi';
 import { describeFilters, type SavedSearchFilters } from '@/lib/savedSearch';
 import { getApiError } from '@/store/api/apiError';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { SearchAutocomplete } from './SearchAutocomplete';
+import { useGeoSuggest, type Suggestion } from './useGeoSuggest';
+import { resolveSuggestion } from './resolveSuggestion';
 import {
   PROPERTY_TYPES,
   type District,
@@ -83,9 +86,50 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     [router, pathname, searchParams],
   );
 
-  // Локальное состояние поля поиска (коммитим по Enter/blur, чтобы не дёргать URL на каждой букве).
+  // Локальное состояние поля поиска (коммитим в URL по Enter или выбору подсказки,
+  // чтобы не дёргать URL на каждой букве).
   const [queryDraft, setQueryDraft] = React.useState(values.query ?? '');
   React.useEffect(() => setQueryDraft(values.query ?? ''), [values.query]);
+
+  const locale = useLocale();
+  const [suggestActive, setSuggestActive] = React.useState(false);
+  const { items, loading } = useGeoSuggest(queryDraft, {
+    enabled: suggestActive,
+    districts,
+    locale,
+  });
+
+  /** Выбор подсказки: geocode → circle в URL; осечка → текст без гео (circle сбрасываем). */
+  const handleSelect = React.useCallback(
+    async (s: Suggestion) => {
+      const resolved = await resolveSuggestion(s.value);
+      if (resolved) {
+        setQueryDraft(resolved.label);
+        setParams({
+          query: resolved.label,
+          clat: resolved.circle.lat,
+          clng: resolved.circle.lng,
+          radius: resolved.circle.radiusM,
+        });
+      } else {
+        setParams({ query: s.title, clat: undefined, clng: undefined, radius: undefined });
+      }
+    },
+    [setParams],
+  );
+
+  /** Enter по свободному тексту: только query, circle сбрасываем. */
+  const handleSubmitRaw = React.useCallback(
+    (text: string) => {
+      setParams({
+        query: text || undefined,
+        clat: undefined,
+        clng: undefined,
+        radius: undefined,
+      });
+    },
+    [setParams],
+  );
 
   const priceActive = Boolean(values.priceMin || values.priceMax);
   const priceLabel = priceActive
@@ -134,24 +178,22 @@ export function FilterBar({ values, districts }: FilterBarProps) {
       <div className="overflow-x-auto px-5 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex flex-nowrap items-center gap-2">
           {/* Поиск по локации/адресу */}
-          <div className="relative min-w-[230px] flex-shrink-0">
-            <Search
-              size={17}
-              strokeWidth={1.9}
-              className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <Field
-              value={queryDraft}
-              onChange={(e) => setQueryDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') setParams({ query: queryDraft });
-              }}
-              onBlur={() => setParams({ query: queryDraft })}
-              placeholder={tSearch('filters.searchPlaceholder')}
-              className="rounded-pill py-[9px] pl-[38px] pr-4"
-              aria-label={tSearch('filters.searchAria')}
-            />
-          </div>
+          <SearchAutocomplete
+            value={queryDraft}
+            onChange={setQueryDraft}
+            onSelect={handleSelect}
+            onSubmitRaw={handleSubmitRaw}
+            onActiveChange={setSuggestActive}
+            items={items}
+            loading={loading}
+            placeholder={tSearch('filters.searchPlaceholder')}
+            ariaLabel={tSearch('filters.searchAria')}
+            labels={{
+              districts: tSearch('filters.suggestGroupDistricts'),
+              addresses: tSearch('filters.suggestGroupAddresses'),
+              empty: tSearch('filters.suggestEmpty'),
+            }}
+          />
 
           {/* Купить / Аренда */}
           <Segment<TransactionType>
