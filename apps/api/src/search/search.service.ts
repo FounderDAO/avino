@@ -14,6 +14,9 @@ import { TranslationsService } from '../translations';
 import {
   BoundsSearchQueryDto,
   NearMeSearchQueryDto,
+  parsePolygonRing,
+  PolygonSearchQueryDto,
+  PolygonVertex,
   RadiusSearchQueryDto,
 } from './dto/geo-search.dto';
 import { SearchListingsQueryDto, SortMode } from './dto/search-listings.dto';
@@ -365,6 +368,64 @@ export class SearchService {
   }
 
   /**
+   * `GET /api/v1/search/polygon` — ACTIVE-листинги внутри произвольного полигона
+   * (freehand-ласо, TASK-193, API.md §10). Порядок — promotion-приоритетный
+   * (keyset с тиром), как у `/search/bounds`; `distance_m` не возвращается
+   * (центральной точки нет).
+   *
+   * Полигон строится как `geometry(Polygon,4326)` через PostGIS:
+   * `ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[...])), 4326)`. Все координаты
+   * биндятся через `Prisma.sql` (защита от инъекций). Кольцо замыкается здесь
+   * же: если первая и последняя вершины не совпадают — первая добавляется в конец
+   * (ST_MakePolygon требует ≥ 4 точек в замкнутом кольце).
+   *
+   * Предположение (MVP): кольцо простое, невыпуклое, без самопересечений —
+   * ST_MakeValid не применяется для упрощения; самопересекающийся контур вернёт
+   * пустую или некорректную выдачу. При необходимости добавить ST_MakeValid в v2.
+   *
+   * Гео-эндпоинт всегда использует `date_desc`-конфиг (created_at DESC).
+   */
+  async searchPolygon(
+    query: PolygonSearchQueryDto,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<CursorPaginatedResponse<SearchListItem>> {
+    const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const cfg = SORTS['date_desc'];
+    const cursor = this.decodeCursor(query.cursor);
+    const vertices = parsePolygonRing(query.points);
+    const polygon = this.polygonSql(vertices);
+    // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
+    const filterSql = Prisma.sql`${this.buildWhereSql(query)} AND location IS NOT NULL AND location && ${polygon}::geography AND ST_Within(location::geometry, ${polygon})`;
+    const pageWhere = cursor
+      ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
+      : filterSql;
+
+    const [ranked, countRows] = await Promise.all([
+      this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
+        SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank,
+               (${cfg.secondary}) AS sort_val
+        FROM listings
+        WHERE ${pageWhere}
+        ORDER BY ${TIER_RANK_SQL} DESC, created_at DESC, id DESC
+        LIMIT ${limit + 1}
+      `),
+      this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
+        SELECT count(*)::int AS count FROM listings WHERE ${filterSql}
+      `),
+    ]);
+
+    return this.buildKeysetEnvelope(
+      ranked,
+      countRows[0]?.count ?? 0,
+      limit,
+      cfg,
+      langParam,
+      acceptLanguage,
+    );
+  }
+
+  /**
    * `GET /api/v1/search/near-me` — ближайшие к точке ACTIVE-листинги,
    * отсортированные по дистанции (`ST_Distance` ASC); промо — вторичный ключ при
    * равенстве (API.md §10: для near-me основной ключ — дистанция). Одна страница
@@ -418,6 +479,35 @@ export class SearchService {
    */
   private envelopeSql(query: BoundsSearchQueryDto): Prisma.Sql {
     return Prisma.sql`ST_MakeEnvelope(${query.sw_lng}, ${query.sw_lat}, ${query.ne_lng}, ${query.ne_lat}, 4326)`;
+  }
+
+  /**
+   * Произвольный полигон из вершин кольца как `geometry(Polygon,4326)` (TASK-193).
+   *
+   * Строит `ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[...]::geometry[])), 4326)`.
+   * Все координаты биндятся через `Prisma.sql` — инъекция невозможна. Кольцо
+   * замыкается автоматически: если первая и последняя вершины не совпадают —
+   * первая добавляется в конец (`ST_MakeLine`/`ST_MakePolygon` требуют замкнутого
+   * кольца, ≥ 4 точек после замыкания).
+   *
+   * `ST_MakePoint(lng, lat)` — долгота первой (как в {@link pointSql} и в
+   * sync-триггере `location`, DB_SCHEMA §14); перепутанный порядок дал бы
+   * неверную геометрию.
+   */
+  private polygonSql(vertices: PolygonVertex[]): Prisma.Sql {
+    // Замкнуть кольцо: первая вершина ≠ последней → добавить первую в конец.
+    const first = vertices[0];
+    const last = vertices[vertices.length - 1];
+    const ring =
+      first.lat === last.lat && first.lng === last.lng
+        ? vertices
+        : [...vertices, first];
+
+    const points = Prisma.join(
+      ring.map((v) => Prisma.sql`ST_MakePoint(${v.lng}, ${v.lat})`),
+      ', ',
+    );
+    return Prisma.sql`ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[${points}]::geometry[])), 4326)`;
   }
 
   /**

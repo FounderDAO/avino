@@ -2,6 +2,7 @@ import { Controller, Get, Headers, Query } from '@nestjs/common';
 import {
   BoundsSearchQueryDto,
   NearMeSearchQueryDto,
+  PolygonSearchQueryDto,
   RadiusSearchQueryDto,
 } from './dto/geo-search.dto';
 import { SearchListingsQueryDto } from './dto/search-listings.dto';
@@ -72,5 +73,21 @@ export class SearchController {
     @Headers('accept-language') acceptLanguage?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     return this.searchService.searchNearMe(query, lang, acceptLanguage);
+  }
+
+  /**
+   * `GET /api/v1/search/polygon` — ACTIVE-листинги внутри произвольного полигона
+   * (`ST_MakePolygon`/`ST_Within`). Полигон задаётся параметром `points` в виде
+   * строки `lat,lng` пар через `;`. Promotion-приоритетный порядок (keyset), как у
+   * `/search/bounds`; `distance_m` нет. Используется для draw-territory (ласо
+   * на карте, TASK-152/TASK-193). Auth: **public**. API.md §10.
+   */
+  @Get('polygon')
+  searchPolygon(
+    @Query() query: PolygonSearchQueryDto,
+    @Query('lang') lang?: string,
+    @Headers('accept-language') acceptLanguage?: string,
+  ): Promise<CursorPaginatedResponse<SearchListItem>> {
+    return this.searchService.searchPolygon(query, lang, acceptLanguage);
   }
 }

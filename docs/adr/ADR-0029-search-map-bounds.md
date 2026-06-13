@@ -86,18 +86,49 @@ Negative / trade-offs:
 - bounds возвращает keyset-страницы (как `/search`), а не «все маркеры разом»;
   агрегация дальнего зума — отдельный `/search/clusters` (backlog M8/M9).
 
+## Extension — TASK-193: arbitrary polygon search (ST_MakePolygon / ST_Within)
+
+`GET /api/v1/search/polygon` generalises bounds from an axis-aligned bbox to an
+**arbitrary territory polygon** (replacing the client-side MVP draw-territory of
+TASK-152, which sent a bbox to `/search/bounds` and did point-in-polygon in JS).
+
+Decision (extends, does not change, the bounds approach):
+
+- **Same containment family as bounds**: GIST bbox prefilter `location &&
+  ${polygon}::geography` + exact `ST_Within(location::geometry, ${polygon})`;
+  same `buildWhereSql` filters, `date_desc` promotion-priority keyset and
+  hydration pipeline. `location IS NULL` rows are excluded.
+- **Input**: a single query param `points` = `lat,lng;lat,lng;…`, parsed by one
+  shared helper (`dto/polygon-ring.util.ts → parsePolygonRing`) reused by the
+  `@IsPolygonRing()` validator and the service. Validation: ≥ 3 vertices, every
+  `lat ∈ [-90,90]` / `lng ∈ [-180,180]`; invalid → `400 VALIDATION_ERROR`.
+- **Polygon geometry**: `ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[
+  ST_MakePoint(lng,lat), … ]::geometry[])), 4326)` — every coordinate bound via
+  `Prisma.sql` (injection-safe), `ST_MakePoint(lng, lat)` longitude-first. The
+  ring is **closed on the backend** (first vertex appended if not already equal
+  to the last), since `ST_MakePolygon` needs a closed ring (≥ 4 points).
+- **Assumption**: the ring is simple (non-self-intersecting), as produced by a
+  freehand lasso; `ST_MakeValid` is not applied for MVP.
+
+Consequences: exact territory matching (removes the bbox imprecision and the
+single-page limit of the client MVP); no `distance_m` (no centre). Client switch
+to `/search/polygon` is a separate small `apps/client` PR (per TASK-193 note).
+
 ## Related files
 
 - apps/api/src/search/search.controller.ts
 - apps/api/src/search/search.service.ts
 - apps/api/src/search/dto/geo-search.dto.ts
+- apps/api/src/search/dto/polygon-ring.util.ts (TASK-193 — shared ring parser)
+- apps/api/src/search/dto/polygon-ring.spec.ts (TASK-193 — parser unit tests)
 - apps/api/src/search/search.service.spec.ts
-- apps/api/src/search/search.service.geo.int-spec.ts (live-PostGIS bounds)
+- apps/api/src/search/search.service.geo.int-spec.ts (live-PostGIS bounds + polygon)
 - docs/API.md (§10)
 
 ## Related task
 
 - TASK-083
+- TASK-193 (arbitrary polygon search — extension above)
 
 ## Related ADR
 

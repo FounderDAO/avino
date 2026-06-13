@@ -571,6 +571,40 @@ Query: `lat`, `lng`, `limit` + фильтры.
 размером `limit`); листинги отсортированы по `distance_m` ASC (промо — вторичный
 ключ при равенстве), каждый элемент несёт `distance_m` (метры, `ST_Distance`).
 
+### GET /api/v1/search/polygon
+Поиск по произвольному полигону (freehand-ласо, `ST_MakePolygon`/`ST_Within`,
+TASK-193). Auth: **public**.
+
+Query: `points` (обязательный) + любые фильтры из §9 (`cursor`, `limit`, и др.).
+
+```text
+GET /api/v1/search/polygon?points=41.30,69.27;41.30,69.29;41.32,69.29;41.32,69.27
+```
+
+**Параметр `points`** — строка вершин кольца в формате `lat,lng;lat,lng;...`:
+- разделитель вершин: `;`;
+- каждая вершина: `lat,lng` (широта, долгота WGS84);
+- минимум **3 вершины**;
+- `lat` ∈ [−90, 90], `lng` ∈ [−180, 180], числовые значения;
+- кольцо **замыкается на сервере**: если первая и последняя вершина не совпадают,
+  первая добавляется в конец (`ST_MakePolygon` требует замкнутое кольцо ≥ 4 точек).
+
+Невалидный `points` (менее 3 вершин, нечисловые координаты, выход за диапазон) →
+`400 VALIDATION_ERROR`.
+
+**Семантика фильтра.** Точный `ST_Within(location::geometry, polygon)` + GIST-префильтр
+`&&` по geography. Листинги без координат (`NULL location`) исключаются. Тот же
+promotion-приоритетный keyset, что и `/search/bounds` (`date_desc`); `distance_m` не
+возвращается (центральной точки нет).
+
+**Ограничение MVP.** Полигон должен быть простым (без самопересечений); для
+невыпуклых ласо из рук пользователя — ожидается простое кольцо. `ST_MakeValid`
+не применяется.
+
+200 → тот же `CursorPaginatedResponse<SearchListItem>` envelope/keyset, что
+`/search/bounds`.
+Errors: `400 VALIDATION_ERROR`.
+
 ### GET /api/v1/search/clusters
 Кластеризация маркеров для зума карты. Auth: **public**.
 Query: `sw_lat`, `sw_lng`, `ne_lat`, `ne_lng`, `zoom` + фильтры.
