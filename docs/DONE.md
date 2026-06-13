@@ -39,6 +39,34 @@ Related ADR:
 
 ## 2026-06-13
 
+### TASK-208 — /search: текстовый поиск q
+
+Status: DONE
+Branch: feat/api-search-text-query
+PR: https://github.com/FounderDAO/avino/pull/143 (#143)
+
+Files changed:
+- apps/api/src/search/search.service.ts — `q`-предикат в `buildWhereSql`: `listings.address ILIKE %q%` OR EXISTS по `listing_translations.title/description` (любой язык), вход LIKE-экранируется (`\ % _`)
+- apps/api/src/search/dto/search-listings.dto.ts — `q` снят с no-op, `@MaxLength(200)`, актуализирован JSDoc
+- apps/api/prisma/migrations/20260613120000_add_search_text_trgm_indexes/migration.sql — GIN `gin_trgm_ops` индексы на title/description/address (pg_trgm уже включён)
+- apps/api/src/search/search.service.int-spec.ts — +7 интеграционных кейсов (слово/подстрока/регистр в title, address, description, нет совпадений, пересечение с фильтром, литеральный `%` не wildcard)
+- docs/API.md §9 — поведение `q` уточнено
+- docs/adr/ADR-0067-search-text-query.md — решение: trigram (pg_trgm) + ILIKE вместо FTS
+
+Summary:
+- `GET /api/v1/search` реально фильтрует по свободному тексту `q` (раньше — no-op).
+- Выбран trigram (а не Postgres FTS): контент трёхъязычный (UZ/RU/EN), для узбекского нет FTS-словаря; нужны регистронезависимые частичные совпадения; `pg_trgm` уже включён.
+- Проверено вживую: 22/22 интеграционных теста; `EXPLAIN` показывает Bitmap Index Scan по `*_trgm`-индексам для `title`/`address` ILIKE (без seq-scan).
+- Изменения строго в `apps/api` + `docs/API.md` + ADR.
+
+Commit messages:
+- feat(search): add full-text query (q) filter
+
+Related ADR:
+- docs/adr/ADR-0067-search-text-query.md
+
+---
+
 ### TASK-207 — /search: применять sort и rooms (паритет фильтров)
 
 Status: DONE
