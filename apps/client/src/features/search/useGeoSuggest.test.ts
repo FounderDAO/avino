@@ -10,8 +10,8 @@ vi.mock('@/features/map/useYmaps', () => ({
 import { useGeoSuggest } from './useGeoSuggest';
 
 const districts: District[] = [
-  { id: 'yunusabad', name: 'Юнусабадский', count: 0, aliases: ['Yunusobod', 'Yunusabad'] },
-  { id: 'chilanzar', name: 'Чиланзарский', count: 0, aliases: ['Chilonzor', 'Chilanzar'] },
+  { id: 'yunusabad', name: 'Юнусабадский', aliases: ['Yunusobod', 'Yunusabad'] },
+  { id: 'chilanzar', name: 'Чиланзарский', aliases: ['Chilonzor', 'Chilanzar'] },
 ];
 
 beforeEach(() => {

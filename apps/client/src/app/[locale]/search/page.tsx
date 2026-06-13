@@ -7,7 +7,7 @@
  * пересобирается при каждом изменении query (FilterBar → router.replace).
  */
 import { getTranslations } from 'next-intl/server';
-import { getDistricts } from '@/lib/mock';
+import { getDistricts } from '@/lib/api/geo';
 import { searchListings, searchRadiusListings } from '@/lib/api/listings';
 import { parseCircleParams } from '@/lib/geo';
 import type {
@@ -77,7 +77,9 @@ export default async function SearchPage({
     ? (rawSort as SortOption)
     : 'promotion';
 
-  const district = first(sp.district) || undefined;
+  // Район теперь фильтруется по UUID (`?district_id=`, GET /search) — справочник
+  // отдаёт id (ADR-0068). Имя для отображения резолвится в FilterBar по списку.
+  const districtId = first(sp.district_id) || undefined;
   const query = first(sp.query) || undefined;
   const view: 'list' | 'map' = first(sp.view) === 'map' ? 'map' : 'list';
 
@@ -92,19 +94,20 @@ export default async function SearchPage({
   // Радиус, нарисованный на карте (?clat=&clng=&radius=); невалидный → null.
   const circle = parseCircleParams(first(sp.clat), first(sp.clng), first(sp.radius));
 
-  // ----- Данные из реального API (district пока на бэк не уходит, см.
-  // TODO(geo-reference) в lib/api/listings) -----
-  const filter: ListingFilter = { tx, type, district, rooms, priceMin, priceMax, query, sort };
-  const listings = circle
-    ? await searchRadiusListings(filter, circle, locale)
-    : await searchListings(filter, locale);
-  const districts = getDistricts();
+  // ----- Данные из реального API -----
+  const filter: ListingFilter = { tx, type, districtId, rooms, priceMin, priceMax, query, sort };
+  const [listings, districts] = await Promise.all([
+    circle
+      ? searchRadiusListings(filter, circle, locale)
+      : searchListings(filter, locale),
+    getDistricts(locale),
+  ]);
 
   // Значения для FilterBar (цена — строкой, как в инпутах).
   const filterValues: FilterValues = {
     tx,
     type,
-    district,
+    districtId,
     rooms,
     priceMin: priceMinRaw,
     priceMax: priceMaxRaw,

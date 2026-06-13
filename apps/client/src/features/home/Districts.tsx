@@ -1,13 +1,13 @@
 /**
  * Districts — популярные районы Ташкента (из home.jsx).
- * Данные берём из getDistricts(); фото-обложки — статичный мок-маппинг
- * (Unsplash) по индексу. Каждая плитка — ссылка на /search?district=...
- * Server component: данные синхронные, без интерактива.
+ * Данные берём из GET /geo/districts (lib/api/geo); фото-обложки — статичный
+ * мок-маппинг (Unsplash) по индексу. Каждая плитка — ссылка на
+ * /search?district_id=... Server component (async fetch, без интерактива).
  */
-import { useTranslations } from 'next-intl';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { PhotoImg } from '@/components/ui/photo-img';
-import { getDistricts } from '@/lib/mock';
+import { getDistricts } from '@/lib/api/geo';
 
 /** Мок-обложки районов (Unsplash photo id), как в дизайн-источнике. */
 const COVER_IDS = [
@@ -19,10 +19,13 @@ const COVER_IDS = [
   '1444723121867-7a241cacace9',
 ];
 
-export function Districts() {
-  const t = useTranslations('home');
-  // Берём первые 6 районов для сетки 3×2.
-  const districts = getDistricts().slice(0, 6);
+export async function Districts() {
+  const locale = await getLocale();
+  const t = await getTranslations('home');
+  // Берём первые 6 районов для сетки 3×2. Пустой список (API недоступен) → секция
+  // не рендерится (без пустой «дырки» на главной).
+  const districts = (await getDistricts(locale)).slice(0, 6);
+  if (districts.length === 0) return null;
 
   return (
     <section className="mx-auto max-w-[1280px] px-4 pt-14 sm:px-6">
@@ -31,7 +34,7 @@ export function Districts() {
         {districts.map((d, i) => (
           <Link
             key={d.id}
-            href={`/search?tx=SALE&district=${encodeURIComponent(d.name)}`}
+            href={`/search?tx=SALE&district_id=${encodeURIComponent(d.id)}`}
             className="group relative block aspect-[16/10] overflow-hidden rounded-card"
           >
             <PhotoImg
@@ -43,9 +46,6 @@ export function Districts() {
             <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgba(26,26,26,0.78))]" />
             <div className="absolute bottom-3.5 left-4 text-white">
               <div className="text-[19px] font-extrabold">{d.name}</div>
-              <div className="text-[13.5px] opacity-90">
-                {t('districts.listingsCount', { count: d.count })}
-              </div>
             </div>
           </Link>
         ))}
