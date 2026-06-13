@@ -780,23 +780,6 @@ model NotificationDevice {
   @@map("notification_devices")
 }
 
-/// Справочник районов для разрешения `district_id` листингов в читаемое название
-/// (ADR-0068, TASK-209). Автономная модель без FK/relation на `listings` — FK будет
-/// добавлен позже, когда данные листингов будут мигрированы на реальные id районов.
-/// `code` — slug-ключ (уникальный, latin lowercase); trilingual NOT NULL name.
-/// 12 районов Ташкента сидируются в миграции (фиксированные UUID d0000000-*).
-model District {
-  id        String   @id @default(uuid()) @db.Uuid
-  code      String   @unique @db.VarChar(40)
-  nameUz    String   @map("name_uz") @db.VarChar(120)
-  nameRu    String   @map("name_ru") @db.VarChar(120)
-  nameEn    String   @map("name_en") @db.VarChar(120)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@map("districts")
-}
-
 /// Общий журнал аудита для security-чувствительных действий (DB_SCHEMA.md §12,
 /// ADR-0004) — в дополнение к доменным логам (moderation_logs, promotion_logs).
 /// action — free-form varchar (расширяемый, НЕ enum), поэтому новые
