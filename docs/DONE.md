@@ -39,6 +39,38 @@ Related ADR:
 
 ## 2026-06-14
 
+### TASK-216 — Client: draw-territory через серверный /search/polygon
+
+Status: DONE
+Branch: feat/client-draw-territory-polygon
+PR: #152
+
+Files changed:
+- apps/client/src/lib/geo.ts
+- apps/client/src/lib/geo.test.ts
+- apps/client/src/store/api/searchApi.ts
+- apps/client/src/features/map/MapSearch.tsx
+- docs/adr/ADR-0070-client-draw-territory-polygon-search.md (новый)
+
+Summary:
+- Рисование территории на /map переведено с MVP (bbox + клиентский
+  point-in-polygon) на серверный GET /api/v1/search/polygon (ST_Within, TASK-193).
+- lib/geo.serializePolygonRing: кольцо → параметр points (≥3 WGS84 вершины,
+  децимация до MAX_POLYGON_VERTICES=120, округление до 6 знаков); невалидное → null.
+- searchApi.searchByPolygon: новый RTK Query эндпоинт; общий filterParams для
+  bounds/polygon (форвардит и district_id).
+- MapSearch: ласо → /search/polygon, серверная фильтрация (displayed = raw),
+  клиентский pointInPolygon удалён; сброс территории возвращает выдачу видимой
+  области.
+
+Commit messages:
+- feat(client): draw-territory uses server /search/polygon (ST_Within)
+
+Related ADR:
+- docs/adr/ADR-0070-client-draw-territory-polygon-search.md
+
+---
+
 ### TASK-215 — Client: реальные district_name и контакт автора
 
 Status: DONE
