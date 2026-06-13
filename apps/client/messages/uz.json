@@ -171,6 +171,9 @@
     "filters": {
       "searchPlaceholder": "Tuman, manzil…",
       "searchAria": "Tuman yoki manzil bo'yicha qidirish",
+      "suggestGroupDistricts": "Tumanlar",
+      "suggestGroupAddresses": "Manzillar",
+      "suggestEmpty": "Hech narsa topilmadi",
       "buy": "Sotib olish",
       "rent": "Ijara",
       "price": "Narx",
