@@ -16,7 +16,6 @@ import {
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
-import { DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
 import { CreateListingDto } from './dto/create-listing.dto';
@@ -120,18 +119,6 @@ export interface ListingMediaResponse {
  * модели в БД ещё нет; свободный текст удобств отдаётся в `features_text`.
  * Decimal/даты сериализуются строками (контрактный формат).
  */
-/**
- * Публичный контакт автора объявления (TASK-210, ADR-0069). Телефон публичен на
- * `ACTIVE`-объявлениях; `type`/`is_pro` выведены из ролей владельца (MVP-эвристика
- * до появления сущности агентства/pro-подписки).
- */
-export interface ContactBlock {
-  display_name: string | null;
-  type: 'owner' | 'agent' | 'agency';
-  is_pro: boolean;
-  phone: string | null;
-}
-
 export interface ListingDetailResponse {
   id: string;
   status: ListingStatus;
@@ -146,8 +133,6 @@ export interface ListingDetailResponse {
   year_built: number | null;
   city_id: string | null;
   district_id: string | null;
-  /** Имя района по языку ответа (TASK-209); `null` если район не найден. */
-  district_name: string | null;
   address: string | null;
   latitude: string | null;
   longitude: string | null;
@@ -155,8 +140,6 @@ export interface ListingDetailResponse {
   promotion_expires_at: string | null;
   owner_id: string;
   agency_id: string | null;
-  /** Публичный контакт автора (TASK-210, ADR-0069). */
-  contact: ContactBlock;
   language: Language;
   title: string;
   description: string | null;
@@ -171,23 +154,6 @@ const LISTING_DETAIL_SELECT = {
   id: true,
   ownerId: true,
   agencyId: true,
-  // Контакт автора (TASK-210, ADR-0069): телефон, профиль и роли владельца.
-  owner: {
-    select: {
-      phone: true,
-      profile: {
-        select: {
-          displayName: true,
-          firstName: true,
-          lastName: true,
-          contactPhone: true,
-        },
-      },
-      roles: {
-        select: { role: { select: { code: true } } },
-      },
-    },
-  },
   status: true,
   transactionType: true,
   propertyType: true,
@@ -326,7 +292,6 @@ export class ListingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly translations: TranslationsService,
-    private readonly districts: DistrictsService,
   ) {}
 
   /** `POST /api/v1/listings` — создать объявление (статус `NEW`). */
@@ -457,15 +422,7 @@ export class ListingsService {
       langParam,
       acceptLanguage,
     );
-    // Имя района по district_id на языке ответа (TASK-209, ADR-0068).
-    const districtNames = await this.districts.namesByIds(
-      listing.districtId ? [listing.districtId] : [],
-    );
-    const districtName = this.districts.pickName(
-      listing.districtId ? districtNames.get(listing.districtId) : undefined,
-      language,
-    );
-    return this.toDetailResponse(listing, language, districtName);
+    return this.toDetailResponse(listing, language);
   }
 
   /**
@@ -619,43 +576,16 @@ export class ListingsService {
     };
   }
 
-  /**
-   * Публичный контакт автора (TASK-210, ADR-0069). `type`/`is_pro` выведены из
-   * ролей владельца (AGENCY→agency, AGENT→agent, иначе owner; pro = agent/agency).
-   * Телефон — `contact_phone` профиля, иначе телефон аккаунта (публичен на ACTIVE).
-   */
-  private buildContact(owner: ListingDetailRow['owner']): ContactBlock {
-    const profile = owner.profile;
-    const roleCodes = new Set(owner.roles.map((r) => r.role.code));
-    const type: ContactBlock['type'] = roleCodes.has(UserRole.AGENCY)
-      ? 'agency'
-      : roleCodes.has(UserRole.AGENT)
-        ? 'agent'
-        : 'owner';
-    const fullName = [profile?.firstName, profile?.lastName]
-      .filter((part): part is string => Boolean(part))
-      .join(' ');
-    return {
-      display_name:
-        profile?.displayName ?? (fullName.length > 0 ? fullName : null),
-      type,
-      is_pro: type !== 'owner',
-      phone: profile?.contactPhone ?? owner.phone ?? null,
-    };
-  }
-
   /** Полная карточка листинга в snake_case (API.md §7) для разрешённого языка. */
   private toDetailResponse(
     listing: ListingDetailRow,
     language: Language,
-    districtName: string | null,
   ): ListingDetailResponse {
     const translation = listing.translations.find(
       (t) => t.language === language,
     );
     return {
       id: listing.id,
-      contact: this.buildContact(listing.owner),
       status: listing.status,
       transaction_type: listing.transactionType,
       property_type: listing.propertyType,
@@ -669,7 +599,6 @@ export class ListingsService {
       year_built: listing.yearBuilt,
       city_id: listing.cityId,
       district_id: listing.districtId,
-      district_name: districtName,
       address: listing.address,
       latitude: listing.latitude?.toFixed(6) ?? null,
       longitude: listing.longitude?.toFixed(6) ?? null,

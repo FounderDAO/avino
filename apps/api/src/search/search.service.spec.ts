@@ -9,7 +9,6 @@ import {
   TransactionType,
 } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
-import { DistrictsService } from '../geo';
 import { TranslationsService } from '../translations';
 import { SearchService } from './search.service';
 
@@ -86,16 +85,7 @@ describe('SearchService', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
     };
-    // DistrictsService застаблен — резолв district_name проверяется в int-spec.
-    const districts = {
-      namesByIds: jest.fn().mockResolvedValue(new Map()),
-      pickName: jest.fn().mockReturnValue(null),
-    } as unknown as DistrictsService;
-    service = new SearchService(
-      prisma,
-      new TranslationsService(prisma),
-      districts,
-    );
+    service = new SearchService(prisma, new TranslationsService(prisma));
   });
 
   async function expectCode(promise: Promise<unknown>, code: ApiErrorCode) {
@@ -137,7 +127,6 @@ describe('SearchService', () => {
       language: Language.RU,
       title: '3-комн в центре',
       thumbnail_url: 'https://cdn/l1_t.webp',
-      district_name: null,
       created_at: '2026-06-01T12:00:00.000Z',
     });
     expect(result.meta).toEqual({ limit: 20, total: 1, next_cursor: null });
