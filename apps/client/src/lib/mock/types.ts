@@ -121,15 +121,13 @@ export interface Listing {
   status?: ListingStatus;
 }
 
-/** Район с агрегатами (для блока «Районы» на главной). */
+/** Район — справочник `GET /api/v1/geo/districts` (ADR-0068). */
 export interface District {
-  /** Slug/идентификатор района. */
+  /** UUID района (для фильтра `?district_id=` и /search). */
   id: string;
-  /** Человекочитаемое название (RU, каноничное для отображения). */
+  /** Человекочитаемое название на языке интерфейса. */
   name: string;
-  /** Кол-во активных объявлений в районе. */
-  count: number;
-  /** Узбекские/латинские написания для матчинга подсказок (поиск на латинице). */
+  /** Имена на других языках для матчинга подсказок (поиск на латинице). */
   aliases?: string[];
 }
 
@@ -147,7 +145,10 @@ export interface Agent {
 export interface ListingFilter {
   tx?: TransactionType;
   type?: PropertyType;
+  /** Имя района (мок-фильтр `getListings`; реальный поиск использует `districtId`). */
   district?: string;
+  /** UUID района для реального поиска (`?district_id=`, GET /search). */
+  districtId?: string;
   /** Точное число комнат (4 = «4+»). */
   rooms?: number;
   /** Диапазон цены (в единицах валюты объявления; грубый фильтр для моков). */

@@ -86,6 +86,7 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
 
   set('tx', asString(filters.transaction_type));
   set('type', asString(filters.property_type));
+  set('district_id', asString(filters.district_id));
   set('priceMin', asString(filters.price_min));
   set('priceMax', asString(filters.price_max));
   set('rooms', asString(filters.rooms));

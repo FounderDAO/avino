@@ -6,11 +6,9 @@
  * можно подставить RTK Query, не меняя вызовы в компонентах.
  */
 import { LISTINGS, FALLBACK_PHOTO } from './listings';
-import { DISTRICTS } from './districts';
 import { AGENTS } from './agents';
 import type {
   Agent,
-  District,
   Listing,
   ListingFilter,
   PromotionType,
@@ -86,16 +84,6 @@ export function getListings(filter: ListingFilter = {}): Listing[] {
 /** Один листинг по id (или undefined). */
 export function getListingById(id: string): Listing | undefined {
   return LISTINGS.find((l) => l.id === id);
-}
-
-/** Районы с подсчётом активных объявлений. */
-export function getDistricts(): District[] {
-  return DISTRICTS.map(({ name, aliases }) => ({
-    id: name,
-    name,
-    count: LISTINGS.filter((l) => l.district === name).length,
-    aliases,
-  }));
 }
 
 /** Агенты/агентства. */

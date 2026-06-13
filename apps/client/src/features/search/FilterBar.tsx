@@ -41,7 +41,8 @@ import {
 export interface FilterValues {
   tx: TransactionType;
   type?: PropertyType;
-  district?: string;
+  /** UUID выбранного района (`?district_id=`); имя резолвится по `districts`. */
+  districtId?: string;
   rooms?: number;
   priceMin?: string;
   priceMax?: string;
@@ -53,7 +54,7 @@ export interface FilterValues {
 export interface FilterBarProps {
   /** Текущие значения фильтров (распарсенные из URL). */
   values: FilterValues;
-  /** Список районов для дропдауна (getDistricts). */
+  /** Список районов для дропдауна (GET /geo/districts). */
   districts: District[];
 }
 
@@ -146,7 +147,11 @@ export function FilterBar({ values, districts }: FilterBarProps) {
   const typeLabel = values.type
     ? tEnums(`propertyType.${values.type}`)
     : tSearch('filters.propertyType');
-  const districtLabel = values.district || tSearch('filters.district');
+  // Имя выбранного района по UUID из URL (если список ещё/уже не загружен — generic).
+  const selectedDistrict = values.districtId
+    ? districts.find((d) => d.id === values.districtId)
+    : undefined;
+  const districtLabel = selectedDistrict?.name ?? tSearch('filters.district');
 
   // ─── Сохранить поиск ──────────────────────────────────────────────────────
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
@@ -157,6 +162,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
   const buildFilters = React.useCallback((): SavedSearchFilters => {
     const filters: SavedSearchFilters = { transaction_type: values.tx };
     if (values.type) filters.property_type = values.type;
+    if (values.districtId) filters.district_id = values.districtId;
     if (values.priceMin) filters.price_min = values.priceMin;
     if (values.priceMax) filters.price_max = values.priceMax;
     if (values.rooms != null) filters.rooms = values.rooms;
@@ -292,18 +298,18 @@ export function FilterBar({ values, districts }: FilterBarProps) {
             </DropdownContent>
           </Dropdown>
 
-          {/* Район */}
+          {/* Район (фильтр по district_id, GET /search) */}
           <Dropdown>
             <DropdownTrigger asChild>
-              <TriggerButton label={districtLabel} active={Boolean(values.district)} />
+              <TriggerButton label={districtLabel} active={Boolean(values.districtId)} />
             </DropdownTrigger>
             <DropdownContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto p-2">
               <button
                 type="button"
-                onClick={() => setParams({ district: undefined })}
+                onClick={() => setParams({ district_id: undefined })}
                 className={cn(
                   'flex w-full items-center justify-between rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-                  !values.district && 'bg-mint',
+                  !values.districtId && 'bg-mint',
                 )}
               >
                 {tSearch('filters.allDistricts')}
@@ -314,16 +320,15 @@ export function FilterBar({ values, districts }: FilterBarProps) {
                   type="button"
                   onClick={() =>
                     setParams({
-                      district: values.district === d.name ? undefined : d.name,
+                      district_id: values.districtId === d.id ? undefined : d.id,
                     })
                   }
                   className={cn(
-                    'flex w-full items-center justify-between gap-2 rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-                    values.district === d.name && 'bg-mint',
+                    'flex w-full items-center rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
+                    values.districtId === d.id && 'bg-mint',
                   )}
                 >
                   <span className="truncate">{d.name}</span>
-                  <span className="text-xs font-medium text-muted-foreground">{d.count}</span>
                 </button>
               ))}
             </DropdownContent>

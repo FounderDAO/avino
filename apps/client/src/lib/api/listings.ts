@@ -284,20 +284,20 @@ async function safeSearch(path: string, lang: string): Promise<Listing[]> {
 
 /**
  * Базовые query-параметры поиска (общие для /search и /search/radius).
- * district НЕ отправляется (бэкенд ждёт district_id-uuid, а UI хранит имя) —
- * см. TODO(geo-reference). Прочие фильтры применяются на бэке.
+ * Район фильтруется по `district_id` (UUID из GET /geo/districts, ADR-0068);
+ * прочие фильтры §9 применяются на бэке.
  */
 function buildSearchParams(filter: ListingFilter, limit: number): URLSearchParams {
   const params = new URLSearchParams();
   if (filter.tx) params.set('transaction_type', filter.tx);
   if (filter.type) params.set('property_type', filter.type);
+  if (filter.districtId) params.set('district_id', filter.districtId);
   if (filter.priceMin != null) params.set('price_min', String(filter.priceMin));
   if (filter.priceMax != null) params.set('price_max', String(filter.priceMax));
   if (filter.rooms != null) params.set('rooms', String(filter.rooms));
   if (filter.query) params.set('q', filter.query);
   const sort = toApiSort(filter.sort);
   if (sort) params.set('sort', sort);
-  // TODO(geo-reference): filter.district (имя) не маппится в district_id-uuid.
   params.set('limit', String(limit));
   return params;
 }
