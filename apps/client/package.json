@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "next lint",
-    "test": "echo \"no tests yet\" && exit 0"
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@avino/shared": "workspace:*",
@@ -25,14 +26,21 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",
+    "@testing-library/jest-dom": "^6",
+    "@testing-library/react": "^16",
+    "@testing-library/user-event": "^14",
     "@types/node": "^20.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4",
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.1.0",
+    "jsdom": "^25",
     "postcss": "^8.4.49",
     "tailwindcss": "^4.0.0",
     "tw-animate-css": "^1.1.1",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vite-tsconfig-paths": "^5",
+    "vitest": "^2"
   }
 }
