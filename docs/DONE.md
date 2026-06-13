@@ -39,6 +39,37 @@ Related ADR:
 
 ## 2026-06-13
 
+### TASK-193 — Server-side polygon territory search
+
+Status: DONE
+Branch: feat/api-search-polygon
+PR: https://github.com/FounderDAO/avino/pull/144 (#144)
+
+Files changed:
+- apps/api/src/search/dto/polygon-ring.util.ts — единый парсер `parsePolygonRing` (формат `lat,lng;...`, ≥3 вершин, WGS84) + `PolygonVertex`
+- apps/api/src/search/dto/polygon-ring.spec.ts — 13 unit-тестов парсера
+- apps/api/src/search/dto/geo-search.dto.ts — `@IsPolygonRing()` + `PolygonSearchQueryDto`
+- apps/api/src/search/search.service.ts — метод `searchPolygon` + `polygonSql` (ST_MakePolygon/ST_Within, координаты через Prisma.sql, авто-замыкание кольца)
+- apps/api/src/search/search.controller.ts — `@Get('polygon')`
+- apps/api/src/search/search.service.geo.int-spec.ts — +3 live-PostGIS теста (внутри/снаружи/no-geo)
+- docs/API.md §10 — раздел `/search/polygon`
+- docs/adr/ADR-0029-search-map-bounds.md — extension-секция про polygon-поиск
+
+Summary:
+- `GET /api/v1/search/polygon` — точный поиск ACTIVE-листингов внутри произвольного полигона (PostGIS), заменяет клиентский MVP draw-territory (bbox + JS point-in-polygon, TASK-152).
+- Тот же GIST `&&`-префильтр + точный `ST_Within`, что и `/search/bounds`; те же фильтры/promotion-keyset; injection-safe построение геометрии; кольцо валидируется (≥3 вершин, WGS84) и замыкается на бэке.
+- Проверено вживую: 25/25 интеграционных теста (3 polygon) + 378 unit (13 парсера).
+- Клиент переключается на `/search/polygon` отдельным мелким PR в `apps/client`.
+- Изменения строго в `apps/api` + `docs/API.md` + ADR.
+
+Commit messages:
+- feat(search): add polygon territory search (ST_Within)
+
+Related ADR:
+- docs/adr/ADR-0029-search-map-bounds.md (extension), ADR-0003 (PostGIS), ADR-0028 (geo pipeline)
+
+---
+
 ### TASK-208 — /search: текстовый поиск q
 
 Status: DONE
