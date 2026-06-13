@@ -86,7 +86,8 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     [router, pathname, searchParams],
   );
 
-  // Локальное состояние поля поиска (коммитим по Enter/blur, чтобы не дёргать URL на каждой букве).
+  // Локальное состояние поля поиска (коммитим в URL по Enter или выбору подсказки,
+  // чтобы не дёргать URL на каждой букве).
   const [queryDraft, setQueryDraft] = React.useState(values.query ?? '');
   React.useEffect(() => setQueryDraft(values.query ?? ''), [values.query]);
 

@@ -75,6 +75,7 @@ export function SearchAutocomplete({
       else onSubmitRaw(value);
     } else if (e.key === 'Escape') {
       setFocused(false);
+      onActiveChange(false);
     }
   };
 
