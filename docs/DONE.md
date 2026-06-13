@@ -39,6 +39,36 @@ Related ADR:
 
 ## 2026-06-13
 
+### TASK-209 — Гео-справочник районов + имя района в ответах
+
+Status: DONE
+Branch: feat/api-geo-reference-districts
+PR: https://github.com/FounderDAO/avino/pull/145 (#145)
+
+Files changed:
+- apps/api/prisma/schema.prisma — модель `District` (standalone, без FK к listings)
+- apps/api/prisma/migrations/20260613130000_add_districts/migration.sql — таблица `districts` + идемпотентный сид 12 районов Ташкента (uz/ru/en, фикс-UUID)
+- apps/api/src/geo/* — `GeoModule`, `GeoController` (`GET /api/v1/geo/districts`), `DistrictsService` (`listAll`/`namesByIds`/`pickName`) + int-spec
+- apps/api/src/search/search.service.ts (+ search.module.ts) — `district_name` в карточке `/search` (batch-резолв на языке карточки)
+- apps/api/src/listings/listings.service.ts (+ listings.module.ts) — `district_name` в детали `/listings/:id`
+- apps/api/src/**/*.spec.ts, *.int-spec.ts — обновлён конструктор сервисов (3-й dep), +4 интеграционных кейса
+- docs/API.md — раздел `GET /api/v1/geo/districts` (§10), `district_name` в §7/§9
+- docs/adr/ADR-0068-geo-districts-reference.md — решение
+
+Summary:
+- Справочник районов и встроенное `district_name` (по Accept-Language) в `/search` и `/listings/:id`; несовпадающий `district_id` → `null` (no-FK lookup, graceful degradation).
+- Сид районов — внутри миграции (есть в любой среде); MVP — Ташкент, плоский список.
+- Проверено вживую: 29/29 интеграционных теста (4 районных) + 378 unit; справочник отдаёт 12 районов.
+- Клиент уберёт mock getDistricts отдельным PR в `apps/client`.
+
+Commit messages:
+- feat(geo): district reference and district name in listing responses
+
+Related ADR:
+- docs/adr/ADR-0068-geo-districts-reference.md
+
+---
+
 ### TASK-193 — Server-side polygon territory search
 
 Status: DONE
