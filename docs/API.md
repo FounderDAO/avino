@@ -378,6 +378,10 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`.
 видят и непубличные статусы. Перевод — по `Accept-Language`/`?lang` с фолбэком на
 `original_language` (ADR-012). `district_name` — имя района по языку ответа
 (`null`, если `district_id` не найден в справочнике; TASK-209, ADR-0068).
+`contact` — публичный контакт автора (TASK-210, ADR-0069): `display_name`,
+`type` (`owner`/`agent`/`agency`, выведен из ролей владельца), `is_pro`
+(MVP-эвристика: agent/agency), `phone` (`contact_phone` профиля → телефон
+аккаунта). Телефон **публичен** на `ACTIVE`-объявлениях.
 
 200:
 ```json
@@ -391,6 +395,8 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`.
   "latitude": "41.350000", "longitude": "69.290000",
   "promotion_type": "VIP", "promotion_expires_at": "2026-06-20T00:00:00Z",
   "owner_id": "u1", "agency_id": null,
+  "contact": { "display_name": "Алишер", "type": "owner",
+               "is_pro": false, "phone": "+998901234567" },
   "language": "RU",
   "title": "2-комн квартира", "description": "Светлая...",
   "address_note": "рядом метро", "features_text": "балкон, кондиционер",

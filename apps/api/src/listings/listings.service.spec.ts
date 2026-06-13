@@ -229,6 +229,17 @@ describe('ListingsService', () => {
       id: LISTING_ID,
       ownerId: OWNER_ID,
       agencyId: null,
+      // Контакт автора (TASK-210): профиль + роль AGENT.
+      owner: {
+        phone: '+998901112233',
+        profile: {
+          displayName: 'Алишер',
+          firstName: 'Алишер',
+          lastName: 'Усманов',
+          contactPhone: '+998905556677',
+        },
+        roles: [{ role: { code: 'AGENT' } }],
+      },
       status: ListingStatus.ACTIVE,
       transactionType: TransactionType.RENT,
       propertyType: PropertyType.APARTMENT,
@@ -304,6 +315,14 @@ describe('ListingsService', () => {
         features_text: 'балкон',
         published_at: '2026-06-01T10:00:00.000Z',
         created_at: '2026-05-30T09:00:00.000Z',
+        // Контакт автора (TASK-210): displayName + contactPhone приоритетны,
+        // роль AGENT → type=agent, is_pro=true.
+        contact: {
+          display_name: 'Алишер',
+          type: 'agent',
+          is_pro: true,
+          phone: '+998905556677',
+        },
       });
       expect(result.media).toEqual([
         {
