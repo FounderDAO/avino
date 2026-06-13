@@ -449,6 +449,42 @@ Related ADR:
 
 ## 2026-06-08
 
+### TASK-190 — Client public app shell & layout
+
+Status: DONE
+Branch: feat/client-layout-shell
+PR: https://github.com/FounderDAO/avino/pull/107 (#107)
+
+Files changed:
+- apps/client/src/app/layout.tsx
+- apps/client/src/app/page.tsx
+- apps/client/src/components/layout/Header.tsx
+- apps/client/src/components/layout/Footer.tsx
+- apps/client/src/components/layout/Logo.tsx
+- docs/CLAUDE.md
+- docs/TASKS.md
+
+Summary:
+- Поднят каркас публичного портала `apps/client` (Next 15 / React 19 / TW4 /
+  RTK Query): header с лого Avino и навигацией (Купить / Аренда / Продать /
+  Помощь), общий контейнер, footer. Без ипотеки / Home Loans (нет billing в MVP).
+- RTK Query `baseApi` (`baseUrl` → `/api/v1`), `store`/`StoreProvider` — без
+  `fetch()`/`axios` в компонентах (CLAUDE.md §4). Изменения строго в `apps/client`.
+- Запись добавлена ретроспективно: PR #107 был смержен 2026-06-08, но задача не
+  была перенесена из TASKS.md в DONE.md (статус оставался `IN_PROGRESS`). По факту
+  каркас доставлен и развит дальше потоком TASK-191..195 — плоские
+  `src/app/layout.tsx`/`page.tsx` позднее переехали в `src/app/[locale]/...`
+  (i18n-роутинг), а зависимые TASK-191/192 уже DONE.
+
+Commit messages:
+- feat(client): add public layout shell (header/footer/logo)
+
+Related ADR:
+- docs/adr/ADR-0057 (публичный фронтенд живёт в apps/client, порт 3001)
+- docs/adr/ADR-0062-client-api-integration-ssr-rtk-split.md
+
+---
+
 ### TASK-151 — Add web listing search page
 
 Status: DONE
