@@ -39,6 +39,38 @@ Related ADR:
 
 ## 2026-06-14
 
+### TASK-215 — Client: реальные district_name и контакт автора
+
+Status: DONE
+Branch: feat/client-district-name-contact
+PR: #151
+
+Files changed:
+- apps/client/src/lib/api/listings.ts
+- apps/client/src/lib/api/listings.test.ts (новый)
+- apps/client/src/store/api/favoritesApi.ts
+- apps/client/src/features/detail/ContactCard.tsx
+
+Summary:
+- mapListing кладёт district_name (из /search и /listings/:id) в listing.district
+  вместо сырого district_id-uuid; null → '' (uuid больше не утекает в UI).
+- detail-блок contact { display_name, type, is_pro, phone } маппится в
+  ListingAgent (имя/pro/телефон) для ContactCard; у краткой карточки поиска
+  контакта нет → нейтральный плейсхолдер до открытия detail.
+- В формы ответов добавлены district_name (ApiSearchItem/ApiListingDetail/
+  FavoriteSearchItem) и ApiContactBlock + contact (detail).
+- ContactCard: guard инициала аватара при пустом имени (полный полишинг пустых
+  состояний — за TASK-201).
+
+Commit messages:
+- feat(client): show real district_name and owner/agent contact
+
+Related ADR:
+- docs/adr/ADR-0068-geo-districts-reference.md, docs/adr/ADR-0069-listing-contact-exposure.md
+  (consume on client; без нового ADR)
+
+---
+
 ### TASK-214 — Client: районы из /geo/districts + рабочий фильтр по району
 
 Status: DONE
