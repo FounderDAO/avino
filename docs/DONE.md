@@ -37,6 +37,44 @@ Related ADR:
 
 ---
 
+## 2026-06-14
+
+### TASK-214 — Client: районы из /geo/districts + рабочий фильтр по району
+
+Status: DONE
+Branch: feat/client-districts-geo-ref
+PR: #150
+
+Files changed:
+- apps/client/src/lib/api/geo.ts (новый)
+- apps/client/src/lib/api/geo.test.ts (новый)
+- apps/client/src/lib/mock/districts.ts (удалён)
+- apps/client/src/lib/mock/index.ts
+- apps/client/src/lib/mock/types.ts
+- apps/client/src/app/[locale]/search/page.tsx
+- apps/client/src/features/search/FilterBar.tsx
+- apps/client/src/features/home/Districts.tsx
+- apps/client/src/lib/api/listings.ts
+- apps/client/src/lib/savedSearch.ts
+
+Summary:
+- Удалён мок-селектор getDistricts: справочник районов берётся из реального
+  GET /api/v1/geo/districts (ADR-0068) через серверный слой lib/api/geo.ts.
+- Районный фильтр стал рабочим: дропдаун шлёт district_id (UUID) в GET /search;
+  триггер резолвит имя по списку; saved search сохраняет district_id.
+- District потерял поле count (эндпоинт его не отдаёт) — счётчик объявлений
+  убран из дропдауна и плиток главной. Имя выбирается по языку, имена на других
+  языках идут в aliases (матчинг подсказок на латинице).
+- Деградация: ошибка API → пустые списки, SSR не падает.
+
+Commit messages:
+- feat(client): districts from /geo/districts + working district filter
+
+Related ADR:
+- docs/adr/ADR-0068-geo-districts-reference.md (consume on client; без нового ADR)
+
+---
+
 ## 2026-06-13
 
 ### TASK-210 — Контакт владельца/агента в детальной
