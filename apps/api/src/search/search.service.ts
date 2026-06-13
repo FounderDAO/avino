@@ -565,12 +565,19 @@ export class SearchService {
 
   /**
    * `WHERE`-фрагмент: обязательный `status = ACTIVE` + базовые фильтры (TASK-080)
-   * + `rooms` (TASK-207). Параметры биндятся через `Prisma.sql` (защита от инъекций).
-   * Enum-колонки сравниваются через `::text` (не зависит от имени PG-типа); диапазон
-   * цены — в пределах одной валюты (`currency`), FX-конвертации нет (API.md §9).
+   * + `rooms` (TASK-207) + свободный текст `q` (TASK-208, ADR-0067). Параметры
+   * биндятся через `Prisma.sql` (защита от инъекций). Enum-колонки сравниваются
+   * через `::text` (не зависит от имени PG-типа); диапазон цены — в пределах одной
+   * валюты (`currency`), FX-конвертации нет (API.md §9).
    *
    * `rooms` (TASK-207): 0..3 — точное совпадение; 4 = «4+» (rooms >= 4).
    * Применяется во всех эндпоинтах поиска (включая гео-варианты).
+   *
+   * `q` (TASK-208, ADR-0067): ILIKE-подстрока (pg_trgm GIN, case-insensitive) по
+   * `listings.address` + EXISTS (listing_translations.title/description, любой язык).
+   * Пользовательский ввод LIKE-экранируется (`\`, `%`, `_`), чтобы литеральный `%`
+   * не работал как wildcard. GIN-индексы (migration 20260613120000_*) ускоряют
+   * запросы с term ≥ 3 символов; более короткие термы работают через seq scan.
    */
   private buildWhereSql(query: SearchListingsQueryDto): Prisma.Sql {
     const conds: Prisma.Sql[] = [Prisma.sql`status = 'ACTIVE'`];
@@ -597,6 +604,21 @@ export class SearchService {
           ? Prisma.sql`rooms >= 4`
           : Prisma.sql`rooms = ${query.rooms}`,
       );
+
+    // TASK-208, ADR-0067: свободный текст q — ILIKE-подстрока (pg_trgm GIN).
+    // Экранируем \, %, _ чтобы литеральные символы не работали как wildcards.
+    if (query.q !== undefined && query.q.trim() !== '') {
+      const term = query.q.trim().replace(/[\\%_]/g, '\\$&');
+      const pattern = `%${term}%`;
+      conds.push(Prisma.sql`(
+        listings.address ILIKE ${pattern}
+        OR EXISTS (
+          SELECT 1 FROM listing_translations lt
+          WHERE lt.listing_id = listings.id
+            AND (lt.title ILIKE ${pattern} OR lt.description ILIKE ${pattern})
+        )
+      )`);
+    }
 
     return Prisma.join(conds, ' AND ');
   }

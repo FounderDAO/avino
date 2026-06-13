@@ -451,3 +451,239 @@ describe('SearchService sort + rooms (integration, TASK-207)', () => {
     void normalPrices;
   });
 });
+
+/**
+ * Integration-тесты свободнотекстового поиска `q` (TASK-208, ADR-0067).
+ * Проверяет ILIKE-подстрочный поиск (pg_trgm) по title/description/address,
+ * любой язык, case-insensitive, LIKE-экранирование `%`, пересечение с другими
+ * фильтрами.
+ *
+ * Изоляция — уникальный `CITY_ID_208`; данные удаляются в afterAll.
+ * Индексы не обязательны для прохождения тестов (ILIKE работает без них);
+ * они нужны только для производительности в prod.
+ */
+describe('SearchService text query q (integration, TASK-208)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(prisma, new TranslationsService(prisma));
+
+  // Уникальный город для этого набора — не пересекается с тестами выше.
+  const CITY_ID_208 = '33333333-4444-4444-8666-000000000208';
+
+  // Фиксированные UUIDs — суффикс -208 исключает коллизию с другими наборами.
+  const ID = {
+    ruTitle:    'aaaaaaaa-0003-4000-8000-000000000208', // RU title: «Квартира в центре Ташкента»
+    uzTitle:    'bbbbbbbb-0003-4000-8000-000000000208', // UZ title: «Toshkent shahrida xonadon»
+    enDesc:     'cccccccc-0003-4000-8000-000000000208', // EN description: «Spacious penthouse apartment»
+    address:    'dddddddd-0003-4000-8000-000000000208', // address: «ул. Амира Темура, 5»
+    noMatch:    'eeeeeeee-0003-4000-8000-000000000208', // ничего совпадающего
+    rentSale:   'ffffffff-0003-4000-8000-000000000208', // для теста пересечения q + transaction_type
+  };
+
+  let ownerId: string;
+
+  interface CreateParams {
+    id: string;
+    address?: string;
+    translations: Array<{
+      language: Language;
+      title: string;
+      description?: string;
+    }>;
+    transactionType?: TransactionType;
+  }
+
+  async function createListing(params: CreateParams): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id: params.id,
+        ownerId,
+        transactionType: params.transactionType ?? TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: params.translations[0].language,
+        price: '500000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_208,
+        promotionType: PromotionType.NORMAL,
+        promotionExpiresAt: null,
+        address: params.address ?? null,
+        translations: {
+          create: params.translations.map((t) => ({
+            language: t.language,
+            title: t.title,
+            description: t.description ?? null,
+            source: TranslationSource.USER,
+          })),
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_208 } });
+
+    const owner = await prisma.user.create({
+      data: { phone: '+998900000208' },
+    });
+    ownerId = owner.id;
+
+    // Листинг с RU-заголовком.
+    await createListing({
+      id: ID.ruTitle,
+      translations: [
+        { language: Language.RU, title: 'Квартира в центре Ташкента' },
+      ],
+    });
+
+    // Листинг с UZ-заголовком.
+    await createListing({
+      id: ID.uzTitle,
+      translations: [
+        { language: Language.UZ, title: 'Toshkent shahrida xonadon' },
+      ],
+    });
+
+    // Листинг с EN-описанием.
+    await createListing({
+      id: ID.enDesc,
+      translations: [
+        {
+          language: Language.EN,
+          title: 'Luxury flat',
+          description: 'Spacious penthouse apartment with panoramic views',
+        },
+      ],
+    });
+
+    // Листинг с адресом на кириллице.
+    await createListing({
+      id: ID.address,
+      address: 'ул. Амира Темура, 5',
+      translations: [
+        { language: Language.RU, title: 'Без особых слов в заголовке' },
+      ],
+    });
+
+    // Листинг без совпадений — «пустой» контент.
+    await createListing({
+      id: ID.noMatch,
+      translations: [
+        { language: Language.RU, title: 'Совершенно другой объект' },
+      ],
+    });
+
+    // Листинг для теста пересечения q + transaction_type (RENT).
+    await createListing({
+      id: ID.rentSale,
+      transactionType: TransactionType.RENT,
+      translations: [
+        { language: Language.RU, title: 'Квартира для аренды' },
+      ],
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_208 } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('q matches a full word in title (case-insensitive — mixed case)', async () => {
+    // «КВАРТИРА» — верхний регистр, должно найти RU-заголовок и листинг аренды.
+    const result = await service.search({
+      city_id: CITY_ID_208,
+      q: 'КВАРТИРА',
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.ruTitle);
+    expect(ids).toContain(ID.rentSale);
+    // Записи без слова «квартира» не должны попасть.
+    expect(ids.has(ID.noMatch)).toBe(false);
+    expect(ids.has(ID.address)).toBe(false);
+  });
+
+  it('q matches a partial word (substring) in title', async () => {
+    // «шахр» — подстрока «shahrida» в UZ-заголовке.
+    const result = await service.search({
+      city_id: CITY_ID_208,
+      q: 'shahri',
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.uzTitle);
+    expect(ids.has(ID.noMatch)).toBe(false);
+  });
+
+  it('q matches listings.address', async () => {
+    // «Амира» — в address листинга ID.address.
+    const result = await service.search({
+      city_id: CITY_ID_208,
+      q: 'Амира',
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.address);
+    expect(ids.has(ID.noMatch)).toBe(false);
+    expect(ids.has(ID.uzTitle)).toBe(false);
+  });
+
+  it('q matches description (any language)', async () => {
+    // «penthouse» — в EN-description листинга ID.enDesc.
+    const result = await service.search({
+      city_id: CITY_ID_208,
+      q: 'penthouse',
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.enDesc);
+    expect(ids.has(ID.noMatch)).toBe(false);
+  });
+
+  it('q with no match returns empty result', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_208,
+      q: 'xyznonexistentterm99887766',
+      limit: 100,
+    });
+
+    expect(result.data).toHaveLength(0);
+    expect(result.meta.total).toBe(0);
+  });
+
+  it('q combined with transaction_type intersects correctly', async () => {
+    // «квартира» + RENT — должен вернуть только ID.rentSale (не ruTitle, который SALE).
+    const result = await service.search({
+      city_id: CITY_ID_208,
+      q: 'квартира',
+      transaction_type: TransactionType.RENT,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.rentSale);
+    // ruTitle имеет «Квартира» но transaction_type=SALE → не попадает.
+    expect(ids.has(ID.ruTitle)).toBe(false);
+    expect(ids.size).toBe(1);
+  });
+
+  it('q containing a literal % does NOT behave as a wildcard (LIKE-escaped)', async () => {
+    // Если % не экранирован, он совпал бы со всеми строками. С экранированием —
+    // только те, у кого в тексте буквально есть символ %; таких нет → 0 результатов.
+    const result = await service.search({
+      city_id: CITY_ID_208,
+      q: '%',
+      limit: 100,
+    });
+
+    // Ни один листинг не содержит литеральный % в title/description/address.
+    expect(result.data).toHaveLength(0);
+  });
+});

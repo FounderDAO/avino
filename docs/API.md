@@ -495,7 +495,7 @@ Query-фильтры (`ARCHITECTURE` §12):
 
 | Параметр | Тип | Описание |
 |---|---|---|
-| `q` | string | свободный текст по `title/description/address_note` языка пользователя, фолбэк на оригинал (ILIKE/pg_trgm, ADR-012) |
+| `q` | string | свободный текст (TASK-208, ADR-0067): ILIKE-подстрока (pg_trgm GIN, case-insensitive) по `listing_translations.title`/`description` на **любом** языке (uz/ru/en) и по `listings.address`; пустая строка игнорируется; максимум 200 символов |
 | `city_id`, `district_id` | uuid | локация |
 | `transaction_type` | `SALE \| RENT` | |
 | `property_type` | `APARTMENT \| HOUSE \| NEW_BUILDING \| LAND \| COMMERCIAL` | |
