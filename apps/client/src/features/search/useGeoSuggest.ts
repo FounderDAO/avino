@@ -22,8 +22,14 @@ const norm = (s: string): string => s.trim().toLowerCase();
 
 function matchDistricts(query: string, districts: District[]): Suggestion[] {
   const q = norm(query);
+  // Матчим по имени (RU) и по узбекским/латинским алиасам — чтобы «yunusobod»
+  // находил «Юнусабадский». Подпись всегда каноничная RU (d.name).
   return districts
-    .filter((d) => norm(d.name).includes(q))
+    .filter(
+      (d) =>
+        norm(d.name).includes(q) ||
+        (d.aliases ?? []).some((a) => norm(a).includes(q)),
+    )
     .map((d) => ({ kind: 'district' as const, title: d.name, value: `Ташкент, ${d.name}` }));
 }
 

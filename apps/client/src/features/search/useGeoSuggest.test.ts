@@ -10,8 +10,8 @@ vi.mock('@/features/map/useYmaps', () => ({
 import { useGeoSuggest } from './useGeoSuggest';
 
 const districts: District[] = [
-  { id: 'yunusabad', name: 'Юнусабадский', count: 0 },
-  { id: 'chilanzar', name: 'Чиланзарский', count: 0 },
+  { id: 'yunusabad', name: 'Юнусабадский', count: 0, aliases: ['Yunusobod', 'Yunusabad'] },
+  { id: 'chilanzar', name: 'Чиланзарский', count: 0, aliases: ['Chilonzor', 'Chilanzar'] },
 ];
 
 beforeEach(() => {
@@ -51,6 +51,16 @@ describe('useGeoSuggest', () => {
     await vi.advanceTimersByTimeAsync(400);
     await waitFor(() => expect(result.current.items.length).toBe(1));
     expect(result.current.items[0]).toMatchObject({ kind: 'district', title: 'Чиланзарский' });
+  });
+
+  it('матчит район по узбекскому/латинскому алиасу (ввод латиницей)', async () => {
+    suggest.mockResolvedValue([]);
+    const { result } = renderHook(() =>
+      useGeoSuggest('yunusobod', { enabled: true, districts, locale: 'uz' }),
+    );
+    await vi.advanceTimersByTimeAsync(400);
+    await waitFor(() => expect(result.current.items.length).toBeGreaterThan(0));
+    expect(result.current.items[0]).toMatchObject({ kind: 'district', title: 'Юнусабадский' });
   });
 
   it('enabled=false — пусто', async () => {
