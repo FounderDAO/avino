@@ -39,6 +39,70 @@ Related ADR:
 
 ## 2026-06-14
 
+### TASK-216 — Client: draw-territory через серверный /search/polygon
+
+Status: DONE
+Branch: feat/client-draw-territory-polygon
+PR: #152
+
+Files changed:
+- apps/client/src/lib/geo.ts
+- apps/client/src/lib/geo.test.ts
+- apps/client/src/store/api/searchApi.ts
+- apps/client/src/features/map/MapSearch.tsx
+- docs/adr/ADR-0070-client-draw-territory-polygon-search.md (новый)
+
+Summary:
+- Рисование территории на /map переведено с MVP (bbox + клиентский
+  point-in-polygon) на серверный GET /api/v1/search/polygon (ST_Within, TASK-193).
+- lib/geo.serializePolygonRing: кольцо → параметр points (≥3 WGS84 вершины,
+  децимация до MAX_POLYGON_VERTICES=120, округление до 6 знаков); невалидное → null.
+- searchApi.searchByPolygon: новый RTK Query эндпоинт; общий filterParams для
+  bounds/polygon (форвардит и district_id).
+- MapSearch: ласо → /search/polygon, серверная фильтрация (displayed = raw),
+  клиентский pointInPolygon удалён; сброс территории возвращает выдачу видимой
+  области.
+
+Commit messages:
+- feat(client): draw-territory uses server /search/polygon (ST_Within)
+
+Related ADR:
+- docs/adr/ADR-0070-client-draw-territory-polygon-search.md
+
+---
+
+### TASK-215 — Client: реальные district_name и контакт автора
+
+Status: DONE
+Branch: feat/client-district-name-contact
+PR: #151
+
+Files changed:
+- apps/client/src/lib/api/listings.ts
+- apps/client/src/lib/api/listings.test.ts (новый)
+- apps/client/src/store/api/favoritesApi.ts
+- apps/client/src/features/detail/ContactCard.tsx
+
+Summary:
+- mapListing кладёт district_name (из /search и /listings/:id) в listing.district
+  вместо сырого district_id-uuid; null → '' (uuid больше не утекает в UI).
+- detail-блок contact { display_name, type, is_pro, phone } маппится в
+  ListingAgent (имя/pro/телефон) для ContactCard; у краткой карточки поиска
+  контакта нет → нейтральный плейсхолдер до открытия detail.
+- В формы ответов добавлены district_name (ApiSearchItem/ApiListingDetail/
+  FavoriteSearchItem) и ApiContactBlock + contact (detail).
+- ContactCard: guard инициала аватара при пустом имени (полный полишинг пустых
+  состояний — за TASK-201).
+
+Commit messages:
+- feat(client): show real district_name and owner/agent contact
+
+Related ADR:
+- docs/adr/ADR-0068-geo-districts-reference.md, docs/adr/ADR-0069-listing-contact-exposure.md
+  (consume on client; без нового ADR)
+
+---
+
 ### TASK-214 — Client: районы из /geo/districts + рабочий фильтр по району
 
 Status: DONE

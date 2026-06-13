@@ -70,7 +70,7 @@ export function ContactCard({ listing, className }: ContactCardProps) {
       {/* Шапка: аватар-инициал + имя + статус */}
       <div className="flex items-center gap-3">
         <div className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-full bg-mint text-[19px] font-extrabold text-teal-deep">
-          {agent.name[0]}
+          {agent.name.trim()[0]?.toUpperCase() ?? '·'}
         </div>
         <div className="min-w-0">
           <div className="truncate text-base font-bold">{agent.name}</div>

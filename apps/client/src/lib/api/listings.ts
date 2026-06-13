@@ -11,13 +11,12 @@
  *  - GET /api/v1/search          — публичная выдача (envelope `{ data, meta }`)
  *  - GET /api/v1/listings/:id    — детальная карточка (или 404)
  *
- * ВАЖНО про бэкенд-ограничения (на момент задачи):
- *  - district_id — uuid, нет geo-reference эндпоинта → имя района не резолвим
- *    (см. TODO(geo-reference)).
- *  - detail НЕ встраивает контакт владельца → agent заполняется плейсхолдером
- *    (см. TODO(owner-contact)).
- *  - search игнорирует sort/q/rooms/area/promotion_type (forward-compatible),
- *    но применяет transaction_type/property_type/price_min/price_max/district_id.
+ * Бэкенд-контракт (актуальный):
+ *  - search и detail отдают `district_name` (имя на языке ответа, TASK-209/ADR-0068).
+ *  - detail встраивает `contact` автора (TASK-210/ADR-0069); у краткой карточки
+ *    поиска контакта нет → agent заполняется плейсхолдером до открытия detail.
+ *  - search применяет transaction_type/property_type/price_min/price_max/district_id
+ *    + sort/q (TASK-207/208).
  */
 import type {
   Currency,
@@ -65,6 +64,8 @@ export interface ApiSearchItem {
   rooms: number | null;
   city_id: string | null;
   district_id: string | null;
+  /** Имя района на языке ответа (TASK-209); null если район не найден. */
+  district_name: string | null;
   latitude: string | null;
   longitude: string | null;
   promotion_type: PromotionType;
@@ -74,6 +75,14 @@ export interface ApiSearchItem {
   title: string;
   thumbnail_url: string | null;
   created_at: string;
+}
+
+/** Публичный контакт автора (TASK-210, ADR-0069); только в detail. */
+interface ApiContactBlock {
+  display_name: string | null;
+  type: 'owner' | 'agent' | 'agency';
+  is_pro: boolean;
+  phone: string | null;
 }
 
 /** Ответ GET /listings/:id (детальная карточка). */
@@ -91,6 +100,8 @@ interface ApiListingDetail {
   year_built: number | null;
   city_id: string | null;
   district_id: string | null;
+  /** Имя района на языке ответа (TASK-209); null если район не найден. */
+  district_name: string | null;
   address: string | null;
   latitude: string | null;
   longitude: string | null;
@@ -98,6 +109,8 @@ interface ApiListingDetail {
   promotion_expires_at: string | null;
   owner_id: string;
   agency_id: string | null;
+  /** Публичный контакт автора (TASK-210, ADR-0069). */
+  contact: ApiContactBlock;
   language: string;
   title: string;
   description: string | null;
@@ -209,15 +222,16 @@ function toPhotos(l: AnyApiListing): ListingPhoto[] {
 export function mapListing(api: AnyApiListing): Listing {
   const detail = hasMedia(api) ? (api as ApiListingDetail) : null;
 
-  // TODO(owner-contact): detail не встраивает контакт владельца — только owner_id.
-  // Заполняем безопасным плейсхолдером; реальные данные подключим, когда API
-  // начнёт отдавать профиль владельца/агентства.
-  const agent: ListingAgent = {
-    name: '—',
-    pro: false,
-    agency: '',
-    phone: undefined,
-  };
+  // Контакт автора есть только в detail (TASK-210, ADR-0069). У краткой карточки
+  // поиска контакта нет → нейтральный плейсхолдер (заполнится при открытии detail).
+  const agent: ListingAgent = detail
+    ? {
+        name: detail.contact.display_name ?? '',
+        pro: detail.contact.is_pro,
+        agency: '',
+        phone: detail.contact.phone ?? undefined,
+      }
+    : { name: '', pro: false, agency: '', phone: undefined };
 
   return {
     id: api.id,
@@ -241,9 +255,8 @@ export function mapListing(api: AnyApiListing): Listing {
     desc: detail?.description ?? undefined,
     features: detail ? toFeatures(detail) : undefined,
 
-    // TODO(geo-reference): нет эндпоинта резолва district_id → название.
-    // Кладём сам uuid (или ''), чтобы UI не падал; имя подключим позже.
-    district: api.district_id ?? '',
+    // Имя района на языке ответа (TASK-209, ADR-0068); null → '' (без uuid в UI).
+    district: api.district_name ?? '',
     address: detail?.address ?? '',
     lat: toNumberOrUndef(api.latitude),
     lng: toNumberOrUndef(api.longitude),
