@@ -32,7 +32,7 @@ function ymapsLang(locale?: string): string {
 /** Singleton-загрузка: один <script> и один общий промис на документ. */
 let loaderPromise: Promise<Ymaps> | null = null;
 
-function loadYmaps(locale?: string): Promise<Ymaps> {
+export function loadYmaps(locale?: string): Promise<Ymaps> {
   if (typeof window === 'undefined') return Promise.reject(new Error('SSR'));
   const w = window as unknown as { ymaps?: Ymaps };
   if (w.ymaps?.Map) return Promise.resolve(w.ymaps);
