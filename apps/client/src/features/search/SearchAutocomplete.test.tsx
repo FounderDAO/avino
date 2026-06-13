@@ -75,4 +75,17 @@ describe('SearchAutocomplete', () => {
     expect(onSelect).not.toHaveBeenCalled();
     expect(onSubmitRaw).toHaveBeenCalledWith('Юну');
   });
+
+  // Регрессия: попап должен жить порталом в body, а не внутри min-w-[230px]
+  // обёртки внутри overflow-x-auto строки фильтров — иначе overflow обрезает его.
+  it('попап рендерится порталом вне контейнера компонента', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <SearchAutocomplete {...baseProps} onChange={() => {}} onSelect={() => {}} onSubmitRaw={() => {}} onActiveChange={() => {}} />,
+    );
+    await user.click(screen.getByRole('combobox'));
+    const listbox = await screen.findByRole('listbox');
+    expect(container).not.toContainElement(listbox);
+    expect(document.body).toContainElement(listbox);
+  });
 });
