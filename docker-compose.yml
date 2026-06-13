@@ -77,7 +77,7 @@ services:
       API_PORT: 4000
       DATABASE_URL: postgresql://${POSTGRES_USER:-avino}:${POSTGRES_PASSWORD:-avino}@postgres:5432/${POSTGRES_DB:-avino}?schema=public
       REDIS_URL: redis://redis:6379
-      CORS_ORIGINS: http://localhost:3000
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3001
     ports:
       - "${API_PORT:-4000}:4000"
     restart: unless-stopped
