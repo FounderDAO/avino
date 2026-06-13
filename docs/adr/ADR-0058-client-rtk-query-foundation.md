@@ -55,6 +55,19 @@ Negative / trade-offs:
 - baseQuery без reauth — клиентский auth-слой потребует расширения baseQuery
   в TASK-150 (по образцу ADR-0045).
 
+## Update — 2026-06-13 (TASK-213): транспортные ошибки без бизнес-кода
+
+`src/store/api/apiError.ts` уже разбирал унифицированный error-envelope API
+(`{ error: { code, message, ... } }`) → стабильный `code` для маппинга в i18n.
+Но при транспортном сбое (сеть/CORS/таймаут) RTK Query помечает ошибку нечисловым
+`status` (`FETCH_ERROR`/`TIMEOUT_ERROR`/`PARSING_ERROR`/`CUSTOM_ERROR`) без тела —
+`getApiError` возвращал `null`, и UI (`LoginModal`) молча проглатывал сбой.
+
+Добавлен хелпер `isNetworkError()`: `true`, когда ошибка есть, но бизнес-кода нет
+(нечисловой `status` или брошенное исключение без HTTP-статуса). UI использует его
+для человекочитаемого fallback `auth.errors.networkError` вместо тишины. Это
+расширение существующего контракта error-handling, новый ADR не требуется.
+
 ## Related files
 
 - apps/client/src/store/api/baseQuery.ts
@@ -64,7 +77,10 @@ Negative / trade-offs:
 - apps/client/src/store/StoreProvider.tsx
 - apps/client/src/app/layout.tsx
 - apps/client/package.json
+- apps/client/src/store/api/apiError.ts (TASK-213 — `isNetworkError`)
+- apps/client/src/components/layout/LoginModal.tsx (TASK-213)
 
 ## Related task
 
 - TASK-141
+- TASK-213

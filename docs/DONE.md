@@ -39,6 +39,31 @@ Related ADR:
 
 ## 2026-06-13
 
+### TASK-213 — LoginModal: внятная обработка сетевых/CORS-ошибок при запросе OTP
+
+Status: DONE
+Branch: feat/client-login-network-error-handling
+PR: https://github.com/FounderDAO/avino/pull/140 (#140)
+
+Files changed:
+- apps/client/src/store/api/apiError.ts — новый хелпер `isNetworkError()` (FETCH_ERROR/TIMEOUT_ERROR/PARSING_ERROR/CUSTOM_ERROR и брошенные исключения без HTTP-статуса)
+- apps/client/src/components/layout/LoginModal.tsx — fallback `auth.errors.networkError` для шага запроса и подтверждения OTP, когда нет бизнес-кода
+- apps/client/messages/ru.json, en.json, uz.json — ключ `auth.errors.networkError`
+- apps/client/src/store/api/apiError.test.ts — юнит-тесты на разбор envelope и `isNetworkError`
+
+Summary:
+- Пустые `catch {}` в `handleRequest`/`handleVerify` молча глотали транспортные сбои (сеть/CORS/таймаут): кнопка переставала грузиться, пользователь не видел ничего.
+- Теперь при ошибке без распознаваемого `code` показывается человекочитаемый i18n-текст вместо тишины.
+- Тексты добавлены для ru/uz/en. Изменения строго в `apps/client`.
+
+Commit messages:
+- feat(client): surface network/CORS errors in login modal
+
+Related ADR:
+- docs/adr/ADR-0058-client-rtk-query-foundation.md (обновлён — обработка транспортных ошибок без бизнес-кода)
+
+---
+
 ### TASK-152 — Web map search on Yandex Maps + draw-territory (client)
 
 Status: DONE
