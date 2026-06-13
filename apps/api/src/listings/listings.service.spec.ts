@@ -17,6 +17,7 @@ import {
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
+import { DistrictsService } from '../geo';
 import { TranslationsService } from '../translations';
 import { ListingsService } from './listings.service';
 
@@ -67,7 +68,16 @@ describe('ListingsService', () => {
     };
     // Реальный TranslationsService (логика переводов делегирована ему, TASK-070);
     // его resolveLanguage/buildOriginalTranslationInput чисты, prisma не вызывают.
-    service = new ListingsService(prisma, new TranslationsService(prisma));
+    // DistrictsService застаблен — резолв district_name проверяется в int-spec.
+    const districts = {
+      namesByIds: jest.fn().mockResolvedValue(new Map()),
+      pickName: jest.fn().mockReturnValue(null),
+    } as unknown as DistrictsService;
+    service = new ListingsService(
+      prisma,
+      new TranslationsService(prisma),
+      districts,
+    );
   });
 
   async function expectCode(promise: Promise<unknown>, code: ApiErrorCode) {
@@ -219,6 +229,17 @@ describe('ListingsService', () => {
       id: LISTING_ID,
       ownerId: OWNER_ID,
       agencyId: null,
+      // Контакт автора (TASK-210): профиль + роль AGENT.
+      owner: {
+        phone: '+998901112233',
+        profile: {
+          displayName: 'Алишер',
+          firstName: 'Алишер',
+          lastName: 'Усманов',
+          contactPhone: '+998905556677',
+        },
+        roles: [{ role: { code: 'AGENT' } }],
+      },
       status: ListingStatus.ACTIVE,
       transactionType: TransactionType.RENT,
       propertyType: PropertyType.APARTMENT,
@@ -294,6 +315,14 @@ describe('ListingsService', () => {
         features_text: 'балкон',
         published_at: '2026-06-01T10:00:00.000Z',
         created_at: '2026-05-30T09:00:00.000Z',
+        // Контакт автора (TASK-210): displayName + contactPhone приоритетны,
+        // роль AGENT → type=agent, is_pro=true.
+        contact: {
+          display_name: 'Алишер',
+          type: 'agent',
+          is_pro: true,
+          phone: '+998905556677',
+        },
       });
       expect(result.media).toEqual([
         {

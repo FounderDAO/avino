@@ -9,11 +9,16 @@ import {
   TransactionType,
 } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
+import { DistrictsService } from '../geo';
+import type { DistrictNames } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
 import {
   BoundsSearchQueryDto,
   NearMeSearchQueryDto,
+  parsePolygonRing,
+  PolygonSearchQueryDto,
+  PolygonVertex,
   RadiusSearchQueryDto,
 } from './dto/geo-search.dto';
 import { SearchListingsQueryDto, SortMode } from './dto/search-listings.dto';
@@ -53,6 +58,12 @@ export interface SearchListItem {
    * отсутствует (опциональное поле — non-breaking, API.md §4/§10).
    */
   distance_m?: number;
+  /**
+   * Человекочитаемое название района на языке запроса (TASK-209, ADR-0068).
+   * Разрешается batch-запросом к `districts`; `null` если `district_id` не
+   * совпадает ни с одним известным районом (graceful degradation).
+   */
+  district_name: string | null;
 }
 
 /**
@@ -221,6 +232,7 @@ export class SearchService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly translations: TranslationsService,
+    private readonly districts: DistrictsService,
   ) {}
 
   /** `GET /api/v1/search` — promotion-приоритетный поиск ACTIVE-листингов. */
@@ -365,6 +377,64 @@ export class SearchService {
   }
 
   /**
+   * `GET /api/v1/search/polygon` — ACTIVE-листинги внутри произвольного полигона
+   * (freehand-ласо, TASK-193, API.md §10). Порядок — promotion-приоритетный
+   * (keyset с тиром), как у `/search/bounds`; `distance_m` не возвращается
+   * (центральной точки нет).
+   *
+   * Полигон строится как `geometry(Polygon,4326)` через PostGIS:
+   * `ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[...])), 4326)`. Все координаты
+   * биндятся через `Prisma.sql` (защита от инъекций). Кольцо замыкается здесь
+   * же: если первая и последняя вершины не совпадают — первая добавляется в конец
+   * (ST_MakePolygon требует ≥ 4 точек в замкнутом кольце).
+   *
+   * Предположение (MVP): кольцо простое, невыпуклое, без самопересечений —
+   * ST_MakeValid не применяется для упрощения; самопересекающийся контур вернёт
+   * пустую или некорректную выдачу. При необходимости добавить ST_MakeValid в v2.
+   *
+   * Гео-эндпоинт всегда использует `date_desc`-конфиг (created_at DESC).
+   */
+  async searchPolygon(
+    query: PolygonSearchQueryDto,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<CursorPaginatedResponse<SearchListItem>> {
+    const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const cfg = SORTS['date_desc'];
+    const cursor = this.decodeCursor(query.cursor);
+    const vertices = parsePolygonRing(query.points);
+    const polygon = this.polygonSql(vertices);
+    // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
+    const filterSql = Prisma.sql`${this.buildWhereSql(query)} AND location IS NOT NULL AND location && ${polygon}::geography AND ST_Within(location::geometry, ${polygon})`;
+    const pageWhere = cursor
+      ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
+      : filterSql;
+
+    const [ranked, countRows] = await Promise.all([
+      this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
+        SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank,
+               (${cfg.secondary}) AS sort_val
+        FROM listings
+        WHERE ${pageWhere}
+        ORDER BY ${TIER_RANK_SQL} DESC, created_at DESC, id DESC
+        LIMIT ${limit + 1}
+      `),
+      this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
+        SELECT count(*)::int AS count FROM listings WHERE ${filterSql}
+      `),
+    ]);
+
+    return this.buildKeysetEnvelope(
+      ranked,
+      countRows[0]?.count ?? 0,
+      limit,
+      cfg,
+      langParam,
+      acceptLanguage,
+    );
+  }
+
+  /**
    * `GET /api/v1/search/near-me` — ближайшие к точке ACTIVE-листинги,
    * отсортированные по дистанции (`ST_Distance` ASC); промо — вторичный ключ при
    * равенстве (API.md §10: для near-me основной ключ — дистанция). Одна страница
@@ -418,6 +488,35 @@ export class SearchService {
    */
   private envelopeSql(query: BoundsSearchQueryDto): Prisma.Sql {
     return Prisma.sql`ST_MakeEnvelope(${query.sw_lng}, ${query.sw_lat}, ${query.ne_lng}, ${query.ne_lat}, 4326)`;
+  }
+
+  /**
+   * Произвольный полигон из вершин кольца как `geometry(Polygon,4326)` (TASK-193).
+   *
+   * Строит `ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[...]::geometry[])), 4326)`.
+   * Все координаты биндятся через `Prisma.sql` — инъекция невозможна. Кольцо
+   * замыкается автоматически: если первая и последняя вершины не совпадают —
+   * первая добавляется в конец (`ST_MakeLine`/`ST_MakePolygon` требуют замкнутого
+   * кольца, ≥ 4 точек после замыкания).
+   *
+   * `ST_MakePoint(lng, lat)` — долгота первой (как в {@link pointSql} и в
+   * sync-триггере `location`, DB_SCHEMA §14); перепутанный порядок дал бы
+   * неверную геометрию.
+   */
+  private polygonSql(vertices: PolygonVertex[]): Prisma.Sql {
+    // Замкнуть кольцо: первая вершина ≠ последней → добавить первую в конец.
+    const first = vertices[0];
+    const last = vertices[vertices.length - 1];
+    const ring =
+      first.lat === last.lat && first.lng === last.lng
+        ? vertices
+        : [...vertices, first];
+
+    const points = Prisma.join(
+      ring.map((v) => Prisma.sql`ST_MakePoint(${v.lng}, ${v.lat})`),
+      ', ',
+    );
+    return Prisma.sql`ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[${points}]::geometry[])), 4326)`;
   }
 
   /**
@@ -475,6 +574,12 @@ export class SearchService {
     const byId = new Map<string, SearchRow>(
       hydrated.map((row) => [row.id, row]),
     );
+    // Batch-разрешение имён районов по district_id страницы (TASK-209).
+    const districtNames = await this.districts.namesByIds(
+      hydrated
+        .map((row) => row.districtId)
+        .filter((id): id is string => id !== null),
+    );
 
     return pageRows
       .map((row) => {
@@ -482,7 +587,12 @@ export class SearchService {
         if (dbRow === undefined) {
           return undefined;
         }
-        const card = this.toSearchItem(dbRow, langParam, acceptLanguage);
+        const card = this.toSearchItem(
+          dbRow,
+          districtNames,
+          langParam,
+          acceptLanguage,
+        );
         if (row.distance_m !== undefined && row.distance_m !== null) {
           card.distance_m = Math.round(Number(row.distance_m));
         }
@@ -513,11 +623,19 @@ export class SearchService {
     const byId = new Map<string, SearchRow>(
       hydrated.map((row) => [row.id, row]),
     );
+    // Batch-разрешение имён районов по district_id (TASK-209).
+    const districtNames = await this.districts.namesByIds(
+      hydrated
+        .map((row) => row.districtId)
+        .filter((id): id is string => id !== null),
+    );
 
     return ids
       .map((id) => byId.get(id))
       .filter((row): row is SearchRow => row !== undefined)
-      .map((row) => this.toSearchItem(row, langParam, acceptLanguage));
+      .map((row) =>
+        this.toSearchItem(row, districtNames, langParam, acceptLanguage),
+      );
   }
 
   /**
@@ -565,12 +683,19 @@ export class SearchService {
 
   /**
    * `WHERE`-фрагмент: обязательный `status = ACTIVE` + базовые фильтры (TASK-080)
-   * + `rooms` (TASK-207). Параметры биндятся через `Prisma.sql` (защита от инъекций).
-   * Enum-колонки сравниваются через `::text` (не зависит от имени PG-типа); диапазон
-   * цены — в пределах одной валюты (`currency`), FX-конвертации нет (API.md §9).
+   * + `rooms` (TASK-207) + свободный текст `q` (TASK-208, ADR-0067). Параметры
+   * биндятся через `Prisma.sql` (защита от инъекций). Enum-колонки сравниваются
+   * через `::text` (не зависит от имени PG-типа); диапазон цены — в пределах одной
+   * валюты (`currency`), FX-конвертации нет (API.md §9).
    *
    * `rooms` (TASK-207): 0..3 — точное совпадение; 4 = «4+» (rooms >= 4).
    * Применяется во всех эндпоинтах поиска (включая гео-варианты).
+   *
+   * `q` (TASK-208, ADR-0067): ILIKE-подстрока (pg_trgm GIN, case-insensitive) по
+   * `listings.address` + EXISTS (listing_translations.title/description, любой язык).
+   * Пользовательский ввод LIKE-экранируется (`\`, `%`, `_`), чтобы литеральный `%`
+   * не работал как wildcard. GIN-индексы (migration 20260613120000_*) ускоряют
+   * запросы с term ≥ 3 символов; более короткие термы работают через seq scan.
    */
   private buildWhereSql(query: SearchListingsQueryDto): Prisma.Sql {
     const conds: Prisma.Sql[] = [Prisma.sql`status = 'ACTIVE'`];
@@ -598,6 +723,21 @@ export class SearchService {
           : Prisma.sql`rooms = ${query.rooms}`,
       );
 
+    // TASK-208, ADR-0067: свободный текст q — ILIKE-подстрока (pg_trgm GIN).
+    // Экранируем \, %, _ чтобы литеральные символы не работали как wildcards.
+    if (query.q !== undefined && query.q.trim() !== '') {
+      const term = query.q.trim().replace(/[\\%_]/g, '\\$&');
+      const pattern = `%${term}%`;
+      conds.push(Prisma.sql`(
+        listings.address ILIKE ${pattern}
+        OR EXISTS (
+          SELECT 1 FROM listing_translations lt
+          WHERE lt.listing_id = listings.id
+            AND (lt.title ILIKE ${pattern} OR lt.description ILIKE ${pattern})
+        )
+      )`);
+    }
+
     return Prisma.join(conds, ' AND ');
   }
 
@@ -621,9 +761,15 @@ export class SearchService {
     )`;
   }
 
-  /** Карточка листинга в snake_case для результатов поиска (API.md §9). */
+  /**
+   * Карточка листинга в snake_case для результатов поиска (API.md §9).
+   * `districtNames` — batch-разрешённые имена районов по `district_id`
+   * (TASK-209); `district_name` берётся на языке карточки, `null` если район
+   * не найден (несовпадающий `district_id`, ADR-0068).
+   */
   private toSearchItem(
     listing: SearchRow,
+    districtNames: Map<string, DistrictNames>,
     langParam?: string,
     acceptLanguage?: string,
   ): SearchListItem {
@@ -660,6 +806,12 @@ export class SearchService {
       language,
       title: translation?.title ?? '',
       thumbnail_url: cover?.thumbnailUrl ?? cover?.url ?? null,
+      district_name: this.districts.pickName(
+        listing.districtId
+          ? districtNames.get(listing.districtId)
+          : undefined,
+        language,
+      ),
       created_at: listing.createdAt.toISOString(),
     };
   }

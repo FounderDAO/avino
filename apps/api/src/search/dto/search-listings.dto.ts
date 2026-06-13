@@ -9,6 +9,7 @@ import {
   IsUUID,
   Matches,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 import {
@@ -101,9 +102,15 @@ export class SearchListingsQueryDto {
   })
   sort?: SortMode;
 
-  /** Свободнотекстовый поиск. Пока игнорируется. */
+  /**
+   * Свободнотекстовый поиск (TASK-208, ADR-0067). Применяется как ILIKE-подстрока
+   * (pg_trgm GIN, case-insensitive) по `listings.address` и по
+   * `listing_translations.title`/`description` на любом языке (uz/ru/en). Пустая
+   * строка и пробелы игнорируются. Максимум 200 символов.
+   */
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   q?: string;
 
   /**

@@ -7,6 +7,7 @@ import {
   TransactionType,
   TranslationSource,
 } from '@prisma/client';
+import { DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
 import { SearchService } from './search.service';
@@ -29,7 +30,11 @@ import { SearchService } from './search.service';
  */
 describe('SearchService geo (integration, live PostGIS)', () => {
   const prisma = new PrismaService();
-  const service = new SearchService(prisma, new TranslationsService(prisma));
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+  );
 
   // Уникальный город этого прогона — фильтр изолирует выдачу от чужих строк.
   const CITY_ID = '11111111-2222-4333-8444-666666666666';
@@ -242,5 +247,182 @@ describe('SearchService geo (integration, live PostGIS)', () => {
     expect(collected).toHaveLength(4);
     expect(new Set(collected).size).toBe(4); // без дублей
     expect(collected).not.toContain(ID.noGeo);
+  });
+});
+
+// ─── SearchService.searchPolygon integration tests ────────────────────────────
+
+/**
+ * Integration-тесты `searchPolygon` на живом PostgreSQL+PostGIS (TASK-193).
+ * Проверяет:
+ *   - листинг внутри полигона возвращается;
+ *   - листинг за границей полигона исключается (`ST_Within` точный);
+ *   - листинг без гео (NULL location) исключается;
+ *   - `distance_m` НЕ возвращается (центральной точки нет);
+ *   - стабильный keyset-курсор для нескольких страниц.
+ *
+ * Уникальный `city_id` изолирует данные от остальных тестов. Данные очищаются в
+ * `afterAll`.
+ */
+describe('SearchService.searchPolygon (integration, live PostGIS)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+  );
+
+  // Уникальный city_id для изоляции.
+  const CITY_ID_POLY = '22222222-3333-4444-8555-777777777777';
+
+  /**
+   * Квадрат для тестового полигона: 41.30..41.32 lat × 69.27..69.29 lng.
+   * Вершины против часовой стрелки; бэк замкнёт кольцо.
+   */
+  const SQUARE_POINTS = '41.30,69.27;41.30,69.29;41.32,69.29;41.32,69.27';
+
+  const POLY_ID = {
+    inside1: 'a1111111-0000-4000-8000-000000000193', // 41.31, 69.28 — внутри
+    inside2: 'a2222222-0000-4000-8000-000000000193', // 41.305, 69.275 — внутри
+    outside: 'a3333333-0000-4000-8000-000000000193', // 41.50, 69.28 — за периметром
+    edgeOut: 'a4444444-0000-4000-8000-000000000193', // 41.33, 69.28 — чуть севернее
+    noGeo: 'a5555555-0000-4000-8000-000000000193', // NULL location
+  };
+
+  let ownerIdPoly: string;
+
+  async function createPolyListing(params: {
+    id: string;
+    latitude: string | null;
+    longitude: string | null;
+  }): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id: params.id,
+        ownerId: ownerIdPoly,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: '200000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_POLY,
+        latitude: params.latitude,
+        longitude: params.longitude,
+        promotionType: PromotionType.NORMAL,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `poly-${params.id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_POLY } });
+
+    const owner = await prisma.user.create({
+      data: { phone: '+998900000193' },
+    });
+    ownerIdPoly = owner.id;
+
+    // Внутри квадрата 41.30..41.32 × 69.27..69.29
+    await createPolyListing({
+      id: POLY_ID.inside1,
+      latitude: '41.310000',
+      longitude: '69.280000',
+    });
+    await createPolyListing({
+      id: POLY_ID.inside2,
+      latitude: '41.305000',
+      longitude: '69.275500',
+    });
+    // За пределами квадрата
+    await createPolyListing({
+      id: POLY_ID.outside,
+      latitude: '41.500000',
+      longitude: '69.280000',
+    });
+    // Чуть севернее квадрата (lat = 41.33 > 41.32)
+    await createPolyListing({
+      id: POLY_ID.edgeOut,
+      latitude: '41.330000',
+      longitude: '69.280000',
+    });
+    // Без координат
+    await createPolyListing({
+      id: POLY_ID.noGeo,
+      latitude: null,
+      longitude: null,
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_POLY } });
+    if (ownerIdPoly) {
+      await prisma.user.delete({ where: { id: ownerIdPoly } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('returns only listings inside the polygon; excludes outside, edge-out, and no-geo rows', async () => {
+    const result = await service.searchPolygon({
+      points: SQUARE_POINTS,
+      city_id: CITY_ID_POLY,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toEqual(new Set([POLY_ID.inside1, POLY_ID.inside2]));
+    expect(result.meta.total).toBe(2);
+    expect(ids.has(POLY_ID.outside)).toBe(false);
+    expect(ids.has(POLY_ID.edgeOut)).toBe(false); // точность ST_Within, не bbox
+    expect(ids.has(POLY_ID.noGeo)).toBe(false); // NULL location исключён
+  });
+
+  it('does not return distance_m (no center point for polygon search)', async () => {
+    const result = await service.searchPolygon({
+      points: SQUARE_POINTS,
+      city_id: CITY_ID_POLY,
+      limit: 100,
+    });
+
+    for (const item of result.data) {
+      expect(item.distance_m).toBeUndefined();
+    }
+  });
+
+  it('keyset cursor is stable across pages with no gaps or duplicates', async () => {
+    // Расширенный полигон захватывает inside1 + inside2 + edgeOut (3 листинга).
+    const widePoints =
+      '41.30,69.27;41.30,69.29;41.34,69.29;41.34,69.27';
+
+    const collected: string[] = [];
+    let cursor: string | null | undefined;
+    let pages = 0;
+
+    do {
+      const page = await service.searchPolygon({
+        points: widePoints,
+        city_id: CITY_ID_POLY,
+        limit: 2,
+        cursor: cursor ?? undefined,
+      });
+      collected.push(...page.data.map((d) => d.id));
+      cursor = page.meta.next_cursor;
+      pages += 1;
+      expect(pages).toBeLessThanOrEqual(10);
+    } while (cursor);
+
+    expect(collected).toHaveLength(3); // inside1 + inside2 + edgeOut
+    expect(new Set(collected).size).toBe(3); // без дублей
+    expect(collected).not.toContain(POLY_ID.outside);
+    expect(collected).not.toContain(POLY_ID.noGeo);
   });
 });
