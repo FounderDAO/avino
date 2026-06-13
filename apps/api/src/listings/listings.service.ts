@@ -16,6 +16,7 @@ import {
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
+import { DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
 import { CreateListingDto } from './dto/create-listing.dto';
@@ -133,6 +134,8 @@ export interface ListingDetailResponse {
   year_built: number | null;
   city_id: string | null;
   district_id: string | null;
+  /** Имя района по языку ответа (TASK-209); `null` если район не найден. */
+  district_name: string | null;
   address: string | null;
   latitude: string | null;
   longitude: string | null;
@@ -292,6 +295,7 @@ export class ListingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly translations: TranslationsService,
+    private readonly districts: DistrictsService,
   ) {}
 
   /** `POST /api/v1/listings` — создать объявление (статус `NEW`). */
@@ -422,7 +426,15 @@ export class ListingsService {
       langParam,
       acceptLanguage,
     );
-    return this.toDetailResponse(listing, language);
+    // Имя района по district_id на языке ответа (TASK-209, ADR-0068).
+    const districtNames = await this.districts.namesByIds(
+      listing.districtId ? [listing.districtId] : [],
+    );
+    const districtName = this.districts.pickName(
+      listing.districtId ? districtNames.get(listing.districtId) : undefined,
+      language,
+    );
+    return this.toDetailResponse(listing, language, districtName);
   }
 
   /**
@@ -580,6 +592,7 @@ export class ListingsService {
   private toDetailResponse(
     listing: ListingDetailRow,
     language: Language,
+    districtName: string | null,
   ): ListingDetailResponse {
     const translation = listing.translations.find(
       (t) => t.language === language,
@@ -599,6 +612,7 @@ export class ListingsService {
       year_built: listing.yearBuilt,
       city_id: listing.cityId,
       district_id: listing.districtId,
+      district_name: districtName,
       address: listing.address,
       latitude: listing.latitude?.toFixed(6) ?? null,
       longitude: listing.longitude?.toFixed(6) ?? null,

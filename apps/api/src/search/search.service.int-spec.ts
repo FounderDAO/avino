@@ -7,6 +7,7 @@ import {
   TransactionType,
   TranslationSource,
 } from '@prisma/client';
+import { DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
 import { SearchService } from './search.service';
@@ -23,7 +24,11 @@ import { SearchService } from './search.service';
  */
 describe('SearchService (integration, live PostgreSQL)', () => {
   const prisma = new PrismaService();
-  const service = new SearchService(prisma, new TranslationsService(prisma));
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+  );
 
   // Уникальный город этого прогона — фильтр изолирует выдачу от чужих строк.
   const CITY_ID = '11111111-2222-4333-8444-555555555555';
@@ -194,7 +199,11 @@ describe('SearchService (integration, live PostgreSQL)', () => {
  */
 describe('SearchService sort + rooms (integration, TASK-207)', () => {
   const prisma = new PrismaService();
-  const service = new SearchService(prisma, new TranslationsService(prisma));
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+  );
 
   // Уникальный город для этого набора — не пересекается с тестами выше.
   const CITY_ID_207 = '22222222-3333-4444-8555-000000000207';
@@ -464,7 +473,11 @@ describe('SearchService sort + rooms (integration, TASK-207)', () => {
  */
 describe('SearchService text query q (integration, TASK-208)', () => {
   const prisma = new PrismaService();
-  const service = new SearchService(prisma, new TranslationsService(prisma));
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+  );
 
   // Уникальный город для этого набора — не пересекается с тестами выше.
   const CITY_ID_208 = '33333333-4444-4444-8666-000000000208';

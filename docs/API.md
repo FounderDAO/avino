@@ -376,7 +376,8 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`.
 ### GET /api/v1/listings/:id
 Детали листинга. Auth: **public** для `ACTIVE`; владелец/AGENCY/MODERATOR/ADMIN
 видят и непубличные статусы. Перевод — по `Accept-Language`/`?lang` с фолбэком на
-`original_language` (ADR-012).
+`original_language` (ADR-012). `district_name` — имя района по языку ответа
+(`null`, если `district_id` не найден в справочнике; TASK-209, ADR-0068).
 
 200:
 ```json
@@ -385,7 +386,8 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`.
   "transaction_type": "RENT", "property_type": "APARTMENT",
   "price": "4500000.00", "currency": "UZS", "area": "62.50",
   "rooms": 2, "floor": 4, "total_floors": 9, "year_built": 2018,
-  "city_id": "c1", "district_id": "d1", "address": "Yunusobod 12-23",
+  "city_id": "c1", "district_id": "d1", "district_name": "Юнусабад",
+  "address": "Yunusobod 12-23",
   "latitude": "41.350000", "longitude": "69.290000",
   "promotion_type": "VIP", "promotion_expires_at": "2026-06-20T00:00:00Z",
   "owner_id": "u1", "agency_id": null,
@@ -525,7 +527,7 @@ Tie-break по `id DESC` гарантирует детерминированно
   "data": [
     { "id": "l9", "status": "ACTIVE", "transaction_type": "SALE",
       "property_type": "APARTMENT", "price": "950000000.00", "currency": "UZS",
-      "rooms": 3, "city_id": "c1", "district_id": "d2",
+      "rooms": 3, "city_id": "c1", "district_id": "d2", "district_name": "Чиланзар",
       "latitude": "41.31", "longitude": "69.28",
       "promotion_type": "VIP", "promotion_expires_at": "2026-06-25T00:00:00Z",
       "effective_tier": "VIP",
@@ -537,6 +539,9 @@ Tie-break по `id DESC` гарантирует детерминированно
 }
 ```
 - `effective_tier` отражает time-guarded тир (expired промо → `NORMAL`).
+- `district_name` — имя района по `Accept-Language`/`?lang` (`null`, если
+  `district_id` нет в справочнике районов; TASK-209, ADR-0068). Справочник —
+  `GET /api/v1/geo/districts` (§10).
 Errors: `400 VALIDATION_ERROR`.
 
 ---
@@ -546,6 +551,21 @@ Errors: `400 VALIDATION_ERROR`.
 Геопоиск — **PostgreSQL + PostGIS** на бэке (`location geography(Point,4326)`,
 ADR-001). Карты — Yandex Maps (клиент). Все гео-эндпоинты возвращают только
 `ACTIVE` и применяют то же promotion-упорядочивание, что и `/search`.
+
+### GET /api/v1/geo/districts
+Справочник районов для дропдаунов и резолва `district_id → name` (TASK-209,
+ADR-0068). Auth: **public**. Без параметров. MVP — районы Ташкента (плоский
+список, без гео-геометрии).
+200:
+```json
+[
+  { "id": "d0000000-0000-4000-8000-000000000011", "code": "yunusobod",
+    "name_uz": "Yunusobod", "name_ru": "Юнусабад", "name_en": "Yunusabad" }
+]
+```
+Имена доступны на трёх языках; клиент выбирает нужный. В элементах `/search`
+(§9) и детали `/listings/:id` (§7) бэкенд уже встраивает готовое `district_name`
+по `Accept-Language`.
 
 ### GET /api/v1/search/radius
 Поиск по радиусу (`ST_DWithin`). Auth: **public**.

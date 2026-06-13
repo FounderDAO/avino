@@ -9,6 +9,8 @@ import {
   TransactionType,
 } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
+import { DistrictsService } from '../geo';
+import type { DistrictNames } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
 import {
@@ -56,6 +58,12 @@ export interface SearchListItem {
    * отсутствует (опциональное поле — non-breaking, API.md §4/§10).
    */
   distance_m?: number;
+  /**
+   * Человекочитаемое название района на языке запроса (TASK-209, ADR-0068).
+   * Разрешается batch-запросом к `districts`; `null` если `district_id` не
+   * совпадает ни с одним известным районом (graceful degradation).
+   */
+  district_name: string | null;
 }
 
 /**
@@ -224,6 +232,7 @@ export class SearchService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly translations: TranslationsService,
+    private readonly districts: DistrictsService,
   ) {}
 
   /** `GET /api/v1/search` — promotion-приоритетный поиск ACTIVE-листингов. */
@@ -565,6 +574,12 @@ export class SearchService {
     const byId = new Map<string, SearchRow>(
       hydrated.map((row) => [row.id, row]),
     );
+    // Batch-разрешение имён районов по district_id страницы (TASK-209).
+    const districtNames = await this.districts.namesByIds(
+      hydrated
+        .map((row) => row.districtId)
+        .filter((id): id is string => id !== null),
+    );
 
     return pageRows
       .map((row) => {
@@ -572,7 +587,12 @@ export class SearchService {
         if (dbRow === undefined) {
           return undefined;
         }
-        const card = this.toSearchItem(dbRow, langParam, acceptLanguage);
+        const card = this.toSearchItem(
+          dbRow,
+          districtNames,
+          langParam,
+          acceptLanguage,
+        );
         if (row.distance_m !== undefined && row.distance_m !== null) {
           card.distance_m = Math.round(Number(row.distance_m));
         }
@@ -603,11 +623,19 @@ export class SearchService {
     const byId = new Map<string, SearchRow>(
       hydrated.map((row) => [row.id, row]),
     );
+    // Batch-разрешение имён районов по district_id (TASK-209).
+    const districtNames = await this.districts.namesByIds(
+      hydrated
+        .map((row) => row.districtId)
+        .filter((id): id is string => id !== null),
+    );
 
     return ids
       .map((id) => byId.get(id))
       .filter((row): row is SearchRow => row !== undefined)
-      .map((row) => this.toSearchItem(row, langParam, acceptLanguage));
+      .map((row) =>
+        this.toSearchItem(row, districtNames, langParam, acceptLanguage),
+      );
   }
 
   /**
@@ -733,9 +761,15 @@ export class SearchService {
     )`;
   }
 
-  /** Карточка листинга в snake_case для результатов поиска (API.md §9). */
+  /**
+   * Карточка листинга в snake_case для результатов поиска (API.md §9).
+   * `districtNames` — batch-разрешённые имена районов по `district_id`
+   * (TASK-209); `district_name` берётся на языке карточки, `null` если район
+   * не найден (несовпадающий `district_id`, ADR-0068).
+   */
   private toSearchItem(
     listing: SearchRow,
+    districtNames: Map<string, DistrictNames>,
     langParam?: string,
     acceptLanguage?: string,
   ): SearchListItem {
@@ -772,6 +806,12 @@ export class SearchService {
       language,
       title: translation?.title ?? '',
       thumbnail_url: cover?.thumbnailUrl ?? cover?.url ?? null,
+      district_name: this.districts.pickName(
+        listing.districtId
+          ? districtNames.get(listing.districtId)
+          : undefined,
+        language,
+      ),
       created_at: listing.createdAt.toISOString(),
     };
   }

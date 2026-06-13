@@ -7,6 +7,7 @@ import {
   TransactionType,
   TranslationSource,
 } from '@prisma/client';
+import { DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
 import { SearchService } from './search.service';
@@ -29,7 +30,11 @@ import { SearchService } from './search.service';
  */
 describe('SearchService geo (integration, live PostGIS)', () => {
   const prisma = new PrismaService();
-  const service = new SearchService(prisma, new TranslationsService(prisma));
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+  );
 
   // Уникальный город этого прогона — фильтр изолирует выдачу от чужих строк.
   const CITY_ID = '11111111-2222-4333-8444-666666666666';
@@ -261,7 +266,11 @@ describe('SearchService geo (integration, live PostGIS)', () => {
  */
 describe('SearchService.searchPolygon (integration, live PostGIS)', () => {
   const prisma = new PrismaService();
-  const service = new SearchService(prisma, new TranslationsService(prisma));
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+  );
 
   // Уникальный city_id для изоляции.
   const CITY_ID_POLY = '22222222-3333-4444-8555-777777777777';

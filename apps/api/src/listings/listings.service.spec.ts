@@ -17,6 +17,7 @@ import {
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
+import { DistrictsService } from '../geo';
 import { TranslationsService } from '../translations';
 import { ListingsService } from './listings.service';
 
@@ -67,7 +68,16 @@ describe('ListingsService', () => {
     };
     // Реальный TranslationsService (логика переводов делегирована ему, TASK-070);
     // его resolveLanguage/buildOriginalTranslationInput чисты, prisma не вызывают.
-    service = new ListingsService(prisma, new TranslationsService(prisma));
+    // DistrictsService застаблен — резолв district_name проверяется в int-spec.
+    const districts = {
+      namesByIds: jest.fn().mockResolvedValue(new Map()),
+      pickName: jest.fn().mockReturnValue(null),
+    } as unknown as DistrictsService;
+    service = new ListingsService(
+      prisma,
+      new TranslationsService(prisma),
+      districts,
+    );
   });
 
   async function expectCode(promise: Promise<unknown>, code: ApiErrorCode) {
