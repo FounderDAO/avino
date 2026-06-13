@@ -82,7 +82,8 @@
       "rateLimited": "Juda tez-tez. Qayta urinishdan oldin biroz kuting.",
       "validationError": "Telefon raqami to'g'riligini tekshiring.",
       "requestFailed": "Kod yuborib bo'lmadi. Qayta urinib ko'ring.",
-      "verifyFailed": "Kodni tasdiqlab bo'lmadi. Qayta urinib ko'ring."
+      "verifyFailed": "Kodni tasdiqlab bo'lmadi. Qayta urinib ko'ring.",
+      "networkError": "Server bilan bog'lanib bo'lmadi. Internet aloqasini tekshirib, qayta urinib ko'ring."
     }
   },
   "home": {

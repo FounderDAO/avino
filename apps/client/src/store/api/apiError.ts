@@ -51,3 +51,30 @@ export function getApiErrorCode(
 ): string | null {
   return getApiError(error)?.code ?? null;
 }
+
+/**
+ * Признак сетевого/транспортного сбоя без бизнес-кода: fetch упал
+ * (сеть/CORS/таймаут) или ответ пришёл без распознаваемого error-envelope.
+ *
+ * RTK Query помечает такие случаи нечисловым `status`
+ * (`FETCH_ERROR` / `TIMEOUT_ERROR` / `PARSING_ERROR` / `CUSTOM_ERROR`).
+ * UI использует это, чтобы показать внятный fallback вместо тишины, когда
+ * `getApiError` не смог достать стабильный `code` (TASK-213).
+ */
+export function isNetworkError(
+  error: FetchBaseQueryError | SerializedError | undefined,
+): boolean {
+  if (!error) return false;
+  // Уже распознанный бизнес-код — это не сетевой сбой.
+  if (getApiError(error)) return false;
+  if ('status' in error) {
+    return (
+      error.status === 'FETCH_ERROR' ||
+      error.status === 'TIMEOUT_ERROR' ||
+      error.status === 'PARSING_ERROR' ||
+      error.status === 'CUSTOM_ERROR'
+    );
+  }
+  // SerializedError (брошенное исключение) без HTTP-статуса — тоже транспорт.
+  return true;
+}

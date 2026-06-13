@@ -82,7 +82,8 @@
       "rateLimited": "Too many requests. Please wait a moment before retrying.",
       "validationError": "Please check the phone number.",
       "requestFailed": "Couldn't send the code. Please try again.",
-      "verifyFailed": "Couldn't verify the code. Please try again."
+      "verifyFailed": "Couldn't verify the code. Please try again.",
+      "networkError": "Couldn't reach the server. Check your connection and try again."
     }
   },
   "home": {

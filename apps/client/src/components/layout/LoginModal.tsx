@@ -16,7 +16,7 @@ import {
   useRequestOtpMutation,
   useVerifyOtpMutation,
 } from '@/store/api/authApi';
-import { getApiError, getApiErrorCode } from '@/store/api/apiError';
+import { getApiError, getApiErrorCode, isNetworkError } from '@/store/api/apiError';
 
 export interface LoginModalProps {
   open: boolean;
@@ -86,7 +86,9 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
     ? requestErrorKey
       ? t(requestErrorKey)
       : (requestError.message ?? t('errors.requestFailed'))
-    : null;
+    : isNetworkError(requestState.error)
+      ? t('errors.networkError')
+      : null;
 
   const verifyErrorCode = getApiErrorCode(verifyState.error);
   const verifyError = getApiError(verifyState.error);
@@ -95,7 +97,9 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
     ? verifyErrorKey
       ? t(verifyErrorKey)
       : (verifyError.message ?? t('errors.verifyFailed'))
-    : null;
+    : isNetworkError(verifyState.error)
+      ? t('errors.networkError')
+      : null;
 
   const handleRequest = async () => {
     const dest = toE164Uzbek(phone);
