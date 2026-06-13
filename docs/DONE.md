@@ -39,6 +39,32 @@ Related ADR:
 
 ## 2026-06-13
 
+### TASK-207 — /search: применять sort и rooms (паритет фильтров)
+
+Status: DONE
+Branch: feat/api-search-sort-rooms
+PR: https://github.com/FounderDAO/avino/pull/142 (#142)
+
+Files changed:
+- apps/api/src/search/dto/search-listings.dto.ts — `sort` стал строгим (`@IsIn` price_asc|price_desc|area_desc|date_desc), невалидное значение → 400
+- apps/api/src/search/search.service.ts — `SORTS`-конфиг вторичного ключа, обобщённый keyset-курсор `{rank,val,id}`, фильтр `rooms` (0..3 точно, 4 = 4+); гео-методы (radius/bounds/near-me) зафиксированы на `date_desc`
+- apps/api/src/search/search.service.spec.ts — обновлены unit-ожидания формы SQL/курсора
+- apps/api/src/search/search.service.int-spec.ts — +8 интеграционных кейсов (каждый sort, rooms=0/2/4, keyset-стабильность price_asc)
+- docs/API.md §9 — задокументированы параметры `sort` и `rooms`
+
+Summary:
+- `GET /api/v1/search` реально применяет сортировку и фильтр комнат (раньше параметры были no-op).
+- Promotion-тир (VIP/TOP) остаётся первичным ключом во всех режимах; `area_desc` кладёт NULL-площадь в конец через `COALESCE(area,-1)`; keyset-пагинация стабильна.
+- Изменения строго в `apps/api` + `docs/API.md`.
+
+Commit messages:
+- feat(search): honor sort and rooms filters
+
+Related ADR:
+- Нового ADR нет — расширяет ADR-0026 (public search keyset/filters) и ADR-0004 (promotion-priority sort).
+
+---
+
 ### TASK-213 — LoginModal: внятная обработка сетевых/CORS-ошибок при запросе OTP
 
 Status: DONE
