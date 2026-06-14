@@ -720,6 +720,10 @@ Errors: `409 ALREADY_FAVORITED`, `404 NOT_FOUND`.
 ### GET /api/v1/chat/threads
 Треды текущего пользователя (как `initiator` или `owner`). Auth: **Bearer**.
 Query: `cursor`, `limit`. Сортировка по `last_message_at DESC`.
+`counterparty` (профиль второго участника) и `last_message` (превью последней
+реплики) — optional non-breaking-поля (`null`, если профиль/сообщений нет): имя
+из `UserProfile` (`display_name` → «first last» → `null`), `last_message` — самая
+свежая реплика треда.
 200:
 ```json
 { "data": [ { "id": "t1", "listing_id": "l9",
@@ -727,7 +731,12 @@ Query: `cursor`, `limit`. Сортировка по `last_message_at DESC`.
     "last_message_at": "2026-06-02T07:30:00Z", "unread_count": 2,
     "listing_preview": { "title": "3-комн в центре",
       "thumbnail_url": "https://cdn.avino.uz/l9/1_thumb.webp",
-      "price": "950000000.00", "currency": "UZS", "status": "ACTIVE" } } ],
+      "price": "950000000.00", "currency": "UZS", "status": "ACTIVE" },
+    "counterparty": { "id": "u1", "name": "Тимур Сафаров",
+      "avatar_url": "https://cdn.avino.uz/u1/avatar.webp" },
+    "last_message": { "id": "msg6", "sender_id": "u1",
+      "body": "Да, конечно. Адрес отправлю здесь же.", "is_read": false,
+      "created_at": "2026-06-02T07:30:00Z" } } ],
   "meta": { "limit": 20, "total": 5 } }
 ```
 

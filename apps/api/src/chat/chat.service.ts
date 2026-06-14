@@ -32,6 +32,30 @@ export interface ThreadListingPreview {
   status: ListingStatus;
 }
 
+/**
+ * Собеседник (второй участник треда) для карточки списка диалогов. Имя берётся
+ * из `UserProfile` (`displayName` → «firstName lastName» → `null`), который 1:1
+ * к `User` и опционален — поэтому все поля nullable. Non-breaking-расширение
+ * контракта §13 (ADR-003: участники — initiator/owner, не buyer/seller).
+ */
+export interface ThreadCounterparty {
+  id: string;
+  name: string | null;
+  avatar_url: string | null;
+}
+
+/**
+ * Превью последней реплики треда для вторичной строки списка («Тимур: Да…»).
+ * `null`, если в треде ещё нет сообщений. Non-breaking-расширение §13.
+ */
+export interface ThreadLastMessage {
+  id: string;
+  sender_id: string | null;
+  body: string;
+  is_read: boolean;
+  created_at: string;
+}
+
 /** Элемент списка `GET /api/v1/chat/threads` (API.md §13). */
 export interface ThreadListItem {
   id: string;
@@ -41,6 +65,10 @@ export interface ThreadListItem {
   last_message_at: string | null;
   unread_count: number;
   listing_preview: ThreadListingPreview | null;
+  // Расширения §13 (optional-поля, non-breaking — CLAUDE.md §14): имя/аватар
+  // собеседника и текст последней реплики, чтобы список выглядел как мессенджер.
+  counterparty: ThreadCounterparty | null;
+  last_message: ThreadLastMessage | null;
 }
 
 /** Ответ `POST /api/v1/chat/threads` (API.md §13). */
@@ -222,8 +250,10 @@ export class ChatService {
   /**
    * `GET /api/v1/chat/threads` — треды текущего пользователя (как `initiator`
    * ИЛИ `owner`), keyset-пагинация по последней активности. Для каждого треда:
-   * `unread_count` (входящие непрочитанные) и `listing_preview` (карточка как в
-   * `/search`, язык по `lang`/`Accept-Language`).
+   * `unread_count` (входящие непрочитанные), `listing_preview` (карточка как в
+   * `/search`, язык по `lang`/`Accept-Language`), `counterparty` (профиль второго
+   * участника) и `last_message` (превью последней реплики). Доп-лукапы профилей и
+   * последних сообщений идут в одном `Promise.all` со страницей (≤ `limit` тредов).
    */
   async listThreads(
     user: AuthenticatedUser,
@@ -260,29 +290,43 @@ export class ChatService {
     const page = hasMore ? rows.slice(0, limit) : rows;
     const last = page[page.length - 1];
 
-    const [previews, unreadByThread] = await Promise.all([
-      this.previewsByListing(
-        page.map((row) => row.listingId),
-        langParam,
-        acceptLanguage,
-      ),
-      this.unreadCounts(
-        page.map((row) => row.id),
-        user.id,
-      ),
-    ]);
+    const [previews, unreadByThread, counterparties, lastMessages] =
+      await Promise.all([
+        this.previewsByListing(
+          page.map((row) => row.listingId),
+          langParam,
+          acceptLanguage,
+        ),
+        this.unreadCounts(
+          page.map((row) => row.id),
+          user.id,
+        ),
+        this.counterpartiesByIds(
+          page.map((row) => this.counterpartyId(row, user.id)),
+        ),
+        this.lastMessagesByThread(page.map((row) => row.id)),
+      ]);
 
-    const data: ThreadListItem[] = page.map((row) => ({
-      id: row.id,
-      listing_id: row.listingId,
-      initiator_id: row.initiatorId,
-      owner_id: row.ownerId,
-      last_message_at: row.lastMessageAt
-        ? row.lastMessageAt.toISOString()
-        : null,
-      unread_count: unreadByThread.get(row.id) ?? 0,
-      listing_preview: previews.get(row.listingId) ?? null,
-    }));
+    const data: ThreadListItem[] = page.map((row) => {
+      const counterpartyId = this.counterpartyId(row, user.id);
+      return {
+        id: row.id,
+        listing_id: row.listingId,
+        initiator_id: row.initiatorId,
+        owner_id: row.ownerId,
+        last_message_at: row.lastMessageAt
+          ? row.lastMessageAt.toISOString()
+          : null,
+        unread_count: unreadByThread.get(row.id) ?? 0,
+        listing_preview: previews.get(row.listingId) ?? null,
+        counterparty: counterparties.get(counterpartyId) ?? {
+          id: counterpartyId,
+          name: null,
+          avatar_url: null,
+        },
+        last_message: lastMessages.get(row.id) ?? null,
+      };
+    });
 
     return {
       data,
@@ -626,6 +670,107 @@ export class ChatService {
       _count: { _all: true },
     });
     return new Map(grouped.map((g) => [g.threadId, g._count._all]));
+  }
+
+  /** Id собеседника треда — второй участник (не текущий пользователь). */
+  private counterpartyId(
+    row: { initiatorId: string; ownerId: string },
+    userId: string,
+  ): string {
+    return row.initiatorId === userId ? row.ownerId : row.initiatorId;
+  }
+
+  /**
+   * Профили собеседников по их id (одним запросом). Имя: `displayName` →
+   * «firstName lastName» → `null`; аватар — `profile.avatarUrl`. Возвращает map
+   * `userId → counterparty`; отсутствующих в map вызывающий заполняет фолбэком.
+   */
+  private async counterpartiesByIds(
+    userIds: string[],
+  ): Promise<Map<string, ThreadCounterparty>> {
+    const unique = [...new Set(userIds)];
+    if (unique.length === 0) {
+      return new Map();
+    }
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: unique } },
+      select: {
+        id: true,
+        profile: {
+          select: {
+            displayName: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+    return new Map(
+      users.map((u) => [
+        u.id,
+        {
+          id: u.id,
+          name: this.profileName(u.profile),
+          avatar_url: u.profile?.avatarUrl ?? null,
+        },
+      ]),
+    );
+  }
+
+  /** Отображаемое имя из профиля: `displayName` → «first last» → `null`. */
+  private profileName(
+    profile: {
+      displayName: string | null;
+      firstName: string | null;
+      lastName: string | null;
+    } | null,
+  ): string | null {
+    if (!profile) {
+      return null;
+    }
+    const display = profile.displayName?.trim();
+    if (display) {
+      return display;
+    }
+    const full = [profile.firstName, profile.lastName]
+      .map((p) => p?.trim())
+      .filter((p): p is string => Boolean(p))
+      .join(' ');
+    return full || null;
+  }
+
+  /**
+   * Последняя реплика каждого треда страницы — одним запросом: свежайшее
+   * сообщение на тред через `distinct(['threadId'])`. Порядок
+   * `threadId ASC, createdAt DESC, id DESC` обязателен (Prisma требует, чтобы
+   * `distinct`-поля были префиксом `orderBy`) и даёт по одной — самой новой —
+   * строке на тред. Возвращает map `threadId → last_message`.
+   */
+  private async lastMessagesByThread(
+    threadIds: string[],
+  ): Promise<Map<string, ThreadLastMessage>> {
+    if (threadIds.length === 0) {
+      return new Map();
+    }
+    const rows = await this.prisma.chatMessage.findMany({
+      where: { threadId: { in: threadIds } },
+      orderBy: [{ threadId: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      distinct: ['threadId'],
+      select: this.messageSelect(),
+    });
+    return new Map(
+      rows.map((row) => [
+        row.threadId,
+        {
+          id: row.id,
+          sender_id: row.senderId,
+          body: row.body,
+          is_read: row.isRead,
+          created_at: row.createdAt.toISOString(),
+        },
+      ]),
+    );
   }
 
   /**
