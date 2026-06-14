@@ -45,10 +45,11 @@ describe('ChatService', () => {
       },
       chatMessage: {
         groupBy: jest.fn().mockResolvedValue([]),
-        findMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn(),
         updateMany: jest.fn(),
       },
+      user: { findMany: jest.fn().mockResolvedValue([]) },
       // $transaction исполняет callback с самим prisma как tx (мок).
       $transaction: jest.fn(async (cb: any) => cb(prisma)),
     };
@@ -242,6 +243,9 @@ describe('ChatService', () => {
           currency: 'UZS',
           status: ListingStatus.ACTIVE,
         },
+        // Профиль/сообщения не замоканы → фолбэк собеседника и пустая реплика.
+        counterparty: { id: OWNER_ID, name: null, avatar_url: null },
+        last_message: null,
       });
       expect(res.meta.total).toBe(5);
       expect(res.meta.limit).toBe(1);
@@ -254,6 +258,102 @@ describe('ChatService', () => {
         lastMessageAt: lma.toISOString(),
         createdAt: c1.toISOString(),
         id: 't1',
+      });
+    });
+
+    it('гидрирует собеседника (displayName) и превью последней реплики', async () => {
+      const lma = new Date('2026-06-05T10:05:00.000Z');
+      prisma.chatThread.findMany.mockResolvedValue([
+        {
+          id: 't1',
+          listingId: L1,
+          initiatorId: USER_ID,
+          ownerId: OWNER_ID,
+          lastMessageAt: lma,
+          createdAt: new Date('2026-06-04T10:00:00.000Z'),
+        },
+      ]);
+      prisma.chatThread.count.mockResolvedValue(1);
+      // Собеседник текущего USER_ID (initiator) — owner OWNER_ID.
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: OWNER_ID,
+          profile: {
+            displayName: 'Тимур Сафаров',
+            firstName: null,
+            lastName: null,
+            avatarUrl: 'https://cdn/a.webp',
+          },
+        },
+      ]);
+      prisma.chatMessage.findMany.mockResolvedValue([
+        {
+          id: 'm-last',
+          threadId: 't1',
+          senderId: OWNER_ID,
+          body: 'Да, конечно.',
+          isRead: false,
+          createdAt: lma,
+        },
+      ]);
+
+      const res = await service.listThreads(user, 20, undefined);
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: [OWNER_ID] } } }),
+      );
+      // distinct по threadId с порядком threadId,createdAt DESC,id DESC.
+      const msgCall = prisma.chatMessage.findMany.mock.calls[0][0];
+      expect(msgCall.distinct).toEqual(['threadId']);
+      expect(msgCall.orderBy).toEqual([
+        { threadId: 'asc' },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ]);
+      expect(res.data[0].counterparty).toEqual({
+        id: OWNER_ID,
+        name: 'Тимур Сафаров',
+        avatar_url: 'https://cdn/a.webp',
+      });
+      expect(res.data[0].last_message).toEqual({
+        id: 'm-last',
+        sender_id: OWNER_ID,
+        body: 'Да, конечно.',
+        is_read: false,
+        created_at: '2026-06-05T10:05:00.000Z',
+      });
+    });
+
+    it('имя собеседника из firstName/lastName, если displayName пуст', async () => {
+      prisma.chatThread.findMany.mockResolvedValue([
+        {
+          id: 't1',
+          listingId: L1,
+          initiatorId: USER_ID,
+          ownerId: OWNER_ID,
+          lastMessageAt: null,
+          createdAt: new Date('2026-06-04T10:00:00.000Z'),
+        },
+      ]);
+      prisma.chatThread.count.mockResolvedValue(1);
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: OWNER_ID,
+          profile: {
+            displayName: '  ',
+            firstName: 'Тимур',
+            lastName: 'Сафаров',
+            avatarUrl: null,
+          },
+        },
+      ]);
+
+      const res = await service.listThreads(user, 20, undefined);
+
+      expect(res.data[0].counterparty).toEqual({
+        id: OWNER_ID,
+        name: 'Тимур Сафаров',
+        avatar_url: null,
       });
     });
 

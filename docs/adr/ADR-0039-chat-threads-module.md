@@ -6,7 +6,7 @@ Accepted
 
 ## Date
 
-2026-06-05
+2026-06-05 (updated 2026-06-14 — `counterparty` / `last_message` list extension)
 
 ## Context
 
@@ -84,6 +84,17 @@ CLAUDE.md §10, DB_SCHEMA.md §10):
    остаётся видимой; `status` отражает текущее состояние). `ChatModule`
    импортирует `SearchModule` ради `cardsByIds`.
 
+   **Расширение (2026-06-14, доделка чата).** Элемент списка дополнен optional
+   non-breaking-полями (§14), чтобы список выглядел как мессенджер: `counterparty`
+   (профиль второго участника — `id`, `name` = `display_name` → «first last» →
+   `null`, `avatar_url`) и `last_message` (превью свежайшей реплики треда: `id`,
+   `sender_id`, `body`, `is_read`, `created_at`). Профили — одним `user.findMany`
+   на страницу; последние реплики — одним `chatMessage.findMany` с
+   `distinct(['threadId'])` (порядок `threadId, created_at DESC, id DESC`, индекс
+   `chat_messages_thread_id_created_at_idx`), без N+1 и без миграции. Клиент
+   (`apps/client`) толерантен к отсутствию полей (старый бэк) — фолбэк на
+   заголовок/цену объявления.
+
 6. **`body` принимается, но не персистится (граница TASK-110/111).** DTO
    `CreateThreadDto` объявляет `body?` (опционально, 1..5000), чтобы глобальный
    `ValidationPipe` (`forbidNonWhitelisted`) не возвращал `400` на
@@ -101,6 +112,9 @@ Positive:
   Query) и будущего Flutter-клиента; язык/медиа не переписаны заново.
 - `unread_count` через `groupBy` — без N+1; готов к TASK-111 без изменений.
 - Привязка `initiator_id/owner_id` нейтральна к SALE/RENT (ADR-0003).
+- `counterparty`/`last_message` (расширение 2026-06-14) дают мессенджер-вид списка
+  (имя собеседника + превью реплики) без миграции и без N+1; non-breaking (§14),
+  старые клиенты не ломаются (поля optional).
 
 Negative / trade-offs:
 
