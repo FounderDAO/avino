@@ -58,9 +58,10 @@ export function Topbar({ onBurger }: { onBurger: () => void }) {
           <IC.Bell size={19} strokeWidth={1.9} />
           <span style={{ position: 'absolute', top: 6, right: 7, width: 8, height: 8, borderRadius: '50%', background: 'var(--red)', border: '2px solid var(--surface)' }} />
         </IconButton>
-        <AdminButton variant="outline" size="sm" asChild>
+        {/* Remove this button */}
+        {/* <AdminButton variant="outline" size="sm" asChild>
           <Link href="/">← На сайт</Link>
-        </AdminButton>
+        </AdminButton> */}
         {me && (
           <div className="row gap-8" style={{ paddingLeft: 4 }}>
             <span
