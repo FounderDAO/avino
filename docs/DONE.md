@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/client-photoless-listings
-PR: pending
+PR: #166
 
 Files changed:
 - apps/client/src/lib/api/listings.ts
