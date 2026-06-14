@@ -15,17 +15,13 @@ import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Segment } from '@/components/ui/segment';
 import { SelectField } from '@/components/ui/field';
-import { PhotoImg } from '@/components/ui/photo-img';
+import Image from 'next/image';
 import { useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from '@/features/search/SearchAutocomplete';
 import { useGeoSuggest, type Suggestion } from '@/features/search/useGeoSuggest';
 import { suggestionToLocation, type LocationParams } from '@/features/search/locationParams';
 import { PROPERTY_TYPES } from '@/lib/mock/types';
 import type { District, PropertyType, TransactionType } from '@/lib/mock/types';
-
-/** Фото-фон героя (как в прототипе home.jsx · HERO_PHOTO). */
-const HERO_PHOTO =
-  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1600&q=70';
 
 /** Поисковая панель: сегмент сделки + локация + тип жилья + кнопка «Найти». */
 function SearchPanel({ districts }: { districts: District[] }) {
@@ -127,9 +123,9 @@ export function Hero({ districts = [] }: { districts?: District[] }) {
   const t = useTranslations('home');
   return (
     <section className="relative min-h-[480px] bg-[linear-gradient(135deg,var(--red)_0%,#B5232A_45%,#1A1A1A_100%)]">
-      {/* Фото-фон + затемняющий красно-тёмный оверлей */}
+      {/* Фото-фон (self-hosted, LCP) + затемняющий красно-тёмный оверлей */}
       <div className="absolute inset-0 overflow-hidden">
-        <PhotoImg src={HERO_PHOTO} alt="" className="h-full w-full" />
+        <Image src="/hero/tashkent.jpg" alt="" fill priority sizes="100vw" className="object-cover" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(26,26,26,.55),rgba(224,60,66,.28)_60%,rgba(26,26,26,.55))]" />
       </div>
 
