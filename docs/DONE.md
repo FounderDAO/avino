@@ -39,6 +39,33 @@ Related ADR:
 
 ## 2026-06-14
 
+### fix(client) — редирект на главную после выхода из аккаунта
+
+Status: DONE
+Branch: fix/client-logout-redirect-home
+PR: #159
+
+Files changed:
+- apps/client/src/components/layout/Header.tsx
+
+Summary:
+- При нажатии «Выйти» обработчик чистил локальные креды, но не уводил со
+  страницы. На приватной странице аккаунта (например `/account/profile`)
+  пользователь оставался на месте и видел пустой стейт «Войдите в аккаунт»
+  вместо перехода на главную.
+- `handleLogout` стал `async`: после `logout(...)` выполняет `router.push('/')`
+  (локале-aware `useRouter` из `@/i18n/navigation`) в блоке `finally`, поэтому
+  редирект срабатывает даже если серверный отзыв токена завершился ошибкой.
+  Работает и для десктопной кнопки, и для мобильного меню — оба используют
+  общий `handleLogout`.
+- Verified: `tsc --noEmit` clean, ESLint без замечаний.
+
+Commit messages:
+- fix(client): redirect to home after logout
+
+Related ADR:
+- — (не требуется: тривиальный UX-фикс в рамках существующих решений)
+
 ### feat(api) — превью собеседника и последней реплики в списке чат-тредов
 
 Status: DONE
