@@ -217,7 +217,9 @@
       "emptyText": "Try relaxing your filters or widening the search area — for example, search by city instead of a specific address.",
       "resetFilters": "Reset filters",
       "list": "List",
-      "map": "Map"
+      "map": "Map",
+      "showMore": "Show more",
+      "shownOfTotal": "Showing {shown} of {total}"
     },
     "map": {
       "ariaLabel": "Map of listings",

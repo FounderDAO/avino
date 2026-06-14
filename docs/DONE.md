@@ -39,6 +39,40 @@ Related ADR:
 
 ## 2026-06-15
 
+### TASK-199 — Поиск: пагинация / «Показать ещё» (next_cursor)
+
+Status: DONE
+Branch: feat/client-search-pagination
+PR: #167
+
+Files changed:
+- apps/client/src/lib/api/listings.ts (searchListingsPage + SearchListingsPage)
+- apps/client/src/store/api/searchApi.ts (lazy searchPage endpoint)
+- apps/client/src/app/[locale]/search/page.tsx (прокидывает total + initialCursor)
+- apps/client/src/features/search/SearchResults.tsx («Показать ещё» + счётчик)
+- apps/client/messages/{ru,en,uz}.json (results.showMore, results.shownOfTotal)
+- apps/client/src/lib/api/listings.test.ts (новый describe для searchListingsPage)
+- docs/adr/ADR-0075-client-ssr-search-cursor-pagination.md
+
+Summary:
+- SSR-страница /search грузила только первую страницу (limit=24) и отбрасывала
+  meta, поэтому объявления дальше 24-го были недостижимы. Добавлена keyset-
+  дозагрузка: SSR отдаёт страницу 1 + meta (total/next_cursor), клиент дотягивает
+  остальные по кнопке «Показать ещё» через RTK Query lazy-эндпоинт.
+- Счётчик заголовка теперь отражает meta.total; у кнопки — «Показано N из total».
+- Догруженные карточки появляются на карте (пины перестраиваются), активный
+  hover не сбрасывается (подсветка activeId — отдельный эффект MapView).
+- Аккумуляция в локальном состоянии SearchResults (не RTK merge), т.к. источник
+  истины первой страницы — SSR-пропсы; сброс при смене фильтров. Только apps/client.
+
+Commit messages:
+- feat(client): cursor-based search pagination
+- test(client): cover searchListingsPage keyset cursor + meta passthrough
+- docs(client): ADR-0075 SSR-first search cursor pagination + DONE prep
+
+Related ADR:
+- docs/adr/ADR-0075-client-ssr-search-cursor-pagination.md (заменяет механизм ADR-0061)
+
 ### TASK-197 — Не выводить объявления без фото в витрину + лучший фоллбэк
 
 Status: DONE

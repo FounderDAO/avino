@@ -217,7 +217,9 @@
       "emptyText": "Filtrlarni yumshatib ko'ring yoki qidiruv hududini kengaytiring — masalan, aniq manzil o'rniga shahar bo'yicha qidiring.",
       "resetFilters": "Filtrlarni tozalash",
       "list": "Ro'yxat",
-      "map": "Xarita"
+      "map": "Xarita",
+      "showMore": "Yana ko'rsatish",
+      "shownOfTotal": "{total} tadan {shown} tasi ko'rsatildi"
     },
     "map": {
       "ariaLabel": "E'lonlar xaritasi",

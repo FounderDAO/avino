@@ -15,7 +15,12 @@
  * fetch-код tree-shake'ается из клиентского бандла).
  */
 import { baseApi } from './baseApi';
-import { mapListing, toApiSort, type SearchEnvelope } from '@/lib/api/listings';
+import {
+  mapListing,
+  toApiSort,
+  type SearchEnvelope,
+  type SearchListingsPage,
+} from '@/lib/api/listings';
 import type { Listing, ListingFilter } from '@/lib/mock/types';
 import type { LatLngBounds } from '@/lib/geo';
 
@@ -32,6 +37,15 @@ export interface PolygonSearchArgs {
   /** Кольцо обводки `lat,lng;...` (см. lib/geo.serializePolygonRing). */
   points: string;
   filter?: ListingFilter;
+  limit?: number;
+}
+
+/** Аргументы дозагрузки страницы выдачи (keyset, TASK-199). */
+export interface SearchPageArgs {
+  /** Курсор следующей страницы (meta.next_cursor предыдущей). */
+  cursor: string;
+  filter?: ListingFilter;
+  /** Размер страницы — должен совпадать с SSR (24), чтобы keyset был непрерывным. */
   limit?: number;
 }
 
@@ -82,6 +96,25 @@ export const searchApi = baseApi.injectEndpoints({
       transformResponse: (env: SearchEnvelope) => env.data.map(mapListing),
       providesTags: ['Search'],
     }),
+
+    /**
+     * Дозагрузка следующей страницы выдачи /search по keyset-курсору (TASK-199).
+     * Используется как lazy-query: SSR отдаёт первую страницу + next_cursor,
+     * клиент дотягивает остальные по кнопке «Показать ещё». Сохраняет `meta`,
+     * чтобы знать следующий курсор и общий total.
+     */
+    searchPage: build.query<SearchListingsPage, SearchPageArgs>({
+      query: ({ cursor, filter = {}, limit = 24 }) => ({
+        url: '/search',
+        params: { limit, cursor, ...filterParams(filter) },
+      }),
+      transformResponse: (env: SearchEnvelope) => ({
+        listings: env.data.map(mapListing),
+        total: env.meta.total,
+        nextCursor: env.meta.next_cursor,
+      }),
+      providesTags: ['Search'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -91,4 +124,5 @@ export const {
   useLazySearchByBoundsQuery,
   useSearchByPolygonQuery,
   useLazySearchByPolygonQuery,
+  useLazySearchPageQuery,
 } = searchApi;

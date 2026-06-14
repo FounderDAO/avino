@@ -1524,59 +1524,6 @@ TASK-190
 
 ---
 
-### TASK-199 — Поиск: пагинация / «Показать ещё» (next_cursor)
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/client-search-pagination
-```
-
-Scope:
-
-```text
-Выдача рендерит только первую страницу (limit=24); API уже отдаёт meta.next_cursor,
-но фронт его не использует — объекты дальше 24-го недостижимы. Добавить дозагрузку
-по курсору («Показать ещё» или бесконечный скролл). Только apps/client.
-```
-
-Files expected:
-
-```text
-apps/client/src/lib/api/listings.ts (прокинуть next_cursor/total)
-apps/client/src/features/search/SearchResults.tsx
-apps/client/src/app/[locale]/search/page.tsx
-```
-
-Acceptance criteria:
-
-```text
-Под списком — «Показать ещё» (или авто-догрузка по IntersectionObserver), пока есть next_cursor.
-Счётчик «N из total» соответствует meta.total.
-Догруженные карточки появляются и на карте (пины), не ломая активный hover.
-Изменения только внутри apps/client.
-```
-
-Suggested commits:
-
-```text
-feat(client): cursor-based search pagination
-```
-
-Dependencies:
-
-```text
-TASK-192
-```
-
----
-
 ### TASK-200 — Поиск: активные фильтр-чипы + «сбросить всё»
 
 Status:

@@ -24,7 +24,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { serializePolygonRing, type LatLng } from '@/lib/geo';
-import { useSearchByPolygonQuery } from '@/store/api/searchApi';
+import {
+  useSearchByPolygonQuery,
+  useLazySearchPageQuery,
+} from '@/store/api/searchApi';
 import type { Listing, ListingFilter } from '@/lib/mock/types';
 
 // Карта — только на клиенте (Yandex JS API требует window). next/dynamic ssr:false.
@@ -37,7 +40,12 @@ const MapView = dynamic(
 );
 
 export interface SearchResultsProps {
+  /** Первая страница выдачи из SSR (limit=24). */
   listings: Listing[];
+  /** meta.total — общее число объявлений под фильтром (для счётчика). */
+  total: number;
+  /** meta.next_cursor первой страницы — старт keyset-дозагрузки (null = одна страница). */
+  initialCursor: string | null;
   /** Вид по умолчанию (из ?view): на десктопе всегда сплит, влияет на мобайл. */
   view: 'list' | 'map';
   /** Заголовок выдачи (например «Покупка жилья · Ташкент»). */
@@ -48,7 +56,15 @@ export interface SearchResultsProps {
   loading?: boolean;
 }
 
-export function SearchResults({ listings, view, heading, filter, loading }: SearchResultsProps) {
+export function SearchResults({
+  listings,
+  total: totalAll,
+  initialCursor,
+  view,
+  heading,
+  filter,
+  loading,
+}: SearchResultsProps) {
   const t = useTranslations('search');
   const tCommon = useTranslations('common');
   const locale = useLocale();
@@ -73,8 +89,40 @@ export function SearchResults({ listings, view, heading, filter, loading }: Sear
     points ? { points, filter, limit: 100 } : skipToken,
   );
 
-  const displayed = points ? polygonData ?? [] : listings;
-  const total = displayed.length;
+  // ── Пагинация по keyset-курсору (TASK-199) ──
+  // SSR отдаёт первую страницу (limit=24) + курсор; докуданные страницы храним
+  // отдельно и дотягиваем по кнопке «Показать ещё» через RTK Query (CLAUDE.md §4).
+  // Сбрасываем при смене фильтров: и сигнатура фильтра, и первый курсор приходят
+  // новой SSR-выдачей одновременно.
+  const filterKey = React.useMemo(() => JSON.stringify(filter), [filter]);
+  const [extra, setExtra] = React.useState<Listing[]>([]);
+  const [cursor, setCursor] = React.useState<string | null>(initialCursor);
+  React.useEffect(() => {
+    setExtra([]);
+    setCursor(initialCursor);
+  }, [filterKey, initialCursor]);
+
+  const [loadPage, { isFetching: loadingMore }] = useLazySearchPageQuery();
+  const loadMore = React.useCallback(async () => {
+    if (!cursor || loadingMore) return;
+    try {
+      const res = await loadPage({ cursor, filter, limit: 24 }).unwrap();
+      // Append: набор листингов растёт → MapView перестраивает пины, а подсветка
+      // activeId живёт отдельным эффектом, поэтому активный hover не сбрасывается.
+      setExtra((prev) => [...prev, ...res.listings]);
+      setCursor(res.nextCursor);
+    } catch {
+      // Сеть/5xx — курсор не двигаем, пользователь может повторить.
+    }
+  }, [cursor, loadingMore, loadPage, filter]);
+
+  // Выдача по фильтрам = SSR-страница + докуданные; по территории — отдельный набор.
+  const paged = React.useMemo(() => [...listings, ...extra], [listings, extra]);
+  const displayed = points ? polygonData ?? [] : paged;
+  const shownCount = displayed.length;
+  // Счётчик: под территорией — число в области, иначе meta.total (все под фильтром).
+  const totalCount = points ? shownCount : totalAll;
+  const hasMore = !points && cursor != null;
   const busy = Boolean(loading) || isFetching;
 
   const startDraw = () => {
@@ -143,7 +191,7 @@ export function SearchResults({ listings, view, heading, filter, loading }: Sear
               </button>
               {polygon && (
                 <span className="inline-flex items-center gap-1 rounded-pill bg-ink px-3.5 py-2 text-sm font-bold text-white shadow-raised">
-                  {t('map.areaCount', { count: total })}
+                  {t('map.areaCount', { count: shownCount })}
                   <button
                     type="button"
                     onClick={clearTerritory}
@@ -176,8 +224,8 @@ export function SearchResults({ listings, view, heading, filter, loading }: Sear
               {busy
                 ? tCommon('loading')
                 : polygon
-                  ? t('map.areaCount', { count: total })
-                  : t('results.count', { count: total })}
+                  ? t('map.areaCount', { count: shownCount })
+                  : t('results.count', { count: totalCount })}
             </p>
           </div>
         </div>
@@ -188,7 +236,7 @@ export function SearchResults({ listings, view, heading, filter, loading }: Sear
               <PropertyCardSkeleton key={i} />
             ))}
           </div>
-        ) : total === 0 ? (
+        ) : shownCount === 0 ? (
           polygon ? (
             <EmptyState
               title={t('map.emptyArea')}
@@ -210,7 +258,7 @@ export function SearchResults({ listings, view, heading, filter, loading }: Sear
             />
           )
         ) : (
-          <div className="grid grid-cols-1 gap-5 px-5 pb-8 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 px-5 pb-5 sm:grid-cols-2">
             {displayed.map((l) => (
               <div
                 key={l.id}
@@ -226,6 +274,23 @@ export function SearchResults({ listings, view, heading, filter, loading }: Sear
                 <PropertyCard listing={l} />
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ---- «Показать ещё» (keyset-пагинация, TASK-199) ---- */}
+        {!busy && shownCount > 0 && hasMore && (
+          <div className="flex flex-col items-center gap-2 px-5 pb-8">
+            <Button
+              variant="outline"
+              onClick={loadMore}
+              disabled={loadingMore}
+              aria-busy={loadingMore}
+            >
+              {loadingMore ? tCommon('loading') : t('results.showMore')}
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              {t('results.shownOfTotal', { shown: shownCount, total: totalCount })}
+            </p>
           </div>
         )}
       </div>
