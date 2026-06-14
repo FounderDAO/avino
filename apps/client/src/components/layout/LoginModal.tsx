@@ -1,6 +1,8 @@
 /**
  * LoginModal — OTP-вход публичного портала (TASK-150).
- * Двухшаговый flow: телефон → код. Подключён к authApi (RTK Query).
+ * Двухшаговый flow: контакт (телефон ИЛИ email) → код. Подключён к authApi
+ * (RTK Query). Канал выбирается переключателем «Телефон / Email» (PRD §auth):
+ * phone → SMS, email → EMAIL; шаг подтверждения кода общий для обоих каналов.
  */
 'use client';
 
@@ -8,6 +10,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Dialog } from 'radix-ui';
 import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Logo } from './Logo';
@@ -55,18 +58,28 @@ const REQUEST_ERROR_KEYS: Record<string, string> = {
   VALIDATION_ERROR: 'errors.validationError',
 };
 
+/** Базовая проверка email на стороне клиента (строгую делает бэкенд). */
+function isValidEmail(raw: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw.trim());
+}
+
 export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
   const t = useTranslations('auth');
   const [step, setStep] = React.useState<1 | 2>(1);
+  /** Канал входа: телефон (SMS) или email (EMAIL). */
+  const [method, setMethod] = React.useState<'phone' | 'email'>('phone');
   const [phone, setPhone] = React.useState('');
-  /** E.164 номер, на который реально отправлен код (шаг 1 → шаг 2). */
+  const [email, setEmail] = React.useState('');
+  /** Контакт (E.164 номер или email), на который реально отправлен код (шаг 1 → шаг 2). */
   const [destination, setDestination] = React.useState('');
   const [code, setCode] = React.useState('');
 
   const [requestOtp, requestState] = useRequestOtpMutation();
   const [verifyOtp, verifyState] = useVerifyOtpMutation();
 
+  const channel = method === 'phone' ? 'SMS' : 'EMAIL';
   const phoneValid = phone.replace(/\D/g, '').length >= 9;
+  const inputValid = method === 'phone' ? phoneValid : isValidEmail(email);
 
   // Сброс состояния при закрытии.
   React.useEffect(() => {
@@ -81,7 +94,11 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
   }, [open]);
 
   const requestError = getApiError(requestState.error);
-  const requestErrorKey = requestError ? REQUEST_ERROR_KEYS[requestError.code] : undefined;
+  let requestErrorKey = requestError ? REQUEST_ERROR_KEYS[requestError.code] : undefined;
+  // Сообщение о невалидном контакте зависит от выбранного канала.
+  if (requestError?.code === 'VALIDATION_ERROR' && method === 'email') {
+    requestErrorKey = 'errors.validationErrorEmail';
+  }
   const requestErrorMessage = requestError
     ? requestErrorKey
       ? t(requestErrorKey)
@@ -102,9 +119,9 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
       : null;
 
   const handleRequest = async () => {
-    const dest = toE164Uzbek(phone);
+    const dest = method === 'phone' ? toE164Uzbek(phone) : email.trim();
     try {
-      await requestOtp({ channel: 'SMS', destination: dest }).unwrap();
+      await requestOtp({ channel, destination: dest }).unwrap();
       setDestination(dest);
       setCode('');
       verifyState.reset();
@@ -116,7 +133,7 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
 
   const handleVerify = async () => {
     try {
-      await verifyOtp({ channel: 'SMS', destination, code }).unwrap();
+      await verifyOtp({ channel, destination, code }).unwrap();
       // setCredentials выставляется в onQueryStarted хука.
       onOpenChange(false);
     } catch {
@@ -154,19 +171,53 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
             <>
               <Dialog.Title className="mt-[18px] text-[26px]">{t('title')}</Dialog.Title>
               <Dialog.Description className="mt-1.5 text-[14.5px] text-muted-foreground">
-                {t('phoneDescription')}
+                {method === 'phone' ? t('phoneDescription') : t('emailDescription')}
               </Dialog.Description>
-              <label className="mt-5 block text-[13px] font-bold text-ink">
-                {t('phoneLabel')}
+
+              {/* Переключатель канала входа: телефон (SMS) ↔ email (EMAIL). */}
+              <div
+                role="tablist"
+                aria-label={t('methodLabel')}
+                className="mt-5 flex rounded-pill bg-surface-2 p-1"
+              >
+                {(['phone', 'email'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="tab"
+                    aria-selected={method === m}
+                    onClick={() => setMethod(m)}
+                    className={cn(
+                      'flex-1 rounded-pill py-2 text-[13.5px] font-bold transition-colors',
+                      method === m
+                        ? 'bg-surface text-ink shadow-card'
+                        : 'text-muted-foreground hover:text-ink',
+                    )}
+                  >
+                    {m === 'phone' ? t('methodPhone') : t('methodEmail')}
+                  </button>
+                ))}
+              </div>
+
+              <label className="mt-4 block text-[13px] font-bold text-ink">
+                {method === 'phone' ? t('phoneLabel') : t('emailLabel')}
               </label>
               <Field
                 className="mt-2"
-                placeholder={t('phonePlaceholder')}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                inputMode="tel"
+                type={method === 'email' ? 'email' : 'text'}
+                placeholder={
+                  method === 'phone' ? t('phonePlaceholder') : t('emailPlaceholder')
+                }
+                value={method === 'phone' ? phone : email}
+                onChange={(e) =>
+                  method === 'phone'
+                    ? setPhone(e.target.value)
+                    : setEmail(e.target.value)
+                }
+                inputMode={method === 'phone' ? 'tel' : 'email'}
+                autoComplete={method === 'phone' ? 'tel' : 'email'}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && phoneValid && !requestState.isLoading) {
+                  if (e.key === 'Enter' && inputValid && !requestState.isLoading) {
                     void handleRequest();
                   }
                 }}
@@ -182,7 +233,7 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
               <Button
                 size="lg"
                 className="mt-4 w-full"
-                disabled={!phoneValid || requestState.isLoading}
+                disabled={!inputValid || requestState.isLoading}
                 onClick={() => void handleRequest()}
               >
                 {requestState.isLoading ? t('sending') : t('requestCode')}
