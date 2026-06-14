@@ -177,6 +177,10 @@
     "headingRent": "Аренда жилья · {query}",
     "defaultLocation": "Ташкент",
     "filters": {
+      "resetAll": "Сбросить всё",
+      "removeFilter": "Убрать: {label}",
+      "activeFilters": "Активные фильтры",
+      "queryChip": "«{query}»",
       "searchPlaceholder": "Район, адрес…",
       "searchAria": "Поиск по району или адресу",
       "suggestGroupDistricts": "Районы",
@@ -250,6 +254,11 @@
     }
   },
   "listing": {
+    "gallery": {
+      "showAll": "Показать все фото",
+      "counter": "{current} / {total}",
+      "counterAria": "Фото {current} из {total}"
+    },
     "meta": {
       "title": "{title} — {price} | Avino",
       "notFoundTitle": "Объявление не найдено — Avino"
@@ -682,11 +691,12 @@
     "rooms": "{count} комн"
   },
   "units": {
+    "roomsLabel": "{count, plural, one {комната} few {комнаты} many {комнат} other {комнаты}}",
     "sum": "сум",
     "perMonth": "/мес",
     "area": "{value} м²",
-    "rooms": "{count}-комн.",
-    "roomsShort": "{count} комн",
+    "rooms": "{count, plural, one {# комната} few {# комнаты} many {# комнат} other {# комнаты}}",
+    "roomsShort": "{count, plural, one {# комн} few {# комн} many {# комн} other {# комн}}",
     "floorOf": "{floor}/{total} эт",
     "floor": "{floor} эт",
     "landArea": "{value} м² участок",
