@@ -1,6 +1,7 @@
 /**
  * Lightbox — полноэкранный просмотр фото с навигацией.
  * Управляется индексом; стрелки/клавиатура листают, клик по фону закрывает.
+ * TASK-198: добавлен touch-свайп (touchstart/touchend, порог 40px → prev/next).
  */
 'use client';
 
@@ -19,6 +20,9 @@ export interface LightboxProps {
   alt?: string;
 }
 
+/** Минимальный горизонтальный сдвиг (px) для регистрации свайпа. */
+const SWIPE_THRESHOLD = 40;
+
 export function Lightbox({ photos, index, onIndexChange, onClose, alt }: LightboxProps) {
   const t = useTranslations('common');
   const total = photos.length;
@@ -31,6 +35,7 @@ export function Lightbox({ photos, index, onIndexChange, onClose, alt }: Lightbo
     [index, total, onIndexChange],
   );
 
+  // ── Клавиатурная навигация ────────────────────────────────────────────────
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -41,11 +46,33 @@ export function Lightbox({ photos, index, onIndexChange, onClose, alt }: Lightbo
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, prev, next]);
 
+  // ── Touch-свайп ───────────────────────────────────────────────────────────
+  const touchStartX = React.useRef<number | null>(null);
+
+  const handleTouchStart = React.useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = React.useCallback(
+    (e: React.TouchEvent) => {
+      if (touchStartX.current === null) return;
+      const delta = e.changedTouches[0].clientX - touchStartX.current;
+      touchStartX.current = null;
+      if (Math.abs(delta) < SWIPE_THRESHOLD) return;
+      // Свайп влево → следующее фото; вправо → предыдущее.
+      if (delta < 0) next();
+      else prev();
+    },
+    [prev, next],
+  );
+
   if (!photos[index]) return null;
 
   return (
     <div
       onClick={onClose}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 p-4"
       role="dialog"
       aria-modal="true"
