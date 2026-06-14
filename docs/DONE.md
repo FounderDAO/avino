@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/client-search-pagination
-PR: pending
+PR: #167
 
 Files changed:
 - apps/client/src/lib/api/listings.ts (searchListingsPage + SearchListingsPage)
