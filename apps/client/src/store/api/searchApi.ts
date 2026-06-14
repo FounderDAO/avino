@@ -15,7 +15,7 @@
  * fetch-код tree-shake'ается из клиентского бандла).
  */
 import { baseApi } from './baseApi';
-import { mapListing, type SearchEnvelope } from '@/lib/api/listings';
+import { mapListing, toApiSort, type SearchEnvelope } from '@/lib/api/listings';
 import type { Listing, ListingFilter } from '@/lib/mock/types';
 import type { LatLngBounds } from '@/lib/geo';
 
@@ -33,13 +33,6 @@ export interface PolygonSearchArgs {
   points: string;
   filter?: ListingFilter;
   limit?: number;
-}
-
-/** UI-сортировка → значение API (как в lib/api/listings.toApiSort). */
-function toApiSort(sort: ListingFilter['sort']): string | undefined {
-  if (!sort) return undefined;
-  if (sort === 'promotion') return 'promotion_priority_desc';
-  return sort;
 }
 
 /** Общие фильтры §9 (tx/тип/цена/комнаты/q/sort/район) → query-параметры. */

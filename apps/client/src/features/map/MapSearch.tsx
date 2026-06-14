@@ -138,53 +138,11 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
 
   return (
     <div className="relative flex h-[calc(100dvh-var(--header-h)-1px)] min-h-[480px]">
-      {/* ---- Список (свой скролл) ---- */}
-      <div
-        className={cn(
-          'min-w-0 overflow-y-auto',
-          'w-full lg:w-[42%] lg:max-w-[42%]',
-          mobView === 'map' && 'hidden lg:block',
-        )}
-      >
-        <div className="px-5 pb-3 pt-[18px]">
-          <h1 className="text-2xl">{t('map.heading')}</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {isFetching
-              ? t('map.loading')
-              : polygon
-                ? t('map.areaCount', { count: total })
-                : t('results.count', { count: total })}
-          </p>
-        </div>
-
-        {total === 0 ? (
-          <p className="px-5 py-8 text-sm text-muted-foreground">{t('map.emptyArea')}</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-5 px-5 pb-8 sm:grid-cols-2">
-            {displayed.map((l) => (
-              <div
-                key={l.id}
-                onMouseEnter={() => setActiveId(l.id)}
-                onMouseLeave={() => setActiveId(null)}
-                className={cn(
-                  'rounded-card transition-[outline] duration-150',
-                  activeId === l.id
-                    ? 'outline outline-2 outline-red'
-                    : 'outline outline-2 outline-transparent',
-                )}
-              >
-                <PropertyCard listing={l} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ---- Карта ---- */}
+      {/* ---- Карта (слева) ---- */}
       <div
         className={cn(
           'relative h-full',
-          'lg:w-[58%] lg:flex-1',
+          'lg:w-1/2',
           mobView === 'list' ? 'hidden lg:block' : 'absolute inset-0 z-[1] lg:static',
         )}
       >
@@ -258,6 +216,48 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
               </button>
               <PropertyCard listing={preview} className="bg-surface shadow-raised" />
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ---- Список (справа, свой скролл) ---- */}
+      <div
+        className={cn(
+          'min-w-0 overflow-y-auto',
+          'w-full lg:w-1/2 lg:max-w-[50%]',
+          mobView === 'map' && 'hidden lg:block',
+        )}
+      >
+        <div className="px-5 pb-3 pt-[18px]">
+          <h1 className="text-2xl">{t('map.heading')}</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {isFetching
+              ? t('map.loading')
+              : polygon
+                ? t('map.areaCount', { count: total })
+                : t('results.count', { count: total })}
+          </p>
+        </div>
+
+        {total === 0 ? (
+          <p className="px-5 py-8 text-sm text-muted-foreground">{t('map.emptyArea')}</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-5 px-5 pb-8 sm:grid-cols-2">
+            {displayed.map((l) => (
+              <div
+                key={l.id}
+                onMouseEnter={() => setActiveId(l.id)}
+                onMouseLeave={() => setActiveId(null)}
+                className={cn(
+                  'rounded-card transition-[outline] duration-150',
+                  activeId === l.id
+                    ? 'outline outline-2 outline-red'
+                    : 'outline outline-2 outline-transparent',
+                )}
+              >
+                <PropertyCard listing={l} />
+              </div>
+            ))}
           </div>
         )}
       </div>
