@@ -1472,61 +1472,6 @@ TASK-052
 ОДНОЙ app-папке (CLAUDE.md §0). Приоритеты: P0 = ломает доверие/функцию, P1 = заметная
 UX-боль, P2 = полировка/a11y. Часть P0 на стороне `apps/api` (контролы-обманки).
 
-### TASK-196 — Detail: настоящая карта Яндекса вместо фейк-сетки
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/client-detail-real-map
-```
-
-Scope:
-
-```text
-На карточке объекта блок «На карте» — декоративная CSS-сетка с пином по центру
-(Detail.tsx), хотя на /search уже работает настоящая карта Яндекса. Заменить
-заглушку на реальный MapView с одним пином по координатам объекта. Работаем
-ТОЛЬКО в apps/client.
-```
-
-Files expected:
-
-```text
-apps/client/src/features/detail/Detail.tsx
-apps/client/src/features/map/MapView.tsx (переиспользовать; при необходимости single-pin режим)
-apps/client/src/features/detail/DetailMap.tsx (новый client-обёртка, dynamic ssr:false)
-```
-
-Acceptance criteria:
-
-```text
-Блок «На карте» рендерит реальную карту Яндекса с одним пином по lat/lng объекта.
-Нет lat/lng → аккуратный fallback (текст «точное местоположение по запросу»), без клетчатой заглушки.
-Карта подгружается dynamic ssr:false (как в SearchResults), без CSR-bailout детальной.
-Приватность: пин по приблизительной точке/радиусу (не точный адрес) до контакта.
-Изменения только внутри apps/client.
-```
-
-Suggested commits:
-
-```text
-feat(client): real Yandex map on listing detail
-```
-
-Dependencies:
-
-```text
-TASK-152
-```
-
----
-
 ### TASK-197 — Не выводить объявления без фото в витрину + лучший фоллбэк
 
 Status:

@@ -19,6 +19,7 @@ import type { Listing } from '@/lib/mock/types';
 import { PropertyCard } from '@/features/search/PropertyCard';
 import { Facts } from './Facts';
 import { ContactCard } from './ContactCard';
+import { DetailMap } from './DetailMap';
 
 export interface DetailProps {
   listing: Listing;
@@ -115,32 +116,23 @@ export async function Detail({ listing }: DetailProps) {
             </div>
           )}
 
-          {/* Локация — стилизованная заглушка карты (без Leaflet) */}
+          {/* Локация — настоящая карта Яндекса с одним пином (TASK-196) */}
           <div className="mt-8">
             <h2 className="text-[22px]">{t('sections.map')}</h2>
-            <div className="relative mt-3 h-[280px] overflow-hidden rounded-feature border border-border bg-mint">
-              {/* Декоративная сетка-«карта» */}
-              <div
-                className="absolute inset-0 opacity-60"
-                style={{
-                  backgroundImage:
-                    'linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)',
-                  backgroundSize: '40px 40px',
-                }}
-              />
-              {/* Пин по центру */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red text-white shadow-card">
-                  <MapPin size={24} />
+            {listing.lat != null && listing.lng != null ? (
+              <>
+                <div className="mt-3 h-[280px] overflow-hidden rounded-feature border border-border">
+                  <DetailMap listing={listing} />
                 </div>
-                <div className="mt-3 rounded-card bg-surface/90 px-4 py-2 text-sm font-semibold text-ink shadow-card backdrop-blur">
-                  {t('map.pin', { district: listing.district, address: listing.address })}
-                </div>
+                <p className="mt-2 text-[13.5px] text-muted-foreground">{t('map.note')}</p>
+              </>
+            ) : (
+              /* Нет координат → аккуратный fallback, без клетчатой заглушки. */
+              <div className="mt-3 flex h-[160px] flex-col items-center justify-center gap-2.5 rounded-feature border border-border bg-surface-2 px-6 text-center text-muted-foreground">
+                <MapPin size={26} strokeWidth={1.8} className="shrink-0" />
+                <span className="text-sm font-medium">{t('map.note')}</span>
               </div>
-            </div>
-            <p className="mt-2 text-[13.5px] text-muted-foreground">
-              {t('map.note')}
-            </p>
+            )}
           </div>
         </div>
 

@@ -37,6 +37,42 @@ Related ADR:
 
 ---
 
+## 2026-06-15
+
+### TASK-196 — Detail: настоящая карта Яндекса вместо фейк-сетки
+
+Status: DONE
+Branch: feat/client-detail-real-map
+PR: pending
+
+Files changed:
+- apps/client/src/features/detail/DetailMap.tsx (новый)
+- apps/client/src/features/detail/Detail.tsx
+- docs/adr/ADR-0073-client-detail-real-map.md
+
+Summary:
+- Блок «На карте» на карточке объекта переведён с декоративной CSS-сетки на
+  настоящую карту Yandex: новая клиентская обёртка `DetailMap` (`next/dynamic`
+  `ssr:false`) переиспользует общий `MapView` (тот же, что на /search и /map),
+  подавая ровно один листинг → один пин по координатам объекта.
+- Приватность: вокруг точки рисуется радиус-круг (500 м), вид кадрируется по
+  кругу — показывается приблизительная зона, а не точный адрес/здание (до
+  контакта с автором), согласуется с ADR-0069.
+- Нет `lat/lng` → аккуратный fallback (иконка + текст `listing.map.note`), без
+  клетчатой заглушки. Без ключа Yandex карта деградирует до подсказки (наследие
+  `MapView`).
+- `MapView` не тронут → нулевой риск регрессий на /search и /map. Работа только
+  в `apps/client`.
+- Verified: tsc clean, ESLint clean, 63 теста зелёные, `next build` собирает
+  `/[locale]/listing/[id]`. Live Yandex smoke (реальные тайлы + пин) — в Docker
+  с реальным ключом, как в прошлых map-PR.
+
+Commit messages:
+- feat(client): real Yandex map on listing detail
+
+Related ADR:
+- docs/adr/ADR-0073-client-detail-real-map.md
+
 ## 2026-06-14
 
 ### feat(client) — карта слева/карточки справа + «Нарисовать территорию» на /search и /map
