@@ -39,7 +39,12 @@ describe('useGeoSuggest', () => {
     );
     await vi.advanceTimersByTimeAsync(400);
     await waitFor(() => expect(result.current.items.length).toBe(2));
-    expect(result.current.items[0]).toMatchObject({ kind: 'district', title: 'Юнусабадский' });
+    // Район несёт districtId (UUID) — для перехода на рабочий фильтр ?district_id=.
+    expect(result.current.items[0]).toMatchObject({
+      kind: 'district',
+      title: 'Юнусабадский',
+      districtId: 'yunusabad',
+    });
     expect(result.current.items[1]).toMatchObject({ kind: 'geo' });
   });
 

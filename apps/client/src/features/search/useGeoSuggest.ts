@@ -11,7 +11,9 @@ import { loadYmaps, type Ymaps } from '@/features/map/useYmaps';
 import type { District } from '@/lib/mock/types';
 
 export type Suggestion =
-  | { kind: 'district'; title: string; value: string }
+  // Район несёт districtId (UUID GET /geo/districts) — выбор ведёт на рабочий
+  // фильтр ?district_id= (см. locationParams.suggestionToLocation).
+  | { kind: 'district'; title: string; value: string; districtId: string }
   | { kind: 'geo'; title: string; value: string };
 
 const DEBOUNCE_MS = 300;
@@ -30,7 +32,12 @@ function matchDistricts(query: string, districts: District[]): Suggestion[] {
         norm(d.name).includes(q) ||
         (d.aliases ?? []).some((a) => norm(a).includes(q)),
     )
-    .map((d) => ({ kind: 'district' as const, title: d.name, value: `Ташкент, ${d.name}` }));
+    .map((d) => ({
+      kind: 'district' as const,
+      title: d.name,
+      value: `Ташкент, ${d.name}`,
+      districtId: d.id,
+    }));
 }
 
 /** Дедуп по title (район мог прийти и из Yandex). */

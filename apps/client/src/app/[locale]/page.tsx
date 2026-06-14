@@ -5,6 +5,7 @@
  */
 import { getTranslations } from 'next-intl/server';
 import { getFeaturedListings, searchListings } from '@/lib/api/listings';
+import { getDistricts } from '@/lib/api/geo';
 import { Hero } from '@/features/home/Hero';
 import { Categories } from '@/features/home/Categories';
 import { FeaturedCarousel } from '@/features/home/FeaturedCarousel';
@@ -20,15 +21,17 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   const t = await getTranslations('home');
-  // Рекомендованные (VIP/TOP в приоритете) и свежее в аренде.
-  const [featured, rent] = await Promise.all([
+  // Рекомендованные (VIP/TOP в приоритете), свежее в аренде и районы для
+  // автокомплита локации в Hero (выбор района → /search?district_id=).
+  const [featured, rent, districts] = await Promise.all([
     getFeaturedListings(8, locale),
     searchListings({ tx: 'RENT' }, locale),
+    getDistricts(locale),
   ]);
 
   return (
     <div className="fade-up pb-12">
-      <Hero />
+      <Hero districts={districts} />
       <Categories />
       <FeaturedCarousel
         title={t('featured.recommended.title')}

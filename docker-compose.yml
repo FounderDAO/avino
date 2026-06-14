@@ -111,6 +111,9 @@ services:
       args:
         # Инлайнится в бандл и используется БРАУЗЕРОМ → host-порт api, не сервис-имя.
         NEXT_PUBLIC_API_BASE_URL: http://localhost:${API_PORT:-4000}
+        # Ключ Yandex JS API (карта + гео-подсказки). Значение — из корневого
+        # .env (compose-подстановка); пусто → деградация без падения.
+        NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${NEXT_PUBLIC_YANDEX_MAPS_API_KEY:-}
     image: avino-client
     container_name: avino-client
     profiles: ["app"]

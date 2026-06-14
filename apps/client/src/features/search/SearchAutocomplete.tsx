@@ -28,6 +28,10 @@ export interface SearchAutocompleteProps {
   placeholder: string;
   ariaLabel: string;
   labels: { districts: string; addresses: string; empty: string };
+  /** Класс обёртки (по умолчанию — компактный pill строки фильтров /search). */
+  className?: string;
+  /** Класс инпута (по умолчанию — компактный pill; Hero передаёт крупный размер). */
+  inputClassName?: string;
 }
 
 export function SearchAutocomplete({
@@ -41,6 +45,8 @@ export function SearchAutocomplete({
   placeholder,
   ariaLabel,
   labels,
+  className = 'min-w-[230px] flex-shrink-0',
+  inputClassName = 'rounded-pill py-[9px] pl-[38px] pr-4',
 }: SearchAutocompleteProps) {
   const [focused, setFocused] = React.useState(false);
   const [active, setActive] = React.useState(-1);
@@ -110,7 +116,7 @@ export function SearchAutocomplete({
   };
 
   return (
-    <div ref={anchorRef} className="relative min-w-[230px] flex-shrink-0">
+    <div ref={anchorRef} className={cn('relative', className)}>
       <Search
         size={17}
         strokeWidth={1.9}
@@ -134,7 +140,7 @@ export function SearchAutocomplete({
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="rounded-pill py-[9px] pl-[38px] pr-4"
+        className={inputClassName}
         aria-label={ariaLabel}
       />
 
