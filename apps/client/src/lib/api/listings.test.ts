@@ -4,6 +4,7 @@ import {
   mapListing,
   prioritizePhotos,
   searchListings,
+  searchListingsPage,
   type ApiSearchItem,
 } from './listings';
 import type { Listing } from '@/lib/mock/types';
@@ -241,5 +242,59 @@ describe('searchListings / getFeaturedListings — sort соответствуе
   it('area_asc не поддержан API §9 → sort опускается (без 400)', async () => {
     await searchListings({ sort: 'area_asc' }, 'ru');
     expect(calledUrl()).not.toContain('sort=');
+  });
+});
+
+/**
+ * searchListingsPage (TASK-199): первая страница SSR /search вместе с `meta`
+ * (total/next_cursor), плюс keyset-дозагрузка по `cursor`.
+ */
+describe('searchListingsPage — keyset-пагинация (TASK-199)', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  const mockEnvelope = (env: unknown) => {
+    fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => env }));
+    vi.stubGlobal('fetch', fetchMock);
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const calledUrl = () => String(fetchMock.mock.calls[0]?.[0] ?? '');
+
+  it('возвращает listings + total + nextCursor из meta', async () => {
+    mockEnvelope({
+      data: [searchItem],
+      meta: { limit: 24, total: 134, next_cursor: 'CURSOR_2' },
+    });
+    const page = await searchListingsPage({ tx: 'SALE' }, 'ru');
+    expect(page.total).toBe(134);
+    expect(page.nextCursor).toBe('CURSOR_2');
+    expect(page.listings).toHaveLength(1);
+    expect(page.listings[0].id).toBe('s1');
+  });
+
+  it('первая страница не шлёт cursor; limit по умолчанию 24', async () => {
+    mockEnvelope({ data: [], meta: { limit: 24, total: 0, next_cursor: null } });
+    await searchListingsPage({ tx: 'SALE' }, 'ru');
+    const url = calledUrl();
+    expect(url).not.toContain('cursor=');
+    expect(url).toContain('limit=24');
+  });
+
+  it('следующая страница шлёт cursor=<token>', async () => {
+    mockEnvelope({ data: [], meta: { limit: 24, total: 134, next_cursor: null } });
+    await searchListingsPage({ tx: 'SALE' }, 'ru', 24, 'CURSOR_2');
+    expect(calledUrl()).toContain('cursor=CURSOR_2');
+  });
+
+  it('ошибка API → пустая страница без курсора (деградация, без краха SSR)', async () => {
+    fetchMock = vi.fn(async () => ({ ok: false, status: 500, statusText: 'ERR' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const page = await searchListingsPage({ tx: 'SALE' }, 'ru');
+    expect(page).toEqual({ listings: [], total: 0, nextCursor: null });
+    errSpy.mockRestore();
   });
 });
