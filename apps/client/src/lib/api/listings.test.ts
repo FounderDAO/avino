@@ -1,5 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { mapListing, type ApiSearchItem } from './listings';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import {
+  getFeaturedListings,
+  mapListing,
+  searchListings,
+  type ApiSearchItem,
+} from './listings';
 
 /** ApiListingDetail не экспортируется — приводим фикстуру к входу mapListing. */
 type AnyApiListing = Parameters<typeof mapListing>[0];
@@ -100,5 +105,54 @@ describe('mapListing — contact', () => {
     expect(agent.name).toBe('');
     expect(agent.pro).toBe(false);
     expect(agent.phone).toBeUndefined();
+  });
+});
+
+/**
+ * Контракт sort (API.md §9 / search-listings.dto.ts SORT_MODES):
+ * бэк принимает только date_desc|price_asc|price_desc|area_desc, промо-тир всегда
+ * первичен. Невалидное значение → 400 → safeSearch деградирует в пустую выдачу
+ * (пустые карусели/«Ничего не найдено»). Поэтому клиент НЕ должен слать
+ * `promotion_priority_desc` (= серверный дефолт) и неподдержанный `area_asc`.
+ */
+describe('searchListings / getFeaturedListings — sort соответствует API §9', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [], meta: { limit: 24, total: 0, next_cursor: null } }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const calledUrl = () => String(fetchMock.mock.calls[0]?.[0] ?? '');
+
+  it('getFeaturedListings НЕ шлёт невалидный sort=promotion_priority_desc', async () => {
+    await getFeaturedListings(8, 'ru');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(calledUrl()).not.toContain('promotion_priority_desc');
+  });
+
+  it('sort=promotion из UI → серверный дефолт (sort не отправляется)', async () => {
+    await searchListings({ tx: 'SALE', sort: 'promotion' }, 'ru');
+    const url = calledUrl();
+    expect(url).not.toContain('promotion_priority_desc');
+    expect(url).not.toContain('sort=');
+  });
+
+  it('валидный sort (price_asc) проходит как есть', async () => {
+    await searchListings({ sort: 'price_asc' }, 'ru');
+    expect(calledUrl()).toContain('sort=price_asc');
+  });
+
+  it('area_asc не поддержан API §9 → sort опускается (без 400)', async () => {
+    await searchListings({ sort: 'area_asc' }, 'ru');
+    expect(calledUrl()).not.toContain('sort=');
   });
 });

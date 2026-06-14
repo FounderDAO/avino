@@ -117,6 +117,11 @@ services:
     depends_on:
       api:
         condition: service_started
+    environment:
+      # SSR (server components) ходит в api по имени сервиса Docker-сети, а не на
+      # host-localhost из NEXT_PUBLIC_API_BASE_URL — иначе ECONNREFUSED и пустые
+      # карусели/«Ничего не найдено». Рантайм-переменная, читается `next start`.
+      API_INTERNAL_URL: http://api:4000
     ports:
       - "3001:3001"
     restart: unless-stopped

@@ -32,7 +32,7 @@ import type {
   TransactionType,
 } from '@/lib/mock/types';
 
-const API_BASE = `${process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000'}/api/v1`;
+import { resolveApiBase } from './base';
 
 /** Список — допустимые промо-тиры выдачи (для безопасного сужения строк API). */
 const PROMO_VALUES: PromotionType[] = ['NORMAL', 'TOP', 'VIP'];
@@ -153,7 +153,7 @@ function apiHeaders(lang: string): Record<string, string> {
  * Бросает при не-2xx (кроме 404 — вызывающий решает сам через {@link fetchOrNull}).
  */
 async function apiFetch<T>(path: string, lang: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${resolveApiBase()}${path}`, {
     cache: 'no-store',
     headers: apiHeaders(lang),
   });
@@ -165,7 +165,7 @@ async function apiFetch<T>(path: string, lang: string): Promise<T> {
 
 /** Как {@link apiFetch}, но 404 → null (для detail). */
 async function fetchOrNull<T>(path: string, lang: string): Promise<T | null> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${resolveApiBase()}${path}`, {
     cache: 'no-store',
     headers: apiHeaders(lang),
   });
@@ -269,13 +269,25 @@ export function mapListing(api: AnyApiListing): Listing {
   };
 }
 
-// ─── Маппинг сортировки UI → API (значения API.md §4/§9) ───
+// ─── Маппинг сортировки UI → API (значения API.md §9) ───
 
+/**
+ * Значения `sort`, которые принимает бэк (API.md §9 / SORT_MODES в
+ * search-listings.dto.ts). Строгая валидация: любое иное → 400.
+ */
+const API_SORT_MODES = ['date_desc', 'price_asc', 'price_desc', 'area_desc'] as const;
+
+/**
+ * UI-сортировка → query `sort` для API §9.
+ *
+ * Промо-тир на бэке ВСЕГДА первичный ключ ORDER BY, поэтому UI-режим `promotion`
+ * = серверный дефолт → `sort` не отправляем. `area_asc` бэком не поддержан, как и
+ * любое значение вне {@link API_SORT_MODES} → опускаем, иначе строгая валидация
+ * вернёт 400 и выдача деградирует в пустую (пустые карусели/«Ничего не найдено»).
+ */
 function toApiSort(sort: SortOption | undefined): string | undefined {
-  if (!sort) return undefined;
-  if (sort === 'promotion') return 'promotion_priority_desc';
-  // Остальные значения совпадают по имени (forward-compatible на бэке).
-  return sort;
+  if (!sort || sort === 'promotion') return undefined;
+  return (API_SORT_MODES as readonly string[]).includes(sort) ? sort : undefined;
 }
 
 /**
@@ -343,12 +355,13 @@ export async function searchRadiusListings(
   return safeSearch(`/search/radius?${params.toString()}`, lang);
 }
 
-/** Рекомендованные (промо-приоритет) для главной. GET /search. */
+/**
+ * Рекомендованные (промо-приоритет) для главной. GET /search.
+ * Промо-тир — серверный дефолт ORDER BY, поэтому отдельный `sort` не нужен
+ * (и недопустим: API §9 не знает `promotion_priority_desc` → 400).
+ */
 export async function getFeaturedListings(limit = 6, lang = 'ru'): Promise<Listing[]> {
-  const params = new URLSearchParams({
-    sort: 'promotion_priority_desc',
-    limit: String(limit),
-  });
+  const params = new URLSearchParams({ limit: String(limit) });
   return safeSearch(`/search?${params.toString()}`, lang);
 }
 
