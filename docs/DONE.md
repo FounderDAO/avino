@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/client-detail-real-map
-PR: pending
+PR: #165
 
 Files changed:
 - apps/client/src/features/detail/DetailMap.tsx (новый)
