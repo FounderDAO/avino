@@ -37,12 +37,6 @@ import { resolveApiBase } from './base';
 /** Список — допустимые промо-тиры выдачи (для безопасного сужения строк API). */
 const PROMO_VALUES: PromotionType[] = ['NORMAL', 'TOP', 'VIP'];
 
-/** Плейсхолдер фото, если у листинга нет медиа. */
-const FALLBACK_PHOTO: ListingPhoto = {
-  url: 'https://placehold.co/800x600?text=Avino',
-  thumb: 'https://placehold.co/400x300?text=Avino',
-};
-
 // ─── Формы ответов API (snake_case, см. listings.service.ts / search.service.ts) ───
 
 interface ApiMedia {
@@ -212,7 +206,24 @@ function toPhotos(l: AnyApiListing): ListingPhoto[] {
   // Карточка поиска: только обложка-thumbnail.
   const thumb = (l as ApiSearchItem).thumbnail_url;
   if (thumb) return [{ url: thumb, thumb }];
-  return [FALLBACK_PHOTO];
+  // Нет фото → пустой список (TASK-197). Брендовый плейсхолдер рисует PhotoImg/
+  // Gallery, без внешнего хотлинка placehold.co.
+  return [];
+}
+
+/** Есть ли у листинга хотя бы одно реальное фото (TASK-197). */
+export function hasPhoto(listing: Listing): boolean {
+  return listing.photos.length > 0;
+}
+
+/**
+ * Витринная сортировка (TASK-197): листинги с фото — первыми, без фото — в конце.
+ * Стабильна (сохраняет относительный промо-порядок внутри каждой группы) и не
+ * мутирует вход. Объявления без фото не исключаем полностью, чтобы витрина не
+ * опустела на сиде, где у большинства листингов фото пока нет.
+ */
+export function prioritizePhotos(listings: Listing[]): Listing[] {
+  return [...listings.filter(hasPhoto), ...listings.filter((l) => !hasPhoto(l))];
 }
 
 /**
@@ -361,8 +372,12 @@ export async function searchRadiusListings(
  * (и недопустим: API §9 не знает `promotion_priority_desc` → 400).
  */
 export async function getFeaturedListings(limit = 6, lang = 'ru'): Promise<Listing[]> {
-  const params = new URLSearchParams({ limit: String(limit) });
-  return safeSearch(`/search?${params.toString()}`, lang);
+  // Над-выборка, чтобы фото-приоритет (TASK-197) мог поднять листинги с фото из
+  // «хвоста» промо-выдачи в видимый срез. Лимит API §9 — не более 100.
+  const fetchLimit = Math.min(Math.max(limit * 4, limit), 100);
+  const params = new URLSearchParams({ limit: String(fetchLimit) });
+  const listings = await safeSearch(`/search?${params.toString()}`, lang);
+  return prioritizePhotos(listings).slice(0, limit);
 }
 
 /** Один листинг по id. GET /listings/:id (404 → null). */
@@ -389,9 +404,11 @@ export async function getSimilarListings(
   const params = new URLSearchParams({
     transaction_type: listing.tx,
     property_type: listing.type,
-    // +1, чтобы после фильтрации текущего id осталось достаточно.
-    limit: String(limit + 1),
+    // Над-выборка: запас под исключение текущего id и фото-приоритет (TASK-197).
+    limit: String(Math.min(limit * 4 + 1, 100)),
   });
   const similar = await safeSearch(`/search?${params.toString()}`, lang);
-  return similar.filter((item) => item.id !== listing.id).slice(0, limit);
+  return prioritizePhotos(
+    similar.filter((item) => item.id !== listing.id),
+  ).slice(0, limit);
 }

@@ -4,7 +4,11 @@
  * Интерактив (поиск, карусель, FAQ) вынесен в дочерние 'use client' компоненты.
  */
 import { getTranslations } from 'next-intl/server';
-import { getFeaturedListings, searchListings } from '@/lib/api/listings';
+import {
+  getFeaturedListings,
+  prioritizePhotos,
+  searchListings,
+} from '@/lib/api/listings';
 import { getDistricts } from '@/lib/api/geo';
 import { Hero } from '@/features/home/Hero';
 import { Categories } from '@/features/home/Categories';
@@ -41,7 +45,7 @@ export default async function HomePage({
       <FeaturedCarousel
         title={t('featured.rent.title')}
         subtitle={t('featured.rent.subtitle')}
-        listings={rent}
+        listings={prioritizePhotos(rent)}
       />
       <Districts />
       <Agents />

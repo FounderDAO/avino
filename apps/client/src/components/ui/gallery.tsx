@@ -19,7 +19,18 @@ export interface GalleryProps {
 export function Gallery({ photos, alt, className }: GalleryProps) {
   const [lightbox, setLightbox] = React.useState<number | null>(null);
 
-  if (photos.length === 0) return null;
+  // Нет фото → брендовый плейсхолдер вместо пустоты (TASK-197).
+  if (photos.length === 0) {
+    return (
+      <div className={className}>
+        <PhotoImg
+          src=""
+          alt={alt}
+          className="aspect-[4/3] w-full overflow-hidden rounded-card sm:aspect-[16/9]"
+        />
+      </div>
+    );
+  }
 
   const main = photos[0];
   const rest = photos.slice(1, 5);
