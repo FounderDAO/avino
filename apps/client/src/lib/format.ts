@@ -56,10 +56,24 @@ function trim(v: number): string {
   return (Math.round(v * 10) / 10).toString().replace('.', ',');
 }
 
-/** Площадь: «78 м²». */
-export function formatArea(area: string | number | undefined, t: T): string {
+/**
+ * Нормализует площадь: убирает хвостовые нули («60.00» → «60», «60.50» → «60.5»).
+ * Возвращает '' для пустых/undefined значений.
+ */
+function normalizeArea(area: string | number | undefined): string {
   if (area == null || area === '') return '';
-  return t('area', { value: area });
+  const n = Number(area);
+  if (Number.isNaN(n)) return String(area);
+  // toFixed(2) покрывает типичные случаи (API возвращает строки «60.00»),
+  // parseFloat убирает хвостовые нули.
+  return String(parseFloat(n.toFixed(2)));
+}
+
+/** Площадь: «78 м²» (без хвостовых нулей). */
+export function formatArea(area: string | number | undefined, t: T): string {
+  const norm = normalizeArea(area);
+  if (!norm) return '';
+  return t('area', { value: norm });
 }
 
 /** Комнаты: «3-комн.» (LAND/COMMERCIAL — пусто). */
@@ -89,9 +103,10 @@ export function specs(
 ): string[] {
   const parts: string[] = [];
   if (l.rooms) parts.push(t('roomsShort', { count: l.rooms }));
-  if (l.area) parts.push(t('area', { value: l.area }));
+  const areaNorm = normalizeArea(l.area);
+  if (areaNorm) parts.push(t('area', { value: areaNorm }));
   if (l.floor && l.totalFloors) parts.push(t('floorOf', { floor: l.floor, total: l.totalFloors }));
-  else if (l.type === 'LAND' && l.area) parts.push(t('landArea', { value: l.area }));
+  else if (l.type === 'LAND' && areaNorm) parts.push(t('landArea', { value: areaNorm }));
   return parts;
 }
 

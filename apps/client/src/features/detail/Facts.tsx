@@ -34,7 +34,7 @@ export function Facts({ listing, className }: FactsProps) {
   // Собираем только заполненные характеристики (у участка/коммерции часть пуста).
   const items: React.ReactNode[] = [];
   if (listing.rooms) {
-    items.push(<Fact key="rooms" icon={Bed} label={t('facts.rooms')} value={listing.rooms} />);
+    items.push(<Fact key="rooms" icon={Bed} label={tUnits('roomsLabel', { count: listing.rooms })} value={listing.rooms} />);
   }
   if (listing.area) {
     items.push(<Fact key="area" icon={Ruler} label={t('facts.area')} value={formatArea(listing.area, tUnits)} />);
