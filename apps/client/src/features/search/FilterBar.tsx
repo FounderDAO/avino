@@ -28,7 +28,7 @@ import { getApiError } from '@/store/api/apiError';
 import { useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from './SearchAutocomplete';
 import { useGeoSuggest, type Suggestion } from './useGeoSuggest';
-import { resolveSuggestion } from './resolveSuggestion';
+import { suggestionToLocation } from './locationParams';
 import {
   PROPERTY_TYPES,
   type District,
@@ -100,21 +100,20 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     locale,
   });
 
-  /** Выбор подсказки: geocode → circle в URL; осечка → текст без гео (circle сбрасываем). */
+  /**
+   * Выбор подсказки: район → рабочий фильтр ?district_id= (имя района в `q`
+   * ничего не находит), гео-место/текст → ?query= (см. suggestionToLocation).
+   * Радиусный круг убран из выдачи (ADR-0070/0071) — чистим dormant-параметры.
+   */
   const handleSelect = React.useCallback(
-    async (s: Suggestion) => {
-      const resolved = await resolveSuggestion(s.value);
-      if (resolved) {
-        setQueryDraft(resolved.label);
-        setParams({
-          query: resolved.label,
-          clat: resolved.circle.lat,
-          clng: resolved.circle.lng,
-          radius: resolved.circle.radiusM,
-        });
-      } else {
-        setParams({ query: s.title, clat: undefined, clng: undefined, radius: undefined });
-      }
+    (s: Suggestion) => {
+      setQueryDraft(s.title);
+      setParams({
+        ...suggestionToLocation(s),
+        clat: undefined,
+        clng: undefined,
+        radius: undefined,
+      });
     },
     [setParams],
   );

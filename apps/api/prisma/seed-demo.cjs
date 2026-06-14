@@ -16,6 +16,17 @@ const O1 = '11111111-1111-1111-1111-111111111111';
 const O2 = '22222222-2222-2222-2222-222222222222';
 const R1 = '33333333-3333-3333-3333-333333333333';
 
+// Районы Ташкента (фикс. UUID из миграции 20260613130000_add_districts).
+// district_id нужен, чтобы поиск/плитки «Районы» (?district_id=) давали выдачу.
+const DISTRICT = (n) => `d0000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const D = {
+  chilonzor: DISTRICT(2),
+  mirobod: DISTRICT(3),
+  shayxontohur: DISTRICT(7),
+  yunusobod: DISTRICT(12),
+};
+const DISTRICT_IDS = Array.from({ length: 12 }, (_, i) => DISTRICT(i + 1));
+
 const L = (n) => `aaaaaaaa-0000-4000-8000-00000000000${n}`;
 const T = (n) => `bbbbbbbb-0000-4000-8000-00000000000${n}`;
 const C = (n) => `cccccccc-0000-4000-8000-00000000000${n}`;
@@ -56,7 +67,13 @@ async function upsertListing(n, owner, data, title, photoSeeds = []) {
   const id = L(n);
   await prisma.listing.upsert({
     where: { id },
-    update: { status: data.status, latitude: data.latitude, longitude: data.longitude },
+    // districtId: undefined → Prisma пропускает поле (не затирает backfill).
+    update: {
+      status: data.status,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      districtId: data.districtId,
+    },
     create: { id, ownerId: owner, originalLanguage: 'RU', ...data },
   });
   await prisma.listingTranslation.upsert({
@@ -92,6 +109,33 @@ async function upsertComplaint(id, listingId, reporterId, reason, details, statu
   });
 }
 
+/**
+ * Backfill district_id для листингов без района (идемпотентно — трогает только
+ * NULL): сначала семантически (адрес содержит имя района), затем round-robin по
+ * 12 районам, чтобы поиск/плитки по любому району давали выдачу. Покрывает и
+ * листинги, заведённые вне этого сидера (ad-hoc live-verify фикстуры).
+ */
+async function backfillDistricts() {
+  const districts = await prisma.district.findMany({ select: { id: true, nameRu: true } });
+  for (const d of districts) {
+    await prisma.listing.updateMany({
+      where: { districtId: null, address: { contains: d.nameRu, mode: 'insensitive' } },
+      data: { districtId: d.id },
+    });
+  }
+  const rest = await prisma.listing.findMany({
+    where: { districtId: null },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  for (let i = 0; i < rest.length; i += 1) {
+    await prisma.listing.update({
+      where: { id: rest[i].id },
+      data: { districtId: DISTRICT_IDS[i % DISTRICT_IDS.length] },
+    });
+  }
+}
+
 async function main() {
   await upsertUser(O1, 'owner1@demo.avino.uz', 'Алишер', 'Каримов');
   await upsertUser(O2, 'owner2@demo.avino.uz', 'Дилноза', 'Юсупова');
@@ -103,7 +147,7 @@ async function main() {
       transactionType: 'SALE', propertyType: 'APARTMENT', status: 'NEW',
       price: '650000000.00', currency: 'UZS', area: '62.50', rooms: 3,
       floor: 5, totalFloors: 9, yearBuilt: 2019,
-      address: 'Ташкент, Чиланзар, 12 квартал',
+      address: 'Ташкент, Чиланзар, 12 квартал', districtId: D.chilonzor,
       latitude: '41.279500', longitude: '69.204600',
     },
     '3-комнатная квартира в Чиланзаре',
@@ -116,7 +160,7 @@ async function main() {
       transactionType: 'RENT', propertyType: 'HOUSE', status: 'NEW',
       price: '8000000.00', currency: 'UZS', area: '180.00', rooms: 5,
       floor: 1, totalFloors: 2, yearBuilt: 2015,
-      address: 'Ташкент, Юнусабад, массив Богишамол',
+      address: 'Ташкент, Юнусабад, массив Богишамол', districtId: D.yunusobod,
       latitude: '41.367200', longitude: '69.287000',
     },
     'Дом в аренду на Юнусабаде',
@@ -129,7 +173,7 @@ async function main() {
       transactionType: 'SALE', propertyType: 'NEW_BUILDING', status: 'ACTIVE',
       price: '95000.00', currency: 'USD', area: '78.00', rooms: 2,
       floor: 11, totalFloors: 16, yearBuilt: 2024,
-      address: 'Ташкент, Мирабад, ЖК «Nest One»',
+      address: 'Ташкент, Мирабад, ЖК «Nest One»', districtId: D.mirobod,
       latitude: '41.293700', longitude: '69.278000',
       publishedAt: new Date(),
     },
@@ -142,7 +186,7 @@ async function main() {
     {
       transactionType: 'RENT', propertyType: 'COMMERCIAL', status: 'DRAFT',
       price: '15000000.00', currency: 'UZS', area: '120.00',
-      address: 'Ташкент, Шайхантахур, ул. Навои',
+      address: 'Ташкент, Шайхантахур, ул. Навои', districtId: D.shayxontohur,
       latitude: '41.327500', longitude: '69.254500',
     },
     'Коммерческое помещение под офис',
@@ -173,6 +217,8 @@ async function main() {
     C(3), L(3), R1,
     'Мошенничество', 'Просят предоплату до показа.', 'IN_REVIEW',
   );
+
+  await backfillDistricts();
 
   const listings = await prisma.listing.count();
   const complaints = await prisma.complaint.count();

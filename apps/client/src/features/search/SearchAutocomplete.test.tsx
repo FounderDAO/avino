@@ -5,7 +5,7 @@ import { SearchAutocomplete } from './SearchAutocomplete';
 import type { Suggestion } from './useGeoSuggest';
 
 const items: Suggestion[] = [
-  { kind: 'district', title: 'Юнусабадский', value: 'Ташкент, Юнусабадский' },
+  { kind: 'district', title: 'Юнусабадский', value: 'Ташкент, Юнусабадский', districtId: 'yuna-id' },
   { kind: 'geo', title: 'Юнусабад, ул. Амира Темура', value: 'Узбекистан, Ташкент, Амира Темура' },
 ];
 
