@@ -285,7 +285,7 @@ const API_SORT_MODES = ['date_desc', 'price_asc', 'price_desc', 'area_desc'] as 
  * любое значение вне {@link API_SORT_MODES} → опускаем, иначе строгая валидация
  * вернёт 400 и выдача деградирует в пустую (пустые карусели/«Ничего не найдено»).
  */
-function toApiSort(sort: SortOption | undefined): string | undefined {
+export function toApiSort(sort: SortOption | undefined): string | undefined {
   if (!sort || sort === 'promotion') return undefined;
   return (API_SORT_MODES as readonly string[]).includes(sort) ? sort : undefined;
 }
