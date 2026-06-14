@@ -39,6 +39,107 @@ Related ADR:
 
 ## 2026-06-15
 
+### TASK-198 — Галерея: счётчик фото и «показать все» (особенно мобайл)
+
+Status: DONE
+Branch: feat/client-ux-batch-198-206
+PR: pending
+
+Files changed:
+- apps/client/src/components/ui/gallery.tsx (оверлей «1 / N» + кнопка «Показать все фото»)
+- apps/client/src/components/ui/lightbox.tsx (свайп-навигация в дополнение к клавиатуре)
+- apps/client/src/components/ui/gallery.test.tsx (новый)
+- apps/client/messages/{ru,uz,en}.json (listing.gallery.showAll/counter/counterAria)
+
+Summary:
+- На главном фото — неинтерактивный счётчик «1 / N» (когда фото > 1) и кнопка «Показать все фото» (мобайл); оба открывают лайтбокс, без вложенных <button>.
+- Лайтбокс листается клавиатурой (как было) и свайпом (touchstart/touchend, порог ~40px); alt проставлен.
+- Часть большого UX-PR (TASK-198/200/202/204/205/206).
+
+### TASK-200 — Поиск: активные фильтр-чипы + «сбросить всё»
+
+Status: DONE
+Branch: feat/client-ux-batch-198-206
+PR: pending
+
+Files changed:
+- apps/client/src/features/search/ActiveFilters.tsx (новый)
+- apps/client/src/features/search/FilterBar.tsx (рендер ActiveFilters + focus-visible)
+- apps/client/src/features/search/ActiveFilters.test.tsx (новый)
+- apps/client/messages/{ru,uz,en}.json (search.filters.resetAll/removeFilter/activeFilters/queryChip)
+
+Summary:
+- Под фильтр-баром — ряд чипов по активным фильтрам (тип/район/комнаты/цена/q) с × для снятия; «Сбросить всё» чистит все фильтр-параметры (router.replace), сохраняя tx/view.
+- Нет чипов при пустых фильтрах; снятие чипа удаляет соответствующий параметр из URL.
+
+### TASK-202 — RU/UZ плюрализация (комнаты) + чистое форматирование площади
+
+Status: DONE
+Branch: feat/client-ux-batch-198-206
+PR: pending
+
+Files changed:
+- apps/client/src/lib/format.ts (normalizeArea + ICU-комнаты)
+- apps/client/src/lib/format.test.ts (новый)
+- apps/client/src/features/detail/Facts.tsx (число + склонённый лейбл комнат)
+- apps/client/messages/{ru,uz,en}.json (units.rooms/roomsShort/roomsLabel — ICU plural)
+
+Summary:
+- ICU-плюрализация комнат: «1 комната / 2 комнаты / 5 комнат» (ru), uz/en аналогично.
+- Площадь без хвостовых нулей: «60 м²», «60.5 м²».
+- Тест на 1/2/5/0 комнат и дробную/целую/пустую площадь (реальный next-intl translator).
+
+Related ADR:
+- docs/adr/ADR-0076-client-icu-pluralization-area-format.md
+
+### TASK-204 — Hero: локальная картинка (Ташкент) + self-host
+
+Status: DONE
+Branch: feat/client-ux-batch-198-206
+PR: pending
+
+Files changed:
+- apps/client/src/features/home/Hero.tsx (next/image + priority, локальный ассет)
+- apps/client/public/hero/tashkent.jpg (Tashkent City, Wikimedia CC BY-SA 4.0)
+- apps/client/public/hero/CREDITS.txt (атрибуция)
+
+Summary:
+- Внешний Unsplash-хотлинк заменён на self-hosted ассет через next/image с priority (LCP), без внешних сетевых зависимостей на первом экране.
+- Картинка релевантна Узбекистану (Tashkent City); авто-подобранный плейсхолдер — заменяется одним файлом по тому же пути public/hero/tashkent.jpg.
+
+Related ADR:
+- docs/adr/ADR-0077-self-hosted-localized-hero-image.md
+
+### TASK-205 — /search: route-level skeleton (loading.tsx)
+
+Status: DONE
+Branch: feat/client-ux-batch-198-206
+PR: pending
+
+Files changed:
+- apps/client/src/app/[locale]/search/loading.tsx (новый)
+
+Summary:
+- Route-level loading.tsx зеркалит сплит-лейаут SearchResults (карта слева + сетка скелетон-карточек справа), переиспользует PropertyCardSkeleton; layout не прыгает при замене скелетона данными.
+
+### TASK-206 — A11y: контраст третичного текста + фокус-состояния
+
+Status: DONE
+Branch: feat/client-ux-batch-198-206
+PR: pending
+
+Files changed:
+- apps/client/src/app/globals.css (--muted-2 AA-контраст, светлая+тёмная)
+- apps/client/src/components/ui/pill.tsx, segment.tsx (focus-visible)
+- apps/client/src/features/search/FilterBar.tsx (focus-visible на триггерах/select)
+
+Summary:
+- --muted-2 поднят до AA: светлая #908a7e→#6b655a (5.78:1), тёмная #7a746a→#9b958a (5.59:1).
+- Явные focus-visible-кольца на Pill/Segment/триггерах фильтра/select; активный фильтр различим не только цветом (бордер + ×).
+
+Related ADR:
+- docs/adr/ADR-0078-client-a11y-aa-contrast-focus.md
+
 ### TASK-199 — Поиск: пагинация / «Показать ещё» (next_cursor)
 
 Status: DONE
