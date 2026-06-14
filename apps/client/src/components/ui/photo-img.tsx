@@ -1,7 +1,8 @@
 /**
- * PhotoImg — изображение с тёплым плейсхолдером и graceful-fallback.
- * При ошибке загрузки показывает дом-глиф на фоне photo-ph (как в прототипе).
- * Используем <img>, а не next/image: моки — внешние Unsplash без оптимизации.
+ * PhotoImg — изображение с тёплым брендовым плейсхолдером и graceful-fallback.
+ * Если фото нет (пустой src) или оно не загрузилось — рисует дом-глиф + бренд
+ * на фоне photo-ph (TASK-197), без внешнего хотлинка placehold.co.
+ * Используем <img>, а не next/image: фото — внешние URL без оптимизации.
  */
 'use client';
 
@@ -18,17 +19,22 @@ export interface PhotoImgProps
 export function PhotoImg({ src, alt = '', className, ...props }: PhotoImgProps) {
   const [err, setErr] = React.useState(false);
 
-  if (err) {
+  // Нет фото или фото не загрузилось → осмысленный брендовый плейсхолдер
+  // (а не пустой серый бокс), без внешнего хотлинка (TASK-197).
+  if (!src || err) {
     return (
       <div
         className={cn(
-          'flex items-center justify-center bg-photo-ph text-[#C9C1B2]',
+          'flex flex-col items-center justify-center gap-1 bg-photo-ph text-[#B7AE9C]',
           className,
         )}
         aria-label={alt}
         role="img"
       >
-        <Home size={34} strokeWidth={1.6} />
+        <Home size={30} strokeWidth={1.6} />
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em]">
+          Avino
+        </span>
       </div>
     );
   }

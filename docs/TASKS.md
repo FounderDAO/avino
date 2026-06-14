@@ -1472,60 +1472,6 @@ TASK-052
 ОДНОЙ app-папке (CLAUDE.md §0). Приоритеты: P0 = ломает доверие/функцию, P1 = заметная
 UX-боль, P2 = полировка/a11y. Часть P0 на стороне `apps/api` (контролы-обманки).
 
-### TASK-197 — Не выводить объявления без фото в витрину + лучший фоллбэк
-
-Status:
-
-```text
-TODO
-```
-
-Branch:
-
-```text
-feat/client-photoless-listings
-```
-
-Scope:
-
-```text
-В сиде у большинства листингов нет фото → главная и «Похожие» забиты серыми
-плашками «Avino» (placehold.co). Объявления без фото нельзя пускать в витрину:
-исключать/задвигать их в «Рекомендуем»/«Свежее»/«Похожие», а сам no-photo
-fallback сделать аккуратным (не пустой серый бокс). Работаем ТОЛЬКО в apps/client.
-```
-
-Files expected:
-
-```text
-apps/client/src/lib/api/listings.ts (getFeaturedListings — приоритет listings с media)
-apps/client/src/components/ui/photo-img.tsx (фоллбэк-плейсхолдер)
-apps/client/src/features/search/PropertyCard.tsx
-```
-
-Acceptance criteria:
-
-```text
-В «Рекомендуем»/«Свежее в аренде»/«Похожие» листинги с фото идут первыми; без фото — в конце или исключены.
-No-photo состояние выглядит как осмысленный плейсхолдер (иконка/бренд), а не пустой серый бокс с placehold.co.
-Локальный SVG-плейсхолдер вместо внешнего https://placehold.co (нет внешнего хотлинка).
-Изменения только внутри apps/client.
-```
-
-Suggested commits:
-
-```text
-feat(client): deprioritize photoless listings and improve fallback
-```
-
-Dependencies:
-
-```text
-TASK-192
-```
-
----
-
 ### TASK-198 — Галерея: счётчик фото и «показать все» (особенно мобайл)
 
 Status:

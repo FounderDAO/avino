@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import {
   getFeaturedListings,
   mapListing,
+  prioritizePhotos,
   searchListings,
   type ApiSearchItem,
 } from './listings';
+import type { Listing } from '@/lib/mock/types';
 
 /** ApiListingDetail не экспортируется — приводим фикстуру к входу mapListing. */
 type AnyApiListing = Parameters<typeof mapListing>[0];
@@ -78,6 +80,91 @@ describe('mapListing — district_name', () => {
 
   it('null district_name → пустая строка (без uuid в UI)', () => {
     expect(mapListing({ ...searchItem, district_name: null }).district).toBe('');
+  });
+});
+
+describe('mapListing — photos (TASK-197)', () => {
+  it('карточка поиска с thumbnail → одно фото', () => {
+    const photos = mapListing(searchItem).photos;
+    expect(photos).toEqual([{ url: 'https://x/t.jpg', thumb: 'https://x/t.jpg' }]);
+  });
+
+  it('карточка поиска без thumbnail → пустой photos (без внешнего placehold.co)', () => {
+    const photos = mapListing({ ...searchItem, thumbnail_url: null }).photos;
+    expect(photos).toEqual([]);
+  });
+
+  it('детальная карточка без media → пустой photos', () => {
+    const photos = mapListing(asListing({ ...detail, media: [] })).photos;
+    expect(photos).toEqual([]);
+  });
+
+  it('ни один listing не получает внешний URL placehold.co', () => {
+    const all = [
+      mapListing({ ...searchItem, thumbnail_url: null }),
+      mapListing(asListing({ ...detail, media: [] })),
+    ];
+    const urls = all.flatMap((l) => l.photos.flatMap((p) => [p.url, p.thumb]));
+    expect(urls.some((u) => u.includes('placehold.co'))).toBe(false);
+  });
+});
+
+describe('prioritizePhotos (TASK-197)', () => {
+  const withPhoto = (id: string): Listing =>
+    ({ id, photos: [{ url: 'u', thumb: 't' }] }) as unknown as Listing;
+  const noPhoto = (id: string): Listing =>
+    ({ id, photos: [] }) as unknown as Listing;
+
+  it('листинги с фото идут первыми, без фото — в конце', () => {
+    const input = [noPhoto('a'), withPhoto('b'), noPhoto('c'), withPhoto('d')];
+    const out = prioritizePhotos(input).map((l) => l.id);
+    expect(out).toEqual(['b', 'd', 'a', 'c']);
+  });
+
+  it('стабильна: сохраняет исходный порядок внутри каждой группы', () => {
+    const input = [withPhoto('x'), withPhoto('y'), noPhoto('z')];
+    expect(prioritizePhotos(input).map((l) => l.id)).toEqual(['x', 'y', 'z']);
+  });
+
+  it('не мутирует входной массив', () => {
+    const input = [noPhoto('a'), withPhoto('b')];
+    prioritizePhotos(input);
+    expect(input.map((l) => l.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('getFeaturedListings — фото-приоритет (TASK-197)', () => {
+  const item = (id: string, withThumb: boolean): ApiSearchItem => ({
+    ...searchItem,
+    id,
+    thumbnail_url: withThumb ? `https://x/${id}.jpg` : null,
+  });
+
+  const stubFetch = (items: ApiSearchItem[]) => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: items,
+        meta: { limit: items.length, total: items.length, next_cursor: null },
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  };
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('двигает листинги с фото вперёд, без фото — в конец', async () => {
+    stubFetch([item('a', false), item('b', true), item('c', false), item('d', true)]);
+    const out = await getFeaturedListings(4, 'ru');
+    expect(out.map((l) => l.id)).toEqual(['b', 'd', 'a', 'c']);
+  });
+
+  it('режет до limit после переупорядочивания (фото попадают в срез)', async () => {
+    stubFetch([item('a', false), item('b', false), item('c', true), item('d', true)]);
+    const out = await getFeaturedListings(2, 'ru');
+    expect(out.map((l) => l.id)).toEqual(['c', 'd']);
   });
 });
 
