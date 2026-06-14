@@ -29,6 +29,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from './SearchAutocomplete';
 import { useGeoSuggest, type Suggestion } from './useGeoSuggest';
 import { suggestionToLocation } from './locationParams';
+import { ActiveFilters } from './ActiveFilters';
 import {
   PROPERTY_TYPES,
   type District,
@@ -340,6 +341,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
             className={cn(
               fieldClass,
               'w-auto flex-shrink-0 cursor-pointer rounded-pill py-[9px] pr-4 font-semibold',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
             )}
             aria-label={tSearch('filters.sortAria')}
           >
@@ -396,6 +398,8 @@ export function FilterBar({ values, districts }: FilterBarProps) {
           </div>
         </div>
       </div>
+      {/* Ряд активных фильтр-чипов под скролл-баром — внутри sticky-контейнера. */}
+      <ActiveFilters values={values} districts={districts} />
     </div>
   );
 }
@@ -410,6 +414,7 @@ const TriggerButton = React.forwardRef<
     type="button"
     className={cn(
       'inline-flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-pill border-[1.5px] px-4 py-[9px] text-sm font-semibold text-ink transition-colors',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
       active ? 'border-teal bg-mint' : 'border-border bg-surface hover:border-ink',
     )}
     {...props}
@@ -440,6 +445,7 @@ function ViewToggleButton({
       onClick={onClick}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-pill px-[14px] py-[7px] text-sm font-bold transition-all duration-150',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
         active
           ? 'bg-surface text-ink shadow-[0_1px_4px_rgba(40,34,24,0.12)]'
           : 'bg-transparent text-muted-foreground hover:text-ink',

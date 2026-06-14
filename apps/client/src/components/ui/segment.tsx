@@ -35,6 +35,7 @@ export function Segment<T extends string>({
             onClick={() => onChange(opt.value)}
             className={cn(
               'rounded-pill px-[18px] py-[9px] text-sm font-bold transition-all duration-150',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
               active
                 ? 'bg-surface text-ink shadow-[0_1px_4px_rgba(40,34,24,0.12)]'
                 : 'bg-transparent text-muted-foreground hover:text-ink',
