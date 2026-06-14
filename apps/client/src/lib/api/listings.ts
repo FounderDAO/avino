@@ -316,6 +316,33 @@ async function safeSearch(path: string, lang: string): Promise<Listing[]> {
   }
 }
 
+/** Страница выдачи + keyset-курсор/общий счётчик (API.md §9). */
+export interface SearchListingsPage {
+  listings: Listing[];
+  /** meta.total — общее число объявлений под фильтром (не размер страницы). */
+  total: number;
+  /** meta.next_cursor — непрозрачный токен следующей страницы (null = конец). */
+  nextCursor: string | null;
+}
+
+/**
+ * Как {@link safeSearch}, но сохраняет `meta` (total + next_cursor) для пагинации.
+ * При ошибке деградирует до пустой страницы без курсора.
+ */
+async function safeSearchPage(path: string, lang: string): Promise<SearchListingsPage> {
+  try {
+    const env = await apiFetch<SearchEnvelope>(path, lang);
+    return {
+      listings: env.data.map(mapListing),
+      total: env.meta.total,
+      nextCursor: env.meta.next_cursor,
+    };
+  } catch (err) {
+    console.error(`[listings] search page failed, degrading to empty: ${path}`, err);
+    return { listings: [], total: 0, nextCursor: null };
+  }
+}
+
 // ─── Публичные селекторы (контракт мок-слоя) ───
 
 /**
@@ -346,6 +373,23 @@ export async function searchListings(
 ): Promise<Listing[]> {
   const params = buildSearchParams(filter, limit);
   return safeSearch(`/search?${params.toString()}`, lang);
+}
+
+/**
+ * Первая страница выдачи поиска вместе с `meta` (total + next_cursor) — для
+ * SSR /search, который прокидывает курсор в клиентскую дозагрузку (TASK-199).
+ * `cursor` опционален: SSR грузит первую страницу, дальнейшие — клиент через
+ * RTK Query (см. searchApi.searchPage).
+ */
+export async function searchListingsPage(
+  filter: ListingFilter = {},
+  lang = 'ru',
+  limit = 24,
+  cursor?: string,
+): Promise<SearchListingsPage> {
+  const params = buildSearchParams(filter, limit);
+  if (cursor) params.set('cursor', cursor);
+  return safeSearchPage(`/search?${params.toString()}`, lang);
 }
 
 /**

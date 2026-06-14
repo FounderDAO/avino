@@ -8,7 +8,7 @@
  */
 import { getTranslations } from 'next-intl/server';
 import { getDistricts } from '@/lib/api/geo';
-import { searchListings } from '@/lib/api/listings';
+import { searchListingsPage } from '@/lib/api/listings';
 import type {
   ListingFilter,
   PropertyType,
@@ -91,9 +91,11 @@ export default async function SearchPage({
   const priceMax = priceMaxRaw && Number.isFinite(Number(priceMaxRaw)) ? Number(priceMaxRaw) : undefined;
 
   // ----- Данные из реального API -----
+  // Первая страница (limit=24) + meta (total/next_cursor): курсор прокидываем в
+  // клиентскую дозагрузку «Показать ещё» (TASK-199).
   const filter: ListingFilter = { tx, type, districtId, rooms, priceMin, priceMax, query, sort };
-  const [listings, districts] = await Promise.all([
-    searchListings(filter, locale),
+  const [page, districts] = await Promise.all([
+    searchListingsPage(filter, locale),
     getDistricts(locale),
   ]);
 
@@ -119,7 +121,14 @@ export default async function SearchPage({
   return (
     <div className="fade-up">
       <FilterBar values={filterValues} districts={districts} />
-      <SearchResults listings={listings} view={view} heading={heading} filter={filter} />
+      <SearchResults
+        listings={page.listings}
+        total={page.total}
+        initialCursor={page.nextCursor}
+        view={view}
+        heading={heading}
+        filter={filter}
+      />
     </div>
   );
 }
