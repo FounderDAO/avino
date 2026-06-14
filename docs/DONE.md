@@ -39,6 +39,31 @@ Related ADR:
 
 ## 2026-06-14
 
+### fix(map) — стартовая выдача /map по видимой области (Ташкент)
+
+Status: DONE
+Branch: fix/map-initial-listings
+PR: #154
+
+Files changed:
+- apps/client/src/features/map/MapView.tsx
+
+Summary:
+- На /map при загрузке не показывались объявления: MapView подписывался только
+  на boundschange (сдвиг/зум), поэтому стартовый bounds-поиск не запускался и
+  список оставался пустым (initialListings деградирует в [] при SSR внутри
+  контейнера, где fetch на localhost:4000 не достаёт до api-контейнера).
+- При инициализации карты добавлен одноразовый эмит текущей (по умолчанию —
+  Ташкент) видимой области → searchByBounds подгружает выдачу сразу; дальше
+  пользователь двигает карту сам. Эмит вынесен в хелпер, защищён от режима
+  рисования/territory, таймер чистится в cleanup.
+
+Commit messages:
+- fix(client): show map listings on load via initial bounds emit
+
+Related ADR:
+- — (багфикс поведения /map, без нового архитектурного решения; см. TASK-152)
+
 ### TASK-216 — Client: draw-territory через серверный /search/polygon
 
 Status: DONE

@@ -182,24 +182,35 @@ export function MapView({
     mapRef.current = map;
     clustererRef.current = clusterer;
 
-    // Видимая область → onBoundsChange (debounce), только когда не рисуем и нет
-    // зафиксированной территории (иначе область считает MapSearch по полигону).
+    // Эмит текущей видимой области карты в onBoundsChange (с защитой от режима
+    // рисования / зафиксированной территории — тогда область считает MapSearch
+    // по полигону, а не по bbox).
+    const emitBounds = () => {
+      if (drawModeRef.current || polygonRef.current) return;
+      const b = map.getBounds(); // [[swLat,swLng],[neLat,neLng]]
+      if (!b) return;
+      cb.current.onBoundsChange?.({
+        swLat: b[0][0], swLng: b[0][1], neLat: b[1][0], neLng: b[1][1],
+      });
+    };
+
+    // Сдвиг/зум пользователя → подгрузка листингов видимой области (debounce).
     let timer: ReturnType<typeof setTimeout> | null = null;
     map.events.add('boundschange', () => {
-      if (drawModeRef.current || polygonRef.current) return;
       if (!cb.current.onBoundsChange) return;
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        const b = map.getBounds(); // [[swLat,swLng],[neLat,neLng]]
-        if (!b) return;
-        cb.current.onBoundsChange?.({
-          swLat: b[0][0], swLng: b[0][1], neLat: b[1][0], neLng: b[1][1],
-        });
-      }, BOUNDS_DEBOUNCE_MS);
+      timer = setTimeout(emitBounds, BOUNDS_DEBOUNCE_MS);
     });
+
+    // Стартовая выдача: один раз эмитим текущую (по умолчанию — Ташкент) область
+    // сразу на загрузке, чтобы список не был пустым и пины появились без действий
+    // пользователя. setTimeout(0) — даём контейнеру разложиться, чтобы getBounds()
+    // вернул корректный bbox. Дальше юзер двигает карту сам (boundschange выше).
+    const initTimer = setTimeout(emitBounds, 0);
 
     return () => {
       if (timer) clearTimeout(timer);
+      clearTimeout(initTimer);
       map.destroy();
       mapRef.current = null;
       clustererRef.current = null;
