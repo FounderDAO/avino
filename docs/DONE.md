@@ -39,6 +39,48 @@ Related ADR:
 
 ## 2026-06-15
 
+### TASK-197 — Не выводить объявления без фото в витрину + лучший фоллбэк
+
+Status: DONE
+Branch: feat/client-photoless-listings
+PR: pending
+
+Files changed:
+- apps/client/src/lib/api/listings.ts
+- apps/client/src/components/ui/photo-img.tsx
+- apps/client/src/components/ui/gallery.tsx
+- apps/client/src/app/[locale]/page.tsx
+- apps/client/src/lib/api/listings.test.ts (новый кейс)
+- apps/client/src/components/ui/photo-img.test.tsx (новый)
+- docs/adr/ADR-0074-client-photoless-listings-and-local-fallback.md
+
+Summary:
+- Листинги без фото больше не получают внешний URL `placehold.co`: `toPhotos`
+  возвращает пустой `photos: []`, а признак «есть фото» = `photos.length > 0`.
+- Витринная сортировка `prioritizePhotos` (чистая, стабильная партиция: с фото
+  первыми, без фото в конце) применена в «Рекомендуем» (`getFeaturedListings`),
+  «Свежее в аренде» (главная) и «Похожие» (`getSimilarListings`). Селекторы
+  делают над-выборку (`limit×4`, ≤100 — лимит API §9), чтобы листинги с фото
+  поднимались из «хвоста» промо-выдачи в видимый срез.
+- `PhotoImg` рисует осмысленный брендовый плейсхолдер (дом-глиф + «Avino» на
+  фоне `photo-ph`) для пустого `src`, а не только по `onError` — без внешнего
+  хотлинка. `Gallery` на карточке объекта показывает тот же плейсхолдер вместо
+  пустоты при отсутствии фото.
+- Полное исключение листингов без фото не выбрано (опустошило бы витрину на
+  сиде) — мягкий вариант «задвигать в конец» из acceptance-критериев.
+- Работа только в `apps/client` (граница app-папок, CLAUDE.md §0).
+- Verified: tsc clean, ESLint clean, 74 теста зелёные (9 новых под TASK-197),
+  `next build` собирает успешно. Живой визуальный smoke в Docker с реальным
+  сидом — как в прошлых клиентских PR.
+
+Commit messages:
+- feat(client): deprioritize photoless listings and improve fallback
+- test(client): cover photo-first ordering and empty-photo placeholder
+- docs(client): ADR-0074 photoless witrina policy + local placeholder
+
+Related ADR:
+- docs/adr/ADR-0074-client-photoless-listings-and-local-fallback.md
+
 ### TASK-196 — Detail: настоящая карта Яндекса вместо фейк-сетки
 
 Status: DONE
