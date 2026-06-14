@@ -10,7 +10,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
-import { usePathname } from '@/i18n/navigation';
+import { usePathname, useRouter } from '@/i18n/navigation';
 import { Heart, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from './Logo';
@@ -30,6 +30,7 @@ import { useLogoutMutation } from '@/store/api/authApi';
 function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) {
   const t = useTranslations('nav');
   const pathname = usePathname();
+  const router = useRouter();
   const [scrolled, setScrolled] = React.useState(false);
   const [menu, setMenu] = React.useState(false);
   const [login, setLogin] = React.useState(false);
@@ -46,10 +47,15 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
     currentUser?.phone ??
     t('account');
 
-  const handleLogout = React.useCallback(() => {
+  const handleLogout = React.useCallback(async () => {
     // clearCredentials вызывается в onQueryStarted независимо от исхода.
-    void logout({ refresh_token: refreshToken ?? '' });
-  }, [logout, refreshToken]);
+    try {
+      await logout({ refresh_token: refreshToken ?? '' });
+    } finally {
+      // После выхода уводим с приватных страниц аккаунта на главную.
+      router.push('/');
+    }
+  }, [logout, refreshToken, router]);
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
