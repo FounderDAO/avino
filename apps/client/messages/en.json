@@ -571,7 +571,16 @@
       "selectThreadText": "Your conversations are listed on the left.",
       "inputPlaceholder": "Write a message…",
       "send": "Send",
-      "sendError": "Couldn't send the message"
+      "sendError": "Couldn't send the message",
+      "you": "You",
+      "back": "Back to list",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "loadOlder": "Show earlier",
+      "emptyThread": "No messages yet — be the first to write.",
+      "statusSending": "Sending",
+      "statusSent": "Sent",
+      "statusRead": "Read"
     },
     "myListings": {
       "title": "My listings",

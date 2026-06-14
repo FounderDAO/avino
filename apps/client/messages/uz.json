@@ -571,7 +571,16 @@
       "selectThreadText": "Chap tomonda — yozishmalaringiz ro'yxati.",
       "inputPlaceholder": "Xabar yozing…",
       "send": "Yuborish",
-      "sendError": "Xabarni yuborib bo'lmadi"
+      "sendError": "Xabarni yuborib bo'lmadi",
+      "you": "Siz",
+      "back": "Ro'yxatga",
+      "today": "Bugun",
+      "yesterday": "Kecha",
+      "loadOlder": "Avvalgilarini ko'rsatish",
+      "emptyThread": "Hozircha xabarlar yo'q — birinchi bo'lib yozing.",
+      "statusSending": "Yuborilmoqda",
+      "statusSent": "Yuborildi",
+      "statusRead": "O'qildi"
     },
     "myListings": {
       "title": "Mening e'lonlarim",
