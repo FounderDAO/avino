@@ -39,6 +39,77 @@ Related ADR:
 
 ## 2026-06-14
 
+### feat(client) — карта слева/карточки справа + «Нарисовать территорию» на /search и /map
+
+Status: DONE
+Branch: feat/client-map-left-draw-territory
+PR: #162
+
+Files changed:
+- apps/client/src/features/search/SearchResults.tsx
+- apps/client/src/app/[locale]/search/page.tsx
+- apps/client/src/features/map/MapSearch.tsx
+- apps/client/src/store/api/searchApi.ts
+- apps/client/src/lib/api/listings.ts
+- docs/adr/ADR-0072-search-map-left-split-draw-territory.md
+
+Summary:
+- `/search` (Купить/Аренда) и `/map` приведены к единому виду: карта СЛЕВА ~50%,
+  карточки СПРАВА ~50% (десктоп). Мобайл без изменений (тогл «Карта»/«Список»).
+- На `/search` радиусный инструмент заменён на «Нарисовать территорию» (полигон →
+  `GET /search/polygon`, ST_Within, RTK Query `useSearchByPolygonQuery`), как на
+  `/map`; территория учитывает фильтры из URL, сброс → SSR-выдача по фильтрам.
+- `searchApi` переиспользует канонический `lib/api/listings.toApiSort` — устранён
+  дубль, слававший `promotion_priority_desc` → 400 при поиске по территории/области.
+- Радиусный код (`searchRadiusListings`/`parseCircleParams`/MapView radius)
+  оставлен dormant (выведен из UX) — кандидат на отдельную уборку.
+- Verified: tsc clean, 59 тестов зелёные; в Docker — обе страницы карта слева/
+  карточки справа, polygon-поиск 200 (12 по Ташкенту), логи чистые.
+
+Commit messages:
+- feat(client): map-left split + draw-territory on /search and /map
+
+Related ADR:
+- docs/adr/ADR-0072-search-map-left-split-draw-territory.md
+
+### fix(client) — SSR-наполнение главной и /search в Docker (API-base + sort §9)
+
+Status: DONE
+Branch: fix/client-ssr-empty-listings
+PR: #161
+
+Files changed:
+- apps/client/src/lib/api/base.ts
+- apps/client/src/lib/api/base.test.ts
+- apps/client/src/lib/api/listings.ts
+- apps/client/src/lib/api/geo.ts
+- apps/client/src/lib/api/listings.test.ts
+- docker-compose.yml
+- docs/adr/ADR-0071-client-ssr-api-base-and-search-sort.md
+
+Summary:
+- В Docker серверные (SSR) fetch-и шли на `NEXT_PUBLIC_API_BASE_URL`
+  (`http://localhost:4000` — для браузера) и не доставали контейнер `api` →
+  ECONNREFUSED → `safeSearch`/`getDistricts` деградировали в пустой список
+  (пустые карусели главной, «Ничего не найдено» на `/search`).
+- Добавлен `resolveApiBase()`: приоритет рантайм-`API_INTERNAL_URL`
+  (`http://api:4000`, имя сервиса Docker) → `NEXT_PUBLIC_API_BASE_URL` → дефолт;
+  зовётся в каждом server-fetch. `docker-compose.yml`:
+  `client.environment.API_INTERNAL_URL=http://api:4000`. Браузерный путь
+  (RTK Query) не тронут.
+- Второй баг: клиент слал `sort=promotion_priority_desc`/`area_asc` → 400 (§9
+  принимает только `date_desc|price_asc|price_desc|area_desc`, promo-тир всегда
+  первичен). `toApiSort` приведён к §9; `getFeaturedListings` без `sort`.
+- `apps/web` правки не требует (данные только клиентским RTK Query).
+- Verified: 59 тестов зелёные (+7, TDD), tsc clean; в Docker — главная 2
+  карусели/15 объявлений, Купить 12, Аренда 9, районы наполнены, логи чистые.
+
+Commit messages:
+- fix(client): restore SSR listings in Docker (server API base + sort §9)
+
+Related ADR:
+- docs/adr/ADR-0071-client-ssr-api-base-and-search-sort.md
+
 ### fix(client) — редирект на главную после выхода из аккаунта
 
 Status: DONE
