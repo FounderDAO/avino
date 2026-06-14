@@ -16,8 +16,7 @@
  * («yunusobod», «chilonzor»), как раньше делал мок (см. useGeoSuggest).
  */
 import type { District } from '@/lib/mock/types';
-
-const API_BASE = `${process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000'}/api/v1`;
+import { resolveApiBase } from './base';
 
 /** Строка справочника районов GET /geo/districts (snake_case контракт §geo). */
 export interface ApiDistrict {
@@ -62,7 +61,7 @@ export function mapDistrict(api: ApiDistrict, lang = 'ru'): District {
  */
 export async function getDistricts(lang = 'ru'): Promise<District[]> {
   try {
-    const res = await fetch(`${API_BASE}/geo/districts`, {
+    const res = await fetch(`${resolveApiBase()}/geo/districts`, {
       next: { revalidate: 3600 },
       headers: { Accept: 'application/json', 'Accept-Language': lang },
     });
