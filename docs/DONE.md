@@ -39,6 +39,84 @@ Related ADR:
 
 ## 2026-06-14
 
+### feat(api) — превью собеседника и последней реплики в списке чат-тредов
+
+Status: DONE
+Branch: feat/chat-thread-previews
+PR: #156
+
+Files changed:
+- apps/api/src/chat/chat.service.ts
+- apps/api/src/chat/chat.service.spec.ts
+- docs/API.md
+- docs/adr/ADR-0039-chat-threads-module.md
+
+Summary:
+- `GET /api/v1/chat/threads` теперь гидрирует каждый тред полями `counterparty`
+  (профиль второго участника: `id`, `name` = `display_name` → «first last» →
+  `null`, `avatar_url`) и `last_message` (превью свежайшей реплики: `id`,
+  `sender_id`, `body`, `is_read`, `created_at`). Нужно, чтобы список диалогов
+  выглядел как мессенджер (имя + превью реплики), а не «заголовок + цена».
+- Optional non-breaking-поля (CLAUDE.md §14), без миграции БД. Профили — одним
+  `user.findMany` на страницу; последние реплики — одним `chatMessage.findMany`
+  с `distinct(['threadId'])` (порядок `threadId, created_at DESC, id DESC`,
+  индекс `chat_messages_thread_id_created_at_idx`), без N+1.
+- Клиент толерантен к отсутствию полей (старый бэк) — парный PR #157 деградирует
+  мягко на заголовок/цену.
+- Verified: 30/30 unit-тестов (`chat.service.spec`), `tsc`/`eslint` clean; live в
+  Docker отдаёт `counterparty.name="Тимур Сафаров"` и `last_message.body`
+  последней реплики.
+
+Commit messages:
+- feat(api): add counterparty & last-message previews to chat threads
+
+Related ADR:
+- docs/adr/ADR-0039-chat-threads-module.md (update)
+
+Related task:
+- TASK-110 / TASK-111 (расширение списка тредов)
+
+### feat(client) — полировка чата Inbox (порядок, мессенджер-UX)
+
+Status: DONE
+Branch: feat/chat-inbox-polish
+PR: #157
+
+Files changed:
+- apps/client/src/features/account/Inbox.tsx
+- apps/client/src/features/account/chat-utils.ts (новый)
+- apps/client/src/features/account/chat-utils.test.ts (новый)
+- apps/client/src/store/api/chatApi.ts
+- apps/client/messages/ru.json
+- apps/client/messages/uz.json
+- apps/client/messages/en.json
+
+Summary:
+- Главный фикс: сообщения теперь в правильном хронологическом порядке. API
+  отдаёт ленту `created_at DESC` (для keyset-листания в историю); клиент
+  разворачивает её в ASC (старые сверху, новые снизу). Раньше лента рисовалась
+  как есть → диалог был «вверх ногами».
+- Доведено до уровня мессенджера: автоскролл к свежим, разделители по дням
+  (Сегодня/Вчера/дата) + группировка реплик, статусы своих сообщений
+  (отправляется/отправлено/прочитано), оптимистичная отправка с откатом,
+  мультистрочный авто-растущий композер (Enter — отправить, Shift+Enter —
+  перенос), подгрузка истории «Показать ранние» с сохранением скролла,
+  мобильный лейаут (список↔переписка с «назад»), список диалогов с именем
+  собеседника и превью последней реплики (фолбэк на заголовок/цену).
+- Высота чата привязана к экрану (`100dvh−180px`) + `min-h-0` на ленте — поле
+  ввода и шапка всегда видны (раньше фикс-высота + flexbox-баг выталкивали
+  композер за пределы экрана: это и был «нет формы ответа»).
+- Чистая логика ленты (reverse / merge-dedup / группировка по дням / превью)
+  вынесена в `chat-utils.ts`.
+- Verified: 52/52 теста (9 новых в `chat-utils.test.ts`), `tsc`/`eslint` clean,
+  `next build` чисто в Docker; live-проверка в пересобранных контейнерах.
+
+Commit messages:
+- feat(client): polish chat inbox — order, day separators, optimistic send
+
+Related ADR:
+- docs/adr/ADR-0039-chat-threads-module.md (api-сторона)
+
 ### fix(map) — стартовая выдача /map по видимой области (Ташкент)
 
 Status: DONE
