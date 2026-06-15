@@ -177,6 +177,10 @@
     "headingRent": "Uy-joy ijarasi · {query}",
     "defaultLocation": "Toshkent",
     "filters": {
+      "resetAll": "Hammasini tozalash",
+      "removeFilter": "Olib tashlash: {label}",
+      "activeFilters": "Faol filtrlar",
+      "queryChip": "«{query}»",
       "searchPlaceholder": "Tuman, manzil…",
       "searchAria": "Tuman yoki manzil bo'yicha qidirish",
       "suggestGroupDistricts": "Tumanlar",
@@ -250,6 +254,11 @@
     }
   },
   "listing": {
+    "gallery": {
+      "showAll": "Barcha suratlar",
+      "counter": "{current} / {total}",
+      "counterAria": "{total} tadan {current}-surat"
+    },
     "meta": {
       "title": "{title} — {price} | Avino",
       "notFoundTitle": "E'lon topilmadi — Avino"
@@ -682,11 +691,12 @@
     "rooms": "{count} xona"
   },
   "units": {
+    "roomsLabel": "{count, plural, other {xona}}",
     "sum": "so'm",
     "perMonth": "/oy",
     "area": "{value} m²",
-    "rooms": "{count} xonali",
-    "roomsShort": "{count} xona",
+    "rooms": "{count, plural, other {# xonali}}",
+    "roomsShort": "{count, plural, other {# xona}}",
     "floorOf": "{floor}/{total}-qavat",
     "floor": "{floor}-qavat",
     "landArea": "{value} m² uchastka",

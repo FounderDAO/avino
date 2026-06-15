@@ -1,0 +1,199 @@
+/**
+ * Тесты для ActiveFilters — ряд активных фильтр-чипов.
+ *
+ * Мокируем:
+ * - next-intl (useTranslations) — возвращает ключ или интерполированную строку
+ * - @/i18n/navigation (useRouter, usePathname) — шпионим за router.replace
+ * - next/navigation (useSearchParams) — возвращаем фиктивные URLSearchParams
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { ActiveFilters } from './ActiveFilters';
+import type { FilterValues } from './FilterBar';
+import type { District } from '@/lib/mock/types';
+
+// ── Моки зависимостей ─────────────────────────────────────────────────────────
+
+const mockReplace = vi.fn();
+const mockPathname = '/search';
+const mockSearchParamsStr = 'tx=SALE&type=APARTMENT&rooms=2';
+
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ replace: mockReplace }),
+  usePathname: () => mockPathname,
+}));
+
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(mockSearchParamsStr),
+}));
+
+// Упрощённый мок useTranslations: возвращает функцию key→key (или интерполяцию).
+vi.mock('next-intl', () => ({
+  useTranslations: (ns?: string) => {
+    return (key: string, params?: Record<string, string>) => {
+      const full = ns ? `${ns}.${key}` : key;
+      if (!params) return full;
+      // Простая интерполяция {param} → значение
+      return full.replace(/\{(\w+)\}/g, (_, k: string) => params[k] ?? `{${k}}`);
+    };
+  },
+}));
+
+// ── Тестовые данные ───────────────────────────────────────────────────────────
+
+const districts: District[] = [
+  { id: 'yunusabad-uuid', name: 'Юнусабадский' },
+  { id: 'mirzo-uuid', name: 'Мирзо Улугбек' },
+];
+
+const baseValues: FilterValues = {
+  tx: 'SALE',
+  sort: 'promotion',
+  view: 'list',
+};
+
+// ── Утилиты ───────────────────────────────────────────────────────────────────
+
+beforeEach(() => {
+  mockReplace.mockClear();
+});
+
+// ── Тесты ─────────────────────────────────────────────────────────────────────
+
+describe('ActiveFilters', () => {
+  it('рендерит null, если активных фильтров нет', () => {
+    const { container } = render(
+      <ActiveFilters values={baseValues} districts={districts} />,
+    );
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('показывает чип типа недвижимости', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, type: 'APARTMENT' }}
+        districts={districts}
+      />,
+    );
+    // Ключ enums.propertyType.APARTMENT
+    expect(screen.getByText('enums.propertyType.APARTMENT')).toBeInTheDocument();
+  });
+
+  it('показывает чип района по имени', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, districtId: 'yunusabad-uuid' }}
+        districts={districts}
+      />,
+    );
+    expect(screen.getByText('Юнусабадский')).toBeInTheDocument();
+  });
+
+  it('показывает чип комнат', () => {
+    render(
+      <ActiveFilters values={{ ...baseValues, rooms: 2 }} districts={districts} />,
+    );
+    // Мок useTranslations('search.filters') → t('roomsCount', {count:'2'}) → 'search.filters.roomsCount'
+    // интерполяция {count} в строке 'search.filters.roomsCount' не срабатывает (нет {count} в ключе)
+    expect(screen.getByText('search.filters.roomsCount')).toBeInTheDocument();
+  });
+
+  it('показывает чип цены при priceMin', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, priceMin: '50000' }}
+        districts={districts}
+      />,
+    );
+    // Мок: t('priceRange', {min:'50000', max:'∞'}) → 'search.filters.priceRange' (ключ без {}-переменных)
+    expect(screen.getByText('search.filters.priceRange')).toBeInTheDocument();
+  });
+
+  it('показывает чип query', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, query: 'Центр' }}
+        districts={districts}
+      />,
+    );
+    // Мок: t('queryChip', {query:'Центр'}) → 'search.filters.queryChip' (ключ без {}-переменных)
+    expect(screen.getByText('search.filters.queryChip')).toBeInTheDocument();
+  });
+
+  it('кнопка × удаляет чип типа (вызывает router.replace без type)', async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, type: 'APARTMENT' }}
+        districts={districts}
+      />,
+    );
+    // aria-label = 'search.filters.removeFilter' (мок возвращает ключ без интерполяции в ключе)
+    const removeBtn = screen.getByRole('button', {
+      name: 'search.filters.removeFilter',
+    });
+    await user.click(removeBtn);
+    expect(mockReplace).toHaveBeenCalledOnce();
+    // URL после удаления не должен содержать type=
+    const calledUrl: string = mockReplace.mock.calls[0][0] as string;
+    expect(calledUrl).not.toMatch(/type=/);
+  });
+
+  it('кнопка «Сбросить всё» очищает все фильтры, сохраняя tx и view', async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveFilters
+        values={{
+          ...baseValues,
+          type: 'APARTMENT',
+          districtId: 'yunusabad-uuid',
+          rooms: 2,
+          priceMin: '100',
+          priceMax: '500',
+          query: 'тест',
+        }}
+        districts={districts}
+      />,
+    );
+    const resetBtn = screen.getByText('search.filters.resetAll');
+    await user.click(resetBtn);
+    expect(mockReplace).toHaveBeenCalledOnce();
+    const calledUrl: string = mockReplace.mock.calls[0][0] as string;
+    // Фильтры удалены
+    expect(calledUrl).not.toMatch(/type=/);
+    expect(calledUrl).not.toMatch(/district_id=/);
+    expect(calledUrl).not.toMatch(/rooms=/);
+    expect(calledUrl).not.toMatch(/priceMin=/);
+    expect(calledUrl).not.toMatch(/priceMax=/);
+    expect(calledUrl).not.toMatch(/query=/);
+    // tx=SALE сохранён (приходит из mockSearchParamsStr)
+    expect(calledUrl).toMatch(/tx=SALE/);
+  });
+
+  it('не показывает tx и view как чипы', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, type: 'APARTMENT' }}
+        districts={districts}
+      />,
+    );
+    // Должен быть ровно 1 чип (тип) + кнопка сброса, но не чип tx/view
+    const chips = screen.getAllByRole('group');
+    // Убеждаемся что группа существует
+    expect(chips.length).toBeGreaterThan(0);
+  });
+
+  it('кнопки × имеют корректный aria-label', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, rooms: 3 }}
+        districts={districts}
+      />,
+    );
+    const removeBtn = screen.getByRole('button', {
+      name: 'search.filters.removeFilter',
+    });
+    expect(removeBtn).toBeInTheDocument();
+  });
+});

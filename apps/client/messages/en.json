@@ -177,6 +177,10 @@
     "headingRent": "Homes for rent · {query}",
     "defaultLocation": "Tashkent",
     "filters": {
+      "resetAll": "Reset all",
+      "removeFilter": "Remove: {label}",
+      "activeFilters": "Active filters",
+      "queryChip": "“{query}”",
       "searchPlaceholder": "District, address…",
       "searchAria": "Search by district or address",
       "suggestGroupDistricts": "Districts",
@@ -250,6 +254,11 @@
     }
   },
   "listing": {
+    "gallery": {
+      "showAll": "Show all photos",
+      "counter": "{current} / {total}",
+      "counterAria": "Photo {current} of {total}"
+    },
     "meta": {
       "title": "{title} — {price} | Avino",
       "notFoundTitle": "Listing not found — Avino"
@@ -682,11 +691,12 @@
     "rooms": "{count} rm"
   },
   "units": {
+    "roomsLabel": "{count, plural, one {room} other {rooms}}",
     "sum": "UZS",
     "perMonth": "/mo",
     "area": "{value} m²",
-    "rooms": "{count}-room",
-    "roomsShort": "{count} rm",
+    "rooms": "{count, plural, one {# room} other {# rooms}}",
+    "roomsShort": "{count, plural, one {# rm} other {# rm}}",
     "floorOf": "{floor}/{total} fl",
     "floor": "{floor} fl",
     "landArea": "{value} m² lot",
