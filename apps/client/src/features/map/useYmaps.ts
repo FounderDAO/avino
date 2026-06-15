@@ -22,6 +22,13 @@ export type Ymaps = any;
 export type YmapsStatus = 'loading' | 'ready' | 'error' | 'no-key';
 
 const API_KEY = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY;
+// Геосаджест (ymaps.suggest) загружается ТОЛЬКО если в загрузчик передан отдельный
+// параметр `suggest_apikey`; иначе SDK кидает «Suggest is not available»
+// (docs: yandex.ru/dev/jsapi-v2-1 → dg/concepts/geocoding/suggest). По умолчанию
+// берём тот же ключ — достаточно ОДНОГО ключа, если в кабинете Yandex он подключён
+// и к «JavaScript API», и к «API Геосаджеста». Отдельный ключ саджеста (если Yandex
+// выдал его отдельно) задаётся через NEXT_PUBLIC_YANDEX_SUGGEST_API_KEY.
+const SUGGEST_API_KEY = process.env.NEXT_PUBLIC_YANDEX_SUGGEST_API_KEY || API_KEY;
 
 /** ru/en/uz → поддерживаемая локаль Yandex (uz не поддержан → ru_RU). */
 function ymapsLang(locale?: string): string {
@@ -53,9 +60,12 @@ export function loadYmaps(locale?: string): Promise<Ymaps> {
     const script = document.createElement('script');
     script.id = 'yandex-maps-sdk';
     script.async = true;
+    const suggestParam = SUGGEST_API_KEY
+      ? `&suggest_apikey=${encodeURIComponent(SUGGEST_API_KEY)}`
+      : '';
     script.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(
       API_KEY ?? '',
-    )}&lang=${ymapsLang(locale)}`;
+    )}&lang=${ymapsLang(locale)}${suggestParam}`;
     script.addEventListener('load', onReady);
     script.addEventListener('error', () => {
       loaderPromise = null; // позволить повторную попытку при следующем монтировании

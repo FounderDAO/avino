@@ -2,9 +2,10 @@
 
 /**
  * useGeoSuggest — подсказки для строки поиска /search.
- * Мёржит локальные районы (мгновенно, сверху) и адреса из Yandex Suggest
- * (ymaps.suggest, ленивая загрузка SDK по `enabled`). Дебаунс 300мс, порог 2
- * символа. Деградация: нет ключа / SDK упал → только районы, без исключений.
+ * Мёржит локальные районы Ташкента (мгновенно, сверху) и адреса по всему
+ * Узбекистану из Yandex Suggest (ymaps.suggest, ленивая загрузка SDK по
+ * `enabled`). Дебаунс 300мс, порог 2 символа. Деградация: нет ключа / сервис
+ * Suggest не подключён к ключу / SDK упал → только районы, без исключений.
  */
 import * as React from 'react';
 import { loadYmaps, type Ymaps } from '@/features/map/useYmaps';
@@ -19,6 +20,10 @@ export type Suggestion =
 const DEBOUNCE_MS = 300;
 const MIN_CHARS = 2;
 const MAX_GEO = 7;
+// Geosuggest ограничиваем СТРАНОЙ, а не городом — иначе вне Ташкента «ничего не
+// найдено» (см. экран «Наманган»). Контекст задаётся текстовым префиксом запроса:
+// так ymaps.suggest решает, в каком регионе искать.
+const SUGGEST_SCOPE = 'Узбекистан';
 
 const norm = (s: string): string => s.trim().toLowerCase();
 
@@ -77,7 +82,7 @@ export function useGeoSuggest(
 
     const timer = setTimeout(() => {
       loadYmaps(locale)
-        .then((ymaps: Ymaps) => ymaps.suggest(`Ташкент, ${query}`, { results: MAX_GEO }))
+        .then((ymaps: Ymaps) => ymaps.suggest(`${SUGGEST_SCOPE}, ${query}`, { results: MAX_GEO }))
         .then((res: Array<{ displayName: string; value: string }>) => {
           if (cancelled) return;
           const geo: Suggestion[] = res.map((r) => ({
