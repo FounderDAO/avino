@@ -16,3 +16,7 @@ pnpm-lock.yaml
 # Hand-maintained infra/config YAML
 docker-compose.yml
 pnpm-workspace.yaml
+
+# Generated OpenAPI specs
+apps/api/openapi.public.json
+apps/api/openapi.internal.json
