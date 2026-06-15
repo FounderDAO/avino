@@ -1,5 +1,6 @@
 import { registerAs } from '@nestjs/config';
 import { parseCorsOrigins } from '../common/cors/cors.options';
+import { resolveSwaggerEnabled } from '../common/openapi/swagger.gating';
 
 /**
  * Типизированные namespaced-конфиги (TASK-022).
@@ -150,6 +151,14 @@ export const googleConfig = registerAs('google', () => ({
   clientId: process.env.GOOGLE_CLIENT_ID,
 }));
 
+// Swagger / OpenAPI UI (config-gated). enabled определяется resolveSwaggerEnabled:
+// явный SWAGGER_ENABLED env → его значение; иначе dev=true / prod=false.
+export const swaggerConfig = registerAs('swagger', () => ({
+  enabled: resolveSwaggerEnabled(process.env.SWAGGER_ENABLED, process.env.NODE_ENV),
+  basicAuthUser: process.env.SWAGGER_USER,
+  basicAuthPass: process.env.SWAGGER_PASS,
+}));
+
 // Telegram admin-алерты (config-gated, как sms/email). Булевы хранятся строкой
 // в env (class-transformer привёл бы любую непустую к true) и парсятся здесь.
 export const telegramConfig = registerAs('telegram', () => ({
@@ -182,4 +191,5 @@ export const configurations = [
   jwtConfig,
   googleConfig,
   telegramConfig,
+  swaggerConfig,
 ];

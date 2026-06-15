@@ -279,6 +279,19 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   TELEGRAM_NOTIFICATION_STATE?: string;
+
+  // ── Swagger / OpenAPI UI (опционально на старте) ──
+  @IsString()
+  @IsOptional()
+  SWAGGER_ENABLED?: string;
+
+  @IsString()
+  @IsOptional()
+  SWAGGER_USER?: string;
+
+  @IsString()
+  @IsOptional()
+  SWAGGER_PASS?: string;
 }
 
 /**
