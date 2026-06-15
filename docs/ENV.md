@@ -287,7 +287,19 @@ Notes:
   base URL comes from NEXT_PUBLIC_API_BASE_URL and is suffixed with /api/v1.
 ```
 
-## 18. Gaps vs current .env.example
+## 18. Swagger / OpenAPI
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SWAGGER_ENABLED` | no | `true` outside production, else `false` | Master flag. `true`/`false`. When `false`, no docs are mounted. |
+| `SWAGGER_USER` | for internal docs | — | HTTP Basic-auth username for `/api/docs/internal*`. No default (secret). |
+| `SWAGGER_PASS` | for internal docs | — | HTTP Basic-auth password for `/api/docs/internal*`. No default (secret). |
+
+- Public docs: `GET /api/docs` (UI), `GET /api/docs-json` (raw OpenAPI).
+- Internal docs (all controllers incl. `admin/*`): `GET /api/docs/internal`, `GET /api/docs/internal-json` — always behind Basic-auth; mounted only when both `SWAGGER_USER` and `SWAGGER_PASS` are set.
+- The mobile team consumes `apps/api/openapi.public.json` for client codegen.
+
+## 19. Gaps vs current .env.example
 
 The current `.env.example` covers Node, API, CORS, DB, Redis, S3, Yandex, Eskiz,
 Translation, SMTP, OTP/rate-limit, JWT and Web. The following are referenced by

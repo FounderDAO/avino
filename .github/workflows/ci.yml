@@ -39,6 +39,16 @@ jobs:
       - name: Build
         run: pnpm --filter @avino/api build
 
+      - name: Export OpenAPI spec
+        run: pnpm --filter @avino/api exec node dist/scripts/export-openapi.js
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/avino
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+
+      - name: Check OpenAPI spec is up to date
+        run: git diff --exit-code -- apps/api/openapi.public.json apps/api/openapi.internal.json
+
       - name: Test (jest)
         run: pnpm --filter @avino/api test
 
