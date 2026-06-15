@@ -1,14 +1,20 @@
 /**
- * PickMap — выбор точки на карте-ЗАГЛУШКЕ (БЕЗ реального Leaflet).
- * Чисто визуально: стилизованный фон «карты» (сетка улиц + блоки кварталов),
- * клик ставит маркер, маркер можно перетаскивать. Пиксельная позиция
- * проецируется в псевдо-координаты вокруг центра Ташкента (41.311, 69.28).
+ * PickMap — выбор точки объекта на РЕАЛЬНОЙ Yandex-карте (CLAUDE.md §12).
+ * Одна перетаскиваемая метка: клик по карте ставит/двигает точку, перетаскивание
+ * метки уточняет её. Каждое изменение эмитит координаты (onChange) и обратно
+ * геокодит точку → строку адреса (onAddressResolve) — двусторонняя синхронизация
+ * с инпутом адреса (AddressStep).
+ *
+ * Внешнее изменение `value` (выбор подсказки → геокод) центрирует карту и двигает
+ * метку. Деградация (нет ключа / SDK упал): вместо карты — подсказка, шаг не падает
+ * (координаты опциональны, адрес задаётся текстом).
  */
 'use client';
 
-import { useRef, useState } from 'react';
+import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { MapPin } from 'lucide-react';
+import { useYmaps } from '@/features/map/useYmaps';
+import { reverseGeocode } from '@/features/map/geocode';
 
 /** Координаты [lat, lng]. */
 export type Coords = [number, number];
@@ -16,101 +22,123 @@ export type Coords = [number, number];
 export interface PickMapProps {
   value: Coords | null;
   onChange: (coords: Coords) => void;
+  /** Обратный геокод точки → строка адреса (синхронизация с инпутом). */
+  onAddressResolve?: (address: string) => void;
+  locale?: string;
 }
 
-/** Центр карты (Ташкент) и масштаб проекции «пиксель → градус». */
-const CENTER: Coords = [41.311, 69.28];
-const SPAN = 0.06; // разброс координат на всю ширину/высоту карты
+/** Центр карты по умолчанию (Ташкент) + масштабы. */
+const TASHKENT_CENTER: Coords = [41.311, 69.28];
+const DEFAULT_ZOOM = 12;
+const PLACED_ZOOM = 16;
+const EPS = 1e-6;
 
-/** Проекция доли [0..1] по осям в псевдо-координаты вокруг центра. */
-function project(fx: number, fy: number): Coords {
-  const lng = +(CENTER[1] + (fx - 0.5) * SPAN).toFixed(5);
-  const lat = +(CENTER[0] - (fy - 0.5) * SPAN).toFixed(5);
-  return [lat, lng];
-}
+const sameCoords = (a: Coords | null, b: Coords | null): boolean =>
+  !!a && !!b && Math.abs(a[0] - b[0]) < EPS && Math.abs(a[1] - b[1]) < EPS;
 
-export function PickMap({ value, onChange }: PickMapProps) {
+export function PickMap({ value, onChange, onAddressResolve, locale }: PickMapProps) {
   const t = useTranslations('listingNew');
-  const boxRef = useRef<HTMLDivElement>(null);
-  // Позиция маркера в долях [0..1] — для отрисовки. null до первого клика.
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(value ? { x: 0.5, y: 0.5 } : null);
-  const dragging = useRef(false);
+  const { ymaps, status } = useYmaps(locale);
 
-  /** Обработать указатель: вычислить долю в пределах карты и обновить точку. */
-  const place = (clientX: number, clientY: number) => {
-    const box = boxRef.current;
-    if (!box) return;
-    const r = box.getBoundingClientRect();
-    const x = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
-    const y = Math.min(1, Math.max(0, (clientY - r.top) / r.height));
-    setPos({ x, y });
-    onChange(project(x, y));
-  };
+  const elRef = React.useRef<HTMLDivElement>(null);
+  const mapRef = React.useRef<any>(null);
+  const markerRef = React.useRef<any>(null);
+  const setMarkerRef = React.useRef<((c: Coords) => void) | null>(null);
+  // Последняя эмитнутая точка — чтобы не центрировать карту в ответ на свой же клик.
+  const lastEmitted = React.useRef<Coords | null>(null);
+
+  // Свежие колбэки без пересоздания карты (карта строится один раз).
+  const cbRef = React.useRef({ onChange, onAddressResolve, locale });
+  cbRef.current = { onChange, onAddressResolve, locale };
+
+  // Инициализация карты — один раз, когда SDK готов.
+  React.useEffect(() => {
+    if (status !== 'ready' || !ymaps || !elRef.current || mapRef.current) return;
+
+    const emit = (coords: Coords, reverse: boolean) => {
+      lastEmitted.current = coords;
+      cbRef.current.onChange(coords);
+      if (reverse && cbRef.current.onAddressResolve) {
+        reverseGeocode(coords, cbRef.current.locale).then((addr) => {
+          if (addr) cbRef.current.onAddressResolve?.(addr);
+        });
+      }
+    };
+
+    const start = value ?? TASHKENT_CENTER;
+    const map = new ymaps.Map(
+      elRef.current,
+      { center: start, zoom: value ? PLACED_ZOOM : DEFAULT_ZOOM, controls: ['zoomControl', 'geolocationControl'] },
+      { suppressMapOpenBlock: true },
+    );
+    mapRef.current = map;
+
+    const setMarker = (coords: Coords) => {
+      if (!markerRef.current) {
+        const pm = new ymaps.Placemark(coords, {}, { draggable: true, preset: 'islands#redIcon' });
+        pm.events.add('dragend', () => {
+          const c = pm.geometry.getCoordinates() as Coords;
+          emit(c, true);
+        });
+        markerRef.current = pm;
+        map.geoObjects.add(pm);
+      } else {
+        markerRef.current.geometry.setCoordinates(coords);
+      }
+    };
+    setMarkerRef.current = setMarker;
+
+    if (value) {
+      setMarker(value);
+      lastEmitted.current = value;
+    }
+
+    map.events.add('click', (e: any) => {
+      const c = e.get('coords') as Coords;
+      setMarker(c);
+      emit(c, true);
+    });
+
+    return () => {
+      map.destroy();
+      mapRef.current = null;
+      markerRef.current = null;
+      setMarkerRef.current = null;
+    };
+    // value читаем только при инициализации; дальнейшую синхронизацию ведёт эффект ниже.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, ymaps]);
+
+  // Внешнее изменение точки (выбор подсказки → геокод): двигаем метку и центрируем.
+  React.useEffect(() => {
+    if (!value || !mapRef.current || !setMarkerRef.current) return;
+    if (sameCoords(lastEmitted.current, value)) return; // наш же клик/перетаскивание
+    setMarkerRef.current(value);
+    mapRef.current.setCenter(value, PLACED_ZOOM, { duration: 200 });
+    lastEmitted.current = value;
+  }, [value]);
 
   return (
     <div>
-      <div
-        ref={boxRef}
-        onClick={(e) => place(e.clientX, e.clientY)}
-        onPointerMove={(e) => {
-          if (dragging.current) place(e.clientX, e.clientY);
-        }}
-        onPointerUp={() => (dragging.current = false)}
-        className="relative h-[300px] cursor-crosshair overflow-hidden rounded-input border border-border bg-[#e9eee7]"
-      >
-        {/* Псевдо-кварталы */}
-        <div className="absolute inset-0 opacity-70">
-          <div className="absolute left-[8%] top-[12%] h-[22%] w-[26%] rounded-[6px] bg-[#dde6da]" />
-          <div className="absolute left-[42%] top-[8%] h-[30%] w-[22%] rounded-[6px] bg-[#dde6da]" />
-          <div className="absolute left-[70%] top-[18%] h-[26%] w-[22%] rounded-[6px] bg-[#dde6da]" />
-          <div className="absolute left-[14%] top-[50%] h-[28%] w-[30%] rounded-[6px] bg-[#dde6da]" />
-          <div className="absolute left-[56%] top-[56%] h-[30%] w-[28%] rounded-[6px] bg-[#dde6da]" />
-          {/* «Зелёный массив» */}
-          <div className="absolute left-[30%] top-[34%] h-[18%] w-[16%] rounded-full bg-[#cfe3c6]" />
-        </div>
-        {/* Сетка улиц */}
+      {status === 'ready' ? (
         <div
-          className="absolute inset-0 opacity-60"
-          style={{
-            backgroundImage:
-              'linear-gradient(#f4f6f2 2px, transparent 2px), linear-gradient(90deg, #f4f6f2 2px, transparent 2px)',
-            backgroundSize: '64px 64px',
-          }}
+          ref={elRef}
+          aria-label={t('fields.mapPoint')}
+          className="h-[300px] w-full overflow-hidden rounded-input border border-border bg-[#e9eee7]"
         />
-        {/* Диагональная «магистраль» */}
-        <div className="absolute left-[-10%] top-[64%] h-[10px] w-[120%] -rotate-6 bg-[#f4f6f2]" />
-
-        {/* Маркер */}
-        {pos && (
-          <button
-            type="button"
-            aria-label={t('map.marker')}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              dragging.current = true;
-            }}
-            onClick={(e) => e.stopPropagation()}
-            style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }}
-            className="absolute -translate-x-1/2 -translate-y-full cursor-grab text-red drop-shadow-md active:cursor-grabbing"
-          >
-            <MapPin size={36} strokeWidth={2} className="fill-red text-white" />
-          </button>
-        )}
-
-        {!pos && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="rounded-pill bg-surface/90 px-3.5 py-1.5 text-[13px] font-semibold text-ink shadow-card">
-              {t('map.clickToPlace')}
-            </span>
-          </div>
-        )}
-      </div>
+      ) : (
+        <div className="flex h-[300px] w-full items-center justify-center rounded-input border border-border bg-[#e9eee7] px-6 text-center">
+          <span className="rounded-pill bg-surface/90 px-3.5 py-1.5 text-[13px] font-semibold text-ink shadow-card">
+            {status === 'loading' ? t('map.loading') : t('map.unavailable')}
+          </span>
+        </div>
+      )}
       <p className="mt-2 text-[13px] text-muted-foreground">
         {value ? (
           <>
             {t('map.pointLabel')}{' '}
             <b className="text-ink">
-              {value[0]}, {value[1]}
+              {value[0].toFixed(5)}, {value[1].toFixed(5)}
             </b>
           </>
         ) : (

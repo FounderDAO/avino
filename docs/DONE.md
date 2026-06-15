@@ -39,6 +39,32 @@ Related ADR:
 
 ## 2026-06-15
 
+### TASK-218 — Адрес объявления: реальная Yandex-карта + Suggest-пикер
+
+Status: DONE
+Branch: feat/client-listing-address-yandex
+PR: pending
+
+Files changed:
+- apps/client/src/features/map/geocode.ts (новый — geocodeToPoint / reverseGeocode)
+- apps/client/src/features/listing-new/AddressStep.tsx (новый — автокомплит + карта + 2-сторонняя синхронизация)
+- apps/client/src/features/listing-new/PickMap.tsx (заглушка → реальный ymaps.Map с перетаскиваемой меткой)
+- apps/client/src/features/listing-new/ListingNew.tsx (шаг 2 → AddressStep; useLocale; валидация шага 2 — адрес обязателен, координаты опциональны)
+- apps/client/messages/{ru,en,uz}.json (listingNew.map.loading/unavailable + правка helpEmpty/clickToPlace)
+
+Summary:
+- Шаг «Адрес» визарда создания объявления получил реальную Yandex-карту и автоподсказку адреса вместо заглушки (CLAUDE.md §12).
+- Автокомплит (Yandex Suggest по всему Узбекистану) + перетаскиваемая метка на карте; двусторонняя синхронизация: выбор подсказки/Enter → геокод → точка+центрирование; клик/перетаскивание метки → обратный геокод → адрес.
+- Полное переиспользование useYmaps / useGeoSuggest / SearchAutocomplete / lib/geo (без дублирования).
+- Валидация шага 2 ослаблена: адрес обязателен, точка опциональна — сбой/отсутствие Yandex не блокирует публикацию (buildBody и раньше слал координаты условно).
+- Локальный build/tsc/eslint — зелёные. Live Yandex-смоук (карта рисуется, подсказки приходят, метка тянется) — отдельной проверкой в браузере.
+
+Commit messages:
+- feat(client): real Yandex map + address suggest picker on listing step 2
+
+Related ADR:
+- docs/adr/ADR-0080-client-listing-address-yandex-picker.md
+
 ### TASK-198 — Галерея: счётчик фото и «показать все» (особенно мобайл)
 
 Status: DONE

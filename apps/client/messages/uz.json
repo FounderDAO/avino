@@ -438,9 +438,11 @@
     },
     "map": {
       "marker": "Obyekt nuqtasi",
-      "clickToPlace": "Nuqta qo'yish uchun xaritani bosing",
+      "clickToPlace": "Yuqorida manzilni qidiring yoki xaritani bosing",
       "pointLabel": "Xaritadagi nuqta:",
-      "helpEmpty": "Obyekt nuqtasini qo'yish uchun xaritani bosing (koordinatalar faqat xaritadan olinadi)."
+      "helpEmpty": "Yuqoridagi maydonda manzilni qidiring yoki xaritaga nuqta qo'ying — uni aniqlashtirish uchun suring.",
+      "loading": "Xarita yuklanmoqda…",
+      "unavailable": "Xarita mavjud emas — manzilni yuqoridagi maydonga kiriting."
     },
     "preview": {
       "noTitle": "Sarlavhasiz",
