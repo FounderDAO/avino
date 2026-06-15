@@ -42,8 +42,13 @@ jobs:
       - name: Export OpenAPI spec
         run: pnpm --filter @avino/api exec node dist/scripts/export-openapi.js
         env:
+          # preview-режим NestFactory не открывает соединений и не валидирует
+          # токены — нужны лишь НЕПУСТЫЕ значения, чтобы пройти env-валидацию
+          # (@IsNotEmpty: DATABASE_URL, REDIS_URL, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET).
           DATABASE_URL: postgresql://user:pass@localhost:5432/avino
           REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: ci-placeholder-secret
+          JWT_REFRESH_SECRET: ci-placeholder-secret
           NODE_ENV: test
 
       - name: Check OpenAPI spec is up to date

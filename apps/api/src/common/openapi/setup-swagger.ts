@@ -49,7 +49,9 @@ export function setupSwagger(app: INestApplication): void {
     SwaggerModule.setup('api/docs/internal', app, createInternalDocument(app), {
       swaggerOptions: { persistAuthorization: true },
     });
-    logger.log('Internal API docs mounted at /api/docs/internal (basic-auth)');
+    logger.log(
+      'Internal API docs mounted at /api/docs/internal (json: /api/docs/internal-json, basic-auth)',
+    );
   } else {
     logger.warn(
       'Internal docs NOT mounted: set SWAGGER_USER and SWAGGER_PASS to enable',
