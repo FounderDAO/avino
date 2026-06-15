@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/client-listing-address-yandex
-PR: pending
+PR: https://github.com/FounderDAO/avino/pull/170
 
 Files changed:
 - apps/client/src/features/map/geocode.ts (новый — geocodeToPoint / reverseGeocode)
