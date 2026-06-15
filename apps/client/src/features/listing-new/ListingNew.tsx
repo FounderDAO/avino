@@ -34,7 +34,7 @@ import { Segment } from '@/components/ui/segment';
 import { Chip } from '@/components/ui/pill';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { cn } from '@/lib/utils';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { formatMoney, propertyTypeLabel } from '@/lib/format';
 import {
   PROPERTY_TYPES,
@@ -43,7 +43,8 @@ import {
   type TransactionType,
 } from '@/lib/mock';
 import { Progress } from './Progress';
-import { PickMap, type Coords } from './PickMap';
+import { type Coords } from './PickMap';
+import { AddressStep } from './AddressStep';
 import { PhotoUploader, type UploadPhoto } from './PhotoUploader';
 
 /** Шаги прогресс-бара (подписи — в словаре `listingNew.steps`). */
@@ -156,6 +157,7 @@ export function ListingNew() {
   const t = useTranslations('listingNew');
   const tUnits = useTranslations('units');
   const tEnums = useTranslations('enums');
+  const locale = useLocale();
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
   const [f, dispatch] = useReducer(reducer, INITIAL);
@@ -255,7 +257,9 @@ export function ListingNew() {
       case 1:
         return Boolean(f.tx && f.type);
       case 2:
-        return Boolean(f.address.trim() && f.coords);
+        // Адрес обязателен; точка на карте — необязательное уточнение (геокод/карта
+        // могут быть недоступны, но объявление всё равно должно создаваться).
+        return Boolean(f.address.trim());
       case 3:
         return Boolean(f.area && (noRooms || f.rooms));
       case 4:
@@ -361,20 +365,15 @@ export function ListingNew() {
           </div>
         )}
 
-        {/* Шаг 2 — Адрес и точка на карте */}
+        {/* Шаг 2 — Адрес (Yandex Suggest) и точка на реальной карте */}
         {step === 2 && (
-          <div className="flex flex-col gap-5">
-            <FormField label={t('fields.address.label')} hint={t('fields.address.hint')}>
-              <Field
-                placeholder={t('fields.address.placeholder')}
-                value={f.address}
-                onChange={(e) => set('address', e.target.value)}
-              />
-            </FormField>
-            <FormField label={t('fields.mapPoint')}>
-              <PickMap value={f.coords} onChange={(c) => set('coords', c)} />
-            </FormField>
-          </div>
+          <AddressStep
+            address={f.address}
+            coords={f.coords}
+            onAddressChange={(v) => set('address', v)}
+            onCoordsChange={(c) => set('coords', c)}
+            locale={locale}
+          />
         )}
 
         {/* Шаг 3 — Параметры */}

@@ -438,9 +438,11 @@
     },
     "map": {
       "marker": "Property location",
-      "clickToPlace": "Click the map to drop a pin",
+      "clickToPlace": "Search the address above or click the map",
       "pointLabel": "Point on the map:",
-      "helpEmpty": "Click the map to drop a pin for the property (coordinates are taken from the map only)."
+      "helpEmpty": "Search the address in the field above or drop a pin on the map — drag it to fine-tune.",
+      "loading": "Loading map…",
+      "unavailable": "Map unavailable — enter the address in the field above."
     },
     "preview": {
       "noTitle": "Untitled",
