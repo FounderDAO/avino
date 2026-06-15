@@ -1076,6 +1076,10 @@ TASK-122
 
 ## 21. M17 — Mobile API guide
 
+> Note: машиночитаемый контракт (Swagger/OpenAPI, два gated-документа + codegen-экспорт)
+> доставлен отдельно как **TASK-219** (PR #171, ADR-0081, см. `docs/DONE.md`). Эта
+> задача (TASK-170) — человекочитаемый `MOBILE_API_GUIDE.md`, остаётся TODO.
+
 ### TASK-170 — Create mobile API guide
 
 Status:

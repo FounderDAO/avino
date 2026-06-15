@@ -39,6 +39,55 @@ Related ADR:
 
 ## 2026-06-15
 
+### TASK-219 — Mobile Swagger/OpenAPI: два gated-документа + codegen-экспорт
+
+Status: DONE
+Branch: feat/api-swagger-openapi
+PR: https://github.com/FounderDAO/avino/pull/171
+
+Files changed:
+- apps/api/package.json
+- apps/api/nest-cli.json
+- apps/api/src/main.ts
+- apps/api/src/config/configuration.ts
+- apps/api/src/config/env.validation.ts
+- apps/api/src/common/openapi/swagger.gating.ts (+ .spec)
+- apps/api/src/common/openapi/error-response.swagger.ts
+- apps/api/src/common/openapi/swagger.documents.ts (+ .spec)
+- apps/api/src/common/openapi/setup-swagger.ts
+- apps/api/src/common/openapi/index.ts
+- apps/api/src/common/openapi/openapi.contract.spec.ts
+- apps/api/src/scripts/export-openapi.ts
+- apps/api/openapi.public.json
+- apps/api/openapi.internal.json
+- .github/workflows/ci.yml
+- .prettierignore
+- docs/ENV.md
+
+Summary:
+- Phase 1: Swagger/OpenAPI из контроллеров/DTO через @nestjs/swagger (CLI-плагин), без ручного YAML.
+- Два документа: публичный (/api/docs, без admin/* и roles — двойной барьер module-include + path-allowlist) и internal (/api/docs/internal, все контроллеры, всегда за HTTP Basic-auth).
+- Гейтинг через SWAGGER_ENABLED (dev=on, prod=off) + SWAGGER_USER/SWAGGER_PASS (fail-closed, без дефолтов для секретов).
+- Экспорт-скрипт (NestFactory preview-режим, без БД/Redis) пишет закоммиченные openapi.public.json / openapi.internal.json; CI-шаг падает при дрейфе спеки от кода.
+- Контракт зафиксирован тестом (публичная спека: 34 пути, 0 admin; internal: admin присутствует; bearer + ErrorResponseDto).
+- Phase 1 НЕ трогает контроллеры; per-route @ApiBearerAuth и типизированные response-DTO — Phase 2 (отдельный план).
+- Дополняет TASK-170 (человекочитаемый MOBILE_API_GUIDE.md): здесь — машиночитаемый контракт для codegen.
+- Экспорт требует 4 @IsNotEmpty env (DATABASE_URL, REDIS_URL, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET) заданными (не живыми) — в CI прокинуты плейсхолдеры.
+
+Commit messages:
+- build(api): add @nestjs/swagger + express-basic-auth, enable swagger CLI plugin
+- feat(api): swagger gating helpers (env flag + basic-auth decision)
+- feat(api): swagger config namespace + SWAGGER_* env vars
+- feat(api): swagger DTOs for the error envelope
+- feat(api): public/internal OpenAPI document factories + path allowlist prune
+- feat(api): mount public/internal Swagger UI gated by env flag + basic-auth
+- feat(api): openapi export script + committed public/internal specs
+- test(api): OpenAPI contract test + CI drift-check + ENV docs
+- fix(api): CI export needs JWT secrets; internal-docs log shows json path
+
+Related ADR:
+- docs/adr/ADR-0081-mobile-swagger-openapi.md
+
 ### TASK-218 — Адрес объявления: реальная Yandex-карта + Suggest-пикер
 
 Status: DONE
