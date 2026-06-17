@@ -299,7 +299,7 @@ export function ListingNew() {
         )}
         <div className="flex flex-wrap justify-center gap-3">
           <Button asChild size="lg">
-            <Link href="/account/listings">{t('success.myListings')}</Link>
+            <Link href="/account/my-listings">{t('success.myListings')}</Link>
           </Button>
           <Button asChild size="lg" variant="outline">
             <Link href="/">{t('success.home')}</Link>

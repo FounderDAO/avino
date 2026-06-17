@@ -39,6 +39,27 @@ Related ADR:
 
 ## 2026-06-18
 
+### TASK-221a — Hotfix: post-create/edit nav 404 (/account/listings → /account/my-listings)
+
+Status: DONE
+Branch: fix/client-account-my-listings-route
+PR: pending
+
+Files changed:
+- apps/client/src/features/listing-edit/ListingEdit.tsx
+- apps/client/src/features/listing-new/ListingNew.tsx
+
+Summary:
+- `/account/[tab]` делает `notFound()` для неизвестного таба; валидный ключ —
+  `my-listings`, а не `listings`. В TASK-221 (и в pre-existing success-экране
+  создания) использовался `/account/listings` → после сохранения правки /
+  публикации пользователь попадал на 404. Заменено на `/account/my-listings`
+  во всех 5 местах (4 в `ListingEdit`, 1 в success-экране `ListingNew`).
+- Поймано на ревью PR #177.
+
+Commit messages:
+- fix(client): post-create/edit nav to /account/my-listings (was 404)
+
 ### TASK-221 — Client: real listing edit + cancel/profile fixes (apps/client)
 
 Status: DONE
