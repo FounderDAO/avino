@@ -9,6 +9,7 @@ import {
   Prisma,
   PropertyType,
   TransactionType,
+  UserStatus,
 } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { ModerationService } from './moderation.service';
@@ -43,6 +44,20 @@ describe('ModerationService', () => {
     publishedAt: null,
     createdAt: new Date('2026-06-02T08:00:00.000Z'),
     translations: [{ language: Language.RU, title: '2-комн квартира' }],
+    owner: {
+      id: OWNER_ID,
+      email: 'seller@example.com',
+      phone: '+998901234567',
+      status: UserStatus.ACTIVE,
+      createdAt: new Date('2026-05-20T10:00:00.000Z'),
+      roles: [{ role: { code: 'OWNER' } }],
+      profile: {
+        firstName: 'Алишер',
+        lastName: 'Усманов',
+        displayName: 'Алишер У.',
+        contactPhone: '+998907654321',
+      },
+    },
   };
 
   beforeEach(() => {
@@ -96,6 +111,43 @@ describe('ModerationService', () => {
         price: '4500000.00',
         title: '2-комн квартира',
         original_language: Language.RU,
+      });
+    });
+
+    it('exposes the inline owner profile (name, contact, roles, status, registered)', async () => {
+      prisma.listing.findMany.mockResolvedValue([dbListItem]);
+      prisma.listing.count.mockResolvedValue(1);
+
+      const result = await service.listListings({ status: ListingStatus.NEW });
+
+      expect(result.data[0].owner).toEqual({
+        id: OWNER_ID,
+        display_name: 'Алишер У.',
+        first_name: 'Алишер',
+        last_name: 'Усманов',
+        email: 'seller@example.com',
+        phone: '+998901234567',
+        contact_phone: '+998907654321',
+        status: UserStatus.ACTIVE,
+        roles: ['OWNER'],
+        created_at: '2026-05-20T10:00:00.000Z',
+      });
+    });
+
+    it('maps a missing profile to null name/contact fields', async () => {
+      prisma.listing.findMany.mockResolvedValue([
+        { ...dbListItem, owner: { ...dbListItem.owner, profile: null } },
+      ]);
+      prisma.listing.count.mockResolvedValue(1);
+
+      const result = await service.listListings({ status: ListingStatus.NEW });
+
+      expect(result.data[0].owner).toMatchObject({
+        display_name: null,
+        first_name: null,
+        last_name: null,
+        contact_phone: null,
+        email: 'seller@example.com',
       });
     });
 
