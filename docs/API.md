@@ -964,7 +964,34 @@ ADMIN**.
 ```text
 GET /api/v1/admin/listings?status=NEW
 ```
-200 → пагинированный список листингов (любые статусы, с `owner_id`, `created_at`).
+200 → пагинированный список листингов (любые статусы). Каждый элемент несёт
+`owner_id`, `created_at`, `published_at` и инлайн-профиль автора `owner`
+(ADR-0084) — чтобы карточка модерации показывала «кто и когда создал» без
+ADMIN-only `GET /admin/users/:id`:
+```json
+{
+  "id": "l1",
+  "status": "NEW",
+  "owner_id": "u1",
+  "created_at": "2026-06-02T08:00:00Z",
+  "published_at": null,
+  "owner": {
+    "id": "u1",
+    "display_name": "Алишер У.",
+    "first_name": "Алишер",
+    "last_name": "Усманов",
+    "email": "seller@example.com",
+    "phone": "+998901234567",
+    "contact_phone": "+998907654321",
+    "status": "ACTIVE",
+    "roles": ["OWNER"],
+    "created_at": "2026-05-20T10:00:00Z"
+  }
+}
+```
+`owner.*` профильные поля (`display_name`/`first_name`/`last_name`/
+`contact_phone`) — `null`, если профиль не заполнен. Поле `owner` добавлено как
+optional response field (non-breaking, §14).
 
 ### PATCH /api/v1/admin/listings/:id/status
 Сменить статус (модерация). Auth: **MODERATOR / ADMIN**. Действие — одно из
