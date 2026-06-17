@@ -311,6 +311,21 @@ const PRIVILEGED_VIEW_ROLES: readonly UserRole[] = [
 ];
 
 /**
+ * «Продавцовские» роли — дают право публиковать объявления. Список совпадает с
+ * `@Roles(...)` на `POST /listings` (ListingsController). Автор без любой из них
+ * при создании ПЕРВОГО объявления авто-апгрейдится до OWNER (ADR-0083): низкий
+ * порог входа — зарегистрировался как USER → можешь продавать/сдавать сразу,
+ * без ручного назначения роли админом.
+ */
+const SELLER_ROLES: readonly UserRole[] = [
+  UserRole.OWNER,
+  UserRole.AGENT,
+  UserRole.AGENCY,
+  UserRole.LANDLORD,
+  UserRole.PROPERTY_MANAGER,
+];
+
+/**
  * ListingsService — создание и обновление объявлений (TASK-050, API.md §7).
  *
  * Новое объявление создаётся со статусом `NEW` (moderation queue, CLAUDE.md §9)
@@ -354,11 +369,47 @@ export class ListingsService {
       },
     };
 
-    const listing = await this.prisma.listing.create({
-      data,
-      select: LISTING_SELECT,
+    // Авто-апгрейд автора до OWNER при первом объявлении и сама запись — в одной
+    // транзакции (ADR-0083). Это позволяет свежему USER публиковать сразу, не
+    // дожидаясь ручного назначения роли; атомарность исключает рассинхрон
+    // «листинг создан, а роли нет».
+    const listing = await this.prisma.$transaction(async (tx) => {
+      await this.ensureSellerRole(tx, ownerId);
+      return tx.listing.create({ data, select: LISTING_SELECT });
     });
     return this.toResponse(listing);
+  }
+
+  /**
+   * Гарантировать, что автор имеет «продавцовскую» роль (ADR-0083). Если у него
+   * уже есть любая из {@link SELLER_ROLES} (в т.ч. агентские) — апгрейд не нужен;
+   * иначе выдаём OWNER. `upsert` по составному ключу `userId_roleId` идемпотентен
+   * и безопасен при гонке параллельных созданий. Если роль OWNER не засидена в БД
+   * — создание не блокируем (best-effort): право публиковать уже дал RolesGuard,
+   * а роль лишь уточняет тип контакта в карточке.
+   */
+  private async ensureSellerRole(
+    tx: Prisma.TransactionClient,
+    userId: string,
+  ): Promise<void> {
+    const sellerRoleCount = await tx.userRole.count({
+      where: { userId, role: { code: { in: [...SELLER_ROLES] } } },
+    });
+    if (sellerRoleCount > 0) {
+      return;
+    }
+    const ownerRole = await tx.role.findUnique({
+      where: { code: UserRole.OWNER },
+      select: { id: true },
+    });
+    if (!ownerRole) {
+      return;
+    }
+    await tx.userRole.upsert({
+      where: { userId_roleId: { userId, roleId: ownerRole.id } },
+      create: { userId, roleId: ownerRole.id },
+      update: {},
+    });
   }
 
   /**

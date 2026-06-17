@@ -65,7 +65,20 @@ describe('ListingsService', () => {
         count: jest.fn(),
         update: jest.fn(),
       },
+      // Авто-апгрейд автора до OWNER при первом объявлении (ADR-0083). Дефолт —
+      // «уже продавец» (count>0), чтобы базовый тест create фокусировался на
+      // записи листинга; кейсы апгрейда переопределяют count.
+      userRole: {
+        count: jest.fn().mockResolvedValue(1),
+        upsert: jest.fn().mockResolvedValue({}),
+      },
+      role: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'role-owner' }),
+      },
     };
+    // create() оборачивает апгрейд роли + запись листинга в один $transaction;
+    // мок прокидывает тот же prisma как tx-клиент (callback-форма).
+    prisma.$transaction = jest.fn().mockImplementation((cb: any) => cb(prisma));
     // Реальный TranslationsService (логика переводов делегирована ему, TASK-070);
     // его resolveLanguage/buildOriginalTranslationInput чисты, prisma не вызывают.
     // DistrictsService застаблен — резолв district_name проверяется в int-spec.
@@ -130,6 +143,49 @@ describe('ListingsService', () => {
         currency: Currency.UZS,
         created_at: '2026-06-02T08:00:00.000Z',
       });
+      // Автор уже продавец (дефолт count>0) — роль не трогаем.
+      expect(prisma.userRole.upsert).not.toHaveBeenCalled();
+    });
+
+    it('auto-grants the OWNER role when the author has no seller role (first listing)', async () => {
+      prisma.userRole.count.mockResolvedValue(0); // ни одной продавцовской роли
+      prisma.role.findUnique.mockResolvedValue({ id: 'role-owner' });
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, validCreate as any);
+
+      expect(prisma.role.findUnique).toHaveBeenCalledWith({
+        where: { code: UserRole.OWNER },
+        select: { id: true },
+      });
+      expect(prisma.userRole.upsert).toHaveBeenCalledWith({
+        where: { userId_roleId: { userId: OWNER_ID, roleId: 'role-owner' } },
+        create: { userId: OWNER_ID, roleId: 'role-owner' },
+        update: {},
+      });
+      expect(prisma.listing.create).toHaveBeenCalled();
+    });
+
+    it('does not grant OWNER when the author already has a seller role', async () => {
+      prisma.userRole.count.mockResolvedValue(1); // напр. уже AGENT/AGENCY
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, validCreate as any);
+
+      expect(prisma.role.findUnique).not.toHaveBeenCalled();
+      expect(prisma.userRole.upsert).not.toHaveBeenCalled();
+      expect(prisma.listing.create).toHaveBeenCalled();
+    });
+
+    it('still creates the listing when the OWNER role is not seeded (best-effort upgrade)', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      prisma.role.findUnique.mockResolvedValue(null);
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, validCreate as any);
+
+      expect(prisma.userRole.upsert).not.toHaveBeenCalled();
+      expect(prisma.listing.create).toHaveBeenCalled();
     });
   });
 

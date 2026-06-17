@@ -39,6 +39,30 @@ Related ADR:
 
 ## 2026-06-17
 
+### USER auto-upgrade to OWNER on first listing
+
+Status: DONE
+Branch: feat/user-auto-owner-on-first-listing
+PR: https://github.com/FounderDAO/avino/pull/174
+
+Files changed:
+- apps/api/src/listings/listings.controller.ts
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/listings.service.spec.ts
+- docs/adr/ADR-0083-user-auto-owner-on-first-listing.md
+
+Summary:
+- Проблема: регистрация (signup-as-login, ADR-0010) выдаёт новому пользователю только роль `USER`, а `POST /api/v1/listings` через `RolesGuard` требовал продавцовскую роль (`OWNER`/`AGENT`/`AGENCY`/`LANDLORD`/`PROPERTY_MANAGER`). Свежезарегистрированный человек, желающий продать/сдать дом, получал `403` и физически не мог создать объявление; назначение ролей было только у админа, self-service не было.
+- Решение (авто-апгрейд при первом объявлении, выбран Team Lead, ADR-0083): в `@Roles(...)` на `POST /listings` добавлен `UserRole.USER` (любой аутентифицированный может публиковать; `GUEST` отсекает `JwtAuthGuard`). `ListingsService.create` обёрнут в `$transaction`: перед вставкой `ensureSellerRole` выдаёт `OWNER`, если у автора нет ни одной продавцовской роли. Идемпотентно и race-safe (`upsert` по `userId_roleId`), best-effort если роль `OWNER` не засидена.
+- Propagation: `OWNER` виден в `GET /auth/me` сразу (роли из БД), в access-JWT — при следующем refresh (`token.service` пере-читает роли из БД; access TTL 900 с). Принудительной ротации нет.
+- Проверено: `pnpm --filter @avino/api test` → 400 passed / 54 suites; `nest build` и `eslint` чистые. Изменения только в `apps/api/` (+ ADR), другие app-папки не тронуты. Originated from a direct request (нет TASK-XXX).
+
+Commit messages:
+- feat(listings): auto-upgrade USER to OWNER on first listing (ADR-0083)
+
+Related ADR:
+- docs/adr/ADR-0083-user-auto-owner-on-first-listing.md
+
 ### Cloudflare R2 object storage — production runbook + connectivity smoke
 
 Status: DONE
