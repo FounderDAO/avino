@@ -10,7 +10,13 @@ import {
 import { DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
+import { UploadsService } from '../uploads';
 import { SearchService } from './search.service';
+
+// Медиа-подпись здесь не тестируется (ADR-0086) — echo сохранённого url, без S3.
+const uploadsStub = {
+  resolveMediaUrl: async (_key: string | null | undefined, url: string) => url,
+} as unknown as UploadsService;
 
 /**
  * Integration-тесты гео-поиска SearchService на живом PostgreSQL+PostGIS
@@ -34,6 +40,7 @@ describe('SearchService geo (integration, live PostGIS)', () => {
     prisma,
     new TranslationsService(prisma),
     new DistrictsService(prisma),
+    uploadsStub,
   );
 
   // Уникальный город этого прогона — фильтр изолирует выдачу от чужих строк.
@@ -270,6 +277,7 @@ describe('SearchService.searchPolygon (integration, live PostGIS)', () => {
     prisma,
     new TranslationsService(prisma),
     new DistrictsService(prisma),
+    uploadsStub,
   );
 
   // Уникальный city_id для изоляции.

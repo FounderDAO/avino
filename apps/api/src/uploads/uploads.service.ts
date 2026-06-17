@@ -97,6 +97,27 @@ export class UploadsService {
     );
   }
 
+  /**
+   * URL для ОТДАЧИ медиа клиенту — всегда свежий (ADR-0086). В приватном режиме это
+   * заново-подписанный presigned GET URL, в публичном — постоянный CDN-URL. Так как
+   * подпись выписывается ПРИ КАЖДОМ ЧТЕНИИ, она физически не успевает протухнуть —
+   * в отличие от прежней схемы, где presigned URL пёкся один раз при загрузке и
+   * через `S3_SIGNED_URL_TTL` отдавал `403 ExpiredRequest`.
+   *
+   * @param storageKey стабильный object key из БД (`listing_media.storage_key`);
+   * @param fallbackUrl сохранённый `url` — фолбэк для legacy-строк без `storage_key`:
+   *                    ключ восстанавливается из него {@link extractKey} (query/
+   *                    base-URL отбрасываются). Работает и для presigned, и для
+   *                    публичных URL.
+   */
+  async resolveMediaUrl(
+    storageKey: string | null | undefined,
+    fallbackUrl: string,
+  ): Promise<string> {
+    const key = storageKey ?? this.extractKey(fallbackUrl);
+    return this.getObjectUrl(key);
+  }
+
   /** Удалить объект (для очистки orphaned media, ARCHITECTURE §14 п.4). */
   async delete(key: string): Promise<void> {
     const client = this.getClient();

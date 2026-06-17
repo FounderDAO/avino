@@ -43,6 +43,7 @@ export interface ListingMediaResponse {
 const MEDIA_SELECT = {
   id: true,
   url: true,
+  storageKey: true,
   thumbnailUrl: true,
   sortOrder: true,
   type: true,
@@ -159,7 +160,7 @@ export class ListingMediaService {
       });
     }
 
-    const { url } = await this.uploads.upload({
+    const { key, url } = await this.uploads.upload({
       buffer: file.buffer,
       contentType: file.mimetype,
       prefix: `listings/${listingId}/media`,
@@ -170,6 +171,9 @@ export class ListingMediaService {
       data: {
         listingId,
         url,
+        // Стабильный key — source of truth для отдачи (ADR-0086). `url` пишем для
+        // обратной совместимости/легаси-фолбэка, но на чтении не используем.
+        storageKey: key,
         sortOrder: count,
         type: MediaType.IMAGE,
         mimeType: file.mimetype,
@@ -195,7 +199,7 @@ export class ListingMediaService {
 
     const media = await this.prisma.listingMedia.findFirst({
       where: { id: mediaId, listingId },
-      select: { id: true, url: true },
+      select: { id: true, url: true, storageKey: true },
     });
     if (!media) {
       throw new NotFoundException({
@@ -207,7 +211,11 @@ export class ListingMediaService {
     await this.prisma.listingMedia.delete({ where: { id: media.id } });
 
     try {
-      await this.uploads.delete(this.uploads.extractKey(media.url));
+      // Предпочитаем стабильный key; для legacy-строк (key=NULL) восстанавливаем
+      // из сохранённого url.
+      await this.uploads.delete(
+        media.storageKey ?? this.uploads.extractKey(media.url),
+      );
     } catch (error) {
       // DB-запись — source of truth; S3-объект осиротел, его уберёт cleanup-джоба.
       this.logger.warn(
@@ -264,7 +272,7 @@ export class ListingMediaService {
       select: MEDIA_SELECT,
       orderBy: { sortOrder: 'asc' },
     });
-    return rows.map((row) => this.toResponse(row));
+    return Promise.all(rows.map((row) => this.toResponse(row)));
   }
 
   /**
@@ -335,11 +343,19 @@ export class ListingMediaService {
     });
   }
 
-  private toResponse(media: ListingMediaRow): ListingMediaResponse {
+  /**
+   * Строка БД → ответ API со свежим presigned URL (ADR-0086). URL и thumbnail
+   * перевыпускаются из стабильного key на каждом чтении, поэтому не протухают.
+   */
+  private async toResponse(
+    media: ListingMediaRow,
+  ): Promise<ListingMediaResponse> {
     return {
       id: media.id,
-      url: media.url,
-      thumbnail_url: media.thumbnailUrl,
+      url: await this.uploads.resolveMediaUrl(media.storageKey, media.url),
+      thumbnail_url: media.thumbnailUrl
+        ? await this.uploads.resolveMediaUrl(null, media.thumbnailUrl)
+        : null,
       sort_order: media.sortOrder,
       type: media.type,
     };

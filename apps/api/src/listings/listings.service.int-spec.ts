@@ -9,7 +9,13 @@ import {
 import { DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
+import { UploadsService } from '../uploads';
 import { ListingsService } from './listings.service';
+
+// Медиа-подпись здесь не тестируется (ADR-0086) — echo сохранённого url, без S3.
+const uploadsStub = {
+  resolveMediaUrl: async (_key: string | null | undefined, url: string) => url,
+} as unknown as UploadsService;
 
 /**
  * Integration-тесты контактного блока детальной (TASK-210, ADR-0069) на живом
@@ -29,6 +35,7 @@ describe('ListingsService contact block (integration, TASK-210)', () => {
     prisma,
     new TranslationsService(prisma),
     districts,
+    uploadsStub,
   );
 
   const CITY_ID = '55555555-3333-4444-8555-000000000210';

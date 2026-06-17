@@ -10,7 +10,13 @@ import { ListingsService } from '../listings/listings.service';
 import { PrismaService } from '../prisma';
 import { SearchService } from '../search/search.service';
 import { TranslationsService } from '../translations';
+import { UploadsService } from '../uploads';
 import { DistrictsService } from './districts.service';
+
+// Медиа-подпись здесь не тестируется (ADR-0086) — echo сохранённого url, без S3.
+const uploadsStub = {
+  resolveMediaUrl: async (_key: string | null | undefined, url: string) => url,
+} as unknown as UploadsService;
 
 /**
  * Integration-тесты справочника районов и встраивания `district_name` (TASK-209,
@@ -30,8 +36,13 @@ describe('DistrictsService + district_name (integration, TASK-209)', () => {
   const prisma = new PrismaService();
   const translations = new TranslationsService(prisma);
   const districts = new DistrictsService(prisma);
-  const search = new SearchService(prisma, translations, districts);
-  const listings = new ListingsService(prisma, translations, districts);
+  const search = new SearchService(prisma, translations, districts, uploadsStub);
+  const listings = new ListingsService(
+    prisma,
+    translations,
+    districts,
+    uploadsStub,
+  );
 
   const CITY_ID = '44444444-3333-4444-8555-000000000209';
   const TEST_DISTRICT_ID = 'd9999999-0000-4000-8000-000000000209';

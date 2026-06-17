@@ -19,6 +19,7 @@ import { AuthenticatedUser } from '../common/guards';
 import { DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
+import { UploadsService } from '../uploads';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
@@ -221,6 +222,7 @@ const LISTING_DETAIL_SELECT = {
     select: {
       id: true,
       url: true,
+      storageKey: true,
       thumbnailUrl: true,
       sortOrder: true,
       type: true,
@@ -289,7 +291,7 @@ const LISTING_LIST_SELECT = {
     select: { language: true, title: true },
   },
   media: {
-    select: { url: true, thumbnailUrl: true },
+    select: { url: true, storageKey: true, thumbnailUrl: true },
     orderBy: { sortOrder: Prisma.SortOrder.asc },
     take: 1,
   },
@@ -342,6 +344,7 @@ export class ListingsService {
     private readonly prisma: PrismaService,
     private readonly translations: TranslationsService,
     private readonly districts: DistrictsService,
+    private readonly uploads: UploadsService,
   ) {}
 
   /** `POST /api/v1/listings` — создать объявление (статус `NEW`). */
@@ -556,7 +559,7 @@ export class ListingsService {
     ]);
 
     return {
-      data: rows.map((row) => this.toListItem(row)),
+      data: await Promise.all(rows.map((row) => this.toListItem(row))),
       meta: { page, limit, total },
     };
   }
@@ -643,12 +646,19 @@ export class ListingsService {
   }
 
   /** Компактная карточка листинга в snake_case для коллекций (TASK-052). */
-  private toListItem(listing: ListingListRow): ListingListItem {
+  private async toListItem(listing: ListingListRow): Promise<ListingListItem> {
     const translation =
       listing.translations.find(
         (t) => t.language === listing.originalLanguage,
       ) ?? listing.translations[0];
     const cover = listing.media[0];
+    // Обложка: thumbnail если есть (перевыпуск из его url), иначе основное фото
+    // (перевыпуск из storage_key). Всегда свежий presigned URL — ADR-0086.
+    const thumbnailUrl = cover
+      ? cover.thumbnailUrl
+        ? await this.uploads.resolveMediaUrl(null, cover.thumbnailUrl)
+        : await this.uploads.resolveMediaUrl(cover.storageKey, cover.url)
+      : null;
     return {
       id: listing.id,
       status: listing.status,
@@ -664,7 +674,7 @@ export class ListingsService {
       promotion_expires_at: listing.promotionExpiresAt?.toISOString() ?? null,
       original_language: listing.originalLanguage,
       title: translation?.title ?? '',
-      thumbnail_url: cover?.thumbnailUrl ?? cover?.url ?? null,
+      thumbnail_url: thumbnailUrl,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
     };
@@ -696,13 +706,26 @@ export class ListingsService {
   }
 
   /** Полная карточка листинга в snake_case (API.md §7) для разрешённого языка. */
-  private toDetailResponse(
+  private async toDetailResponse(
     listing: ListingDetailRow,
     language: Language,
     districtName: string | null,
-  ): ListingDetailResponse {
+  ): Promise<ListingDetailResponse> {
     const translation = listing.translations.find(
       (t) => t.language === language,
+    );
+    // Свежий presigned URL на каждое фото (ADR-0086): перевыпуск из storage_key,
+    // thumbnail — из его url (legacy-фолбэк через extractKey внутри resolveMediaUrl).
+    const media = await Promise.all(
+      listing.media.map(async (m) => ({
+        id: m.id,
+        url: await this.uploads.resolveMediaUrl(m.storageKey, m.url),
+        thumbnail_url: m.thumbnailUrl
+          ? await this.uploads.resolveMediaUrl(null, m.thumbnailUrl)
+          : null,
+        sort_order: m.sortOrder,
+        type: m.type,
+      })),
     );
     return {
       id: listing.id,
@@ -733,13 +756,7 @@ export class ListingsService {
       description: translation?.description ?? null,
       address_note: translation?.addressNote ?? null,
       features_text: translation?.featuresText ?? null,
-      media: listing.media.map((m) => ({
-        id: m.id,
-        url: m.url,
-        thumbnail_url: m.thumbnailUrl,
-        sort_order: m.sortOrder,
-        type: m.type,
-      })),
+      media,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
     };

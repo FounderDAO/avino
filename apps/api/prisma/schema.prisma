@@ -468,6 +468,13 @@ model ListingMedia {
   id           String    @id @default(uuid()) @db.Uuid
   listingId    String    @map("listing_id") @db.Uuid
   url          String
+  /// Стабильный S3/R2 object key файла. Source of truth для отдачи: presigned URL
+  /// генерируется из него на лету ПРИ КАЖДОМ ЧТЕНИИ (ADR-0086), поэтому ссылка не
+  /// успевает протухнуть. Раньше в `url` хранился целиком presigned URL с TTL=1ч →
+  /// после истечения фото отдавали 403 ExpiredRequest везде (деталь, модерация,
+  /// форма редактирования). Nullable: legacy-строки (key=NULL) подписываются через
+  /// extractKey(url)-фолбэк, поэтому миграция не требует бэкфилла.
+  storageKey   String?   @map("storage_key")
   thumbnailUrl String?   @map("thumbnail_url")
   sortOrder    Int       @default(0) @map("sort_order") @db.SmallInt
   type         MediaType @default(IMAGE)

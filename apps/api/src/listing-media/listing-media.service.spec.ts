@@ -68,6 +68,12 @@ describe('ListingMediaService', () => {
       }),
       delete: jest.fn().mockResolvedValue(undefined),
       extractKey: jest.fn().mockReturnValue('listings/x/media/u.webp'),
+      // Отдача всегда идёт через свежий presigned URL (ADR-0086): по умолчанию
+      // echo (key ?? fallbackUrl), чтобы не-URL-тесты остались зелёными; тесты на
+      // протухание переопределяют возврат.
+      resolveMediaUrl: jest.fn((key: string | null | undefined, url: string) =>
+        Promise.resolve(key ?? url),
+      ),
     };
     service = new ListingMediaService(prisma, uploads);
   });
@@ -102,6 +108,36 @@ describe('ListingMediaService', () => {
         { id: M1, url: 'a', thumbnail_url: null, sort_order: 0, type: 'IMAGE' },
         { id: M2, url: 'b', thumbnail_url: 't', sort_order: 1, type: 'IMAGE' },
       ]);
+    });
+
+    it('re-signs media URL at read time and never serves the stored (expired) url (ADR-0086)', async () => {
+      mockListing();
+      // В БД лежит протухший presigned URL и стабильный key. Read-path обязан
+      // перевыпустить ссылку из key, а не отдать сохранённое значение.
+      prisma.listingMedia.findMany.mockResolvedValue([
+        {
+          id: M1,
+          url: 'https://r2.example/avinodev/listings/x/media/u.webp?X-Amz-Expires=3600&expired=yes',
+          storageKey: 'listings/x/media/u.webp',
+          thumbnailUrl: null,
+          sortOrder: 0,
+          type: MediaType.IMAGE,
+        },
+      ]);
+      uploads.resolveMediaUrl.mockResolvedValue(
+        'https://r2.example/avinodev/listings/x/media/u.webp?X-Amz-Signature=FRESH',
+      );
+
+      const [media] = await service.list(LISTING_ID, undefined);
+
+      expect(uploads.resolveMediaUrl).toHaveBeenCalledWith(
+        'listings/x/media/u.webp',
+        expect.stringContaining('expired=yes'),
+      );
+      expect(media.url).toBe(
+        'https://r2.example/avinodev/listings/x/media/u.webp?X-Amz-Signature=FRESH',
+      );
+      expect(media.url).not.toContain('expired=yes');
     });
 
     it('hides media of a non-ACTIVE listing from a guest (404)', async () => {
