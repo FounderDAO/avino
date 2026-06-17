@@ -7,8 +7,8 @@
  * см. TODO(listing-analytics).
  *
  * Состояния: гость → EmptyState с подсказкой входа; загрузка → скелетон-строки;
- * пусто → EmptyState. Кнопки Редактировать/Продвинуть/В архив — заглушки
- * (вне области задачи).
+ * пусто → EmptyState. «Редактировать» ведёт на /sell/:id/edit (реальная форма
+ * редактирования); Продвинуть/В архив — заглушки (вне области задачи).
  */
 'use client';
 
@@ -85,7 +85,7 @@ function ListingRow({ l }: { l: Listing }) {
       {/* Действия (заглушки) */}
       <div className="col-span-2 flex gap-2 sm:col-span-1 sm:flex-col">
         <Button asChild variant="outline" size="sm">
-          <Link href="/sell/new">{t('myListings.edit')}</Link>
+          <Link href={`/sell/${l.id}/edit`}>{t('myListings.edit')}</Link>
         </Button>
         {l.promo === 'NORMAL' ? (
           <Button size="sm" type="button">

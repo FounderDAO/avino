@@ -553,6 +553,28 @@
       "openChat": "Open chat"
     }
   },
+  "listingEdit": {
+    "meta": {
+      "title": "Edit listing — Avino",
+      "description": "Update your listing's details, price, photos and description."
+    },
+    "title": "Edit listing",
+    "subtitle": "Change the fields you need and save — changes apply immediately.",
+    "loading": "Loading listing…",
+    "notFoundTitle": "Listing not found",
+    "notFoundText": "It may have been deleted, or you don't have access to it.",
+    "authTitle": "Sign in to edit",
+    "authText": "You can only edit listings from your own account.",
+    "backToListings": "Back to my listings",
+    "cancel": "Cancel",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "langImmutable": "The original language is set at creation and can't be changed.",
+    "error": {
+      "required": "Fill in the required fields: title, address, area, price and at least one photo.",
+      "saveFailed": "Couldn't save changes. Please try again."
+    }
+  },
   "account": {
     "tabs": {
       "myListings": "My listings",
@@ -562,6 +584,9 @@
       "notifications": "Notifications",
       "profile": "Profile",
       "settings": "Settings"
+    },
+    "userCard": {
+      "guest": "Guest"
     },
     "favorites": {
       "title": "Favorites",
