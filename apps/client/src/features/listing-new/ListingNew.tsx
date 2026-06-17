@@ -10,7 +10,7 @@
 'use client';
 
 import { useReducer, useState } from 'react';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import {
@@ -158,6 +158,7 @@ export function ListingNew() {
   const tUnits = useTranslations('units');
   const tEnums = useTranslations('enums');
   const locale = useLocale();
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
   const [f, dispatch] = useReducer(reducer, INITIAL);
@@ -310,12 +311,16 @@ export function ListingNew() {
 
   return (
     <div className="fade-up mx-auto max-w-[760px] px-6 pb-16 pt-7">
-      <Link
-        href="/sell"
+      {/* «Отмена» возвращает на предыдущую страницу (откуда пришёл пользователь),
+          а не на лендинг /sell — иначе после «Разместить» из кабинета юзера
+          выбрасывало на маркетинговую страницу. */}
+      <button
+        type="button"
+        onClick={() => router.back()}
         className="mb-4 inline-flex items-center gap-2 text-[14.5px] font-bold text-teal hover:text-teal-deep"
       >
         <ChevronLeft size={18} /> {t('cancel')}
-      </Link>
+      </button>
       <h1 className="mb-1.5 text-3xl">{t('title')}</h1>
       <p className="mb-6 text-muted-foreground">
         {t('stepOf', { step, total: TOTAL })} · {t(`steps.${STEPS[step - 1]}`)}
