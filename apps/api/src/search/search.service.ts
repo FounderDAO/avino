@@ -13,6 +13,7 @@ import { DistrictsService } from '../geo';
 import type { DistrictNames } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
+import { UploadsService } from '../uploads';
 import {
   BoundsSearchQueryDto,
   NearMeSearchQueryDto,
@@ -197,7 +198,7 @@ const SEARCH_SELECT = {
     select: { language: true, title: true },
   },
   media: {
-    select: { url: true, thumbnailUrl: true },
+    select: { url: true, storageKey: true, thumbnailUrl: true },
     orderBy: { sortOrder: Prisma.SortOrder.asc },
     take: 1,
   },
@@ -233,6 +234,7 @@ export class SearchService {
     private readonly prisma: PrismaService,
     private readonly translations: TranslationsService,
     private readonly districts: DistrictsService,
+    private readonly uploads: UploadsService,
   ) {}
 
   /** `GET /api/v1/search` — promotion-приоритетный поиск ACTIVE-листингов. */
@@ -581,13 +583,13 @@ export class SearchService {
         .filter((id): id is string => id !== null),
     );
 
-    return pageRows
-      .map((row) => {
+    const cards = await Promise.all(
+      pageRows.map(async (row) => {
         const dbRow = byId.get(row.id);
         if (dbRow === undefined) {
           return undefined;
         }
-        const card = this.toSearchItem(
+        const card = await this.toSearchItem(
           dbRow,
           districtNames,
           langParam,
@@ -597,8 +599,9 @@ export class SearchService {
           card.distance_m = Math.round(Number(row.distance_m));
         }
         return card;
-      })
-      .filter((card): card is SearchListItem => card !== undefined);
+      }),
+    );
+    return cards.filter((card): card is SearchListItem => card !== undefined);
   }
 
   /**
@@ -630,12 +633,14 @@ export class SearchService {
         .filter((id): id is string => id !== null),
     );
 
-    return ids
-      .map((id) => byId.get(id))
-      .filter((row): row is SearchRow => row !== undefined)
-      .map((row) =>
-        this.toSearchItem(row, districtNames, langParam, acceptLanguage),
-      );
+    return Promise.all(
+      ids
+        .map((id) => byId.get(id))
+        .filter((row): row is SearchRow => row !== undefined)
+        .map((row) =>
+          this.toSearchItem(row, districtNames, langParam, acceptLanguage),
+        ),
+    );
   }
 
   /**
@@ -767,12 +772,12 @@ export class SearchService {
    * (TASK-209); `district_name` берётся на языке карточки, `null` если район
    * не найден (несовпадающий `district_id`, ADR-0068).
    */
-  private toSearchItem(
+  private async toSearchItem(
     listing: SearchRow,
     districtNames: Map<string, DistrictNames>,
     langParam?: string,
     acceptLanguage?: string,
-  ): SearchListItem {
+  ): Promise<SearchListItem> {
     const language = this.translations.resolveLanguage(
       listing.translations,
       listing.originalLanguage,
@@ -783,6 +788,13 @@ export class SearchService {
       listing.translations.find((t) => t.language === language) ??
       listing.translations[0];
     const cover = listing.media[0];
+    // Свежий presigned URL обложки (ADR-0086): thumbnail из его url, иначе основное
+    // фото из storage_key (legacy-фолбэк через extractKey внутри resolveMediaUrl).
+    const thumbnailUrl = cover
+      ? cover.thumbnailUrl
+        ? await this.uploads.resolveMediaUrl(null, cover.thumbnailUrl)
+        : await this.uploads.resolveMediaUrl(cover.storageKey, cover.url)
+      : null;
 
     return {
       id: listing.id,
@@ -805,7 +817,7 @@ export class SearchService {
       ),
       language,
       title: translation?.title ?? '',
-      thumbnail_url: cover?.thumbnailUrl ?? cover?.url ?? null,
+      thumbnail_url: thumbnailUrl,
       district_name: this.districts.pickName(
         listing.districtId
           ? districtNames.get(listing.districtId)

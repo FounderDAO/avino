@@ -10,7 +10,13 @@ import {
 import { DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
+import { UploadsService } from '../uploads';
 import { SearchService } from './search.service';
+
+// Медиа-подпись здесь не тестируется (ADR-0086) — echo сохранённого url, без S3.
+const uploadsStub = {
+  resolveMediaUrl: async (_key: string | null | undefined, url: string) => url,
+} as unknown as UploadsService;
 
 /**
  * Integration-тесты SearchService на живом PostgreSQL (TASK-081). В отличие от
@@ -28,6 +34,7 @@ describe('SearchService (integration, live PostgreSQL)', () => {
     prisma,
     new TranslationsService(prisma),
     new DistrictsService(prisma),
+    uploadsStub,
   );
 
   // Уникальный город этого прогона — фильтр изолирует выдачу от чужих строк.
@@ -203,6 +210,7 @@ describe('SearchService sort + rooms (integration, TASK-207)', () => {
     prisma,
     new TranslationsService(prisma),
     new DistrictsService(prisma),
+    uploadsStub,
   );
 
   // Уникальный город для этого набора — не пересекается с тестами выше.
@@ -477,6 +485,7 @@ describe('SearchService text query q (integration, TASK-208)', () => {
     prisma,
     new TranslationsService(prisma),
     new DistrictsService(prisma),
+    uploadsStub,
   );
 
   // Уникальный город для этого набора — не пересекается с тестами выше.

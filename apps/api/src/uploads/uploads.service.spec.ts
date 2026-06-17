@@ -146,6 +146,38 @@ describe('UploadsService', () => {
     expect(service.extensionFromFilename('PHOTO.JPG')).toBe('.jpg');
   });
 
+  describe('resolveMediaUrl (ADR-0086: sign-on-read)', () => {
+    it('re-signs from the stable storage key (private bucket) — ignores the stored url', async () => {
+      const service = makeService();
+      const url = await service.resolveMediaUrl(
+        'listings/42/media/u.webp',
+        'https://minio.local/avino-media/listings/42/media/u.webp?X-Amz-Expires=3600',
+      );
+      // Подпись выписана из переданного key, а не из протухшего сохранённого url.
+      expect(getSignedUrlMock).toHaveBeenCalledTimes(1);
+      const getInput = getSignedUrlMock.mock.calls[0][1];
+      expect(getInput.input.Key).toBe('listings/42/media/u.webp');
+      expect(url).toBe('https://signed.example/get');
+    });
+
+    it('falls back to extractKey(url) for legacy rows without a storage key', async () => {
+      const service = makeService();
+      await service.resolveMediaUrl(
+        null,
+        'https://minio.local/avino-media/listings/7/u.jpg?X-Amz-Signature=old',
+      );
+      const getInput = getSignedUrlMock.mock.calls[0][1];
+      expect(getInput.input.Key).toBe('listings/7/u.jpg');
+    });
+
+    it('returns a permanent public URL (no signing) in public mode', async () => {
+      const service = makeService({ 's3.publicBaseUrl': 'https://cdn.avino.uz/' });
+      const url = await service.resolveMediaUrl('listings/9/cover.webp', 'ignored');
+      expect(getSignedUrlMock).not.toHaveBeenCalled();
+      expect(url).toBe('https://cdn.avino.uz/listings/9/cover.webp');
+    });
+  });
+
   describe('extractKey', () => {
     it('strips the public base URL (CDN mode)', () => {
       const service = makeService({ 's3.publicBaseUrl': 'https://cdn.avino.uz/' });

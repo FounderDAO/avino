@@ -19,6 +19,7 @@ import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
 import { DistrictsService } from '../geo';
 import { TranslationsService } from '../translations';
+import { UploadsService } from '../uploads';
 import { ListingsService } from './listings.service';
 
 /**
@@ -86,10 +87,19 @@ describe('ListingsService', () => {
       namesByIds: jest.fn().mockResolvedValue(new Map()),
       pickName: jest.fn().mockReturnValue(null),
     } as unknown as DistrictsService;
+    // UploadsService застаблен: отдача всегда через свежий presigned URL
+    // (ADR-0086). По умолчанию echo (key ?? url) — существующие url/thumbnail
+    // ассерты остаются валидными; вызов resolveMediaUrl проверяется отдельно.
+    const uploads = {
+      resolveMediaUrl: jest.fn((key: string | null | undefined, url: string) =>
+        Promise.resolve(key ?? url),
+      ),
+    } as unknown as UploadsService;
     service = new ListingsService(
       prisma,
       new TranslationsService(prisma),
       districts,
+      uploads,
     );
   });
 

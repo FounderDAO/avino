@@ -11,6 +11,7 @@ import {
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { DistrictsService } from '../geo';
 import { TranslationsService } from '../translations';
+import { UploadsService } from '../uploads';
 import { SearchService } from './search.service';
 
 /**
@@ -91,10 +92,18 @@ describe('SearchService', () => {
       namesByIds: jest.fn().mockResolvedValue(new Map()),
       pickName: jest.fn().mockReturnValue(null),
     } as unknown as DistrictsService;
+    // UploadsService застаблен: обложка всегда через свежий presigned URL
+    // (ADR-0086). Echo (key ?? url) — существующие thumbnail-ассерты валидны.
+    const uploads = {
+      resolveMediaUrl: jest.fn((key: string | null | undefined, url: string) =>
+        Promise.resolve(key ?? url),
+      ),
+    } as unknown as UploadsService;
     service = new SearchService(
       prisma,
       new TranslationsService(prisma),
       districts,
+      uploads,
     );
   });
 
