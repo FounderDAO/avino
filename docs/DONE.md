@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/client-listing-edit-and-account-fixes
-PR: pending
+PR: #177
 
 Files changed:
 - apps/client/src/store/api/listingEditApi.ts (new)
