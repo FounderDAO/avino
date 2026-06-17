@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: fix/client-account-my-listings-route
-PR: pending
+PR: #178
 
 Files changed:
 - apps/client/src/features/listing-edit/ListingEdit.tsx
