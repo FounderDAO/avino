@@ -39,6 +39,44 @@ Related ADR:
 
 ## 2026-06-18
 
+### Bugfix — Listing photos vanish ~1h after upload (presigned URL expiry)
+
+Status: DONE
+Branch: fix/listing-media-presigned-url-expiry
+PR: #179
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260618000000_listing_media_storage_key/migration.sql
+- apps/api/src/uploads/uploads.service.ts (+ spec)
+- apps/api/src/listing-media/listing-media.service.ts (+ spec)
+- apps/api/src/listings/listings.service.ts (+ spec, int-spec)
+- apps/api/src/listings/listings.module.ts
+- apps/api/src/search/search.service.ts (+ spec, int-spec, geo.int-spec)
+- apps/api/src/search/search.module.ts
+- apps/api/src/geo/districts.service.int-spec.ts
+- docs/adr/ADR-0086-media-key-at-rest-sign-on-read.md
+
+Summary:
+- Фото объявлений хранились в `listing_media.url` как presigned R2-ссылка,
+  выписанная один раз при загрузке с TTL=1ч; все read-path отдавали её как есть →
+  через час R2 → `403 ExpiredRequest`, фото пропадали разом в детали, очереди
+  модерации и форме редактирования (= репорт пользователя).
+- Теперь в БД лежит стабильный object key (`listing_media.storage_key`), а URL
+  генерируется на каждом чтении через `UploadsService.resolveMediaUrl()` — подпись
+  не может пережить TTL. Legacy-строки (`storage_key=NULL`) подписываются через
+  `extractKey(url)`, поэтому уже загруженные фото работают без бэкфилла.
+- Воспроизведено и проверено вживую (Docker, приватный R2): протухший legacy-URL →
+  `GET /listings/:id` вернул URL с `X-Amz-Date`=времени запроса → `curl` `HTTP 200`.
+- Без изменений на клиенте; модерация и форма редактирования читают тот же
+  `GET /listings/:id` и покрыты автоматически.
+
+Commit messages:
+- fix(media): re-sign listing photo URLs on read (stop 403 after 1h)
+
+Related ADR:
+- docs/adr/ADR-0086-media-key-at-rest-sign-on-read.md
+
 ### TASK-221a — Hotfix: post-create/edit nav 404 (/account/listings → /account/my-listings)
 
 Status: DONE
