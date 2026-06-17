@@ -42,10 +42,18 @@ import {
 export class ListingsController {
   constructor(private readonly listingsService: ListingsService) {}
 
-  /** `POST /api/v1/listings` — создать объявление (статус `NEW`). */
+  /**
+   * `POST /api/v1/listings` — создать объявление (статус `NEW`).
+   *
+   * Любой аутентифицированный пользователь (включая свежий `USER`) может
+   * публиковать: при первом объявлении автор без продавцовской роли авто-
+   * апгрейдится до `OWNER` в сервисе (ADR-0083). `USER` здесь — низкий порог
+   * входа; остальные роли перечислены явно, чтобы список владельцев был виден.
+   */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(
+    UserRole.USER,
     UserRole.OWNER,
     UserRole.AGENT,
     UserRole.AGENCY,
