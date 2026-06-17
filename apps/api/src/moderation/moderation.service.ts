@@ -15,6 +15,7 @@ import {
   Prisma,
   PropertyType,
   TransactionType,
+  UserStatus,
 } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { PrismaService } from '../prisma';
@@ -23,10 +24,35 @@ import { ListAdminListingsQueryDto } from './dto/list-admin-listings.dto';
 import { ModerateListingDto } from './dto/moderate-listing.dto';
 
 /**
+ * Инлайн-карточка автора объявления в админ-очереди (API.md §16). Модератору
+ * важно сразу видеть, кто создал листинг, без отдельного `GET /admin/users/:id`
+ * (он ADMIN-only, MODERATOR получил бы `403`). Поэтому минимальный профиль
+ * автора отдаётся прямо в строке списка — он доступен и MODERATOR, и ADMIN.
+ *
+ * `display_name`/`first_name`/`last_name`/`contact_phone` — из `user_profiles`
+ * (могут быть `null`, если профиль не заполнен); `email`/`phone`/`status`/
+ * `created_at` — из `users`. `roles` — коды назначенных ролей (`USER`/`OWNER`/…).
+ */
+export interface AdminListingOwner {
+  id: string;
+  display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  contact_phone: string | null;
+  status: UserStatus;
+  roles: string[];
+  created_at: string;
+}
+
+/**
  * Компактная карточка листинга для админ-очереди (API.md §16). В отличие от
  * owner-списка включает `owner_id` (модератору важен автор) и любые статусы.
  * `title` берётся на `original_language` (исходный авторский текст). Decimal/
- * даты сериализуются строками (контрактный формат).
+ * даты сериализуются строками (контрактный формат). `owner` — инлайн-профиль
+ * автора (см. {@link AdminListingOwner}), чтобы карточка модерации показывала
+ * «кто создал» без ADMIN-only `GET /admin/users/:id`.
  */
 export interface AdminListingListItem {
   id: string;
@@ -38,6 +64,7 @@ export interface AdminListingListItem {
   city_id: string | null;
   district_id: string | null;
   owner_id: string;
+  owner: AdminListingOwner;
   original_language: Language;
   title: string;
   published_at: string | null;
@@ -114,6 +141,25 @@ const LISTING_LIST_SELECT = {
   createdAt: true,
   translations: {
     select: { language: true, title: true },
+  },
+  // Инлайн-профиль автора для карточки модерации (см. AdminListingOwner).
+  owner: {
+    select: {
+      id: true,
+      email: true,
+      phone: true,
+      status: true,
+      createdAt: true,
+      roles: { select: { role: { select: { code: true } } } },
+      profile: {
+        select: {
+          firstName: true,
+          lastName: true,
+          displayName: true,
+          contactPhone: true,
+        },
+      },
+    },
   },
 } as const;
 
@@ -369,10 +415,27 @@ export class ModerationService {
       city_id: listing.cityId,
       district_id: listing.districtId,
       owner_id: listing.ownerId,
+      owner: this.toOwner(listing.owner),
       original_language: listing.originalLanguage,
       title: translation?.title ?? '',
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
+    };
+  }
+
+  /** Инлайн-профиль автора (snake_case) для строки админ-списка. */
+  private toOwner(owner: AdminListingRow['owner']): AdminListingOwner {
+    return {
+      id: owner.id,
+      display_name: owner.profile?.displayName ?? null,
+      first_name: owner.profile?.firstName ?? null,
+      last_name: owner.profile?.lastName ?? null,
+      email: owner.email,
+      phone: owner.phone,
+      contact_phone: owner.profile?.contactPhone ?? null,
+      status: owner.status,
+      roles: owner.roles.map((r) => r.role.code),
+      created_at: owner.createdAt.toISOString(),
     };
   }
 }
