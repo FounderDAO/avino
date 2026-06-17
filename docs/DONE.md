@@ -39,6 +39,53 @@ Related ADR:
 
 ## 2026-06-18
 
+### TASK-221 — Client: real listing edit + cancel/profile fixes (apps/client)
+
+Status: DONE
+Branch: feat/client-listing-edit-and-account-fixes
+PR: pending
+
+Files changed:
+- apps/client/src/store/api/listingEditApi.ts (new)
+- apps/client/src/features/listing-edit/ListingEdit.tsx (new)
+- apps/client/src/app/[locale]/sell/[id]/edit/page.tsx (new)
+- apps/client/src/features/account/MyListings.tsx
+- apps/client/src/features/account/AccountLayout.tsx
+- apps/client/src/features/listing-new/ListingNew.tsx
+- apps/client/messages/ru.json
+- apps/client/messages/uz.json
+- apps/client/messages/en.json
+- docs/adr/ADR-0085-client-listing-edit.md
+
+Summary:
+- Реальное редактирование объявления (одностраничная форма `/sell/:id/edit`):
+  GET/PATCH `/listings/:id` + media add/delete/reorder через новый `listingEditApi`;
+  компонент `ListingEdit` префиллит поля и переиспользует `AddressStep`
+  (Yandex suggest+карта) и `PhotoUploader` — нулевое расхождение с формой
+  создания (это и была жалоба «форма не подходит»). Полное управление фото
+  (добавить/удалить/порядок) применяется на «Сохранить». Кнопка
+  «Редактировать» в `MyListings` теперь ведёт на `/sell/:id/edit` (раньше — на
+  пустой `/sell/new`).
+- Bugfix «Отмена»: в `ListingNew` — `router.back()` (раньше захардкоженный
+  `Link href="/sell"` уводил на лендинг); в edit-форме — к «Моим объявлениям».
+- Bugfix статичного профиля: `AccountLayout` берёт текущего юзера из
+  `selectCurrentUser` (как `Header`/`Profile`); удалён захардкод «Алишер /
+  +998 90 •• 67»; гость → «Гость».
+- Отдельно (без кода): «нет подсказок/мёртвая карта при создании» был
+  ПРОТУХШИМ образом `avino-client` (собран до коммита `e3a7d91`), не ключом
+  Яндекса — пофикшено пересборкой образа. См. ADR-0085 § Context.
+- Verified live (Docker, Chrome DevTools Protocol): suggest 7 результатов +
+  карта реагирует; edit-форма префилл + PATCH-сохранение подтверждены через API;
+  профиль показывает реального юзера/«Гость». `tsc --noEmit`, `next lint`,
+  Docker `next build` — зелёные.
+
+Commit messages:
+- feat(client): real listing edit page with media management
+- fix(client): cancel returns to previous page, account card uses real user
+
+Related ADR:
+- docs/adr/ADR-0085-client-listing-edit.md
+
 ### TASK-220 — Moderation card: show who created the listing (inline owner profile)
 
 Status: DONE

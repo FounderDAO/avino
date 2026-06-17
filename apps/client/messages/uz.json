@@ -553,6 +553,28 @@
       "openChat": "Chatni ochish"
     }
   },
+  "listingEdit": {
+    "meta": {
+      "title": "E'lonni tahrirlash — Avino",
+      "description": "E'loningiz parametrlari, narxi, rasmlari va tavsifini o'zgartiring."
+    },
+    "title": "E'lonni tahrirlash",
+    "subtitle": "Kerakli maydonlarni o'zgartiring va saqlang — o'zgarishlar darhol qo'llanadi.",
+    "loading": "E'lon yuklanmoqda…",
+    "notFoundTitle": "E'lon topilmadi",
+    "notFoundText": "Balki u o'chirilgan yoki sizda unga ruxsat yo'q.",
+    "authTitle": "Tahrirlash uchun tizimga kiring",
+    "authText": "E'lonlarni faqat o'z akkauntingizdan tahrirlash mumkin.",
+    "backToListings": "Mening e'lonlarimga",
+    "cancel": "Bekor qilish",
+    "save": "O'zgarishlarni saqlash",
+    "saving": "Saqlanmoqda…",
+    "langImmutable": "Asl til yaratishda belgilanadi va o'zgartirilmaydi.",
+    "error": {
+      "required": "Majburiy maydonlarni to'ldiring: sarlavha, manzil, maydon, narx va kamida bitta rasm.",
+      "saveFailed": "O'zgarishlarni saqlab bo'lmadi. Yana urinib ko'ring."
+    }
+  },
   "account": {
     "tabs": {
       "myListings": "Mening e'lonlarim",
@@ -562,6 +584,9 @@
       "notifications": "Bildirishnomalar",
       "profile": "Profil",
       "settings": "Sozlamalar"
+    },
+    "userCard": {
+      "guest": "Mehmon"
     },
     "favorites": {
       "title": "Sevimlilar",
