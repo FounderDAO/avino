@@ -192,7 +192,7 @@ export function ListingEdit({ id }: { id: string }) {
       <p className="mb-6 text-muted-foreground">{text}</p>
       {withBack && (
         <Button asChild>
-          <Link href="/account/listings">{t('backToListings')}</Link>
+          <Link href="/account/my-listings">{t('backToListings')}</Link>
         </Button>
       )}
     </div>
@@ -298,7 +298,7 @@ export function ListingEdit({ id }: { id: string }) {
         }
       }
 
-      router.push('/account/listings');
+      router.push('/account/my-listings');
     } catch (e) {
       const apiErr = getApiError(e as Parameters<typeof getApiError>[0]);
       setSubmitError(apiErr?.message ?? t('error.saveFailed'));
@@ -310,7 +310,7 @@ export function ListingEdit({ id }: { id: string }) {
     <div className="fade-up mx-auto max-w-[760px] px-6 pb-16 pt-7">
       {/* Отмена → к моим объявлениям (откуда открыли редактирование). */}
       <Link
-        href="/account/listings"
+        href="/account/my-listings"
         className="mb-4 inline-flex items-center gap-2 text-[14.5px] font-bold text-teal hover:text-teal-deep"
       >
         <ChevronLeft size={18} /> {t('backToListings')}
@@ -498,7 +498,7 @@ export function ListingEdit({ id }: { id: string }) {
       {/* Действия */}
       <div className="mt-5 flex justify-between gap-3">
         <Button asChild variant="outline" disabled={busy}>
-          <Link href="/account/listings">{t('cancel')}</Link>
+          <Link href="/account/my-listings">{t('cancel')}</Link>
         </Button>
         <Button type="button" disabled={busy || !canSave} onClick={handleSave}>
           {busy ? t('saving') : t('save')}
