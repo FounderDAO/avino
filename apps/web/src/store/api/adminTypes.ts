@@ -102,10 +102,35 @@ export interface AdminListingRow {
   city_id: string | null;
   district_id: string | null;
   owner_id: string;
+  /**
+   * Инлайн-профиль автора (ADR-0084) — чтобы карточка модерации показывала
+   * «кто и когда создал» без ADMIN-only `GET /admin/users/:id`. `optional`:
+   * старый бэкенд (до ADR-0084) поля не отдаёт — UI деградирует мягко.
+   */
+  owner?: AdminListingOwner;
   /** Язык исходного (авторского) текста — на нём отдан `title` (§7, ADR-012). */
   original_language: Language;
   title: string;
   published_at: string | null;
+  created_at: string;
+}
+
+/**
+ * Инлайн-профиль автора объявления в админ-очереди (`GET /admin/listings`, §16,
+ * ADR-0084) — зеркало `AdminListingOwner` (`apps/api/src/moderation`). Минимум
+ * для карточки модерации: имя (профиль), контакт, роли, статус аккаунта и дата
+ * регистрации. Профильные поля nullable (профиль может быть не заполнен).
+ */
+export interface AdminListingOwner {
+  id: string;
+  display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  contact_phone: string | null;
+  status: UserStatus;
+  roles: RoleCode[];
   created_at: string;
 }
 

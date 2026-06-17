@@ -37,6 +37,40 @@ Related ADR:
 
 ---
 
+## 2026-06-18
+
+### TASK-220 — Moderation card: show who created the listing (inline owner profile)
+
+Status: DONE
+Branch: feat/moderation-owner-info-api (backend), feat/moderation-owner-info-web (frontend)
+PR: #175 (api), #176 (web)
+
+Files changed:
+- apps/api/src/moderation/moderation.service.ts
+- apps/api/src/moderation/moderation.service.spec.ts
+- apps/api/src/moderation/index.ts
+- apps/web/src/store/api/adminTypes.ts
+- apps/web/src/app/admin/moderation/page.tsx
+- apps/web/src/components/admin/icons.tsx
+- docs/API.md
+- docs/adr/ADR-0084-moderation-inline-owner-profile.md
+- docs/DONE.md
+
+Summary:
+- Problem: the admin **Moderation** card showed almost nothing about the author — only `owner_id` was available from `GET /admin/listings`, and the card used only the list row, so photos/area/rooms/floor/year/address were all «—». Resolving the author via `GET /admin/users/:id` is impossible for moderators (that endpoint is ADMIN-only → `403`).
+- Backend (ADR-0084): `GET /api/v1/admin/listings` now embeds an inline `owner` object per row (id, display_name/first_name/last_name, email, phone, contact_phone, status, roles, created_at), joined in the existing `findMany` select (`owner → { profile, roles }`). No migration. Additive optional field → non-breaking, stays in v1 (CLAUDE.md §14). The moderation list is `MODERATOR`/`ADMIN`-accessible, so the creator profile lights up for both roles.
+- Frontend: the moderation card gained a **«Создатель объявления»** block (avatar initials, name, role badges, account-status pill, phone/email/registration date/short user id) and an **«Об объявлении»** block (created/published timestamps, address, floor, year, listing id). The full listing detail (`GET /listings/:id`) is now lazily fetched for the selected listing, filling real photos/area/rooms/floor/year/address/description/features that were «—» before. `owner` is typed optional so the web build degrades gracefully if deployed before the api change.
+- Verified: `apps/api` 14/14 moderation unit tests green (2 new: owner mapping + null profile); `tsc --noEmit` 0 errors on both api and web; raw `next build` succeeded (13/13 pages, /admin/moderation 5.27 kB); eslint clean.
+
+Commit messages:
+- feat(moderation): inline owner profile in admin listings (ADR-0084)
+- feat(moderation): show creator profile + full detail on moderation card
+
+Related ADR:
+- docs/adr/ADR-0084-moderation-inline-owner-profile.md
+
+---
+
 ## 2026-06-17
 
 ### USER auto-upgrade to OWNER on first listing
