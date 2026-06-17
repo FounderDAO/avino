@@ -37,6 +37,31 @@ Related ADR:
 
 ---
 
+## 2026-06-17
+
+### Cloudflare R2 object storage — production runbook + connectivity smoke
+
+Status: DONE
+Branch: docs/r2-storage-guide
+PR: https://github.com/FounderDAO/avino/pull/172
+
+Files changed:
+- docs/GUIDE_S3.md
+- apps/api/r2-smoke.cjs
+
+Summary:
+- Решение: использовать Cloudflare R2 (вместо AWS S3) для хранения фото объявлений. Драйвер — нулевой egress для image-heavy портала; storage-слой провайдер-агностичен (`S3_*` env), поэтому это config + DNS, без правок кода. См. ADR-0082.
+- `docs/GUIDE_S3.md` — production runbook: пошаговый setup на аккаунте КЛИЕНТА при релизе (bucket, scoped API token, custom domain, env, приёмка) + перенос данных, откат, владение, §11 troubleshooting (EU-endpoint→NoSuchBucket, точные имена ключей `S3_ENDPOINT`/`S3_BUCKET`, R2 без per-object ACL).
+- `apps/api/r2-smoke.cjs` — изолированная проверка connectivity (PUT/GET/presigned/DELETE) по корневому `.env`; референс из GUIDE §5.0; секреты не печатает.
+- Проверено локально end-to-end: smoke зелёный + полный app-flow (OTP-логин админа → создать листинг → `POST /listings/:id/media` → объект в R2 → presigned GET `200` байт-в-байт → `DELETE` `204` → `404`).
+- Только документация + dev-инструмент, изменений рантайма нет. Originated from a direct request (нет TASK-XXX). Public/CDN режим и флаг `S3_DISABLE_ACL` отложены на прод (GUIDE §6.2).
+
+Commit messages:
+- docs(storage): add Cloudflare R2 production runbook + connectivity smoke
+
+Related ADR:
+- docs/adr/ADR-0082-cloudflare-r2-object-storage.md
+
 ## 2026-06-15
 
 ### TASK-219 — Mobile Swagger/OpenAPI: два gated-документа + codegen-экспорт
