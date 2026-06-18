@@ -131,16 +131,6 @@ export class EnvironmentVariables {
   @IsOptional()
   TRANSLATE_FOLDER_ID?: string;
 
-  @IsInt()
-  @Min(1)
-  @IsOptional()
-  TRANSLATE_QUEUE_ATTEMPTS?: number;
-
-  @IsInt()
-  @Min(1)
-  @IsOptional()
-  TRANSLATE_QUEUE_CONCURRENCY?: number;
-
   // ── Истечение промо VIP/TOP (TASK-123, опционально — есть дефолты) ──
   @IsString()
   @IsOptional()

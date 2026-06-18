@@ -11,7 +11,7 @@ import {
 /**
  * EmailQueue — продюсер очереди доставки email (TASK-101, ARCHITECTURE §23).
  *
- * По аналогии с {@link TranslationQueue}: тонкая обёртка над BullMQ
+ * Тонкая обёртка над BullMQ
  * `Queue('email_queue')` с выделенным Redis-подключением (BullMQ рекомендует
  * отдельные подключения продюсеру/воркеру, `maxRetriesPerRequest: null`).
  *

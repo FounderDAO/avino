@@ -12,13 +12,14 @@ import { PromotionExpiryService } from './promotion-expiry.service';
 
 /**
  * PromotionWorker — консьюмер очереди `promotion_queue` (TASK-123). Тонкий
- * транспорт BullMQ по аналогии с {@link TranslationWorker}: получает джобу
- * `expire_listing_promotions` и делегирует sweep {@link PromotionExpiryService}
- * (он покрыт юнит-тестами). Ошибки пробрасываются — BullMQ применит ретрай.
+ * транспорт BullMQ: получает джобу `expire_listing_promotions` и делегирует
+ * sweep {@link PromotionExpiryService} (он покрыт юнит-тестами). Ошибки
+ * пробрасываются — BullMQ применит ретрай.
  *
  * Воркер поднимается вместе с API-процессом (MVP); concurrency задаётся
  * `PROMOTION_EXPIRY_CONCURRENCY` (по умолчанию 1 — sweep дешёвый и достаточно
- * одного). Подключение Redis — отдельное от продюсера ({@link PromotionQueue}).
+ * одного). Подключение Redis — отдельное от продюсера (по аналогии с очередью
+ * перевода).
  */
 @Injectable()
 export class PromotionWorker implements OnModuleInit, OnModuleDestroy {

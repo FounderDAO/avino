@@ -2,20 +2,17 @@ import { Global, Module } from '@nestjs/common';
 import { EmailQueue } from './email.queue';
 import { PromotionQueue } from './promotion.queue';
 import { SavedSearchQueue } from './saved-search.queue';
-import { TranslationQueue } from './translation.queue';
 
 /**
  * QueuesModule — продюсеры BullMQ-очередей (TASK-071, ARCHITECTURE §23).
  *
- * `@Global` (по аналогии с {@link RedisModule}): {@link TranslationQueue}
- * инжектируется в любой модуль (ModerationService) без повторного импорта.
- * Воркеры-консьюмеры живут в своих доменных модулях (например
- * {@link TranslationWorker} в TranslationsModule), а не здесь — этот модуль
+ * `@Global`: очереди инжектируются в любой модуль без повторного импорта.
+ * Воркеры-консьюмеры живут в своих доменных модулях, а не здесь — этот модуль
  * отвечает только за постановку джоб.
  */
 @Global()
 @Module({
-  providers: [TranslationQueue, PromotionQueue, EmailQueue, SavedSearchQueue],
-  exports: [TranslationQueue, PromotionQueue, EmailQueue, SavedSearchQueue],
+  providers: [PromotionQueue, EmailQueue, SavedSearchQueue],
+  exports: [PromotionQueue, EmailQueue, SavedSearchQueue],
 })
 export class QueuesModule {}

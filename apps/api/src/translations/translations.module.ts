@@ -6,7 +6,6 @@ import { createTranslationProvider } from './providers/translation-provider.fact
 import { TRANSLATION_PROVIDER } from './providers/translation-provider.interface';
 import { TranslationsController } from './translations.controller';
 import { TranslationsService } from './translations.service';
-import { TranslationWorker } from './translation.worker';
 
 /**
  * TranslationsModule — хранение/выдача переводов и авто-перевод (TASK-070/071, M7).
@@ -17,9 +16,7 @@ import { TranslationWorker } from './translation.worker';
  * модуль, импорт не нужен.
  *
  * Авто-перевод (TASK-071): провайдер ({@link TRANSLATION_PROVIDER}) выбирается по
- * `TRANSLATE_PROVIDER`, {@link ListingAutoTranslator} — бизнес-логика, а
- * {@link TranslationWorker} — консьюмер `translation_queue`. Постановкой джоб
- * занимается {@link TranslationQueue} (глобальный QueuesModule).
+ * `TRANSLATE_PROVIDER`, {@link ListingAutoTranslator} — бизнес-логика перевода.
  */
 @Module({
   imports: [RolesModule],
@@ -32,7 +29,6 @@ import { TranslationWorker } from './translation.worker';
       inject: [ConfigService],
     },
     ListingAutoTranslator,
-    TranslationWorker,
   ],
   exports: [TranslationsService],
 })

@@ -19,8 +19,8 @@ const EXPIRY_SCHEDULER_ID = 'expire-listing-promotions';
 
 /**
  * PromotionQueue — продюсер очереди `promotion_queue` (TASK-123, acceptance:
- * `promotion_queue` exists). По аналогии с {@link TranslationQueue}: тонкая
- * обёртка над BullMQ `Queue` с выделенным Redis-подключением.
+ * `promotion_queue` exists). Тонкая обёртка над BullMQ `Queue` с выделенным
+ * Redis-подключением.
  *
  * В отличие от перевода (точечная джоба на листинг) истечение промо — фоновый
  * sweep по расписанию: на старте регистрируется repeatable job
