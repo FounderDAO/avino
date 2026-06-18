@@ -71,10 +71,15 @@ ADR-0025 (TASK-071) сделал авто-перевод **асинхронны�
    `ModerationService`, env `TRANSLATE_QUEUE_ATTEMPTS`/`TRANSLATE_QUEUE_CONCURRENCY`.
    `ListingAutoTranslator` + провайдеры остаются (зовутся синхронно).
 
-6. **Web (админка).** Страница модерации `apps/web/.../admin/listings/[id]` получает
+6. **Web (админка).** Детальная карточка `apps/web/.../admin/listings/[id]` получает
    панель «Переводы»: кнопка «Сгенерировать переводы», построчные редакторы EN/UZ
    (бейдж «Правлено вручную» при `is_auto_translated=false`), а кнопка «Опубликовать»
    заблокирована, пока нет переводов на все языки (бэкенд-гейт дублирует проверку).
+   Та же панель добавлена в **очередь модерации** `apps/web/.../admin/moderation`
+   (где модератор реально работает): переиспользует те же хуки RTK Query и компонент
+   `TranslationRow`, ключ запроса — выбранное в очереди объявление (`selId`); кнопка
+   «Одобрить» гейтится тем же `translationsComplete` (UZ/RU/EN). Панель остаётся и на
+   детальной карточке — обе точки входа равноценны.
 
 ## Consequences
 
@@ -110,6 +115,7 @@ Negative / trade-offs:
 - apps/api/src/config/env.validation.ts, configuration.ts, .env.example
 - apps/web/src/store/api/adminListingsApi.ts, adminTypes.ts
 - apps/web/src/app/admin/listings/[id]/page.tsx
+- apps/web/src/app/admin/moderation/page.tsx
 - apps/web/src/components/admin/TranslationRow.tsx
 
 ## Related task

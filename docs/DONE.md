@@ -39,6 +39,31 @@ Related ADR:
 
 ## 2026-06-19
 
+### Translation panel on moderation queue page (ADR-0091)
+
+Status: DONE
+Branch: feat/moderation-translations-panel
+PR: #192
+
+Files changed:
+- apps/web/src/app/admin/moderation/page.tsx — панель «Переводы» в карточке очереди модерации; APPROVE гейтится на полноту языков; 422-маппинг
+- docs/adr/ADR-0091-moderator-translation-review.md — расширен пункт 6 (та же панель в очереди модерации) + related files
+
+Summary:
+- Панель генерации/ревью/правки перевода добавлена в очередь модерации `apps/web/.../admin/moderation` — туда, где модератор реально работает. Раньше она была только на детальной карточке `/admin/listings/[id]`; теперь обе точки входа равноценны (панель оставлена и там).
+- Переиспользованы те же RTK Query хуки (`useGetListingTranslationsQuery`/`useGenerateTranslationsMutation`/`useUpdateTranslationMutation`) и компонент `TranslationRow`; ключ запроса — выбранное в очереди объявление (`selId`).
+- Кнопка «Одобрить» заблокирована, пока нет переводов на все языки (`translationsComplete`, UZ/RU/EN) — дублирует серверный гейт 422; ошибка «Translations required» маппится в понятное RU-сообщение.
+- Чистый frontend, одна app-папка, бэкенд не трогался. `next lint` ✓, `tsc --noEmit` ✓.
+
+Commit messages:
+- feat(admin): add translation panel to moderation queue page
+- docs(adr): extend ADR-0091 + DONE for moderation-page translation panel
+
+Related ADR:
+- docs/adr/ADR-0091-moderator-translation-review.md (extended)
+
+---
+
 ### Moderator-controlled translation generation + review (ADR-0091)
 
 Status: DONE
