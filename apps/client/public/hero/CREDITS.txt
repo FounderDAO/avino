@@ -1,12 +1,10 @@
 Hero background image
 =====================
 File:     tashkent.jpg
-Subject:  Tashkent City towers (Узбекистан, Ташкент)
-Source:   Wikimedia Commons — File:TashkentCity.jpg
-          https://commons.wikimedia.org/w/index.php?curid=124499287
-Author:   Solijonovm1996
-License:  CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
+Source:   Unsplash — https://unsplash.com/photos/1486406146926-c627a92ad1ab
+          (downloaded via images.unsplash.com, photo-1486406146926-c627a92ad1ab)
+License:  Unsplash License (https://unsplash.com/license)
+          — free for commercial/non-commercial use, attribution appreciated.
 
-Auto-picked placeholder (TASK-204). Replace with the brand's preferred
-licensed Tashkent photo by overwriting apps/client/public/hero/tashkent.jpg
-(keep the same path — no code change needed).
+Replace with the brand's preferred licensed photo by overwriting
+apps/client/public/hero/tashkent.jpg (keep the same path — no code change needed).
