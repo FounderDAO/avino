@@ -1,5 +1,7 @@
 import {
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -23,6 +25,7 @@ import { UploadsService } from '../uploads';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
+import { OwnerListingAction } from './dto/owner-status.dto';
 
 /**
  * Краткий ответ операций create/update (API.md §7, ответ 201/200). Полная
@@ -100,6 +103,30 @@ const LISTING_SELECT = {
   currency: true,
   createdAt: true,
 } as const;
+
+/** Статусы-источники, из которых владелец может СКРЫТЬ листинг (→ ARCHIVED). */
+const HIDE_FROM: readonly ListingStatus[] = [
+  ListingStatus.ACTIVE,
+  ListingStatus.NEW,
+  ListingStatus.DRAFT,
+  ListingStatus.REJECTED,
+];
+
+/** Статусы-источники, из которых можно отметить ПРОДАНО/СДАНО. */
+const SELL_FROM: readonly ListingStatus[] = [
+  ListingStatus.ACTIVE,
+  ListingStatus.ARCHIVED,
+  ListingStatus.NEW,
+  ListingStatus.DRAFT,
+  ListingStatus.REJECTED,
+];
+
+/** Статусы-источники, из которых можно ВЕРНУТЬ листинг в продажу. */
+const REACTIVATE_FROM: readonly ListingStatus[] = [
+  ListingStatus.ARCHIVED,
+  ListingStatus.SOLD,
+  ListingStatus.RENTED,
+];
 
 /**
  * Один медиа-объект в карточке листинга (API.md §7). Файл лежит в S3 — в БД и
@@ -426,7 +453,7 @@ export class ListingsService {
   ): Promise<ListingResponse> {
     const existing = await this.prisma.listing.findFirst({
       where: { id: listingId, status: { not: ListingStatus.DELETED } },
-      select: { id: true, ownerId: true, originalLanguage: true },
+      select: { id: true, ownerId: true, originalLanguage: true, status: true },
     });
     if (!existing) {
       throw new NotFoundException({
@@ -458,6 +485,115 @@ export class ListingsService {
           data: translationData,
         },
       };
+    }
+
+    // Smart-return: правка скрытого (ARCHIVED) листинга требует повторной
+    // модерации при возврате в продажу.
+    if (existing.status === ListingStatus.ARCHIVED) {
+      data.editedSinceHidden = true;
+    }
+
+    const updated = await this.prisma.listing.update({
+      where: { id: listingId },
+      data,
+      select: LISTING_SELECT,
+    });
+    return this.toResponse(updated);
+  }
+
+  /**
+   * `PATCH /api/v1/listings/:id/status` — владельческая смена статуса
+   * (скрыть / продано / сдано / вернуть). Зеркалит админский moderation-флоу,
+   * но для статусов, зарезервированных за владельцем (ARCHIVED/SOLD/RENTED).
+   *
+   * Чужой листинг → `403`; отсутствующий/DELETED → `404`; недопустимый переход
+   * или несовпадение transaction_type → `422 INVALID_STATUS_TRANSITION`.
+   *
+   * Smart-return (REACTIVATE из ARCHIVED): сразу `ACTIVE`, только если листинг был
+   * опубликован (`published_at != null`) и не редактировался скрытым
+   * (`edited_since_hidden = false`); иначе → `NEW` (повторная модерация). Из
+   * SOLD/RENTED — всегда `NEW`. `published_at` при `→ ACTIVE` не сбрасывается.
+   */
+  async setOwnerStatus(
+    ownerId: string,
+    listingId: string,
+    action: OwnerListingAction,
+  ): Promise<ListingResponse> {
+    const existing = await this.prisma.listing.findFirst({
+      where: { id: listingId, status: { not: ListingStatus.DELETED } },
+      select: {
+        id: true,
+        ownerId: true,
+        status: true,
+        transactionType: true,
+        publishedAt: true,
+        editedSinceHidden: true,
+      },
+    });
+    if (!existing) {
+      throw new NotFoundException({
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Listing not found',
+      });
+    }
+    if (existing.ownerId !== ownerId) {
+      throw new ForbiddenException({
+        code: ApiErrorCode.FORBIDDEN,
+        message: 'You can only change the status of your own listing',
+      });
+    }
+
+    const invalid = () =>
+      new HttpException(
+        {
+          code: ApiErrorCode.INVALID_STATUS_TRANSITION,
+          message: `Cannot ${action} a listing in status ${existing.status}`,
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+
+    const data: Prisma.ListingUpdateInput = {};
+
+    switch (action) {
+      case OwnerListingAction.HIDE: {
+        if (!HIDE_FROM.includes(existing.status)) throw invalid();
+        data.status = ListingStatus.ARCHIVED;
+        data.editedSinceHidden = false;
+        break;
+      }
+      case OwnerListingAction.MARK_SOLD: {
+        if (
+          !SELL_FROM.includes(existing.status) ||
+          existing.transactionType !== TransactionType.SALE
+        ) {
+          throw invalid();
+        }
+        data.status = ListingStatus.SOLD;
+        break;
+      }
+      case OwnerListingAction.MARK_RENTED: {
+        if (
+          !SELL_FROM.includes(existing.status) ||
+          existing.transactionType !== TransactionType.RENT
+        ) {
+          throw invalid();
+        }
+        data.status = ListingStatus.RENTED;
+        break;
+      }
+      case OwnerListingAction.REACTIVATE: {
+        if (!REACTIVATE_FROM.includes(existing.status)) throw invalid();
+        if (existing.status === ListingStatus.ARCHIVED) {
+          const canGoActive =
+            existing.publishedAt !== null && !existing.editedSinceHidden;
+          data.status = canGoActive ? ListingStatus.ACTIVE : ListingStatus.NEW;
+          data.editedSinceHidden = false;
+        } else {
+          // SOLD / RENTED — листинг мог устареть, всегда на повторную модерацию.
+          data.status = ListingStatus.NEW;
+        }
+        break;
+      }
     }
 
     const updated = await this.prisma.listing.update({
