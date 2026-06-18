@@ -23,11 +23,11 @@ import { ModerationService } from './moderation.service';
  */
 describe('ModerationService', () => {
   const MODERATOR_ID = 'mod-1';
+  const MOD_ID = MODERATOR_ID;
   const OWNER_ID = 'owner-1';
   const LISTING_ID = '11111111-1111-1111-1111-111111111111';
 
   let prisma: any;
-  let translationQueue: { enqueueListingTranslation: jest.Mock };
   let service: ModerationService;
 
   const dbListItem = {
@@ -71,11 +71,11 @@ describe('ModerationService', () => {
       moderationLog: { create: jest.fn(), findMany: jest.fn() },
       auditLog: { create: jest.fn() },
       notification: { create: jest.fn() },
+      listingTranslation: { findMany: jest.fn() },
       // Интерактивная транзакция: коллбэк получает тот же мок (tx === prisma).
       $transaction: jest.fn(async (cb: any) => cb(prisma)),
     };
-    translationQueue = { enqueueListingTranslation: jest.fn() };
-    service = new ModerationService(prisma, translationQueue as any);
+    service = new ModerationService(prisma);
   });
 
   async function expectCode(promise: Promise<unknown>, code: ApiErrorCode) {
@@ -187,6 +187,11 @@ describe('ModerationService', () => {
         status: ListingStatus.NEW,
         publishedAt: null,
       });
+      prisma.listingTranslation.findMany.mockResolvedValue([
+        { language: Language.RU },
+        { language: Language.EN },
+        { language: Language.UZ },
+      ]);
       prisma.listing.update.mockResolvedValue({
         id: LISTING_ID,
         status: ListingStatus.ACTIVE,
@@ -237,10 +242,6 @@ describe('ModerationService', () => {
         status: ListingStatus.ACTIVE,
         published_at: '2026-06-04T10:00:00.000Z',
       });
-      // APPROVE→ACTIVE triggers auto-translation (TASK-071, ADR-005).
-      expect(translationQueue.enqueueListingTranslation).toHaveBeenCalledWith(
-        LISTING_ID,
-      );
     });
 
     it('keeps the existing published_at when re-approving a DRAFT listing', async () => {
@@ -251,6 +252,11 @@ describe('ModerationService', () => {
         status: ListingStatus.DRAFT,
         publishedAt: firstPublished,
       });
+      prisma.listingTranslation.findMany.mockResolvedValue([
+        { language: Language.RU },
+        { language: Language.EN },
+        { language: Language.UZ },
+      ]);
       prisma.listing.update.mockResolvedValue({
         id: LISTING_ID,
         status: ListingStatus.ACTIVE,
@@ -292,32 +298,40 @@ describe('ModerationService', () => {
         }),
       });
       expect(result.published_at).toBeNull();
-      // Non-ACTIVE transitions must not enqueue auto-translation.
-      expect(translationQueue.enqueueListingTranslation).not.toHaveBeenCalled();
     });
 
-    it('does not enqueue auto-translation when the queue insert fails after commit', async () => {
+    it('rejects APPROVE when a language translation is missing (422)', async () => {
       prisma.listing.findUnique.mockResolvedValue({
-        id: LISTING_ID,
-        ownerId: OWNER_ID,
-        status: ListingStatus.NEW,
-        publishedAt: null,
+        id: LISTING_ID, ownerId: OWNER_ID, status: 'NEW', publishedAt: null,
       });
-      prisma.listing.update.mockResolvedValue({
-        id: LISTING_ID,
-        status: ListingStatus.ACTIVE,
-        publishedAt: new Date('2026-06-04T10:00:00.000Z'),
+      prisma.listingTranslation.findMany.mockResolvedValue([
+        { language: Language.RU }, { language: Language.EN }, // UZ missing
+      ]);
+
+      await expect(
+        service.changeStatus(MOD_ID, LISTING_ID, { action: 'APPROVE' } as any),
+      ).rejects.toMatchObject({ status: 422 });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('allows APPROVE when all languages are present', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        id: LISTING_ID, ownerId: OWNER_ID, status: 'NEW', publishedAt: null,
       });
-      translationQueue.enqueueListingTranslation.mockRejectedValue(
-        new Error('redis down'),
+      prisma.listingTranslation.findMany.mockResolvedValue([
+        { language: Language.RU }, { language: Language.EN }, { language: Language.UZ },
+      ]);
+      prisma.$transaction.mockImplementation(async (cb: any) =>
+        cb({
+          listing: { update: jest.fn().mockResolvedValue({ id: LISTING_ID, status: 'ACTIVE', publishedAt: new Date() }) },
+          moderationLog: { create: jest.fn() },
+          auditLog: { create: jest.fn() },
+          notification: { create: jest.fn() },
+        }),
       );
 
-      // A failed enqueue must not fail the moderation response — the listing
-      // is already ACTIVE and a missed job can be re-triggered.
-      const result = await service.changeStatus(MODERATOR_ID, LISTING_ID, {
-        action: ModerationAction.APPROVE,
-      });
-      expect(result.status).toBe(ListingStatus.ACTIVE);
+      const res = await service.changeStatus(MOD_ID, LISTING_ID, { action: 'APPROVE' } as any);
+      expect(res.status).toBe('ACTIVE');
     });
 
     it('throws 404 when the listing does not exist', async () => {

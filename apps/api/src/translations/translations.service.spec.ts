@@ -25,7 +25,10 @@ describe('TranslationsService', () => {
   let service: TranslationsService;
 
   beforeEach(() => {
-    prisma = { listing: { findUnique: jest.fn() } };
+    prisma = {
+      listing: { findUnique: jest.fn() },
+      listingTranslation: { upsert: jest.fn() },
+    };
     service = new TranslationsService(prisma);
   });
 
@@ -214,6 +217,48 @@ describe('TranslationsService', () => {
         service.listByListing(LISTING_ID, owner),
         ApiErrorCode.NOT_FOUND,
       );
+    });
+  });
+
+  describe('updateModeratorTranslation', () => {
+    it('upserts a non-original language with is_auto_translated=false', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ originalLanguage: Language.RU, status: ListingStatus.NEW });
+      await service.updateModeratorTranslation(LISTING_ID, Language.EN, { title: 'Fixed EN' });
+      const arg = prisma.listingTranslation.upsert.mock.calls[0][0];
+      expect(arg.where.listingId_language).toEqual({ listingId: LISTING_ID, language: Language.EN });
+      expect(arg.update).toMatchObject({ isAutoTranslated: false, title: 'Fixed EN' });
+      expect(arg.create).toMatchObject({ isAutoTranslated: false, source: TranslationSource.USER, title: 'Fixed EN' });
+    });
+
+    it('rejects editing the original language (422)', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ originalLanguage: Language.RU, status: ListingStatus.NEW });
+      await expect(
+        service.updateModeratorTranslation(LISTING_ID, Language.RU, { title: 'x' }),
+      ).rejects.toMatchObject({ status: 422 });
+    });
+
+    it('404 when listing missing or DELETED', async () => {
+      prisma.listing.findUnique.mockResolvedValue(null);
+      await expect(
+        service.updateModeratorTranslation(LISTING_ID, Language.EN, { title: 'x' }),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('partial edit (title only) leaves address_note/features_text untouched on update', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ originalLanguage: Language.RU, status: ListingStatus.NEW });
+      await service.updateModeratorTranslation(LISTING_ID, Language.EN, { title: 'New EN' });
+      const arg = prisma.listingTranslation.upsert.mock.calls[0][0];
+      expect(arg.update).toMatchObject({ title: 'New EN', isAutoTranslated: false });
+      expect(arg.update).not.toHaveProperty('addressNote');
+      expect(arg.update).not.toHaveProperty('featuresText');
+      expect(arg.update).not.toHaveProperty('description');
+    });
+
+    it('explicit null clears a field', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ originalLanguage: Language.RU, status: ListingStatus.NEW });
+      await service.updateModeratorTranslation(LISTING_ID, Language.EN, { title: 'x', address_note: null });
+      const arg = prisma.listingTranslation.upsert.mock.calls[0][0];
+      expect(arg.update).toMatchObject({ title: 'x', isAutoTranslated: false, addressNote: null });
     });
   });
 });

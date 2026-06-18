@@ -16,7 +16,7 @@ import { EmailSender } from './email-sender.service';
 /**
  * EmailWorker — консьюмер очереди `email_queue` (TASK-101, ARCHITECTURE §23).
  *
- * Тонкий транспорт BullMQ по образцу {@link TranslationWorker}: получает джобу
+ * Тонкий транспорт BullMQ: получает джобу
  * `send_email`, делегирует доставку {@link EmailSender} и логирует результат
  * (acceptance: «email delivery result is logged»). Исключения транспорта
  * пробрасываются наверх → BullMQ ретраит по `attempts`/backoff продюсера.

@@ -1,16 +1,21 @@
 import {
+  BadGatewayException,
   Body,
   Controller,
   Get,
   Param,
+  ParseEnumPipe,
   ParseUUIDPipe,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Language } from '@prisma/client';
 import { UserRole } from '@avino/shared';
 import { CurrentUser, Roles } from '../common/decorators';
-import { JwtAuthGuard, RolesGuard } from '../common/guards';
+import { ApiErrorCode } from '../common/dto/error-response.dto';
+import { AuthenticatedUser, JwtAuthGuard, RolesGuard } from '../common/guards';
 import { ListAdminListingsQueryDto } from '../moderation/dto/list-admin-listings.dto';
 import { ModerateListingDto } from '../moderation/dto/moderate-listing.dto';
 import {
@@ -20,6 +25,12 @@ import {
   ModerationService,
   PaginatedResponse,
 } from '../moderation';
+import {
+  ListingAutoTranslator,
+  ListingTranslationsResponse,
+  TranslationsService,
+  UpdateModeratorTranslationDto,
+} from '../translations';
 
 /**
  * AdminListingsController — модерация объявлений (TASK-053, API.md §16).
@@ -33,7 +44,11 @@ import {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.MODERATOR, UserRole.ADMIN)
 export class AdminListingsController {
-  constructor(private readonly moderationService: ModerationService) {}
+  constructor(
+    private readonly moderationService: ModerationService,
+    private readonly translator: ListingAutoTranslator,
+    private readonly translations: TranslationsService,
+  ) {}
 
   /** `GET /api/v1/admin/listings` — очередь модерации и админ-список. */
   @Get()
@@ -59,5 +74,38 @@ export class AdminListingsController {
     @Param('id', ParseUUIDPipe) listingId: string,
   ): Promise<ModerationLogResponse[]> {
     return this.moderationService.findLogs(listingId);
+  }
+
+  /** `POST /api/v1/admin/listings/:id/translations/generate` — синхронная генерация (ADR-0091). */
+  @Post(':id/translations/generate')
+  async generateTranslations(
+    @Param('id', ParseUUIDPipe) listingId: string,
+    @CurrentUser() viewer: AuthenticatedUser,
+  ): Promise<ListingTranslationsResponse> {
+    try {
+      await this.translator.generateTranslations(listingId);
+    } catch {
+      // Сбой внешнего провайдера перевода (Yandex 4xx/5xx) → 502, строки
+      // неудачных языков не меняются (ADR-0091, спека §7).
+      throw new BadGatewayException({
+        code: ApiErrorCode.INTERNAL_ERROR,
+        message: 'Translation provider failed',
+      });
+    }
+    // Отсутствующий/DELETED листинг: generateTranslations молча выходит, а
+    // listByListing бросит 404 — единый путь not-found.
+    return this.translations.listByListing(listingId, viewer);
+  }
+
+  /** `PATCH /api/v1/admin/listings/:id/translations/:language` — ручная правка (ADR-0091). */
+  @Patch(':id/translations/:language')
+  async updateTranslation(
+    @Param('id', ParseUUIDPipe) listingId: string,
+    @Param('language', new ParseEnumPipe(Language)) language: Language,
+    @Body() dto: UpdateModeratorTranslationDto,
+    @CurrentUser() viewer: AuthenticatedUser,
+  ): Promise<ListingTranslationsResponse> {
+    await this.translations.updateModeratorTranslation(listingId, language, dto);
+    return this.translations.listByListing(listingId, viewer);
   }
 }

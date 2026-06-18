@@ -37,6 +37,44 @@ Related ADR:
 
 ---
 
+## 2026-06-19
+
+### Moderator-controlled translation generation + review (ADR-0091)
+
+Status: DONE
+Branch: feat/moderator-translation-review
+PR: #190
+
+Files changed:
+- apps/api/src/moderation/moderation.service.ts (+spec) — APPROVE gated on full-language coverage; auto-enqueue removed
+- apps/api/src/translations/listing-auto-translator.service.ts (+spec) — `run`→`generateTranslations`, protects `is_auto_translated=false`, runs on NEW
+- apps/api/src/translations/translations.service.ts (+spec) — `updateModeratorTranslation`
+- apps/api/src/translations/dto/update-moderator-translation.dto.ts (new)
+- apps/api/src/admin/admin-listings.controller.ts, admin.module.ts — generate + edit endpoints
+- apps/api/src/queues/* + translation.worker.ts — dead `translation_queue` + worker removed; env `TRANSLATE_QUEUE_*` removed
+- apps/web/src/store/api/adminListingsApi.ts, adminTypes.ts — RTK endpoints/types
+- apps/web/src/app/admin/listings/[id]/page.tsx, components/admin/TranslationRow.tsx — translations panel + gated publish
+- docs/adr/ADR-0091-moderator-translation-review.md (new); ADR-0025 superseded; docs/API.md
+
+Summary:
+- Перевод стал осознанным шагом модерации: модератор синхронно генерирует перевод по кнопке, видит результат, правит руками; опубликовать нельзя без переводов на все языки (UZ/RU/EN).
+- Заменяет асинхронный авто-перевод на APPROVE (ADR-0025): очередь `translation_queue` и воркер удалены, логика `ListingAutoTranslator` и провайдеры переиспользованы синхронно.
+- Ручные правки защищены при повторной генерации (`is_auto_translated=false`).
+- Live-verified (Docker): 422-гейт до генерации → generate → ручная правка EN → APPROVE 200 → повторный generate сохраняет ручную правку.
+
+Commit messages:
+- feat(moderation): gate APPROVE on full-language translations; drop auto-enqueue
+- refactor(api): remove dead translation_queue + worker and queue env
+- feat(translations): generateTranslations protects manual edits, runs on NEW
+- feat(translations): moderator translation edit (is_auto_translated=false) + export translator
+- feat(admin): synchronous translation generate + moderator edit endpoints
+- feat(web): RTK endpoints for listing translations (get/generate/update)
+- feat(web): moderation translations panel — generate, edit, gated publish
+- docs: ADR-0091 moderator translation review; supersede ADR-0025; API.md + DONE.md
+
+Related ADR:
+- docs/adr/ADR-0091-moderator-translation-review.md (supersedes ADR-0025)
+
 ## 2026-06-18
 
 ### TASK-041 (admin toggle) — Runtime вкл/выкл SMS из админки (api)

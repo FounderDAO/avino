@@ -471,6 +471,50 @@ export interface NotificationLogFilters extends PageParams {
   status?: NotificationStatus;
 }
 
+// ─── DTO: переводы листинга (API.md §7/§16, ADR-0091) ───────────────────────
+
+/**
+ * Язык перевода (ISO-639 uppercase, ADR-012). Совпадает с `Language` из authApi,
+ * но вынесен отдельно для явной привязки к контракту переводов.
+ */
+export type TranslationLanguage = 'UZ' | 'RU' | 'EN';
+
+/**
+ * Одна языковая версия листинга (`listing_translations`, §7). `source` отражает
+ * происхождение текста: `USER` — вручную, `GOOGLE`/`YANDEX` — машинный перевод.
+ * Текстовые поля nullable (бэкенд допускает отсутствие описания/адреса/фичей).
+ */
+export interface TranslationItem {
+  language: TranslationLanguage;
+  source: 'USER' | 'GOOGLE' | 'YANDEX';
+  is_auto_translated: boolean;
+  title: string;
+  description: string | null;
+  address_note: string | null;
+  features_text: string | null;
+}
+
+/**
+ * Ответ `GET /listings/:id/translations` и мутаций (§7, ADR-0091).
+ * `original_language` — язык исходного авторского текста (ADR-012).
+ */
+export interface ListingTranslations {
+  listing_id: string;
+  original_language: TranslationLanguage;
+  translations: TranslationItem[];
+}
+
+/**
+ * Тело `PATCH /admin/listings/:id/translations/:language` (§7, ADR-0091).
+ * Только текстовые поля; `language` передаётся в path-параметре.
+ */
+export interface TranslationEditRequest {
+  title: string;
+  description?: string | null;
+  address_note?: string | null;
+  features_text?: string | null;
+}
+
 // ─── Дашборд (ADMIN-15, §16) ─────────────────────────────────────────────────
 
 /** `GET /admin/stats` — сводные счётчики дашборда (ADMIN-15). */

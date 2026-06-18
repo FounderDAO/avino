@@ -1,8 +1,14 @@
 # ADR-0025 — Listing auto-translation queue and provider abstraction
 
+> **Superseded by ADR-0091** — перевод переведён с асинхронной очереди
+> `translation_queue` на синхронный шаг под контролем модератора (генерация по
+> кнопке + ревью + ручная правка, `APPROVE` гейтится на полноту языков). Очередь
+> `translation_queue` и воркер удалены. Провайдеры (Yandex/Google), фабрика и
+> `ListingAutoTranslator` из этого ADR сохранены и переиспользованы.
+
 ## Status
 
-Accepted
+Superseded by ADR-0091
 
 ## Date
 
