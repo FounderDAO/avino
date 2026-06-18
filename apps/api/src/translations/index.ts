@@ -5,3 +5,4 @@ export {
   ListingTranslationItem,
   ListingTranslationsResponse,
 } from './translations.service';
+export { UpdateModeratorTranslationDto } from './dto/update-moderator-translation.dto';

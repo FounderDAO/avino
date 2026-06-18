@@ -1,5 +1,7 @@
 import {
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -209,5 +211,57 @@ export class TranslationsService {
       .split(',')
       .map((part) => this.normalizeLanguage(part.split(';')[0]?.split('-')[0]))
       .filter((lang): lang is Language => lang !== null);
+  }
+
+  /**
+   * `PATCH /api/v1/admin/listings/:id/translations/:language` (ADR-0091).
+   * Ручная правка перевода модератором: upsert строки с `isAutoTranslated=false`.
+   * Auth: MODERATOR / ADMIN (гейтируется контроллером).
+   * Ошибки: `404` — листинг отсутствует или DELETED; `422` — попытка изменить
+   * оригинальный язык листинга (который управляется через update-листинг).
+   */
+  async updateModeratorTranslation(
+    listingId: string,
+    language: Language,
+    input: ListingTranslationInput,
+  ): Promise<void> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { originalLanguage: true, status: true },
+    });
+    if (!listing || listing.status === ListingStatus.DELETED) {
+      throw new NotFoundException({
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Listing not found',
+      });
+    }
+    if (language === listing.originalLanguage) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.VALIDATION_ERROR,
+          message: 'Cannot edit the original-language translation',
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    const fields = {
+      title: input.title,
+      description: input.description ?? null,
+      addressNote: input.address_note ?? null,
+      featuresText: input.features_text ?? null,
+    };
+
+    await this.prisma.listingTranslation.upsert({
+      where: { listingId_language: { listingId, language } },
+      create: {
+        listingId,
+        language,
+        source: TranslationSource.USER,
+        isAutoTranslated: false,
+        ...fields,
+      },
+      update: { isAutoTranslated: false, ...fields },
+    });
   }
 }

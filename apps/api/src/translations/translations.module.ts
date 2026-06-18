@@ -30,6 +30,6 @@ import { TranslationsService } from './translations.service';
     },
     ListingAutoTranslator,
   ],
-  exports: [TranslationsService],
+  exports: [TranslationsService, ListingAutoTranslator],
 })
 export class TranslationsModule {}
