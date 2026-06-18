@@ -2,7 +2,6 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -19,7 +18,6 @@ import {
 } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { PrismaService } from '../prisma';
-import { TranslationQueue } from '../queues';
 import { ListAdminListingsQueryDto } from './dto/list-admin-listings.dto';
 import { ModerateListingDto } from './dto/moderate-listing.dto';
 
@@ -126,6 +124,9 @@ const MODERATABLE_STATUSES: readonly ListingStatus[] = [
   ListingStatus.REJECTED,
 ];
 
+/** Все языки, для которых обязателен перевод перед публикацией (ADR-0091). */
+const REQUIRED_LANGUAGES: readonly Language[] = Object.values(Language);
+
 const LISTING_LIST_SELECT = {
   id: true,
   ownerId: true,
@@ -179,12 +180,7 @@ type AdminListingRow = Prisma.ListingGetPayload<{
  */
 @Injectable()
 export class ModerationService {
-  private readonly logger = new Logger(ModerationService.name);
-
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly translationQueue: TranslationQueue,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * `GET /api/v1/admin/listings` — очередь модерации и админ-список (API.md §16).
@@ -234,10 +230,11 @@ export class ModerationService {
    * read-path). Терминальный владельческий статус (ARCHIVED/SOLD/RENTED) или
    * переход в тот же статус → `422 INVALID_STATUS_TRANSITION`.
    *
-   * APPROVE → ACTIVE выставляет `published_at` при первой публикации (повторное
-   * одобрение его не сбрасывает) и должен инициировать авто-перевод
-   * (`translate_listing`, ADR-005) — постановка джобы перевода в очередь
-   * подключается отдельной задачей вместе с BullMQ-воркером.
+   * APPROVE → ACTIVE требует наличия переводов на все языки (ADR-0091):
+   * отсутствие хотя бы одного → `422 VALIDATION_ERROR`. При прохождении гейта
+   * выставляет `published_at` при первой публикации (повторное одобрение его
+   * не сбрасывает). Авто-постановка джобы перевода удалена: переводы теперь
+   * создаются модератором вручную до одобрения.
    */
   async changeStatus(
     moderatorId: string,
@@ -269,6 +266,25 @@ export class ModerationService {
         },
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
+    }
+
+    // APPROVE требует переводов на все языки (ADR-0091): публикация без
+    // проверенного перевода запрещена. Остальные действия гейт не трогают.
+    if (dto.action === ModerationAction.APPROVE) {
+      const rows = await this.prisma.listingTranslation.findMany({
+        where: { listingId },
+        select: { language: true },
+      });
+      const present = new Set(rows.map((r) => r.language));
+      if (REQUIRED_LANGUAGES.some((lang) => !present.has(lang))) {
+        throw new HttpException(
+          {
+            code: ApiErrorCode.VALIDATION_ERROR,
+            message: 'Translations required for all languages before publishing',
+          },
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        );
+      }
     }
 
     // published_at ставится только при первой публикации (APPROVE → ACTIVE) и
@@ -334,21 +350,6 @@ export class ModerationService {
 
       return listing;
     });
-
-    // После коммита: APPROVE→ACTIVE инициирует авто-перевод (TASK-071, ADR-005).
-    // Постановка джобы — не блокирующий перевод, а единичный insert в Redis; сбой
-    // постановки не должен валить ответ (листинг уже ACTIVE, джобу можно
-    // ре-инициировать), поэтому ошибка логируется, но не пробрасывается.
-    if (updated.status === ListingStatus.ACTIVE) {
-      try {
-        await this.translationQueue.enqueueListingTranslation(updated.id);
-      } catch (error) {
-        this.logger.error(
-          `Failed to enqueue translation for listing ${updated.id}`,
-          error instanceof Error ? error.stack : String(error),
-        );
-      }
-    }
 
     return {
       id: updated.id,
