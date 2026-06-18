@@ -106,6 +106,26 @@ describe('SmsService', () => {
     expect(fetchSpy.mock.calls[2][0]).toContain('/message/sms/send');
   });
 
+  it('proactively relogins when cached token exceeds TTL (no 401 needed)', async () => {
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(0);
+    const fetchSpy = jest
+      .fn()
+      .mockResolvedValueOnce(AUTH_OK()) // login @ t=0
+      .mockResolvedValueOnce(SEND_OK()) // send #1
+      .mockResolvedValueOnce(AUTH_OK()) // proactive relogin after TTL
+      .mockResolvedValueOnce(SEND_OK()); // send #2
+    global.fetch = fetchSpy as never;
+
+    const s = makeService();
+    await s.send('+998901111111', 'a');
+    // 26 дней спустя — за пределами TTL-запаса.
+    nowSpy.mockReturnValue(26 * 24 * 60 * 60 * 1000);
+    await s.send('+998902222222', 'b');
+
+    expect(fetchSpy).toHaveBeenCalledTimes(4); // login + send + relogin + send
+    expect(fetchSpy.mock.calls[2][0]).toContain('/auth/login');
+  });
+
   it('401 on send → relogin and retry once (success)', async () => {
     const fetchSpy = jest
       .fn()

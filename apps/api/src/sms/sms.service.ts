@@ -37,6 +37,15 @@ interface EskizSendResponse {
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
   private cachedToken: string | null = null;
+  private tokenAcquiredAt = 0;
+
+  /**
+   * Запас до истечения токена Eskiz (живёт ~30 дней). Перелогиниваемся
+   * проактивно чуть раньше, чтобы не ловить 401 на боевой отправке. Реактивный
+   * фолбэк на 401 всё равно остаётся: токен может быть отозван и раньше срока
+   * (смена пароля, ручной сброс на стороне Eskiz).
+   */
+  private static readonly TOKEN_TTL_MS = 25 * 24 * 60 * 60 * 1000;
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -77,7 +86,12 @@ export class SmsService {
   }
 
   private async getToken(email: string, password: string): Promise<string> {
-    if (this.cachedToken) {
+    // Проактивная проверка перед отправкой: используем кэш, только пока токен
+    // не вышел за TTL-запас; иначе перелогиниваемся заранее (без 401).
+    if (
+      this.cachedToken !== null &&
+      Date.now() - this.tokenAcquiredAt < SmsService.TOKEN_TTL_MS
+    ) {
       return this.cachedToken;
     }
     const body = new URLSearchParams({ email, password });
@@ -95,6 +109,7 @@ export class SmsService {
       throw new Error('Eskiz auth returned no token');
     }
     this.cachedToken = token;
+    this.tokenAcquiredAt = Date.now();
     return token;
   }
 
