@@ -20,10 +20,14 @@ import { SectionTitle } from '@/components/admin/ui/section-title';
 import { StatusPill } from '@/components/admin/ui/pill';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
+import { TranslationRow } from '@/components/admin/TranslationRow';
 import {
   useGetAdminListingQuery,
   useListAdminListingsQuery,
   useModerateListingMutation,
+  useGetListingTranslationsQuery,
+  useGenerateTranslationsMutation,
+  useUpdateTranslationMutation,
 } from '@/store/api/adminListingsApi';
 import { totalPages } from '@/store/api/adminApi';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
@@ -38,6 +42,8 @@ import type {
 
 const LIMIT = 20;
 const DASH = '—';
+/** Языки, обязательные перед одобрением (APPROVE гейтится бэкендом и UI). */
+const REQUIRED_LANGS = ['UZ', 'RU', 'EN'] as const;
 
 /** Дата без времени (ru-RU) — для даты регистрации автора. */
 const dateFmt = new Intl.DateTimeFormat('ru-RU', {
@@ -97,6 +103,10 @@ function moderationErrorMessage(error: unknown): string {
   const e = error as { status?: number } | undefined;
   const code = getApiErrorCode(error as never);
   const status = e?.status;
+  const msg = getApiError(error as never)?.message ?? '';
+  if (status === 422 && msg.includes('Translations required')) {
+    return 'Сначала сгенерируйте переводы на все языки';
+  }
   if (status === 422 || code === 'INVALID_STATUS_TRANSITION') {
     return 'Недопустимый переход статуса для этого объявления.';
   }
@@ -185,6 +195,15 @@ export default function ModerationPage() {
   const detailModel = detail ? detailToAdminListing(detail) : null;
   const full = detailModel?.priceRaw ?? null;
   const photos = full?.photos ?? [];
+
+  // Переводы выбранного объявления — генерация/ревью/правка прямо в очереди
+  // модерации. Эндпоинты те же, что и на детальной карточке `/admin/listings/:id`.
+  const { data: tr } = useGetListingTranslationsQuery(selId ?? '', { skip: !selId });
+  const [generate, { isLoading: isGenerating }] = useGenerateTranslationsMutation();
+  const [saveTr, { isLoading: isSavingTr }] = useUpdateTranslationMutation();
+  const presentLangs = new Set((tr?.translations ?? []).map((t) => t.language));
+  // APPROVE недоступен пока нет всех языков (дублирует серверный гейт 422).
+  const translationsComplete = REQUIRED_LANGS.every((l) => presentLangs.has(l));
 
   const act = async (id: string, action: ModerationAction) => {
     if (action === 'REJECT' && !reason) {
@@ -288,13 +307,46 @@ export default function ModerationPage() {
                 </div>
 
                 <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
+                  <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                    <h3 style={{ fontSize: 15 }}>Переводы</h3>
+                    <button
+                      className="abtn abtn-outline abtn-sm"
+                      disabled={isGenerating}
+                      onClick={async () => {
+                        try { await generate(sel.id).unwrap(); toast('Переводы сгенерированы'); }
+                        catch { toast('Не удалось сгенерировать переводы'); }
+                      }}
+                    >
+                      {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
+                    </button>
+                  </div>
+                  {(tr?.translations ?? []).map((t) => (
+                    <TranslationRow
+                      key={t.language}
+                      item={t}
+                      saving={isSavingTr}
+                      original={t.language === tr?.original_language}
+                      onSave={async (body) => {
+                        try { await saveTr({ id: sel.id, language: t.language, body }).unwrap(); toast('Перевод сохранён'); }
+                        catch { toast('Не удалось сохранить'); }
+                      }}
+                    />
+                  ))}
+                  {!tr?.translations?.length && (
+                    <p className="muted" style={{ fontSize: 13.5 }}>
+                      Переводов пока нет — нажмите «Сгенерировать переводы».
+                    </p>
+                  )}
+                </div>
+
+                <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
                   <label style={{ fontSize: 13, fontWeight: 700, display: 'block', marginBottom: 7 }}>Причина отклонения (если отклоняете)</label>
                   <select className="a-field" style={{ width: '100%', marginBottom: 14 }} value={reason} onChange={(e) => setReason(e.target.value)}>
                     <option value="">— выберите причину —</option>
                     {sel.reasonOptions.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                   <div className="row gap-10">
-                    <button className="abtn abtn-ok" style={{ flex: 1 }} disabled={isActing} onClick={() => act(sel.id, 'APPROVE')}><IC.Check size={18} /> Одобрить</button>
+                    <button className="abtn abtn-ok" style={{ flex: 1 }} disabled={isActing || !translationsComplete} title={translationsComplete ? undefined : 'Сначала сгенерируйте переводы на все языки'} onClick={() => act(sel.id, 'APPROVE')}><IC.Check size={18} /> Одобрить</button>
                     <button className="abtn abtn-danger" style={{ flex: 1 }} disabled={isActing} onClick={() => act(sel.id, 'REJECT')}><IC.X size={18} /> Отклонить</button>
                   </div>
                   <div className="row gap-10" style={{ marginTop: 10 }}>
