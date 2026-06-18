@@ -1,6 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+/** Ответ Eskiz `POST /auth/login`. */
+interface EskizAuthResponse {
+  data?: { token?: string };
+}
+
+/**
+ * Ответ Eskiz `POST /message/sms/send`. Успех: `{ id, status: "waiting", … }`.
+ * Ошибка: HTTP не-2xx с причиной в `message` (например, текст не совпал с
+ * одобренным шаблоном — модерация).
+ */
+interface EskizSendResponse {
+  id?: string;
+  status?: string;
+  message?: string;
+}
+
 /**
  * SmsService — абстракция отправки SMS (TASK-041, CLAUDE.md §3, ARCHITECTURE §6).
  *
@@ -21,6 +37,15 @@ import { ConfigService } from '@nestjs/config';
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
   private cachedToken: string | null = null;
+  private tokenAcquiredAt = 0;
+
+  /**
+   * Запас до истечения токена Eskiz (живёт ~30 дней). Перелогиниваемся
+   * проактивно чуть раньше, чтобы не ловить 401 на боевой отправке. Реактивный
+   * фолбэк на 401 всё равно остаётся: токен может быть отозван и раньше срока
+   * (смена пароля, ручной сброс на стороне Eskiz).
+   */
+  private static readonly TOKEN_TTL_MS = 25 * 24 * 60 * 60 * 1000;
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -61,7 +86,12 @@ export class SmsService {
   }
 
   private async getToken(email: string, password: string): Promise<string> {
-    if (this.cachedToken) {
+    // Проактивная проверка перед отправкой: используем кэш, только пока токен
+    // не вышел за TTL-запас; иначе перелогиниваемся заранее (без 401).
+    if (
+      this.cachedToken !== null &&
+      Date.now() - this.tokenAcquiredAt < SmsService.TOKEN_TTL_MS
+    ) {
       return this.cachedToken;
     }
     const body = new URLSearchParams({ email, password });
@@ -73,12 +103,13 @@ export class SmsService {
     if (!res.ok) {
       throw new Error(`Eskiz auth failed: ${res.status}`);
     }
-    const json = (await res.json()) as { data?: { token?: string } };
+    const json = (await res.json()) as EskizAuthResponse;
     const token = json.data?.token;
     if (!token) {
       throw new Error('Eskiz auth returned no token');
     }
     this.cachedToken = token;
+    this.tokenAcquiredAt = Date.now();
     return token;
   }
 
@@ -103,14 +134,41 @@ export class SmsService {
       },
       body,
     });
+
+    // 401 → токен протух: вызывающий релогинится и повторит один раз.
     if (res.status === 401) {
       return false;
     }
+
+    const payload = (await res
+      .json()
+      .catch(() => null)) as EskizSendResponse | null;
+
     if (!res.ok) {
-      this.logger.error(`Eskiz send failed: ${res.status}`);
-      throw new Error(`Eskiz send failed: ${res.status}`);
+      // Eskiz возвращает причину отказа в поле `message`. Самая частая в
+      // production — текст не совпал с одобренным шаблоном (модерация):
+      // причина видна и в логе, и в тексте исключения. Подробности и чек-лист
+      // модерации — docs/GUIDE_SMS.md.
+      const reason = payload?.message ?? res.statusText;
+      this.logger.error(`Eskiz send failed: ${res.status} — ${reason}`);
+      throw new Error(`Eskiz send failed: ${res.status} — ${reason}`);
     }
+
+    // Успех: Eskiz принял сообщение в очередь (status обычно "waiting").
+    // Логируем id для трассировки доставки — без текста и без полного номера.
+    this.logger.log(
+      `Eskiz SMS accepted: id=${payload?.id ?? 'n/a'} ` +
+        `status=${payload?.status ?? 'n/a'} to=${this.maskPhone(mobile)}`,
+    );
     return true;
+  }
+
+  /** Маска номера для логов: `998901234567` → `998****4567`. */
+  private maskPhone(mobile: string): string {
+    if (mobile.length <= 7) {
+      return '***';
+    }
+    return `${mobile.slice(0, 3)}****${mobile.slice(-4)}`;
   }
 
   /**

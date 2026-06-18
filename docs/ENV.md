@@ -150,6 +150,14 @@ Notes:
 | ESKIZ_EMAIL     | yes  | yes    | no     | (set)                         | Eskiz account login        |
 | ESKIZ_PASSWORD  | yes  | yes    | no     | (set)                         | Eskiz account password     |
 | ESKIZ_BASE_URL  | no   | no     | no     | https://notify.eskiz.uz/api   | Eskiz API base URL         |
+| ESKIZ_FROM      | no   | no     | no     | 4546                          | Sender ID. `4546`=test sender; prod=approved nickname/short-code (see GUIDE_SMS.md §4.2) |
+
+```text
+- Без ESKIZ_EMAIL/ESKIZ_PASSWORD SMS не отправляется: в dev код OTP пишется в
+  лог, в prod — warn «provider is not configured» (мягкая деградация, ADR-0012).
+- Production-отправка требует ОДОБРЕННОГО шаблона текста и sender'а в кабинете
+  Eskiz — пошаговый runbook и troubleshooting в docs/GUIDE_SMS.md (ADR-0089).
+```
 
 ### 11.1 Google sign-in (TASK-195)
 
