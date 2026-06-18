@@ -21,6 +21,7 @@ import {
 import { CreateListingDto } from './dto/create-listing.dto';
 import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
+import { OwnerStatusDto } from './dto/owner-status.dto';
 import {
   ListingDetailResponse,
   ListingListItem,
@@ -111,5 +112,20 @@ export class ListingsController {
     @Body() dto: UpdateListingDto,
   ): Promise<ListingResponse> {
     return this.listingsService.update(userId, listingId, dto);
+  }
+
+  /**
+   * `PATCH /api/v1/listings/:id/status` — владельческая смена статуса своего
+   * листинга: скрыть (ARCHIVED) / продано (SOLD) / сдано (RENTED) / вернуть в
+   * продажу (REACTIVATE). Только Bearer; ownership проверяет сервис.
+   */
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard)
+  setStatus(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) listingId: string,
+    @Body() dto: OwnerStatusDto,
+  ): Promise<ListingResponse> {
+    return this.listingsService.setOwnerStatus(userId, listingId, dto.action);
   }
 }
