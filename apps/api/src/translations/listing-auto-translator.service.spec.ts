@@ -3,11 +3,11 @@ import { ListingAutoTranslator } from './listing-auto-translator.service';
 import { TranslationProvider } from './providers/translation-provider.interface';
 
 /**
- * Юнит-тесты воркера авто-перевода (TASK-071). Prisma и провайдер мокаются.
- * Проверяют: перевод авторской строки на остальные языки с upsert
+ * Юнит-тесты сервиса авто-перевода (TASK-071, ADR-0091). Prisma и провайдер
+ * мокаются. Проверяют: перевод авторской строки на остальные языки с upsert
  * (source=провайдер, is_auto_translated=true), пропуск исходного языка,
- * сохранение null-полей без вызова провайдера и охранные пропуски (нет листинга /
- * не ACTIVE / нет авторской строки).
+ * сохранение null-полей без вызова провайдера, охранные пропуски (нет листинга /
+ * DELETED / нет авторской строки) и защиту ручных правок (is_auto_translated=false).
  */
 describe('ListingAutoTranslator', () => {
   const LISTING_ID = '11111111-1111-1111-1111-111111111111';
@@ -40,6 +40,7 @@ describe('ListingAutoTranslator', () => {
         description: 'Описание',
         addressNote: null,
         featuresText: 'Лифт',
+        isAutoTranslated: false,
       },
     ],
     ...overrides,
@@ -48,7 +49,7 @@ describe('ListingAutoTranslator', () => {
   it('translates the author row into the other two languages and upserts them', async () => {
     prisma.listing.findUnique.mockResolvedValue(activeListing());
 
-    await service.run(LISTING_ID);
+    await service.generateTranslations(LISTING_ID);
 
     // RU is original → only UZ and EN are produced.
     expect(prisma.listingTranslation.upsert).toHaveBeenCalledTimes(2);
@@ -80,7 +81,7 @@ describe('ListingAutoTranslator', () => {
   it('does not call the provider for null optional fields', async () => {
     prisma.listing.findUnique.mockResolvedValue(activeListing());
 
-    await service.run(LISTING_ID);
+    await service.generateTranslations(LISTING_ID);
 
     // addressNote is null for every target → provider never sees it.
     expect(provider.translate).not.toHaveBeenCalledWith(
@@ -94,15 +95,23 @@ describe('ListingAutoTranslator', () => {
 
   it('skips when the listing does not exist', async () => {
     prisma.listing.findUnique.mockResolvedValue(null);
-    await service.run(LISTING_ID);
+    await service.generateTranslations(LISTING_ID);
     expect(prisma.listingTranslation.upsert).not.toHaveBeenCalled();
   });
 
-  it('skips when the listing is not ACTIVE', async () => {
+  it('generates translations for a NEW listing (no ACTIVE requirement)', async () => {
     prisma.listing.findUnique.mockResolvedValue(
       activeListing({ status: ListingStatus.NEW }),
     );
-    await service.run(LISTING_ID);
+    await service.generateTranslations(LISTING_ID);
+    expect(prisma.listingTranslation.upsert).toHaveBeenCalledTimes(2); // UZ + EN
+  });
+
+  it('skips DELETED listings', async () => {
+    prisma.listing.findUnique.mockResolvedValue(
+      activeListing({ status: ListingStatus.DELETED }),
+    );
+    await service.generateTranslations(LISTING_ID);
     expect(prisma.listingTranslation.upsert).not.toHaveBeenCalled();
   });
 
@@ -110,8 +119,23 @@ describe('ListingAutoTranslator', () => {
     prisma.listing.findUnique.mockResolvedValue(
       activeListing({ translations: [] }),
     );
-    await service.run(LISTING_ID);
+    await service.generateTranslations(LISTING_ID);
     expect(prisma.listingTranslation.upsert).not.toHaveBeenCalled();
+  });
+
+  it('preserves a manually-edited target language (is_auto_translated=false)', async () => {
+    prisma.listing.findUnique.mockResolvedValue(
+      activeListing({
+        translations: [
+          { language: Language.RU, title: 'Квартира', description: 'Описание', addressNote: null, featuresText: 'Лифт', isAutoTranslated: false },
+          { language: Language.EN, title: 'HAND-EDITED', description: null, addressNote: null, featuresText: null, isAutoTranslated: false },
+        ],
+      }),
+    );
+    await service.generateTranslations(LISTING_ID);
+    // EN is hand-edited → skipped; only UZ is (re)generated.
+    expect(prisma.listingTranslation.upsert).toHaveBeenCalledTimes(1);
+    expect(prisma.listingTranslation.upsert.mock.calls[0][0].where.listingId_language.language).toBe(Language.UZ);
   });
 
   it('translates from the author row even when auto rows already exist (re-run)', async () => {
@@ -125,6 +149,7 @@ describe('ListingAutoTranslator', () => {
             description: null,
             addressNote: null,
             featuresText: null,
+            isAutoTranslated: true,
           },
           {
             language: Language.RU,
@@ -132,12 +157,13 @@ describe('ListingAutoTranslator', () => {
             description: 'Описание',
             addressNote: null,
             featuresText: 'Лифт',
+            isAutoTranslated: false,
           },
         ],
       }),
     );
 
-    await service.run(LISTING_ID);
+    await service.generateTranslations(LISTING_ID);
 
     // Source must be the RU author title, never the stale UZ row.
     expect(provider.translate).toHaveBeenCalledWith(
