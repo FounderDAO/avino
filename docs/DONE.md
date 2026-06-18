@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/moderator-translation-review
-PR: pending
+PR: #190
 
 Files changed:
 - apps/api/src/moderation/moderation.service.ts (+spec) — APPROVE gated on full-language coverage; auto-enqueue removed
