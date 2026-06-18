@@ -15,10 +15,14 @@ import { StatusPill } from '@/components/admin/ui/pill';
 import { AdminButton } from '@/components/admin/ui/button';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
+import { TranslationRow } from '@/components/admin/TranslationRow';
 import {
   useGetAdminListingQuery,
   useModerateListingMutation,
   useListingModerationLogsQuery,
+  useGetListingTranslationsQuery,
+  useGenerateTranslationsMutation,
+  useUpdateTranslationMutation,
 } from '@/store/api/adminListingsApi';
 import { detailToAdminListing, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
@@ -53,14 +57,20 @@ const logDateFmt = new Intl.DateTimeFormat('ru-RU', {
 function moderationErrorMessage(error: unknown): string {
   const e = error as { status?: number } | undefined;
   const code = getApiErrorCode(error as never);
+  const msg = getApiError(error as never)?.message ?? '';
   const status = e?.status;
+  if (status === 422 && msg.includes('Translations required')) {
+    return 'Сначала сгенерируйте переводы на все языки';
+  }
   if (status === 422 || code === 'INVALID_STATUS_TRANSITION') {
     return 'Недопустимый переход статуса для этого объявления.';
   }
   if (status === 403) return 'Недостаточно прав для этого действия.';
   if (status === 404) return 'Объявление не найдено.';
-  return getApiError(error as never)?.message ?? 'Не удалось выполнить действие.';
+  return msg || 'Не удалось выполнить действие.';
 }
+
+const REQUIRED_LANGS = ['UZ', 'RU', 'EN'] as const;
 
 export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -70,6 +80,12 @@ export default function ListingDetailPage() {
   const [moderate, { isLoading: isActing }] = useModerateListingMutation();
   const { data: logs, isLoading: logsLoading, isError: logsError } =
     useListingModerationLogsQuery(id);
+  const { data: tr } = useGetListingTranslationsQuery(id);
+  const [generate, { isLoading: isGenerating }] = useGenerateTranslationsMutation();
+  const [saveTr, { isLoading: isSavingTr }] = useUpdateTranslationMutation();
+
+  const presentLangs = new Set((tr?.translations ?? []).map((t) => t.language));
+  const translationsComplete = REQUIRED_LANGS.every((l) => presentLangs.has(l));
 
   const listing = data ? detailToAdminListing(data) : undefined;
   const status: AdminListingStatus = listing?.status ?? 'ACTIVE';
@@ -155,6 +171,38 @@ export default function ListingDetailPage() {
             </div>
           </div>
           <div className="a-card" style={{ padding: 22 }}>
+            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 16 }}>Переводы</h3>
+              <button
+                className="abtn abtn-outline abtn-sm"
+                disabled={isGenerating}
+                onClick={async () => {
+                  try { await generate(id).unwrap(); toast('Переводы сгенерированы'); }
+                  catch { toast('Не удалось сгенерировать переводы'); }
+                }}
+              >
+                {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
+              </button>
+            </div>
+            {(tr?.translations ?? []).map((t) => (
+              <TranslationRow
+                key={t.language}
+                item={t}
+                saving={isSavingTr}
+                original={t.language === tr?.original_language}
+                onSave={async (body) => {
+                  try { await saveTr({ id, language: t.language, body }).unwrap(); toast('Перевод сохранён'); }
+                  catch { toast('Не удалось сохранить'); }
+                }}
+              />
+            ))}
+            {!tr?.translations?.length && (
+              <p className="muted" style={{ fontSize: 13.5 }}>
+                Переводов пока нет — нажмите «Сгенерировать переводы».
+              </p>
+            )}
+          </div>
+          <div className="a-card" style={{ padding: 22 }}>
             <h3 style={{ fontSize: 16, marginBottom: 12 }}>История модерации</h3>
             {logsLoading ? (
               <p className="muted" style={{ fontSize: 13.5 }}>Загрузка…</p>
@@ -198,7 +246,17 @@ export default function ListingDetailPage() {
                 <option value="">— выберите причину —</option>
                 {REJECT_REASON_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
-              {status !== 'ACTIVE' && <button className="abtn abtn-ok" style={{ width: '100%' }} disabled={isActing} onClick={() => act('APPROVE')}><IC.Check size={17} /> Опубликовать</button>}
+              {status !== 'ACTIVE' && (
+                <button
+                  className="abtn abtn-ok"
+                  style={{ width: '100%' }}
+                  disabled={isActing || !translationsComplete}
+                  title={translationsComplete ? undefined : 'Сначала сгенерируйте переводы на все языки'}
+                  onClick={() => act('APPROVE')}
+                >
+                  <IC.Check size={17} /> Опубликовать
+                </button>
+              )}
               {status !== 'REJECTED' && <button className="abtn abtn-danger" style={{ width: '100%' }} disabled={isActing} onClick={() => act('REJECT')}><IC.X size={17} /> Отклонить</button>}
               {status !== 'DRAFT' && <button className="abtn abtn-outline" style={{ width: '100%' }} disabled={isActing} onClick={() => act('SEND_TO_DRAFT')}>В черновики</button>}
               <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
