@@ -39,6 +39,31 @@ Related ADR:
 
 ## 2026-06-19
 
+### MyListings — owner action cluster redesign (ADR-0092)
+
+Status: DONE
+Branch: feat/mylistings-actions-redesign
+PR: #193
+
+Files changed:
+- apps/client/src/features/account/MyListings.tsx — кластер действий: Редактировать (ink-outline) + Продвинуть (золотой premium-акцент) + меню «…» (radix Dropdown) со статус-действиями
+- apps/client/messages/ru.json / en.json / uz.json — ключ `account.myListings.actions.more` (aria-label кебаба)
+- docs/adr/ADR-0092-mylistings-action-cluster.md — решение по подаче
+
+Summary:
+- Зона действий в карточке «Мои объявления» больше не выкладывается полноширинной стопкой в `sm:flex-col` (тянула карточку по высоте, без иерархии, красный «Продвинуть» как кнопка опасности). Свёрнута в один компактный ряд справа.
+- Иерархия: Редактировать (routine) → Продвинуть (upsell, мягкое золото на VIP-токенах `gold`/`gold-bg` + Sparkles, только при `promo === 'NORMAL'`) → редкие статус-смены (Скрыть / Продано|Сдано / Вернуть в продажу) в overflow-меню «…».
+- Чисто презентационно: `ownerActionsFor`, `window.confirm` и мутация `setMyListingStatus` не тронуты; переиспользован готовый `Dropdown`, без новых зависимостей; одна app-папка (`apps/client/`).
+- Проверки: `tsc --noEmit` ✓, `eslint` (изменённый файл) ✓, JSON ru/en/uz валиден ✓.
+
+Commit messages:
+- feat(account): redesign owner action cluster on my-listings cards
+
+Related ADR:
+- docs/adr/ADR-0092-mylistings-action-cluster.md
+
+---
+
 ### Translation panel on moderation queue page (ADR-0091)
 
 Status: DONE
