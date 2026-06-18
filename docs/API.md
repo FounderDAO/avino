@@ -425,9 +425,9 @@ Errors: `404 NOT_FOUND`.
 { "action": "HIDE" }
 ```
 Допустимые значения `action` и переходы:
-- `HIDE` → `ARCHIVED` (из `ACTIVE`; скрыть объявление)
-- `MARK_SOLD` → `SOLD` (из `ACTIVE`; только если `transaction_type = SALE`)
-- `MARK_RENTED` → `RENTED` (из `ACTIVE`; только если `transaction_type = RENT`)
+- `HIDE` → `ARCHIVED` (из `ACTIVE`, `NEW`, `DRAFT`, `REJECTED`; скрыть объявление)
+- `MARK_SOLD` → `SOLD` (из `ACTIVE`, `ARCHIVED`, `NEW`, `DRAFT`, `REJECTED`; только если `transaction_type = SALE`)
+- `MARK_RENTED` → `RENTED` (из `ACTIVE`, `ARCHIVED`, `NEW`, `DRAFT`, `REJECTED`; только если `transaction_type = RENT`)
 - `REACTIVATE` → `ACTIVE` если листинг ранее был опубликован и не редактировался в скрытом состоянии (`edited_since_hidden = false`), иначе → `NEW`; из `SOLD`/`RENTED` всегда → `NEW`
 
 200 → обновлённый листинг (тот же формат, что `PATCH /api/v1/listings/:id`). Errors: `403 FORBIDDEN`, `404 NOT_FOUND` (листинг удалён или не существует), `422 INVALID_STATUS_TRANSITION` (недопустимый исходный статус или несовпадение `transaction_type`).
