@@ -245,12 +245,24 @@ export class TranslationsService {
       );
     }
 
-    const fields = {
+    // create-branch: always write full object (no existing row to preserve).
+    const createFields = {
       title: input.title,
       description: input.description ?? null,
       addressNote: input.address_note ?? null,
       featuresText: input.features_text ?? null,
     };
+
+    // update-branch: partial-update semantics — only include fields present in
+    // input (i.e. !== undefined) so that omitting address_note/features_text
+    // does not overwrite machine-translated data with null (ADR-0091 data-loss fix).
+    const updateFields: Prisma.ListingTranslationUpdateInput = {
+      isAutoTranslated: false,
+      title: input.title,
+    };
+    if (input.description !== undefined) updateFields.description = input.description;
+    if (input.address_note !== undefined) updateFields.addressNote = input.address_note;
+    if (input.features_text !== undefined) updateFields.featuresText = input.features_text;
 
     await this.prisma.listingTranslation.upsert({
       where: { listingId_language: { listingId, language } },
@@ -259,9 +271,9 @@ export class TranslationsService {
         language,
         source: TranslationSource.USER,
         isAutoTranslated: false,
-        ...fields,
+        ...createFields,
       },
-      update: { isAutoTranslated: false, ...fields },
+      update: updateFields,
     });
   }
 }

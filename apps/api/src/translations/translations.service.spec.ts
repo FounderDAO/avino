@@ -243,5 +243,22 @@ describe('TranslationsService', () => {
         service.updateModeratorTranslation(LISTING_ID, Language.EN, { title: 'x' }),
       ).rejects.toMatchObject({ status: 404 });
     });
+
+    it('partial edit (title only) leaves address_note/features_text untouched on update', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ originalLanguage: Language.RU, status: ListingStatus.NEW });
+      await service.updateModeratorTranslation(LISTING_ID, Language.EN, { title: 'New EN' });
+      const arg = prisma.listingTranslation.upsert.mock.calls[0][0];
+      expect(arg.update).toMatchObject({ title: 'New EN', isAutoTranslated: false });
+      expect(arg.update).not.toHaveProperty('addressNote');
+      expect(arg.update).not.toHaveProperty('featuresText');
+      expect(arg.update).not.toHaveProperty('description');
+    });
+
+    it('explicit null clears a field', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ originalLanguage: Language.RU, status: ListingStatus.NEW });
+      await service.updateModeratorTranslation(LISTING_ID, Language.EN, { title: 'x', address_note: null });
+      const arg = prisma.listingTranslation.upsert.mock.calls[0][0];
+      expect(arg.update).toMatchObject({ title: 'x', isAutoTranslated: false, addressNote: null });
+    });
   });
 });
