@@ -658,7 +658,47 @@
       "authText": "Chat replies, moderation statuses and new listings from your saved searches will appear here.",
       "goHome": "Go to homepage",
       "empty": "No notifications yet",
-      "readAll": "Mark all as read"
+      "readAll": "Mark all as read",
+      "types": {
+        "SAVED_SEARCH_NEW_LISTING": {
+          "title": "New listing for your search",
+          "body": "A new listing matched your saved search “{name}”.",
+          "body_noname": "A new listing matched your saved search."
+        },
+        "FAVORITE_PRICE_DROP": {
+          "title": "Price drop",
+          "body": "The price of a listing in your favorites has dropped."
+        },
+        "NEW_CHAT_MESSAGE": {
+          "title": "New message",
+          "body": "You have a new reply in a listing chat."
+        },
+        "LISTING_MODERATION_STATUS_CHANGED": {
+          "title": "Listing status changed",
+          "body_ACTIVE": "Your listing was approved and published.",
+          "body_DRAFT": "Your listing was sent back to drafts for changes.",
+          "body_REJECTED": "Your listing was rejected by a moderator.",
+          "body_REJECTED_reason": "Your listing was rejected by a moderator. Reason: {reason}",
+          "body_DELETED": "Your listing was removed by a moderator.",
+          "body": "Your listing status was updated."
+        },
+        "NEW_LEAD": {
+          "title": "New lead",
+          "body": "You received a new lead on your listing."
+        },
+        "PROMOTION_ACTIVATED": {
+          "title": "Promotion active",
+          "body": "Your listing promotion is now active."
+        },
+        "PROMOTION_EXPIRED": {
+          "title": "Promotion ended",
+          "body": "Your listing promotion has expired."
+        },
+        "generic": {
+          "title": "Notification",
+          "body": "Open to see the details."
+        }
+      }
     },
     "profile": {
       "title": "Profile",

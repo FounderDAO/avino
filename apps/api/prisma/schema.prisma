@@ -399,6 +399,7 @@ model Listing {
   promotionStartedAt DateTime?                              @map("promotion_started_at") @db.Timestamptz(6)
   promotionExpiresAt DateTime?                              @map("promotion_expires_at") @db.Timestamptz(6)
   publishedAt        DateTime?                              @map("published_at") @db.Timestamptz(6)
+  editedSinceHidden  Boolean                                @default(false) @map("edited_since_hidden")
   createdAt          DateTime                               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime                               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
