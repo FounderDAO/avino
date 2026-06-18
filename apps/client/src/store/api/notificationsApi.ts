@@ -26,8 +26,13 @@ export interface ApiNotification {
   type: NotificationType;
   channel: string;
   status: NotificationStatus;
-  title: string;
-  body: string;
+  /**
+   * Текст уведомления. Сейчас бэкенд хранит `null` (продюсеры пишут только
+   * `type` + `data_json`; рендер делал бы EMAIL/PUSH-воркер, который ещё стаб).
+   * In-app лента собирает текст из `type` + `data_json` через `notificationText`.
+   */
+  title: string | null;
+  body: string | null;
   data_json: Record<string, unknown> | null;
   read_at: string | null;
   created_at: string;
