@@ -640,6 +640,16 @@
         "ARCHIVED": "Archived",
         "SOLD": "Sold",
         "RENTED": "Rented"
+      },
+      "actions": {
+        "hide": "Hide",
+        "reactivate": "Reactivate",
+        "markSold": "Sold",
+        "markRented": "Rented",
+        "confirm": {
+          "markSold": "Mark this listing as sold? It will be hidden from search (you can reactivate it later).",
+          "markRented": "Mark this listing as rented? It will be hidden from search (you can reactivate it later)."
+        }
       }
     },
     "notifications": {

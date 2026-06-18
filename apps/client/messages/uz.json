@@ -640,6 +640,16 @@
         "ARCHIVED": "Arxivda",
         "SOLD": "Sotilgan",
         "RENTED": "Ijaraga berilgan"
+      },
+      "actions": {
+        "hide": "Yashirish",
+        "reactivate": "Qaytarish",
+        "markSold": "Sotilgan",
+        "markRented": "Ijaraga berilgan",
+        "confirm": {
+          "markSold": "E'lon sotilgan deb belgilansinmi? U qidiruvdan yashiriladi (keyin qaytarish mumkin).",
+          "markRented": "E'lon ijaraga berilgan deb belgilansinmi? U qidiruvdan yashiriladi (keyin qaytarish mumkin)."
+        }
       }
     },
     "notifications": {
