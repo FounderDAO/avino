@@ -39,6 +39,48 @@ Related ADR:
 
 ## 2026-06-18
 
+### TASK-041 (hardening) — Eskiz SMS: разбор ответа, логи, тесты, runbook
+
+Status: DONE
+Branch: feat/sms-eskiz-hardening
+PR: pending
+
+Files changed:
+- apps/api/src/sms/sms.service.ts
+- apps/api/src/sms/sms.service.spec.ts (new)
+- docs/GUIDE_SMS.md (new)
+- docs/ENV.md
+- docs/adr/ADR-0089-eskiz-sms-provider.md (new)
+- docs/DONE.md
+
+Summary:
+- Happy-path интеграция Eskiz (login → кэш токена → send → релогин при 401 →
+  dev-fallback, ADR-0012) уже существовала; задача — довести её до
+  production-готовности, не переписывая рабочий контракт `sendOtp`.
+- Hardening `sendViaEskiz`: разбор тела ответа Eskiz. На успехе — `LOG` с
+  `id`/`status` и **маскированным** номером (`998****4567`, без текста); на
+  не-401 ошибке причина из поля `message` Eskiz прокидывается и в лог, и в
+  исключение. Это делает отказ модерации шаблона диагностируемым (раньше был
+  виден только HTTP-статус). Логика 401-релогин-ретрай и dev-fallback не тронуты.
+- Тесты `sms.service.spec.ts` (10 кейсов): dev/prod без кредов, happy-path
+  (нормализация номера, `from`, Bearer), кэш токена, 401-ретрай (успех/провал),
+  сбой логина, отсутствие токена, surfacing причины модерации, текст OTP.
+- Runbook `docs/GUIDE_SMS.md`: аккаунт → модерация шаблона/sender → env →
+  приёмка (smoke) → troubleshooting. `ESKIZ_FROM` задокументирован в ENV.md §11.
+- Deferred (ADR-0089 follow-ups): `/user/get-limit` (баланс), `callback_url`
+  (статус доставки), batch-send, токен в Redis.
+- Проверка: `tsc`/`eslint` чисто, полный прогон API **428/428** (10 новых SMS).
+  Live-verify живой отправки OTP (есть аккаунт + одобренный шаблон) — финальный
+  гейт приёмки, выполняется перед мёржем.
+
+Commit messages:
+- feat(sms): harden Eskiz response handling and add structured delivery logs
+- test(sms): cover SmsService delivery and retry paths
+- docs(sms): add GUIDE_SMS runbook, ESKIZ_FROM, ADR-0089
+
+Related ADR:
+- docs/adr/ADR-0089-eskiz-sms-provider.md
+
 ### Bugfix — In-app уведомления показывали пустые карточки (нет заголовка/текста)
 
 Status: DONE
