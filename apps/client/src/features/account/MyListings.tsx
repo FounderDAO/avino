@@ -25,7 +25,11 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
-import { useGetMyListingsQuery } from '@/store/api/myListingsApi';
+import { useGetMyListingsQuery, useSetMyListingStatusMutation } from '@/store/api/myListingsApi';
+import {
+  ownerActionsFor,
+  type OwnerActionDescriptor,
+} from './ownerListingActions';
 
 /**
  * Классы цвета для статус-пилла. Покрывает все реальные статусы
@@ -59,6 +63,20 @@ function StatusPill({ s }: { s: ListingStatus | undefined }) {
 function ListingRow({ l }: { l: Listing }) {
   const t = useTranslations('account');
   const tUnits = useTranslations('units');
+  const [setStatus, { isLoading }] = useSetMyListingStatusMutation();
+  const actions = ownerActionsFor(l.status, l.tx);
+
+  const run = (a: OwnerActionDescriptor) => {
+    if (a.confirm) {
+      const key =
+        a.action === 'MARK_SOLD'
+          ? 'myListings.actions.confirm.markSold'
+          : 'myListings.actions.confirm.markRented';
+      if (!window.confirm(t(key))) return;
+    }
+    void setStatus({ id: l.id, action: a.action });
+  };
+
   return (
     <div className="grid grid-cols-[120px_1fr] items-center gap-4 rounded-card border border-border/60 bg-surface p-3.5 shadow-card sm:grid-cols-[120px_1fr_auto]">
       {/* Превью */}
@@ -82,20 +100,29 @@ function ListingRow({ l }: { l: Listing }) {
         {/* TODO(listing-analytics): API /listings/mine не отдаёт views/leads. */}
       </div>
 
-      {/* Действия (заглушки) */}
-      <div className="col-span-2 flex gap-2 sm:col-span-1 sm:flex-col">
+      {/* Действия */}
+      <div className="col-span-2 flex flex-wrap gap-2 sm:col-span-1 sm:flex-col">
         <Button asChild variant="outline" size="sm">
           <Link href={`/sell/${l.id}/edit`}>{t('myListings.edit')}</Link>
         </Button>
-        {l.promo === 'NORMAL' ? (
+        {/* Промо-CTA сохраняем как было (стаб вне области задачи). */}
+        {l.promo === 'NORMAL' && (
           <Button size="sm" type="button">
             {t('myListings.promote')}
           </Button>
-        ) : (
-          <Button variant="outline" size="sm" type="button">
-            {t('myListings.archive')}
-          </Button>
         )}
+        {actions.map((a) => (
+          <Button
+            key={a.action}
+            variant={a.variant === 'default' ? 'primary' : 'outline'}
+            size="sm"
+            type="button"
+            disabled={isLoading}
+            onClick={() => run(a)}
+          >
+            {t(`myListings.actions.${a.labelKey}`)}
+          </Button>
+        ))}
       </div>
     </div>
   );
