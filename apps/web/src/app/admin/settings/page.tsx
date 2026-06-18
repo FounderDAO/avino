@@ -4,6 +4,7 @@
  */
 import { SectionTitle } from '@/components/admin/ui/section-title';
 import { TelegramNotificationsToggle } from '@/components/admin/TelegramNotificationsToggle';
+import { SmsSendingToggle } from '@/components/admin/SmsSendingToggle';
 
 export default function SettingsPage() {
   return (
@@ -53,6 +54,7 @@ export default function SettingsPage() {
         </div>
       </div>
       <TelegramNotificationsToggle />
+      <SmsSendingToggle />
     </div>
   );
 }
