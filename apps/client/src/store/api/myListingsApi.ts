@@ -24,6 +24,7 @@ import type {
   PropertyType,
   TransactionType,
 } from '@/lib/mock/types';
+import type { OwnerAction } from '@/features/account/ownerListingActions';
 
 /** Допустимые промо-тиры (безопасное сужение строки API). */
 const PROMO_VALUES: PromotionType[] = ['NORMAL', 'TOP', 'VIP'];
@@ -95,8 +96,20 @@ export const myListingsApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Listing'],
     }),
+    /** Владельческая смена статуса. PATCH /listings/:id/status. */
+    setMyListingStatus: build.mutation<
+      { id: string; status: ListingStatus },
+      { id: string; action: OwnerAction }
+    >({
+      query: ({ id, action }) => ({
+        url: `/listings/${id}/status`,
+        method: 'PATCH',
+        body: { action },
+      }),
+      invalidatesTags: ['Listing'],
+    }),
   }),
   overrideExisting: false,
 });
 
-export const { useGetMyListingsQuery } = myListingsApi;
+export const { useGetMyListingsQuery, useSetMyListingStatusMutation } = myListingsApi;
