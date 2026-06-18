@@ -4,17 +4,30 @@ import { SmsService } from './sms.service';
  * Юнит-тесты SmsService (TASK-041 hardening). Провайдер изолирован через мок
  * `global.fetch`; конфиг — через лёгкий стаб ConfigService (как telegram.spec).
  */
-function makeService(overrides: Record<string, unknown> = {}) {
+function makeService(
+  overrides: Record<string, unknown> = {},
+  storedSmsEnabled?: string | null,
+) {
   const cfg: Record<string, unknown> = {
     'app.env': 'development',
     'sms.eskizEmail': 'bot@avino.uz',
     'sms.eskizPassword': 'secret',
     'sms.eskizBaseUrl': 'https://notify.eskiz.uz/api',
     'sms.eskizFrom': '4546',
+    'sms.enabled': true,
     ...overrides,
   };
   const config = { get: (k: string) => cfg[k] };
-  return new SmsService(config as never);
+  const prisma = {
+    appSetting: {
+      findUnique: jest
+        .fn()
+        .mockResolvedValue(
+          storedSmsEnabled === undefined ? null : { value: storedSmsEnabled },
+        ),
+    },
+  };
+  return new SmsService(config as never, prisma as never);
 }
 
 /** Ответ-стаб в форме, достаточной для SmsService (ok/status/json). */
@@ -201,5 +214,35 @@ describe('SmsService', () => {
     expect(sendBody.get('message')).toBe(
       'Avino: kirish uchun kod 123456. Hech kimga aytmang.',
     );
+  });
+
+  describe('isEnabled (admin toggle)', () => {
+    it('DB "false" overrides env default true', async () => {
+      const s = makeService({ 'sms.enabled': true }, 'false');
+      expect(await s.isEnabled()).toBe(false);
+    });
+
+    it('DB "true" overrides env default false', async () => {
+      const s = makeService({ 'sms.enabled': false }, 'true');
+      expect(await s.isEnabled()).toBe(true);
+    });
+
+    it('env default used when no DB row', async () => {
+      const s = makeService({ 'sms.enabled': false }, undefined);
+      expect(await s.isEnabled()).toBe(false);
+    });
+
+    it('DB error → falls back to env default', async () => {
+      const config = {
+        get: (k: string) => (k === 'sms.enabled' ? true : undefined),
+      };
+      const prisma = {
+        appSetting: {
+          findUnique: jest.fn().mockRejectedValue(new Error('db down')),
+        },
+      };
+      const s = new SmsService(config as never, prisma as never);
+      expect(await s.isEnabled()).toBe(true);
+    });
   });
 });

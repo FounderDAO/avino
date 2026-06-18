@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OtpChannel, OtpPurpose, UserStatus } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
@@ -65,6 +70,17 @@ export class OtpService {
                 : 'must be a valid email address',
           },
         ],
+      });
+    }
+
+    // Канал SMS может быть выключен админом (runtime-тоггл, sms_enabled).
+    // Падаем быстро — до rate-limit и генерации кода — единым кодом
+    // AUTH_PROVIDER_UNAVAILABLE (как /auth/google без ключа), чтобы клиент
+    // предложил другой канал, а не «успех» без доставки.
+    if (dto.channel === OtpChannel.SMS && !(await this.sms.isEnabled())) {
+      throw new ServiceUnavailableException({
+        code: ApiErrorCode.AUTH_PROVIDER_UNAVAILABLE,
+        message: 'SMS channel is temporarily unavailable',
       });
     }
 
