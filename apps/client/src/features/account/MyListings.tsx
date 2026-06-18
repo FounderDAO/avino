@@ -7,20 +7,36 @@
  * см. TODO(listing-analytics).
  *
  * Состояния: гость → EmptyState с подсказкой входа; загрузка → скелетон-строки;
- * пусто → EmptyState. «Редактировать» ведёт на /sell/:id/edit (реальная форма
- * редактирования); Продвинуть/В архив — заглушки (вне области задачи).
+ * пусто → EmptyState. Действия карточки: «Редактировать» (→ /sell/:id/edit),
+ * премиум-CTA «Продвинуть» (стаб) и меню «⋯» со статус-действиями (Скрыть /
+ * Продано / Вернуть в продажу) — компактно, чтобы карточка не разрасталась.
  */
 'use client';
 
 import * as React from 'react';
 import { Link } from '@/i18n/navigation';
-import { Home } from 'lucide-react';
+import {
+  Home,
+  Pencil,
+  Sparkles,
+  Ellipsis,
+  EyeOff,
+  RotateCcw,
+  CircleCheck,
+  type LucideIcon,
+} from 'lucide-react';
 import type { Listing, ListingStatus } from '@/lib/mock/types';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/format';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { PromoBadge } from '@/components/ui/promo-badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownContent,
+  DropdownItem,
+} from '@/components/ui/dropdown';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
@@ -28,8 +44,17 @@ import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import { useGetMyListingsQuery, useSetMyListingStatusMutation } from '@/store/api/myListingsApi';
 import {
   ownerActionsFor,
+  type OwnerAction,
   type OwnerActionDescriptor,
 } from './ownerListingActions';
+
+/** Иконка-подсказка для пунктов меню статус-действий. */
+const ACTION_ICON: Record<OwnerAction, LucideIcon> = {
+  HIDE: EyeOff,
+  MARK_SOLD: CircleCheck,
+  MARK_RENTED: CircleCheck,
+  REACTIVATE: RotateCcw,
+};
 
 /**
  * Классы цвета для статус-пилла. Покрывает все реальные статусы
@@ -100,29 +125,65 @@ function ListingRow({ l }: { l: Listing }) {
         {/* TODO(listing-analytics): API /listings/mine не отдаёт views/leads. */}
       </div>
 
-      {/* Действия */}
-      <div className="col-span-2 flex flex-wrap gap-2 sm:col-span-1 sm:flex-col">
+      {/* Действия: основное (Редактировать) + премиум-CTA + меню статусов «⋯» */}
+      <div className="col-span-2 flex flex-wrap items-center gap-2 sm:col-span-1 sm:flex-nowrap sm:justify-end">
         <Button asChild variant="outline" size="sm">
-          <Link href={`/sell/${l.id}/edit`}>{t('myListings.edit')}</Link>
+          <Link href={`/sell/${l.id}/edit`}>
+            <Pencil size={15} strokeWidth={2.2} />
+            {t('myListings.edit')}
+          </Link>
         </Button>
-        {/* Промо-CTA сохраняем как было (стаб вне области задачи). */}
+
+        {/* Продвинуть — мягкий золотой premium-акцент (стаб вне области задачи). */}
         {l.promo === 'NORMAL' && (
-          <Button size="sm" type="button">
+          <Button
+            size="sm"
+            type="button"
+            variant="outline"
+            className="border-gold/40 bg-gold-bg text-gold hover:border-gold/60 hover:bg-gold/15 hover:text-gold focus-visible:ring-gold/35"
+          >
+            <Sparkles size={14} strokeWidth={2.4} />
             {t('myListings.promote')}
           </Button>
         )}
-        {actions.map((a) => (
-          <Button
-            key={a.action}
-            variant={a.variant === 'default' ? 'primary' : 'outline'}
-            size="sm"
-            type="button"
-            disabled={isLoading}
-            onClick={() => run(a)}
-          >
-            {t(`myListings.actions.${a.labelKey}`)}
-          </Button>
-        ))}
+
+        {/* Статус-действия скрыты в компактном меню, чтобы карточка не разрасталась. */}
+        {actions.length > 0 && (
+          <Dropdown>
+            <DropdownTrigger asChild>
+              <button
+                type="button"
+                disabled={isLoading}
+                aria-label={t('myListings.actions.more')}
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-pill border-[1.6px] border-border bg-surface text-muted-foreground transition-colors hover:border-ink/25 hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-red/35 disabled:pointer-events-none disabled:opacity-50 data-[state=open]:border-ink/30 data-[state=open]:bg-surface-2 data-[state=open]:text-ink"
+              >
+                <Ellipsis size={18} />
+              </button>
+            </DropdownTrigger>
+            <DropdownContent align="end" className="min-w-[184px]">
+              {actions.map((a) => {
+                const Icon = ACTION_ICON[a.action];
+                const positive = a.variant === 'default';
+                return (
+                  <DropdownItem
+                    key={a.action}
+                    onSelect={() => run(a)}
+                    className={positive ? 'text-teal' : undefined}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Icon
+                        size={15}
+                        strokeWidth={2.2}
+                        className={positive ? 'text-teal' : 'text-muted-2'}
+                      />
+                      {t(`myListings.actions.${a.labelKey}`)}
+                    </span>
+                  </DropdownItem>
+                );
+              })}
+            </DropdownContent>
+          </Dropdown>
+        )}
       </div>
     </div>
   );
