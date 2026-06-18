@@ -1,4 +1,4 @@
-# ADR-0087 — Owner-controlled listing status (hide / sold / rented / reactivate)
+# ADR-0088 — Owner-controlled listing status (hide / sold / rented / reactivate)
 
 ## Status
 Accepted
