@@ -648,7 +648,47 @@
       "authText": "Bu yerda chatlardagi javoblar, moderatsiya holatlari va saqlangan qidiruvlar bo'yicha yangi e'lonlar paydo bo'ladi.",
       "goHome": "Bosh sahifaga",
       "empty": "Hozircha bildirishnomalar yo'q",
-      "readAll": "Hammasini o'qilgan deb belgilash"
+      "readAll": "Hammasini o'qilgan deb belgilash",
+      "types": {
+        "SAVED_SEARCH_NEW_LISTING": {
+          "title": "Qidiruv bo'yicha yangi e'lon",
+          "body": "«{name}» saqlangan qidiruvi bo'yicha yangi e'lon paydo bo'ldi.",
+          "body_noname": "Saqlangan qidiruvingiz bo'yicha yangi e'lon paydo bo'ldi."
+        },
+        "FAVORITE_PRICE_DROP": {
+          "title": "Narx pasaydi",
+          "body": "Saralangan e'lon narxi pasaydi."
+        },
+        "NEW_CHAT_MESSAGE": {
+          "title": "Yangi xabar",
+          "body": "E'lon bo'yicha chatda sizga javob berishdi."
+        },
+        "LISTING_MODERATION_STATUS_CHANGED": {
+          "title": "E'lon holati o'zgardi",
+          "body_ACTIVE": "E'loningiz tasdiqlandi va e'lon qilindi.",
+          "body_DRAFT": "E'lon qayta ishlash uchun qoralamaga yuborildi.",
+          "body_REJECTED": "E'lon moderator tomonidan rad etildi.",
+          "body_REJECTED_reason": "E'lon moderator tomonidan rad etildi. Sababi: {reason}",
+          "body_DELETED": "E'lon moderator tomonidan o'chirildi.",
+          "body": "E'loningiz holati yangilandi."
+        },
+        "NEW_LEAD": {
+          "title": "Yangi murojaat",
+          "body": "E'loningiz bo'yicha yangi murojaat keldi."
+        },
+        "PROMOTION_ACTIVATED": {
+          "title": "Reklama faol",
+          "body": "E'loningiz reklamasi faollashtirildi."
+        },
+        "PROMOTION_EXPIRED": {
+          "title": "Reklama tugadi",
+          "body": "E'loningiz reklama muddati tugadi."
+        },
+        "generic": {
+          "title": "Bildirishnoma",
+          "body": "Tafsilotlarni ko'rish uchun oching."
+        }
+      }
     },
     "profile": {
       "title": "Profil",
