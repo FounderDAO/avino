@@ -39,6 +39,44 @@ Related ADR:
 
 ## 2026-06-18
 
+### TASK-041 (admin toggle) — Runtime вкл/выкл SMS из админки (api)
+
+Status: DONE
+Branch: feat/sms-admin-toggle
+PR: pending
+
+Files changed:
+- apps/api/src/sms/sms.constants.ts (new)
+- apps/api/src/sms/sms.service.ts (+ spec)
+- apps/api/src/sms/index.ts
+- apps/api/src/auth/otp.service.ts (+ spec)
+- apps/api/src/admin/admin-sms-settings.controller.ts (new)
+- apps/api/src/admin/admin-sms-settings.service.ts (+ spec, new)
+- apps/api/src/admin/dto/update-sms-settings.dto.ts (new)
+- apps/api/src/admin/admin.module.ts
+- apps/api/src/config/configuration.ts
+- docs/API.md, docs/ENV.md, docs/GUIDE_SMS.md
+- docs/adr/ADR-0090-sms-admin-runtime-toggle.md (new)
+
+Summary:
+- Рантайм master-тоггл отправки SMS из админки (бэкенд), по образцу
+  Telegram-тоггла (ADR-0065): булева строка `app_settings['sms_enabled']` поверх
+  env-дефолта `ESKIZ_ENABLED` (по умолчанию `true`). admin `GET/PATCH
+  /api/v1/admin/sms-settings` (ADMIN), пишет `audit_logs(SMS_SETTINGS_UPDATE)`.
+- `SmsService.isEnabled()` (DB > env, БД-сбой → env). Гейт — в `OtpService`:
+  для канала SMS при выключенном тоггле возвращает **503
+  AUTH_PROVIDER_UNAVAILABLE** до rate-limit/генерации кода (fail-fast, не
+  молчаливый сбой логина). Затрагивает auth-flow (CLAUDE.md §13) — поведение
+  согласовано с Team Lead.
+- Deferred: тумблер в админ-UI (apps/web) — отдельный PR (граница app-папок).
+- Проверка: `tsc`/`eslint` чисто, полный прогон API **437/437** (8 новых).
+
+Commit messages:
+- feat(sms): runtime admin toggle for SMS with 503 fallback when disabled
+
+Related ADR:
+- docs/adr/ADR-0090-sms-admin-runtime-toggle.md
+
 ### TASK-041 (hardening) — Eskiz SMS: разбор ответа, логи, тесты, runbook
 
 Status: DONE

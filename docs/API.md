@@ -98,7 +98,9 @@ SMS или email для EMAIL.
 ```json
 { "request_id": "otp_8f3a", "channel": "SMS", "expires_in": 120, "resend_after": 60 }
 ```
-Errors: `400 VALIDATION_ERROR`, `429 RATE_LIMITED`.
+Errors: `400 VALIDATION_ERROR`, `429 RATE_LIMITED`, `503 AUTH_PROVIDER_UNAVAILABLE`
+(канал `SMS` выключен админ-тогглом `sms_enabled`, ADR-0090 — клиенту стоит
+предложить другой канал).
 
 ### POST /api/v1/auth/otp/verify
 
@@ -965,6 +967,25 @@ Errors: `422 INVALID_PERIOD` (не 7/14/30), `409 ACTIVE_PROMOTION_EXISTS`
 { "enabled": false }
 ```
 200 → `{ "notificationsEnabled": false }`. Errors: `400 VALIDATION_ERROR`.
+
+#### GET /api/v1/admin/sms-settings
+Текущее состояние отправки SMS. Auth: **ADMIN** (ADR-0090).
+200:
+```json
+{ "smsEnabled": true }
+```
+Значение: строка `app_settings['sms_enabled']` если задана, иначе env-дефолт
+`ESKIZ_ENABLED` (не задан → `true`).
+
+#### PATCH /api/v1/admin/sms-settings
+Включить/выключить отправку SMS в рантайме (без пересборки). Auth: **ADMIN**.
+Персистит в `app_settings`, пишет `audit_logs(SMS_SETTINGS_UPDATE)`. При
+выключенном канале `POST /auth/otp/request` с `channel:"SMS"` отвечает
+`503 AUTH_PROVIDER_UNAVAILABLE` (§3), чтобы клиент предложил другой канал.
+```json
+{ "enabled": false }
+```
+200 → `{ "smsEnabled": false }`. Errors: `400 VALIDATION_ERROR`.
 
 ---
 

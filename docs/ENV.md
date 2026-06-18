@@ -151,12 +151,16 @@ Notes:
 | ESKIZ_PASSWORD  | yes  | yes    | no     | (set)                         | Eskiz account password     |
 | ESKIZ_BASE_URL  | no   | no     | no     | https://notify.eskiz.uz/api   | Eskiz API base URL         |
 | ESKIZ_FROM      | no   | no     | no     | 4546                          | Sender ID. `4546`=test sender; prod=approved nickname/short-code (see GUIDE_SMS.md §4.2) |
+| ESKIZ_ENABLED   | no   | no     | no     | true                          | env-дефолт master-тоггла SMS. Не задан → `true`. Перебивается `app_settings['sms_enabled']` (admin) |
 
 ```text
 - Без ESKIZ_EMAIL/ESKIZ_PASSWORD SMS не отправляется: в dev код OTP пишется в
   лог, в prod — warn «provider is not configured» (мягкая деградация, ADR-0012).
 - Production-отправка требует ОДОБРЕННОГО шаблона текста и sender'а в кабинете
   Eskiz — пошаговый runbook и troubleshooting в docs/GUIDE_SMS.md (ADR-0089).
+- Master-тоггл SMS (runtime): app_settings['sms_enabled'] (admin GET/PATCH
+  /admin/sms-settings) главнее env-дефолта ESKIZ_ENABLED. Выключен → запрос
+  OTP·SMS отвечает 503 AUTH_PROVIDER_UNAVAILABLE (ADR-0090).
 ```
 
 ### 11.1 Google sign-in (TASK-195)
