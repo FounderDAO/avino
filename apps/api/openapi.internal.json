@@ -1998,6 +1998,78 @@
         }
       }
     },
+    "/api/v1/admin/listings/{id}/translations/generate": {
+      "post": {
+        "operationId": "AdminListingsController_generateTranslations",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/listings/{id}/translations/{language}": {
+      "patch": {
+        "operationId": "AdminListingsController_updateTranslation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "language",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModeratorTranslationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/listings/{id}/promotions": {
       "get": {
         "operationId": "AdminPromotionsController_history",
@@ -3261,6 +3333,27 @@
         },
         "required": [
           "action"
+        ]
+      },
+      "UpdateModeratorTranslationDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string"
+          },
+          "address_note": {
+            "type": "string"
+          },
+          "features_text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
         ]
       },
       "ActivatePromotionDto": {
