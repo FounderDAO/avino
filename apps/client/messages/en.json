@@ -642,6 +642,7 @@
         "RENTED": "Rented"
       },
       "actions": {
+        "more": "More actions",
         "hide": "Hide",
         "reactivate": "Reactivate",
         "markSold": "Sold",

@@ -642,6 +642,7 @@
         "RENTED": "Ijaraga berilgan"
       },
       "actions": {
+        "more": "Boshqa amallar",
         "hide": "Yashirish",
         "reactivate": "Qaytarish",
         "markSold": "Sotilgan",
