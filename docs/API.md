@@ -1034,7 +1034,10 @@ optional response field (non-breaking, §14).
 Сменить статус (модерация). Auth: **MODERATOR / ADMIN**. Действие — одно из
 `moderation_action`: `APPROVE | SEND_TO_DRAFT | REJECT | DELETE`. Маппинг на
 `listing_status`: `ACTIVE | DRAFT | REJECTED | DELETED`. `APPROVE` → `ACTIVE`
-запускает авто-перевод (`translate_listing`, ADR-005) и `published_at`.
+**требует наличия переводов на все языки** (UZ/RU/EN), иначе
+`422 VALIDATION_ERROR` (ADR-0091); при успехе выставляет `published_at`.
+Авто-перевод по очереди удалён — переводы создаёт модератор вручную через
+`POST .../translations/generate` до публикации (см. ниже).
 ```json
 { "action": "APPROVE", "reason": null }
 ```
@@ -1047,7 +1050,30 @@ optional response field (non-breaking, §14).
 { "id": "l1", "status": "ACTIVE", "published_at": "2026-06-02T08:10:00Z" }
 ```
 Создаёт `LISTING_MODERATION_STATUS_CHANGED` notification владельцу.
-Errors: `403 FORBIDDEN`, `422 INVALID_STATUS_TRANSITION`, `404 NOT_FOUND`.
+Errors: `403 FORBIDDEN`, `422 INVALID_STATUS_TRANSITION`,
+`422 VALIDATION_ERROR` (нет переводов на все языки), `404 NOT_FOUND`.
+
+### POST /api/v1/admin/listings/:id/translations/generate
+Синхронно сгенерировать машинный перевод объявления на остальные языки
+(ADR-0091). Auth: **MODERATOR / ADMIN**. Переводит `title/description/
+address_note/features_text` с `original_language` на остальные (UZ/RU/EN);
+**не перезаписывает** строки с `is_auto_translated=false` (ручные правки).
+Идемпотентно. Тела запроса нет.
+200 → тот же контракт, что `GET /listings/:id/translations` (полный набор с
+`source`/`is_auto_translated`).
+Errors: `403 FORBIDDEN`, `404 NOT_FOUND`, `502` (сбой провайдера перевода).
+
+### PATCH /api/v1/admin/listings/:id/translations/:language
+Ручная правка одного языкового перевода модератором (ADR-0091).
+Auth: **MODERATOR / ADMIN**. `:language` ∈ `UZ|RU|EN`. Ставит
+`is_auto_translated=false` (защищается при повторной генерации). Редактировать
+`original_language` нельзя.
+```json
+{ "title": "...", "description": "...", "address_note": null, "features_text": null }
+```
+200 → полный набор переводов (как `GET /listings/:id/translations`).
+Errors: `403 FORBIDDEN`, `404 NOT_FOUND`,
+`422 VALIDATION_ERROR` (попытка править оригинальный язык).
 
 ### GET /api/v1/admin/listings/:id/moderation-logs
 История модерации листинга. Auth: **MODERATOR / ADMIN**.
