@@ -39,57 +39,47 @@ Related ADR:
 
 ## 2026-06-18
 
-### Feature — Владельческое управление статусом объявления (скрыть / продано / сдано / вернуть)
+### TASK-041 (hardening) — Eskiz SMS: разбор ответа, логи, тесты, runbook
 
 Status: DONE
-Branch: feat/owner-listing-status-api (api) + feat/owner-listing-status-client (client)
-PR: #182 (api + docs), #183 (client)
+Branch: feat/sms-eskiz-hardening
+PR: pending
 
 Files changed:
-- apps/api/prisma/schema.prisma (+ editedSinceHidden)
-- apps/api/prisma/migrations/20260618130000_add_listing_edited_since_hidden/migration.sql
-- apps/api/src/listings/dto/owner-status.dto.ts (new)
-- apps/api/src/listings/listings.service.ts (setOwnerStatus + update() dirty-flag)
-- apps/api/src/listings/listings.controller.ts (PATCH /listings/:id/status)
-- apps/api/src/listings/owner-status.service.spec.ts (new, 12 tests)
-- apps/api/openapi.public.json, apps/api/openapi.internal.json (regenerated)
-- apps/client/src/features/account/ownerListingActions.ts (+ .test.ts, new)
-- apps/client/src/store/api/myListingsApi.ts (setMyListingStatus mutation)
-- apps/client/src/features/account/MyListings.tsx (action buttons)
-- apps/client/messages/{ru,uz,en}.json (account.myListings.actions.*)
-- docs/adr/ADR-0088-owner-listing-status.md (new)
-- docs/API.md (§7 PATCH /listings/:id/status)
+- apps/api/src/sms/sms.service.ts
+- apps/api/src/sms/sms.service.spec.ts (new)
+- docs/GUIDE_SMS.md (new)
+- docs/ENV.md
+- docs/adr/ADR-0089-eskiz-sms-provider.md (new)
+- docs/DONE.md
 
 Summary:
-- Владелец не мог скрыть/закрыть/вернуть своё объявление (был только
-  create/mine/detail/edit). Добавлен owner-эндпоинт
-  `PATCH /api/v1/listings/:id/status` (Bearer, owner-only): действия
-  HIDE / MARK_SOLD / MARK_RENTED / REACTIVATE поверх существующих статусов
-  ARCHIVED/SOLD/RENTED. Read-path не менялся (поиск уже фильтрует `ACTIVE`).
-- Smart-return: новый boolean `edited_since_hidden`. REACTIVATE из ARCHIVED →
-  `ACTIVE` только если листинг был опубликован и не правился скрытым, иначе → `NEW`;
-  из SOLD/RENTED — всегда `NEW`.
-- Клиент: статус-контекстные кнопки в «Мои объявления» (чистый `ownerActionsFor`
-  + RTK-мутация `setMyListingStatus`, подтверждение для продано/сдано).
-- Реализовано через subagent-driven (avino-impl); git вёл контроллер.
-- Note: ADR изначально планировался как 0087, но 0087 параллельно занял
-  смёрженный PR #181 (notifications) → перенумерован в ADR-0088.
+- Happy-path интеграция Eskiz (login → кэш токена → send → релогин при 401 →
+  dev-fallback, ADR-0012) уже существовала; задача — довести её до
+  production-готовности, не переписывая рабочий контракт `sendOtp`.
+- Hardening `sendViaEskiz`: разбор тела ответа Eskiz. На успехе — `LOG` с
+  `id`/`status` и **маскированным** номером (`998****4567`, без текста); на
+  не-401 ошибке причина из поля `message` Eskiz прокидывается и в лог, и в
+  исключение. Это делает отказ модерации шаблона диагностируемым (раньше был
+  виден только HTTP-статус). Логика 401-релогин-ретрай и dev-fallback не тронуты.
+- Тесты `sms.service.spec.ts` (10 кейсов): dev/prod без кредов, happy-path
+  (нормализация номера, `from`, Bearer), кэш токена, 401-ретрай (успех/провал),
+  сбой логина, отсутствие токена, surfacing причины модерации, текст OTP.
+- Runbook `docs/GUIDE_SMS.md`: аккаунт → модерация шаблона/sender → env →
+  приёмка (smoke) → troubleshooting. `ESKIZ_FROM` задокументирован в ENV.md §11.
+- Deferred (ADR-0089 follow-ups): `/user/get-limit` (баланс), `callback_url`
+  (статус доставки), batch-send, токен в Redis.
+- Проверка: `tsc`/`eslint` чисто, полный прогон API **428/428** (10 новых SMS).
+  Live-verify живой отправки OTP (есть аккаунт + одобренный шаблон) — финальный
+  гейт приёмки, выполняется перед мёржем.
 
 Commit messages:
-- feat(listings): add edited_since_hidden column for owner smart-return
-- feat(listings): owner setOwnerStatus state-machine (hide/sold/rented/reactivate)
-- feat(listings): add PATCH /listings/:id/status owner route
-- docs(listings): ADR + API.md for owner listing status
-- chore(api): regenerate OpenAPI spec for PATCH /listings/:id/status
-- feat(account): owner listing action model helper
-- i18n(account): owner listing action labels + confirmations
-- feat(account): setMyListingStatus RTK mutation
-- feat(account): wire hide/sold/rented/reactivate actions in MyListings
+- feat(sms): harden Eskiz response handling and add structured delivery logs
+- test(sms): cover SmsService delivery and retry paths
+- docs(sms): add GUIDE_SMS runbook, ESKIZ_FROM, ADR-0089
 
 Related ADR:
-- docs/adr/ADR-0088-owner-listing-status.md
-
----
+- docs/adr/ADR-0089-eskiz-sms-provider.md
 
 ### Bugfix — In-app уведомления показывали пустые карточки (нет заголовка/текста)
 
