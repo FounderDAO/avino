@@ -10,6 +10,8 @@ import { AdminPromotionPlansController } from './admin-promotion-plans.controlle
 import { AdminPromotionPlansService } from './admin-promotion-plans.service';
 import { AdminPromotionSettingsController } from './admin-promotion-settings.controller';
 import { AdminPromotionSettingsService } from './admin-promotion-settings.service';
+import { AdminSmsSettingsController } from './admin-sms-settings.controller';
+import { AdminSmsSettingsService } from './admin-sms-settings.service';
 import { AdminTelegramSettingsController } from './admin-telegram-settings.controller';
 import { AdminTelegramSettingsService } from './admin-telegram-settings.service';
 import { AdminLogsController } from './admin-logs.controller';
@@ -50,6 +52,7 @@ import { AdminUsersService } from './admin-users.service';
     AdminPromotionPlansController,
     AdminPromotionSettingsController,
     AdminTelegramSettingsController,
+    AdminSmsSettingsController,
     AdminUsersController,
     AdminLogsController,
     AdminComplaintsController,
@@ -62,6 +65,7 @@ import { AdminUsersService } from './admin-users.service';
     AdminPromotionPlansService,
     AdminPromotionSettingsService,
     AdminTelegramSettingsService,
+    AdminSmsSettingsService,
   ],
 })
 export class AdminModule {}

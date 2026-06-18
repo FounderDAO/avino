@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma';
+import { SMS_ENABLED_KEY, resolveSmsEnabled } from './sms.constants';
 
 /** Ответ Eskiz `POST /auth/login`. */
 interface EskizAuthResponse {
@@ -47,7 +49,28 @@ export class SmsService {
    */
   private static readonly TOKEN_TTL_MS = 25 * 24 * 60 * 60 * 1000;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /**
+   * Master-switch SMS (runtime): строка в app_settings главнее env-дефолта
+   * `sms.enabled`. Зеркалит TelegramService.isEnabled. Это источник истины для
+   * вызывающего кода (OtpService падает 503 на выключенном SMS-канале); сам
+   * `send` остаётся механическим. БД недоступна → не роняем, env-дефолт.
+   */
+  async isEnabled(): Promise<boolean> {
+    const envDefault = this.configService.get<boolean>('sms.enabled') ?? true;
+    try {
+      const row = await this.prisma.appSetting.findUnique({
+        where: { key: SMS_ENABLED_KEY },
+      });
+      return resolveSmsEnabled(row?.value, envDefault);
+    } catch {
+      return envDefault;
+    }
+  }
 
   /** Отправить OTP-код на телефон (E.164). */
   async sendOtp(phone: string, code: string): Promise<void> {

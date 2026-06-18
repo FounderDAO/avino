@@ -59,6 +59,13 @@ export const smsConfig = registerAs('sms', () => ({
   eskizPassword: process.env.ESKIZ_PASSWORD,
   eskizBaseUrl: process.env.ESKIZ_BASE_URL,
   eskizFrom: process.env.ESKIZ_FROM,
+  // Master-флаг отправки SMS по умолчанию: явное ESKIZ_ENABLED → оно; иначе
+  // true (SMS — основной канал логина). Перебивается runtime-строкой в
+  // app_settings (admin-тоггл), как у telegram.notificationStateDefault.
+  enabled:
+    process.env.ESKIZ_ENABLED != null
+      ? process.env.ESKIZ_ENABLED === 'true'
+      : true,
 }));
 
 export const translateConfig = registerAs('translate', () => ({

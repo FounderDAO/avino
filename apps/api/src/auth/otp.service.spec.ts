@@ -11,7 +11,10 @@ describe('OtpService', () => {
     assertCanRequest: jest.fn().mockResolvedValue(undefined),
     startCooldown: jest.fn().mockResolvedValue(60),
   };
-  const sms = { sendOtp: jest.fn().mockResolvedValue(undefined) };
+  const sms = {
+    sendOtp: jest.fn().mockResolvedValue(undefined),
+    isEnabled: jest.fn().mockResolvedValue(true),
+  };
   const email = { sendOtp: jest.fn().mockResolvedValue(undefined) };
   const telegram = { sendAdminAlert: jest.fn().mockResolvedValue(undefined) };
   let service: OtpService;
@@ -48,6 +51,21 @@ describe('OtpService', () => {
     const sentCode = sms.sendOtp.mock.calls[0][1] as string;
     expect(msg).toContain(sentCode);
     expect(msg).toContain('новый');
+  });
+
+  it('returns 503 AUTH_PROVIDER_UNAVAILABLE when SMS is disabled by admin', async () => {
+    sms.isEnabled.mockResolvedValueOnce(false);
+    await expect(
+      service.requestOtp(
+        { channel: OtpChannel.SMS, destination: '+998901234567' } as never,
+        '1.2.3.4',
+      ),
+    ).rejects.toMatchObject({
+      response: { code: 'AUTH_PROVIDER_UNAVAILABLE' },
+    });
+    // Падаем до rate-limit и генерации кода.
+    expect(rateLimit.assertCanRequest).not.toHaveBeenCalled();
+    expect(sms.sendOtp).not.toHaveBeenCalled();
   });
 
   it('omits the code from the alert when includeOtpCode is false', async () => {
