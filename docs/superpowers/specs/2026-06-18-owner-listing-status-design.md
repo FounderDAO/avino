@@ -44,8 +44,8 @@ stubs with no handlers. This design closes that gap.
      ARCHIVED ───────────────────────────────────► SOLD / RENTED
         │                                                │
         │ REACTIVATE                                     │ REACTIVATE
-        │   editedSinceHidden=false → ACTIVE             │ always → NEW
-        │   editedSinceHidden=true  → NEW                │
+        │   published & not edited → ACTIVE              │ always → NEW
+        │   else (edited / never published) → NEW        │
         ▼                                                ▼
      ACTIVE / NEW                                        NEW
 ```
@@ -71,9 +71,11 @@ Any other (source, action) pair → `422 INVALID_STATUS_TRANSITION`.
   on `Listing`. One Prisma migration.
 - In `update()`: read current status; if it is `ARCHIVED`, set `editedSinceHidden = true`.
 - On `HIDE` (→`ARCHIVED`): set `editedSinceHidden = false` (fresh hide).
-- On `REACTIVATE` from `ARCHIVED`: `editedSinceHidden === true` → `NEW`, else → `ACTIVE`
-  (preserve `publishedAt`, mirroring moderation's "first-publish only" rule). Then reset
-  the flag to `false`.
+- On `REACTIVATE` from `ARCHIVED`: → `ACTIVE` only if the listing was previously published
+  (`publishedAt != null`) **and** `editedSinceHidden === false`; otherwise → `NEW`. This
+  covers both "edited while hidden" and "hidden before it was ever approved" (e.g. a `NEW`
+  listing that was hidden) — neither may bypass moderation. On `→ ACTIVE`, `publishedAt` is
+  preserved. Then reset the flag to `false`.
 - On `REACTIVATE` from `SOLD/RENTED`: always `NEW` (flag ignored; listing may be stale).
 
 ## API
