@@ -59,9 +59,18 @@ describe('TranslationQueue', () => {
       expect.objectContaining({
         attempts: 5,
         backoff: { type: 'exponential', delay: 5000 },
-        jobId: 'translate:listing-1',
+        jobId: 'translate-listing-1',
       }),
     );
+  });
+
+  it('uses a jobId without ":" (BullMQ rejects custom ids containing ":")', async () => {
+    const queue = new TranslationQueue(config(3));
+
+    await queue.enqueueListingTranslation('listing-3');
+
+    const jobId = (addMock.mock.calls[0][2] as { jobId: string }).jobId;
+    expect(jobId).not.toContain(':');
   });
 
   it('defaults to 3 attempts when not configured', async () => {

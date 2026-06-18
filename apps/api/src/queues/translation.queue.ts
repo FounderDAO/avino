@@ -17,8 +17,12 @@ import {
  * отдельное от {@link RedisService} (BullMQ рекомендует выделенные подключения
  * для продюсера/воркера, `maxRetriesPerRequest: null`).
  *
- * `jobId = translate:<listingId>` дедуплицирует параллельные постановки по одному
+ * `jobId = translate-<listingId>` дедуплицирует параллельные постановки по одному
  * листингу; воркер всё равно идемпотентен (upsert), так что повтор безопасен.
+ * Разделитель — дефис, НЕ двоеточие: BullMQ использует `:` как внутренний
+ * разделитель ключей Redis и с версии 5 отвергает кастомный `jobId` с `:`
+ * («Custom Id cannot contain :»), из-за чего постановка падала, а вызывающий
+ * код (ModerationService) глотал исключение — авто-перевод не запускался.
  */
 @Injectable()
 export class TranslationQueue implements OnModuleDestroy {
@@ -47,7 +51,7 @@ export class TranslationQueue implements OnModuleDestroy {
     await this.queue.add(
       TRANSLATE_LISTING_JOB,
       { listingId },
-      { ...this.jobOptions, jobId: `translate:${listingId}` },
+      { ...this.jobOptions, jobId: `translate-${listingId}` },
     );
     this.logger.debug(`Enqueued translation job for listing ${listingId}`);
   }
