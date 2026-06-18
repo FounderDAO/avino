@@ -39,6 +39,48 @@ Related ADR:
 
 ## 2026-06-18
 
+### Bugfix — In-app уведомления показывали пустые карточки (нет заголовка/текста)
+
+Status: DONE
+Branch: fix/client-notifications-inapp-text
+PR: #181
+
+Files changed:
+- apps/client/src/features/account/notificationText.ts (new)
+- apps/client/src/features/account/notificationText.test.ts (new)
+- apps/client/src/features/account/Notifications.tsx
+- apps/client/src/store/api/notificationsApi.ts
+- apps/client/messages/ru.json
+- apps/client/messages/uz.json
+- apps/client/messages/en.json
+- docs/adr/ADR-0087-client-notifications-inapp-text.md
+
+Summary:
+- Лента «Уведомления» рендерила только иконку (из `type`) и время — без
+  заголовка и текста. Корень: продюсеры уведомлений в API пишут только
+  `type` + `data_json`, колонки `title`/`body` остаются `NULL` (текст рендерил
+  бы EMAIL/PUSH-воркер при отправке, но транспорт ещё стаб). Клиент печатал
+  `null` дословно → пустые карточки. Подтверждено вживую: `GET /notifications`
+  демо-юзера вернул 8 уведомлений, у всех `title/body=null`.
+- Фикс (вариант C, только `apps/client`, без бэкенда/миграций): новый чистый
+  хелпер `notificationContent(type, data_json, t)` собирает текст из типа и
+  `data_json` через next-intl. Модерация — тело по `data_json.new_status`
+  (ACTIVE/DRAFT/REJECTED+reason/DELETED); saved-search — `{name}` или
+  `body_noname`; неизвестный тип → generic. i18n-ключи
+  `account.notifications.types.*` в ru/uz/en (по 22, parity). Серверный текст —
+  приоритетный фолбэк (`n.title?.trim() || fallback.title`) на будущее.
+- Также исправлен тип `ApiNotification.title/body` → `string | null` (совпал с
+  реальным контрактом API).
+- Проверка: 7 unit-тестов, полный прогон клиента 121/121, `tsc`/`eslint` чисто;
+  live-verify на demo (8 реальных уведомлений → корректный RU-текст, включая
+  reason для REJECTED); локальный образ `avino-client` пересобран и проверен.
+
+Commit messages:
+- fix(client): render in-app notification text from type + data_json
+
+Related ADR:
+- docs/adr/ADR-0087-client-notifications-inapp-text.md
+
 ### Bugfix — Listing photos vanish ~1h after upload (presigned URL expiry)
 
 Status: DONE

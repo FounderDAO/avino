@@ -35,6 +35,7 @@ import {
   useMarkNotificationReadMutation,
   type NotificationType,
 } from '@/store/api/notificationsApi';
+import { notificationContent } from './notificationText';
 
 /** Иконка по типу уведомления (Bell — безопасный дефолт). */
 const TYPE_ICON: Record<NotificationType, LucideIcon> = {
@@ -134,6 +135,12 @@ export function Notifications() {
         {items.map((n) => {
           const read = n.read_at != null || n.status === 'READ';
           const Icon = iconFor(n.type);
+          // Бэкенд хранит title/body = null (текст рендерил бы воркер-стаб);
+          // собираем текст из type + data_json. Серверный текст — приоритетный
+          // фолбэк на будущее (когда воркер начнёт его заполнять).
+          const fallback = notificationContent(n.type, n.data_json, t);
+          const title = n.title?.trim() || fallback.title;
+          const body = n.body?.trim() || fallback.body;
           return (
             <div
               key={n.id}
@@ -150,12 +157,12 @@ export function Notifications() {
               </span>
               <div className="flex-1">
                 <div className="flex items-center justify-between gap-2.5">
-                  <b className="text-[15px]">{n.title}</b>
+                  <b className="text-[15px]">{title}</b>
                   <span className="whitespace-nowrap text-xs text-muted-foreground">
                     {format.relativeTime(new Date(n.created_at))}
                   </span>
                 </div>
-                <p className="mt-[3px] text-sm text-muted-foreground">{n.body}</p>
+                <p className="mt-[3px] text-sm text-muted-foreground">{body}</p>
               </div>
               {!read && (
                 <span className="mt-1.5 h-[9px] w-[9px] shrink-0 rounded-full bg-red" />
