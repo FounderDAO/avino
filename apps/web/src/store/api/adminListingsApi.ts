@@ -8,6 +8,8 @@ import type {
   ListingModerationLogEntry,
   ModerateListingRequest,
   ModerationResult,
+  ListingTranslations,
+  TranslationEditRequest,
 } from './adminTypes';
 
 /**
@@ -60,6 +62,40 @@ export const adminListingsApi = adminApi.injectEndpoints({
       }),
       invalidatesTags: ['Admin'],
     }),
+
+    /** `GET /listings/:id/translations` → все языковые версии листинга (§7). */
+    getListingTranslations: build.query<ListingTranslations, string>({
+      query: (id) => ({ url: `/listings/${id}/translations` }),
+      providesTags: ['Admin'],
+    }),
+
+    /**
+     * `POST /admin/listings/:id/translations/generate` — запуск машинного
+     * перевода всех языков (§7/ADR-0091). Возвращает обновлённый набор переводов.
+     */
+    generateTranslations: build.mutation<ListingTranslations, string>({
+      query: (id) => ({
+        url: `/admin/listings/${id}/translations/generate`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Admin'],
+    }),
+
+    /**
+     * `PATCH /admin/listings/:id/translations/:language` — ручная правка одного
+     * языка (§7/ADR-0091). Возвращает обновлённый набор переводов.
+     */
+    updateTranslation: build.mutation<
+      ListingTranslations,
+      { id: string; language: string; body: TranslationEditRequest }
+    >({
+      query: ({ id, language, body }) => ({
+        url: `/admin/listings/${id}/translations/${language}`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Admin'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -69,4 +105,7 @@ export const {
   useGetAdminListingQuery,
   useListingModerationLogsQuery,
   useModerateListingMutation,
+  useGetListingTranslationsQuery,
+  useGenerateTranslationsMutation,
+  useUpdateTranslationMutation,
 } = adminListingsApi;
