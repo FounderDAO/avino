@@ -39,6 +39,58 @@ Related ADR:
 
 ## 2026-06-18
 
+### Feature — Владельческое управление статусом объявления (скрыть / продано / сдано / вернуть)
+
+Status: DONE
+Branch: feat/owner-listing-status-api (api) + feat/owner-listing-status-client (client)
+PR: #182 (api + docs), #183 (client)
+
+Files changed:
+- apps/api/prisma/schema.prisma (+ editedSinceHidden)
+- apps/api/prisma/migrations/20260618130000_add_listing_edited_since_hidden/migration.sql
+- apps/api/src/listings/dto/owner-status.dto.ts (new)
+- apps/api/src/listings/listings.service.ts (setOwnerStatus + update() dirty-flag)
+- apps/api/src/listings/listings.controller.ts (PATCH /listings/:id/status)
+- apps/api/src/listings/owner-status.service.spec.ts (new, 12 tests)
+- apps/api/openapi.public.json, apps/api/openapi.internal.json (regenerated)
+- apps/client/src/features/account/ownerListingActions.ts (+ .test.ts, new)
+- apps/client/src/store/api/myListingsApi.ts (setMyListingStatus mutation)
+- apps/client/src/features/account/MyListings.tsx (action buttons)
+- apps/client/messages/{ru,uz,en}.json (account.myListings.actions.*)
+- docs/adr/ADR-0088-owner-listing-status.md (new)
+- docs/API.md (§7 PATCH /listings/:id/status)
+
+Summary:
+- Владелец не мог скрыть/закрыть/вернуть своё объявление (был только
+  create/mine/detail/edit). Добавлен owner-эндпоинт
+  `PATCH /api/v1/listings/:id/status` (Bearer, owner-only): действия
+  HIDE / MARK_SOLD / MARK_RENTED / REACTIVATE поверх существующих статусов
+  ARCHIVED/SOLD/RENTED. Read-path не менялся (поиск уже фильтрует `ACTIVE`).
+- Smart-return: новый boolean `edited_since_hidden`. REACTIVATE из ARCHIVED →
+  `ACTIVE` только если листинг был опубликован и не правился скрытым, иначе → `NEW`;
+  из SOLD/RENTED — всегда `NEW`.
+- Клиент: статус-контекстные кнопки в «Мои объявления» (чистый `ownerActionsFor`
+  + RTK-мутация `setMyListingStatus`, подтверждение для продано/сдано).
+- Реализовано через subagent-driven (avino-impl); git вёл контроллер.
+- Note: ADR изначально планировался как 0087, но 0087 параллельно занял
+  смёрженный PR #181 (notifications) → перенумерован в ADR-0088.
+
+Commit messages:
+- feat(listings): add edited_since_hidden column for owner smart-return
+- feat(listings): owner setOwnerStatus state-machine (hide/sold/rented/reactivate)
+- feat(listings): add PATCH /listings/:id/status owner route
+- docs(listings): ADR + API.md for owner listing status
+- chore(api): regenerate OpenAPI spec for PATCH /listings/:id/status
+- feat(account): owner listing action model helper
+- i18n(account): owner listing action labels + confirmations
+- feat(account): setMyListingStatus RTK mutation
+- feat(account): wire hide/sold/rented/reactivate actions in MyListings
+
+Related ADR:
+- docs/adr/ADR-0088-owner-listing-status.md
+
+---
+
 ### Bugfix — In-app уведомления показывали пустые карточки (нет заголовка/текста)
 
 Status: DONE
