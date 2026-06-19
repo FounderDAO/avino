@@ -1,4 +1,4 @@
-import { parsePolygonRing } from './polygon-ring.util';
+import { parsePolygonRing, polygonVerticesFromFilters } from './polygon-ring.util';
 
 /**
  * Unit-тесты хелпера {@link parsePolygonRing} (TASK-193). Не требуют БД.
@@ -82,5 +82,40 @@ describe('parsePolygonRing (unit)', () => {
     const result = parsePolygonRing('90.00,180.00;-90.00,-180.00;0.00,0.00');
     expect(result).toHaveLength(3);
     expect(result[0]).toEqual({ lat: 90, lng: 180 });
+  });
+});
+
+describe('polygonVerticesFromFilters', () => {
+  it('returns undefined when no points key', () => {
+    expect(polygonVerticesFromFilters({ city_id: 'x' })).toBeUndefined();
+  });
+
+  it('returns undefined for empty/blank points', () => {
+    expect(polygonVerticesFromFilters({ points: '' })).toBeUndefined();
+    expect(polygonVerticesFromFilters({ points: '   ' })).toBeUndefined();
+  });
+
+  it('returns undefined for non-string points', () => {
+    expect(polygonVerticesFromFilters({ points: 42 })).toBeUndefined();
+    expect(polygonVerticesFromFilters({ points: ['a'] })).toBeUndefined();
+  });
+
+  it('returns vertices for a valid ring', () => {
+    const ring = polygonVerticesFromFilters({
+      points: '41.30,69.27;41.31,69.28;41.29,69.29',
+    });
+    expect(ring).toEqual([
+      { lat: 41.3, lng: 69.27 },
+      { lat: 41.31, lng: 69.28 },
+      { lat: 41.29, lng: 69.29 },
+    ]);
+  });
+
+  it('returns null for a corrupt ring (fewer than 3 vertices)', () => {
+    expect(polygonVerticesFromFilters({ points: '41.30,69.27' })).toBeNull();
+  });
+
+  it('returns null for out-of-range coordinates', () => {
+    expect(polygonVerticesFromFilters({ points: '999,0;0,0;1,1' })).toBeNull();
   });
 });

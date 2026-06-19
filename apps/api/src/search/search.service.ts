@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   Currency,
   Language,
@@ -22,6 +22,7 @@ import {
   PolygonVertex,
   RadiusSearchQueryDto,
 } from './dto/geo-search.dto';
+import { polygonVerticesFromFilters } from './dto/polygon-ring.util';
 import { SearchListingsQueryDto, SortMode } from './dto/search-listings.dto';
 
 /** Дефолт/максимум размера страницы (API.md §4: default 20, max 100). */
@@ -230,6 +231,8 @@ type SearchRow = Prisma.ListingGetPayload<{ select: typeof SEARCH_SELECT }>;
  */
 @Injectable()
 export class SearchService {
+  private readonly logger = new Logger(SearchService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly translations: TranslationsService,
@@ -652,11 +655,12 @@ export class SearchService {
    *
    * Переиспользует {@link buildWhereSql} — тот же набор скалярных фильтров, что и
    * `/search` (`status = ACTIVE` уже включён, acceptance «only ACTIVE listings
-   * trigger alerts»). Гео-фильтры (radius/bounds/near-me) намеренно НЕ применяются:
-   * они привязаны к подвижной точке пользователя и в MVP не участвуют в saved-search
-   * алертах (ARCHITECTURE §16). `filters` приходят из версионированного
-   * `filters_json` — параметры биндятся через `Prisma.sql` (защита от инъекций),
-   * как в `/search`.
+   * trigger alerts»). Радиус/bounds/near-me НЕ применяются (привязаны к подвижной
+   * точке пользователя), но сохранённая территория-полигон (`filters.points`)
+   * применяется через `ST_Within` (зеркало `/search/polygon`): валидное кольцо
+   * фильтрует по контуру, битое кольцо пропускает прогон (см. ниже). `filters`
+   * приходят из версионированного `filters_json` — параметры биндятся через
+   * `Prisma.sql` (защита от инъекций), как в `/search`.
    *
    * Полуоткрытое окно гарантирует отсутствие дублей и пропусков между
    * последовательными прогонами. Результат упорядочен по `published_at ASC` и
@@ -672,6 +676,22 @@ export class SearchService {
     const filterSql = this.buildWhereSql(
       filters as unknown as SearchListingsQueryDto,
     );
+
+    // Территория (saved-search-polygon): валидное кольцо → ST_Within; битое кольцо
+    // → пропуск прогона (НЕ алерты по всему городу); нет territory → без гео.
+    const ring = polygonVerticesFromFilters(filters);
+    if (ring === null) {
+      this.logger.warn(
+        'matchNewlyActiveListings: stored polygon invalid; skipping run',
+      );
+      return [];
+    }
+    let polygonSql = Prisma.empty;
+    if (ring) {
+      const poly = this.polygonSql(ring);
+      polygonSql = Prisma.sql`AND location IS NOT NULL AND location && ${poly}::geography AND ST_Within(location::geometry, ${poly})`;
+    }
+
     const rows = await this.prisma.$queryRaw<
       { id: string; published_at: Date }[]
     >(Prisma.sql`
@@ -680,6 +700,7 @@ export class SearchService {
       WHERE ${filterSql}
         AND published_at > ${publishedAfter}
         AND published_at <= ${publishedUntil}
+        ${polygonSql}
       ORDER BY published_at ASC, id ASC
       LIMIT ${limit}
     `);
