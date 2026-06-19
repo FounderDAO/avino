@@ -1,5 +1,6 @@
 import { HttpException } from '@nestjs/common';
 import {
+  DevicePlatform,
   NotificationChannel,
   NotificationStatus,
   NotificationType,
@@ -36,6 +37,10 @@ describe('NotificationsService', () => {
         findMany: jest.fn(),
         count: jest.fn(),
         updateMany: jest.fn(),
+      },
+      notificationDevice: {
+        upsert: jest.fn(),
+        deleteMany: jest.fn(),
       },
     };
     service = new NotificationsService(prisma);
@@ -214,6 +219,80 @@ describe('NotificationsService', () => {
       expect(call.where).toEqual({ userId: OWNER_ID, readAt: null });
       expect(call.data.status).toBe(NotificationStatus.READ);
       expect(call.data.readAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('registerDevice', () => {
+    const DEV_ID = '44444444-4444-4444-8444-444444444444';
+    const TOKEN = 'fcm:abc123';
+
+    it('регистрирует устройство как активное и возвращает квиток', async () => {
+      prisma.notificationDevice.upsert.mockResolvedValue({
+        id: DEV_ID,
+        platform: DevicePlatform.ANDROID,
+        isActive: true,
+      });
+
+      const res = await service.registerDevice(
+        user,
+        DevicePlatform.ANDROID,
+        TOKEN,
+      );
+
+      expect(res).toEqual({
+        id: DEV_ID,
+        platform: DevicePlatform.ANDROID,
+        is_active: true,
+      });
+    });
+
+    it('upsert по push_token: create и claim-update переназначают текущему юзеру + реактивируют', async () => {
+      prisma.notificationDevice.upsert.mockResolvedValue({
+        id: DEV_ID,
+        platform: DevicePlatform.IOS,
+        isActive: true,
+      });
+
+      await service.registerDevice(user, DevicePlatform.IOS, TOKEN);
+
+      const call = prisma.notificationDevice.upsert.mock.calls[0][0];
+      expect(call.where).toEqual({ pushToken: TOKEN });
+      // create — новая строка с владельцем и активна.
+      expect(call.create).toMatchObject({
+        userId: OWNER_ID,
+        platform: DevicePlatform.IOS,
+        pushToken: TOKEN,
+        isActive: true,
+      });
+      expect(call.create.lastSeenAt).toBeInstanceOf(Date);
+      // update (claim) — токен переезжает на текущего юзера и реактивируется,
+      // НЕ возвращает 409 (полный upsert/claim).
+      expect(call.update).toMatchObject({
+        userId: OWNER_ID,
+        platform: DevicePlatform.IOS,
+        isActive: true,
+      });
+      expect(call.update.lastSeenAt).toBeInstanceOf(Date);
+      expect(call.update.pushToken).toBeUndefined();
+    });
+  });
+
+  describe('removeDevice', () => {
+    const DEV_ID = '44444444-4444-4444-8444-444444444444';
+
+    it('удаляет своё устройство (hard delete, scoped по user_id)', async () => {
+      prisma.notificationDevice.deleteMany.mockResolvedValue({ count: 1 });
+      await expect(service.removeDevice(user, DEV_ID)).resolves.toBeUndefined();
+      const call = prisma.notificationDevice.deleteMany.mock.calls[0][0];
+      expect(call.where).toEqual({ id: DEV_ID, userId: OWNER_ID });
+    });
+
+    it('404, если устройство чужое/несуществующее', async () => {
+      prisma.notificationDevice.deleteMany.mockResolvedValue({ count: 0 });
+      await expectError(
+        service.removeDevice(user, DEV_ID),
+        ApiErrorCode.NOT_FOUND,
+      );
     });
   });
 });

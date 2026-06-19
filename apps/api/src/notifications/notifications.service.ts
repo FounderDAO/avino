@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  DevicePlatform,
   NotificationChannel,
   NotificationStatus,
   NotificationType,
@@ -91,6 +92,16 @@ export interface NotificationListResponse {
     unread: number;
     next_cursor: string | null;
   };
+}
+
+/**
+ * Ответ `POST /api/v1/notifications/devices` (API.md §14). Минимальный квиток
+ * регистрации push-устройства: подтверждает `id` строки и что токен активен.
+ */
+export interface DeviceResponse {
+  id: string;
+  platform: DevicePlatform;
+  is_active: boolean;
 }
 
 /**
@@ -278,6 +289,62 @@ export class NotificationsService {
       where: { userId: user.id, readAt: null },
       data: { status: NotificationStatus.READ, readAt: new Date() },
     });
+  }
+
+  /**
+   * `POST /api/v1/notifications/devices` — регистрация push-токена устройства
+   * (stub, ADR-0010). Идемпотентна по `push_token` (upsert): один и тот же токен
+   * клиент FCM/APNs переотправляет при каждом запуске и ротации. Если токен уже
+   * есть, строка «переназначается» текущему пользователю (claim — устройство
+   * сменило аккаунт) и реактивируется (`is_active=true`, `last_seen_at=now`).
+   * Поэтому коллизии `UNIQUE(push_token)` не происходит — `409` не возвращается. → `201`.
+   */
+  async registerDevice(
+    user: AuthenticatedUser,
+    platform: DevicePlatform,
+    pushToken: string,
+  ): Promise<DeviceResponse> {
+    const now = new Date();
+    const device = await this.prisma.notificationDevice.upsert({
+      where: { pushToken },
+      create: {
+        userId: user.id,
+        platform,
+        pushToken,
+        isActive: true,
+        lastSeenAt: now,
+      },
+      update: {
+        userId: user.id,
+        platform,
+        isActive: true,
+        lastSeenAt: now,
+      },
+      select: { id: true, platform: true, isActive: true },
+    });
+    return {
+      id: device.id,
+      platform: device.platform,
+      is_active: device.isActive,
+    };
+  }
+
+  /**
+   * `DELETE /api/v1/notifications/devices/:id` — отвязать устройство (hard delete).
+   * Удаление scoped по `(id, user_id)`: чужое/несуществующее → `404` (отвязать
+   * чужой токен нельзя). Физическое удаление освобождает `push_token` для чистой
+   * повторной регистрации. → `204`.
+   */
+  async removeDevice(user: AuthenticatedUser, id: string): Promise<void> {
+    const { count } = await this.prisma.notificationDevice.deleteMany({
+      where: { id, userId: user.id },
+    });
+    if (count === 0) {
+      throw new NotFoundException({
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Device not found',
+      });
+    }
   }
 
   /** Непрозрачный keyset-токен (base64url JSON позиции). */

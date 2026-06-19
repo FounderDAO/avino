@@ -861,6 +861,7 @@ FAILED|READ`), `type`, `cursor`, `limit`.
 Отметить все прочитанными. Auth: **Bearer**. → `204`.
 
 ### POST /api/v1/notifications/devices
+Регистрация push-устройства (stub, ADR-0010 / ADR-0098). Auth: **Bearer**.
 > ⏳ **Planned — не реализовано в коде** (нет роута в `notifications.controller.ts`;
 > push-доставка — stub, ADR-010). Появится вместе с push-воркером.
 
@@ -868,11 +869,17 @@ FAILED|READ`), `type`, `cursor`, `limit`.
 ```json
 { "platform": "ANDROID", "push_token": "fcm:abc123..." }
 ```
-`platform`: `ANDROID | IOS | WEB`. `UNIQUE (push_token)`.
+`platform`: `ANDROID | IOS | WEB`. **Идемпотентно** по `push_token` (`UNIQUE`,
+upsert): один и тот же токен клиент FCM/APNs переотправляет при каждом запуске и
+ротации — повторная регистрация реактивирует строку (`is_active=true`,
+`last_seen_at=now`) и переназначает её текущему пользователю (claim, если
+устройство сменило аккаунт). Коллизии `UNIQUE (push_token)` не возникает —
+`409` не возвращается.
 201 → `{ "id": "dev1", "platform": "ANDROID", "is_active": true }`.
-Errors: `409 DEVICE_TOKEN_EXISTS`.
 
 ### DELETE /api/v1/notifications/devices/:id
+Отвязать своё устройство (**hard delete** — строка удаляется, токен освобождается
+для повторной регистрации). Auth: **владелец**; чужое/несуществующее → `404`. → `204`.
 > ⏳ **Planned — не реализовано в коде** (см. `POST …/devices` выше).
 
 Отвязать устройство (`is_active=false`/удаление). Auth: **владелец**. → `204`.
