@@ -11,7 +11,7 @@
  * Seed идемпотентен: каждая роль создаётся через upsert по уникальному `code`,
  * поэтому повторный запуск не плодит дубликаты и обновляет описание.
  */
-import { PrismaClient, PromotionType, Currency } from '@prisma/client';
+import { PrismaClient, PromotionType, Currency, ExchangeRateSource } from '@prisma/client';
 import { UserRole } from '@avino/shared';
 
 const prisma = new PrismaClient();
@@ -78,6 +78,27 @@ async function main(): Promise<void> {
   console.log(
     `Seeded ${PLAN_SEED.length} promotion plans + promotion_expiry_cron setting`,
   );
+
+  // Bootstrap USD→UZS exchange rate — нужен до первого запуска cron-воркера CBU.
+  // Идемпотентно: создаётся только если пара (USD, UZS) ещё не существует.
+  const hasRate = await prisma.exchangeRate.findFirst({
+    where: { base: Currency.USD, quote: Currency.UZS },
+  });
+  if (!hasRate) {
+    await prisma.exchangeRate.create({
+      data: {
+        base: Currency.USD,
+        quote: Currency.UZS,
+        rate: '12650.000000',
+        source: ExchangeRateSource.MANUAL,
+      },
+    });
+    // eslint-disable-next-line no-console
+    console.log('Seeded bootstrap ExchangeRate USD→UZS = 12650.000000 (MANUAL)');
+  } else {
+    // eslint-disable-next-line no-console
+    console.log('ExchangeRate USD→UZS already exists — skip (idempotent)');
+  }
 }
 
 main()
