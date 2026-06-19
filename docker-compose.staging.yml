@@ -24,6 +24,15 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
+  # seed-admin.cjs создаёт локального ADMIN, но имеет guard `NODE_ENV===production`
+  # → пропускается. На тест-стенде ADMIN нужен (вход в админку/модерацию), поэтому
+  # сервис `migrate` тоже в dev — тогда `migrate deploy && db seed && seed-admin`
+  # реально создаст admin@avino.uz с ролью ADMIN. (db seed-справочники гонятся при
+  # любом env; demo-контент — отдельно, вручную: см. deploy/README.md.)
+  migrate:
+    environment:
+      NODE_ENV: development
+
   api:
     environment:
       # Только для тест-стенда: вернуть dev-режим, чтобы EMAIL-OTP попадал в лог
