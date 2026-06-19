@@ -26,6 +26,7 @@ import { useCreateSavedSearchMutation } from '@/store/api/savedSearchesApi';
 import { describeFilters, type SavedSearchFilters } from '@/lib/savedSearch';
 import { getApiError } from '@/store/api/apiError';
 import { useTranslations, useLocale } from 'next-intl';
+import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
 import { SearchAutocomplete } from './SearchAutocomplete';
 import { useGeoSuggest, type Suggestion } from './useGeoSuggest';
 import { suggestionToLocation } from './locationParams';
@@ -94,6 +95,9 @@ export function FilterBar({ values, districts }: FilterBarProps) {
   React.useEffect(() => setQueryDraft(values.query ?? ''), [values.query]);
 
   const locale = useLocale();
+  // Предпочтение отображаемой валюты (Task 14): маркируем ценовые поля символом.
+  const displayCurrency = useCurrencyPreference();
+  const currencySymbol = displayCurrency === 'USD' ? '$' : tSearch('filters.currencySymbolUzs');
   const [suggestActive, setSuggestActive] = React.useState(false);
   const { items, loading } = useGeoSuggest(queryDraft, {
     enabled: suggestActive,
@@ -219,19 +223,19 @@ export function FilterBar({ values, districts }: FilterBarProps) {
             </DropdownTrigger>
             <DropdownContent align="start" className="w-[260px] p-4">
               <div className="mb-2 text-[12.5px] font-bold text-muted-foreground">
-                {tSearch('filters.priceTitle')}
+                {tSearch('filters.priceTitle')}{' '}{currencySymbol}
               </div>
               <div className="flex gap-2">
                 <Field
                   inputMode="numeric"
-                  placeholder={tSearch('filters.priceFrom')}
+                  placeholder={`${tSearch('filters.priceFrom')} ${currencySymbol}`}
                   defaultValue={values.priceMin ?? ''}
                   onBlur={(e) => setParams({ priceMin: e.target.value.trim() })}
                   className="py-2.5"
                 />
                 <Field
                   inputMode="numeric"
-                  placeholder={tSearch('filters.priceTo')}
+                  placeholder={`${tSearch('filters.priceTo')} ${currencySymbol}`}
                   defaultValue={values.priceMax ?? ''}
                   onBlur={(e) => setParams({ priceMax: e.target.value.trim() })}
                   className="py-2.5"
