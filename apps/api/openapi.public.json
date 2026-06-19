@@ -1989,10 +1989,12 @@
             "type": "string"
           },
           "first_name": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 100
           },
           "last_name": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 100
           }
         },
         "required": [

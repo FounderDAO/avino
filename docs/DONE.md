@@ -42,14 +42,14 @@ Related ADR:
 ### Вход через Apple — Sign in with Apple (ADR-0097)
 
 Status: DONE
-Branch: feat/sign-in-with-apple
+Branch: feat/apple-sign-in
 PR: pending
 
 Files changed:
 - apps/api/src/auth/apple-auth.service.ts (+ spec), dto/apple-login.dto.ts
 - apps/api/src/auth/auth.controller.ts (POST /auth/apple), auth.module.ts (AppleAuthService)
 - apps/api/src/config (appleConfig, APPLE_CLIENT_ID), telegram/auth-alert.util.ts (provider APPLE)
-- apps/client/src/features/auth/AppleSignInButton.tsx, store/api/authApi.ts (appleLogin), features/auth/LoginModal.tsx, messages/*
+- apps/client/src/components/layout/AppleSignInButton.tsx, src/store/api/authApi.ts (appleLogin), src/components/layout/LoginModal.tsx, messages/*
 - docs/API.md, docs/ENV.md, docs/adr/ADR-0097-sign-in-with-apple.md
 - apps/api/src/common/openapi/swagger.documents.ts, apps/api/openapi.public.json, apps/api/openapi.internal.json
 

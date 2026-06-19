@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
  * Тело `POST /api/v1/auth/apple` — ID-token из Sign in with Apple JS.
@@ -12,9 +12,11 @@ export class AppleLoginDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   first_name?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   last_name?: string;
 }
