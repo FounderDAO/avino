@@ -22,6 +22,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
+import { selectTerritoryPoints } from '@/store/territorySlice';
 import { useCreateSavedSearchMutation } from '@/store/api/savedSearchesApi';
 import { describeFilters, type SavedSearchFilters } from '@/lib/savedSearch';
 import { getApiError } from '@/store/api/apiError';
@@ -159,6 +160,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
 
   // ─── Сохранить поиск ──────────────────────────────────────────────────────
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const territoryPoints = useAppSelector(selectTerritoryPoints);
   const [createSavedSearch, { isLoading: isSaving, isSuccess: isSaved, error: saveError }] =
     useCreateSavedSearchMutation();
 
@@ -171,8 +173,9 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     if (values.priceMax) filters.price_max = values.priceMax;
     if (values.rooms != null) filters.rooms = values.rooms;
     if (values.query) filters.q = values.query;
+    if (territoryPoints) filters.points = territoryPoints;
     return filters;
-  }, [values]);
+  }, [values, territoryPoints]);
 
   const handleSaveSearch = React.useCallback(() => {
     if (!isAuthenticated || isSaving) return;
