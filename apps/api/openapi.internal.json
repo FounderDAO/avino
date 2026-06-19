@@ -1684,6 +1684,79 @@
         }
       }
     },
+    "/api/v1/exchange-rate": {
+      "get": {
+        "operationId": "ExchangeRateController_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/exchange-rate": {
+      "get": {
+        "operationId": "AdminExchangeRateController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      },
+      "put": {
+        "operationId": "AdminExchangeRateController_set",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetExchangeRateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/exchange-rate/refresh": {
+      "post": {
+        "operationId": "AdminExchangeRateController_refresh",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chat/threads": {
       "get": {
         "operationId": "ChatController_listThreads",
@@ -3271,6 +3344,18 @@
             "type": "boolean"
           }
         }
+      },
+      "SetExchangeRateDto": {
+        "type": "object",
+        "properties": {
+          "rate": {
+            "type": "string",
+            "pattern": "DECIMAL"
+          }
+        },
+        "required": [
+          "rate"
+        ]
       },
       "CreateThreadDto": {
         "type": "object",

@@ -3,6 +3,7 @@ import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 import { AuthModule } from '../../auth/auth.module';
 import { ChatModule } from '../../chat';
 import { ComplaintsModule } from '../../complaints';
+import { ExchangeRateModule } from '../../exchange-rates/exchange-rate.module';
 import { FavoritesModule } from '../../favorites';
 import { GeoModule } from '../../geo';
 import { HealthModule } from '../../health/health.module';
@@ -38,6 +39,7 @@ export const PUBLIC_MODULES = [
   NotificationsModule,
   ChatModule,
   ComplaintsModule,
+  ExchangeRateModule,
   HealthModule,
 ];
 
@@ -60,6 +62,7 @@ export const PUBLIC_PATH_PREFIXES = [
   '/api/v1/notifications',
   '/api/v1/chat',
   '/api/v1/complaints',
+  '/api/v1/exchange-rate',
   '/api/v1/health',
 ];
 

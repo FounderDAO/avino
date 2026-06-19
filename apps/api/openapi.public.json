@@ -1652,6 +1652,24 @@
         }
       }
     },
+    "/api/v1/exchange-rate": {
+      "get": {
+        "operationId": "ExchangeRateController_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chat/threads": {
       "get": {
         "operationId": "ChatController_listThreads",
@@ -2245,6 +2263,18 @@
             "type": "boolean"
           }
         }
+      },
+      "SetExchangeRateDto": {
+        "type": "object",
+        "properties": {
+          "rate": {
+            "type": "string",
+            "pattern": "DECIMAL"
+          }
+        },
+        "required": [
+          "rate"
+        ]
       },
       "CreateThreadDto": {
         "type": "object",
