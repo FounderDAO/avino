@@ -12,6 +12,7 @@ TLS. Стек: PostgreSQL+PostGIS, Redis, API (NestJS), две Next.js-витр�
 | `Caddyfile` | reverse-proxy + авто-TLS (Let's Encrypt) по трём доменам |
 | `prod.env.example` | шаблон прод-переменных (домены, секреты, SMTP, S3) |
 | `deploy.sh` | разворачивание одной командой (валидация → сборка → up → health-check) |
+| `backup.sh` | дамп БД (`pg_dump -Fc`) + ротация + опц. off-site выгрузка в S3/R2 |
 
 ## Требования к серверу
 
@@ -97,16 +98,87 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app do
 
 ## Бэкапы
 
-Регулярно сохраняйте том БД и дамп:
+Дампы делает `deploy/backup.sh`: `pg_dump -Fc` (сжатый custom-формат) из
+контейнера `avino-postgres` в каталог `backups/` (в git не коммитится),
+с проверкой целостности, ротацией по сроку и опциональной off-site выгрузкой.
 
 ```bash
-# дамп Postgres
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app \
-  exec -T postgres pg_dump -U avino avino | gzip > backup-$(date +%F).sql.gz
+./deploy/backup.sh                 # один дамп + ротация
+./deploy/backup.sh --no-rotate     # дамп без удаления старых
+./deploy/backup.sh --list          # показать имеющиеся копии
+./deploy/backup.sh --help          # справка по всем env-переменным
 ```
 
-Том `caddy-data` (сертификаты) и `avino-postgres-data` (данные) — критичные,
-держите их в бэкап-плане.
+### Расписание (cron): два слоя
+
+Схема «дед-отец-сын»: частые часовые копии для свежего отката + редкие суточные
+для долгого хранения. Откройте `crontab -e` на сервере и добавьте:
+
+```cron
+# Часовой слой: хранить 2 суток (BACKUP_RETENTION_DAYS=2)
+0  * * * *  cd /path/to/avino && BACKUP_RETENTION_DAYS=2 ./deploy/backup.sh >> /var/log/avino-backup.log 2>&1
+
+# Суточный слой: отдельный каталог, хранить 30 суток (своя ротация)
+30 3 * * *  cd /path/to/avino && BACKUP_DIR=/path/to/avino/backups/daily BACKUP_RETENTION_DAYS=30 ./deploy/backup.sh >> /var/log/avino-backup.log 2>&1
+```
+
+Разные `BACKUP_DIR` → слои не затирают ротацию друг друга: часовые живут 2 сут.
+в `backups/`, суточные — 30 сут. в `backups/daily/`.
+
+### Off-site (S3/R2) — обязательно для прод
+
+Копия на том же VPS бесполезна при гибели диска/сервера. Включается заданием
+`BACKUP_S3_BUCKET` (креды и endpoint берутся из `.env`: `S3_ENDPOINT`,
+`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`). Нужен `aws` cli на сервере.
+
+```cron
+0 * * * *  cd /path/to/avino && BACKUP_RETENTION_DAYS=2 BACKUP_S3_BUCKET=avino-backups ./deploy/backup.sh >> /var/log/avino-backup.log 2>&1
+```
+
+Срок хранения в самом бакете задавайте lifecycle-политикой провайдера (R2/S3),
+а не скриптом.
+
+### Откат на последний бэкап (restore)
+
+> Перед откатом снимите свежий дамп (`./deploy/backup.sh`) — чтобы неудачное
+> восстановление можно было отменить.
+
+```bash
+cd /path/to/avino
+dc='docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app'
+
+# 0. (если локальных копий нет) подтянуть последнюю с off-site:
+#    LATEST_KEY=$(aws s3 ls s3://avino-backups/db/ --endpoint-url "$S3_ENDPOINT" | sort | tail -1 | awk '{print $4}')
+#    aws s3 cp "s3://avino-backups/db/$LATEST_KEY" backups/ --endpoint-url "$S3_ENDPOINT"
+
+# 1. выбрать самый свежий дамп
+LATEST=$(ls -t backups/avino-*.dump | head -1); echo "Откат на: $LATEST"
+
+# 2. отключить сервисы, держащие соединения с БД (postgres оставляем поднятым)
+$dc stop api web client migrate
+
+# 3. пересоздать БД с нуля и восстановить (гарантированно чистое состояние;
+#    дамп содержит CREATE EXTENSION postgis/pg_trgm/pgcrypto — поднимутся сами)
+docker exec -i avino-postgres psql -U avino -d postgres \
+  -c "DROP DATABASE IF EXISTS avino WITH (FORCE);" \
+  -c "CREATE DATABASE avino OWNER avino;"
+docker exec -i avino-postgres pg_restore -U avino -d avino --no-owner < "$LATEST"
+
+# 4. поднять стек обратно
+$dc up -d
+```
+
+Быстрый вариант без пересоздания БД (откат «поверх», объекты DROP+CREATE из
+дампа) — когда схема совпадает и нужно лишь вернуть данные:
+
+```bash
+$dc stop api web client migrate
+docker exec -i avino-postgres pg_restore -U avino -d avino --clean --if-exists --no-owner < "$LATEST"
+$dc up -d
+```
+
+Том `caddy-data` (сертификаты Let's Encrypt) и `avino-postgres-data` (данные БД)
+тоже критичны — держите их в бэкап-плане наряду с дампами.
 
 ## Диагностика
 
