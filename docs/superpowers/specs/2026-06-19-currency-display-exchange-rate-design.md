@@ -2,7 +2,7 @@
 
 - **Дата:** 2026-06-19
 - **Ветка:** `feat/currency-display-exchange-rate`
-- **Статус:** дизайн одобрен, готов к плану реализации
+- **Статус:** реализовано — ADR-0093, ветка `feat/currency-display-exchange-rate` (PR pending), 16 задач + polish, final review READY TO MERGE
 - **Охват:** только отображение (display-only). Бэкенд-поиск (search) не меняем.
 
 ## 1. Проблема и цель
