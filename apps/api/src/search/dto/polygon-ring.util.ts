@@ -51,3 +51,24 @@ export function parsePolygonRing(raw: string): PolygonVertex[] {
     return { lat, lng };
   });
 }
+
+/**
+ * Достаёт полигон из сохранённых фильтров (`filters_json.filters.points`).
+ * Тройной исход:
+ *   - `undefined` — ключа `points` нет/пустой/не строка → фильтр по территории не применяем;
+ *   - `null` — `points` есть, но кольцо невалидно → вызывающий пропускает прогон
+ *     (НЕ рассылаем алерты по всему городу);
+ *   - `PolygonVertex[]` — валидное кольцо.
+ * Тот же `parsePolygonRing`, что и у `/search/polygon` — расхождение невозможно.
+ */
+export function polygonVerticesFromFilters(
+  filters: Record<string, unknown>,
+): PolygonVertex[] | null | undefined {
+  const raw = filters.points;
+  if (typeof raw !== 'string' || raw.trim() === '') return undefined;
+  try {
+    return parsePolygonRing(raw);
+  } catch {
+    return null;
+  }
+}
