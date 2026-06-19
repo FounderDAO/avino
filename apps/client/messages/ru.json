@@ -83,6 +83,7 @@
     "close": "Закрыть",
     "or": "или",
     "continueWithGoogle": "Войти через Google",
+    "continueWithApple": "Войти через Apple",
     "errors": {
       "otpInvalid": "Неверный код. Проверьте и попробуйте ещё раз.",
       "otpExpired": "Срок действия кода истёк. Запросите новый.",
