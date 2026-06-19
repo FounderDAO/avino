@@ -158,6 +158,11 @@ export interface ListingFilter {
   query?: string;
   /** Сортировка выдачи. */
   sort?: SortOption;
+  /**
+   * Валюта, в которой заданы priceMin/priceMax (Task 14, TASK-currency-display).
+   * Передаётся бэкенду только когда задан хотя бы один ценовой рубеж.
+   */
+  currency?: Currency;
 }
 
 /**

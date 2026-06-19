@@ -57,6 +57,10 @@ function filterParams(filter: ListingFilter): Record<string, string | number> {
   if (filter.districtId) params.district_id = filter.districtId;
   if (filter.priceMin != null) params.price_min = filter.priceMin;
   if (filter.priceMax != null) params.price_max = filter.priceMax;
+  // Валюта ценового диапазона (Task 14): передаём только когда есть рубеж цены.
+  if (filter.currency && (filter.priceMin != null || filter.priceMax != null)) {
+    params.currency = filter.currency;
+  }
   if (filter.rooms != null) params.rooms = filter.rooms;
   if (filter.query) params.q = filter.query;
   const sort = toApiSort(filter.sort);

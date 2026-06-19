@@ -87,6 +87,16 @@ export const promotionConfig = registerAs('promotion', () => ({
   expiryBatchSize: parseInt(process.env.PROMOTION_EXPIRY_BATCH_SIZE ?? '100', 10),
 }));
 
+// Ежедневное обновление курса USD/UZS с сайта ЦБ Узбекистана (cbu.uz). Ключ API
+// не требуется — данные публичны. cron определяет расписание repeatable-джобы
+// (по умолчанию 06:00 ежедневно, Ташкентское время); cbuBaseUrl — базовый адрес
+// API ЦБ (меняется редко, но может потребоваться переопределение в prod).
+export const exchangeRateConfig = registerAs('exchangeRate', () => ({
+  cron: process.env.EXCHANGE_RATE_CRON ?? '0 6 * * *',
+  timezone: process.env.EXCHANGE_RATE_TZ ?? 'Asia/Tashkent',
+  cbuBaseUrl: process.env.CBU_BASE_URL ?? 'https://cbu.uz',
+}));
+
 // Polling-матчер saved-search алертов (TASK-102, ENV.md). alertCron — расписание
 // repeatable-джобы check_saved_searches (по умолчанию каждые 5 минут — алерты не
 // требуют минутной срочности); concurrency воркера, alertBatchSize — число
@@ -194,4 +204,5 @@ export const configurations = [
   googleConfig,
   telegramConfig,
   swaggerConfig,
+  exchangeRateConfig,
 ];

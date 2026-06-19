@@ -67,3 +67,12 @@ export const EXPIRE_LISTING_PROMOTIONS_JOB = 'expire_listing_promotions';
  * `expires_at <= now()` — конкретный listingId не передаётся.
  */
 export type ExpireListingPromotionsJobData = Record<string, never>;
+
+/** Очередь ежедневного обновления курса валют. */
+export const EXCHANGE_RATE_QUEUE_NAME = 'exchange_rate_queue';
+
+/** Repeatable-джоба: тянет USD/UZS из cbu.uz и пишет новую строку. */
+export const REFRESH_EXCHANGE_RATE_JOB = 'refresh_exchange_rate';
+
+/** Нагрузка пустая: джоба сама делает один fetch + insert. */
+export type RefreshExchangeRateJobData = Record<string, never>;

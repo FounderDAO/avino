@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import type { Listing, ListingStatus } from '@/lib/mock/types';
 import { useTranslations } from 'next-intl';
-import { formatPrice } from '@/lib/format';
+import { usePriceFormatter } from '@/lib/usePriceFormatter';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { PromoBadge } from '@/components/ui/promo-badge';
 import { Button } from '@/components/ui/button';
@@ -87,7 +87,7 @@ function StatusPill({ s }: { s: ListingStatus | undefined }) {
 /** Строка объявления в кабинете. */
 function ListingRow({ l }: { l: Listing }) {
   const t = useTranslations('account');
-  const tUnits = useTranslations('units');
+  const fmt = usePriceFormatter();
   const [setStatus, { isLoading }] = useSetMyListingStatusMutation();
   const actions = ownerActionsFor(l.status, l.tx);
 
@@ -120,7 +120,7 @@ function ListingRow({ l }: { l: Listing }) {
         </div>
         <div className="truncate text-base font-bold">{l.title}</div>
         <div className="mt-[3px] text-[13.5px] text-muted-foreground">
-          {formatPrice(l, tUnits)} · {l.district}
+          {fmt.price(l)} · {l.district}
         </div>
         {/* TODO(listing-analytics): API /listings/mine не отдаёт views/leads. */}
       </div>

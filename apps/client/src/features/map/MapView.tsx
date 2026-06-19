@@ -20,7 +20,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { pinPrice, type T } from '@/lib/format';
+import { usePriceFormatter } from '@/lib/usePriceFormatter';
 import { clampRadius, type LatLng, type LatLngBounds } from '@/lib/geo';
 import type { Listing, RadiusCircle } from '@/lib/mock/types';
 import { useYmaps, type Ymaps, type YmapsStatus } from './useYmaps';
@@ -76,8 +76,8 @@ const OVERLAY_STYLE = {
 } as const;
 
 /** HTML ценового пина: VIP — золотой, TOP — красный, активный — тёмный. */
-function pinHTML(listing: Listing, active: boolean, t: T): string {
-  const price = pinPrice(listing, t);
+function pinHTML(listing: Pick<Listing, 'promo'>, active: boolean, priceText: string): string {
+  const price = priceText;
   let bg = '#fff';
   let fg = 'var(--ink, #282218)';
   let bd = '1.5px solid var(--border, #e7e2d8)';
@@ -141,7 +141,7 @@ export function MapView({
   drawMode = null,
   autoFit = false,
 }: MapViewProps) {
-  const tUnits = useTranslations('units');
+  const fmt = usePriceFormatter();
   const tSearch = useTranslations('search');
   const { ymaps, status } = useYmaps(locale);
 
@@ -155,6 +155,9 @@ export function MapView({
   // Свежие колбэки/значения в ref — не пересоздаём карту/маркеры зря.
   const cb = React.useRef({ onSelect, onHover, onDrawComplete, onPolygonComplete, onPolygonProgress, onBoundsChange });
   cb.current = { onSelect, onHover, onDrawComplete, onPolygonComplete, onPolygonProgress, onBoundsChange };
+  // Форматтер цены в ref: effects используют актуальный display/rate без пересборки маркеров.
+  const fmtRef = React.useRef(fmt);
+  fmtRef.current = fmt;
   const circleRef = React.useRef(circle);
   const polygonRef = React.useRef(polygon);
   const drawModeRef = React.useRef(drawMode);
@@ -235,11 +238,12 @@ export function MapView({
     const placemarks: any[] = [];
     listings.forEach((l) => {
       if (l.lat == null || l.lng == null) return;
+      const priceText = fmtRef.current.pin(l);
       const pm = new ymaps.Placemark(
         [l.lat, l.lng],
         { listingId: l.id },
         {
-          iconLayout: makeIconLayout(ymaps, pinHTML(l, l.id === activeId, tUnits)),
+          iconLayout: makeIconLayout(ymaps, pinHTML(l, l.id === activeId, priceText)),
           iconShape: { type: 'Rectangle', coordinates: [[-46, -16], [46, 16]] },
         },
       );
@@ -270,7 +274,7 @@ export function MapView({
     listings.forEach((l) => {
       const pm = placemarksRef.current[l.id];
       if (!pm) return;
-      pm.options.set('iconLayout', makeIconLayout(ymaps, pinHTML(l, l.id === activeId, tUnits)));
+      pm.options.set('iconLayout', makeIconLayout(ymaps, pinHTML(l, l.id === activeId, fmtRef.current.pin(l))));
       pm.options.set('zIndex', l.id === activeId ? 1000 : 0);
     });
     if (activeId) {

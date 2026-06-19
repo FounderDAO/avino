@@ -270,6 +270,19 @@ export class EnvironmentVariables {
   @IsOptional()
   TELEGRAM_NOTIFICATION_STATE?: string;
 
+  // ── Exchange rate / cbu.uz (опционально — есть дефолты, ключ не нужен) ──
+  @IsString()
+  @IsOptional()
+  EXCHANGE_RATE_CRON?: string;
+
+  @IsString()
+  @IsOptional()
+  EXCHANGE_RATE_TZ?: string;
+
+  @IsString()
+  @IsOptional()
+  CBU_BASE_URL?: string;
+
   // ── Swagger / OpenAPI UI (опционально на старте) ──
   @IsString()
   @IsOptional()

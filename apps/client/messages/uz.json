@@ -31,7 +31,10 @@
     "postListingFull": "E'lon joylashtirish",
     "menu": "Menyu",
     "close": "Yopish",
-    "logoAria": "Avino — bosh sahifaga"
+    "logoAria": "Avino — bosh sahifaga",
+    "currencyUZS": "so'm",
+    "currencyUSD": "$",
+    "currencyLabel": "Valyuta"
   },
   "footer": {
     "aboutCompany": "Kompaniya haqida",
@@ -190,7 +193,9 @@
       "rent": "Ijara",
       "price": "Narx",
       "priceRange": "Narx: {min}–{max}",
-      "priceTitle": "Narx, $",
+      "priceTitle": "Narx,",
+      "currencySymbolUzs": "so'm",
+      "currencySymbolUsd": "$",
       "priceFrom": "dan",
       "priceTo": "gacha",
       "rooms": "Xonalar",
@@ -769,6 +774,7 @@
     "rooms": "{count} xona"
   },
   "units": {
+    "approx": "≈",
     "roomsLabel": "{count, plural, other {xona}}",
     "sum": "so'm",
     "perMonth": "/oy",

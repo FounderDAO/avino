@@ -31,7 +31,10 @@
     "postListingFull": "Post a listing",
     "menu": "Menu",
     "close": "Close",
-    "logoAria": "Avino — home"
+    "logoAria": "Avino — home",
+    "currencyUZS": "UZS",
+    "currencyUSD": "$",
+    "currencyLabel": "Currency"
   },
   "footer": {
     "aboutCompany": "Company",
@@ -190,7 +193,9 @@
       "rent": "Rent",
       "price": "Price",
       "priceRange": "Price: {min}–{max}",
-      "priceTitle": "Price, $",
+      "priceTitle": "Price,",
+      "currencySymbolUzs": "sum",
+      "currencySymbolUsd": "$",
       "priceFrom": "from",
       "priceTo": "to",
       "rooms": "Rooms",
@@ -769,6 +774,7 @@
     "rooms": "{count} rm"
   },
   "units": {
+    "approx": "≈",
     "roomsLabel": "{count, plural, one {room} other {rooms}}",
     "sum": "UZS",
     "perMonth": "/mo",

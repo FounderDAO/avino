@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { baseApi } from './api/baseApi';
 import favoritesReducer from './favoritesSlice';
+import currencyReducer from './currencySlice';
 import { authReducer } from './slices/authSlice';
 
 export const makeStore = () =>
@@ -8,6 +9,7 @@ export const makeStore = () =>
     reducer: {
       [baseApi.reducerPath]: baseApi.reducer,
       favorites: favoritesReducer,
+      currency: currencyReducer,
       auth: authReducer,
     },
     middleware: (getDefaultMiddleware) =>

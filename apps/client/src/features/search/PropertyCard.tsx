@@ -12,8 +12,9 @@ import { MapPin } from 'lucide-react';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { PromoBadge, NewBadge } from '@/components/ui/promo-badge';
 import { FavButton } from '@/components/ui/fav-button';
-import { formatPrice, specs, txLabel, propertyTypeLabel, isFresh } from '@/lib/format';
+import { specs, txLabel, propertyTypeLabel, isFresh } from '@/lib/format';
 import type { Listing } from '@/lib/mock/types';
+import { usePriceFormatter } from '@/lib/usePriceFormatter';
 
 export interface PropertyCardProps {
   listing: Listing;
@@ -23,6 +24,7 @@ export interface PropertyCardProps {
 export function PropertyCard({ listing, className }: PropertyCardProps) {
   const tUnits = useTranslations('units');
   const tEnums = useTranslations('enums');
+  const fmt = usePriceFormatter();
   const parts = specs(listing, tUnits);
   const fresh = isFresh(listing.createdAt);
 
@@ -56,7 +58,7 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
           {txLabel(listing.tx, tEnums)}
         </span>
         <div className="mt-0.5 truncate text-[23px] font-extrabold tracking-[-0.02em]">
-          {formatPrice(listing, tUnits)}
+          {fmt.price(listing)}
         </div>
 
         {/* Характеристики */}

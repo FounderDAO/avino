@@ -13,13 +13,14 @@ import { Gallery } from '@/components/ui/gallery';
 import { PromoBadge } from '@/components/ui/promo-badge';
 import { SectionTitle } from '@/components/ui/section-title';
 import { Button } from '@/components/ui/button';
-import { formatPrice, specs, txLabel, propertyTypeLabel } from '@/lib/format';
+import { specs, txLabel, propertyTypeLabel } from '@/lib/format';
 import { getSimilarListings } from '@/lib/api/listings';
 import type { Listing } from '@/lib/mock/types';
 import { PropertyCard } from '@/features/search/PropertyCard';
 import { Facts } from './Facts';
 import { ContactCard } from './ContactCard';
 import { DetailMap } from './DetailMap';
+import { DetailPrice } from './DetailPrice';
 
 export interface DetailProps {
   listing: Listing;
@@ -66,7 +67,7 @@ export async function Detail({ listing }: DetailProps) {
           </div>
 
           {/* Цена */}
-          <div className="display mt-3.5 text-[40px]">{formatPrice(listing, tUnits)}</div>
+          <DetailPrice listing={listing} />
 
           {/* Характеристики строкой */}
           {parts.length > 0 && (

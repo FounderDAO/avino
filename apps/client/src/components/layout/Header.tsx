@@ -15,6 +15,7 @@ import { Heart, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from './Logo';
 import { LangSwitcher } from './LangSwitcher';
+import { CurrencySwitcher } from './CurrencySwitcher';
 import { LoginModal } from './LoginModal';
 import { NAV_ITEMS } from './Nav';
 import { Button } from '@/components/ui/button';
@@ -120,6 +121,7 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
 
         {/* Десктоп: действия */}
         <div className="hidden items-center gap-3 md:flex">
+          <CurrencySwitcher />
           <LangSwitcher />
           <Link
             href="/account/favorites"
@@ -223,7 +225,8 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
                   {t('login')}
                 </Button>
               )}
-              <div className="mt-2">
+              <div className="mt-2 flex items-center gap-3">
+                <CurrencySwitcher />
                 <LangSwitcher />
               </div>
             </div>

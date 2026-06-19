@@ -39,6 +39,48 @@ Related ADR:
 
 ## 2026-06-19
 
+### Daily USD/UZS exchange rate + currency display toggle (ADR-0093)
+
+Status: DONE
+Branch: feat/currency-display-exchange-rate
+PR: #194
+
+Files changed:
+- apps/api: `prisma/schema.prisma` (модель `ExchangeRate` + enum `ExchangeRateSource`) + миграция `20260619000000_exchange_rate` + сид; `src/exchange-rates/*` (cbu.provider, service, queue, worker, module, public + admin controllers, set-exchange-rate.dto); `src/config/configuration.ts`, `src/queues/queue.constants.ts`, `src/queues/queues.module.ts`, `src/app.module.ts`; `docs/API.md` §19, `docs/ENV.md` §6.1
+- apps/client: `src/store/api/exchangeRateApi.ts`, `src/store/currencySlice.ts` (+store/StoreProvider), `src/lib/useCurrencyPreference.ts`, `src/lib/usePriceFormatter.ts`, `src/lib/format.ts` (convertPrice + ≈), `src/components/layout/CurrencySwitcher.tsx` (+Header), `src/features/detail/DetailPrice.tsx` (+Detail), `src/features/search/{FilterBar,SearchResults}.tsx`, `src/features/{search/PropertyCard,account/MyListings,map/MapView}.tsx`, `messages/{ru,uz,en}.json`
+- apps/web: `src/store/api/adminExchangeRateApi.ts`, `src/components/admin/ExchangeRatePanel.tsx`, `src/app/admin/settings/page.tsx`
+- docs/adr/ADR-0093-currency-display-exchange-rate.md; docs/superpowers/specs + plans (брейншторм-спека/план)
+
+Summary:
+- Ежедневный курс USD у ЦБ РУз (`cbu.uz`, BullMQ cron `0 6 * * *` Asia/Tashkent) → таблица `exchange_rates` (история + ручной оверрайд `MANUAL`, `Decimal(18,6)`); «текущий курс» = последняя строка; при сбое ЦБ строка не пишется (последний курс сохраняется).
+- Публичный `GET /api/v1/exchange-rate` + админ `GET/PUT/POST refresh` (ADMIN-gated, оверрайд → `audit_logs`).
+- Клиент: глобальный тоггл `[сум | $]` в шапке (дефолт сум, persist localStorage); все цены показываются в выбранной валюте — нативные точно, сконвертированные с `≈` (USD→целые, UZS→1000); фильтр шлёт `currency=<display>` только при ценовом пороге.
+- Админка: панель «Курс валют» в `/admin/settings` (текущий/история/оверрайд/обновить из ЦБ) вместо статичного инпута.
+- **Display-only**: нативная валюта объявления в БД не меняется, backend search не тронут; кросс-валютный SQL-фильтр — Phase 2. Известный нюанс: SSR-страница 1 поиска без currency-параметра (см. ADR-0093 Consequences).
+- Процесс: брейншторм → спека → план → subagent-driven (16 задач, по-задачное ревью) → финальное whole-branch ревью (READY TO MERGE). Тесты: api jest зелёный (455), client vitest 138; tsc 0; сборки чисто. Контракт с боевым ЦБ проверен (json/USD отдаёт `Rate`).
+
+Commit messages:
+- feat(api): add ExchangeRate model, migration and bootstrap seed
+- feat(api): exchange-rate config namespace and queue constants
+- feat(api): cbu.uz USD rate provider with pure parser
+- feat(api): ExchangeRateService (getCurrent/refresh/setManual/history)
+- feat(api): exchange-rate daily cron queue, worker and module wiring
+- feat(api): public GET /exchange-rate endpoint
+- feat(api): admin exchange-rate endpoints (get/override/refresh)
+- docs(api): document exchange-rate endpoints + env vars
+- feat(client): RTK getExchangeRate endpoint
+- feat(client): persisted display-currency preference (slice + hooks + hydrator)
+- feat(client): currency conversion in formatPrice/pinPrice with approx marker
+- feat(client): route price call sites through usePriceFormatter (incl. detail client price)
+- feat(client): header currency switcher [сум | $]
+- feat(client): scope price filter to display currency when a bound is set
+- feat(web): admin exchange-rate RTK endpoints
+- feat(web): exchange-rate admin panel (current/history/override/refresh)
+- polish(client): i18n currency symbol, switcher role=group, pinPrice UZS rounding
+
+Related ADR:
+- docs/adr/ADR-0093-currency-display-exchange-rate.md
+
 ### MyListings — owner action cluster redesign (ADR-0092)
 
 Status: DONE

@@ -14,19 +14,41 @@ const nf = new Intl.NumberFormat('ru-RU');
 export interface FormatPriceOptions {
   /** Добавлять суффикс «/мес» для аренды (по умолчанию true). */
   suffix?: boolean;
+  /** Целевая валюта отображения; если ≠ нативной — конверт с «≈». */
+  display?: Currency;
+  /** Курс 1 USD = rate UZS. */
+  rate?: number;
+}
+
+/** Конверсия суммы между валютами по курсу 1 USD = rate UZS. */
+export function convertPrice(value: number, from: Currency, to: Currency, rate: number): number {
+  if (from === to) return value;
+  return from === 'USD' ? value * rate : value / rate;
+}
+
+/** Округление под валюту отображения: USD → целые $, UZS → до 1000. */
+function roundForCurrency(value: number, currency: Currency): number {
+  return currency === 'USD' ? Math.round(value) : Math.round(value / 1000) * 1000;
 }
 
 /**
  * Цена объявления: «1 450 000 000 сум» / «$98 000», для аренды — «… /мес».
+ * При opts.display ≠ listing.currency и opts.rate > 0 — конвертирует с префиксом «≈ ».
  */
 export function formatPrice(
   listing: Pick<Listing, 'price' | 'currency' | 'tx'>,
   t: T,
   opts: FormatPriceOptions = {},
 ): string {
-  const n = Number(listing.price);
-  const isUSD = listing.currency === 'USD';
-  const body = isUSD ? '$' + nf.format(n) : nf.format(n) + ' ' + t('sum');
+  const native = Number(listing.price);
+  const convert =
+    opts.display != null && opts.display !== listing.currency && !!opts.rate && opts.rate > 0;
+  const target: Currency = convert ? opts.display! : listing.currency;
+  const value = convert
+    ? roundForCurrency(convertPrice(native, listing.currency, target, opts.rate!), target)
+    : native;
+  const money = target === 'USD' ? '$' + nf.format(value) : nf.format(value) + ' ' + t('sum');
+  const body = (convert ? t('approx') + ' ' : '') + money;
   if (opts.suffix === false) return body;
   return listing.tx === 'RENT' ? body + t('perMonth') : body;
 }
@@ -37,18 +59,30 @@ export function formatMoney(value: number | string, currency: Currency, t: T): s
   return currency === 'USD' ? '$' + nf.format(n) : nf.format(n) + ' ' + t('sum');
 }
 
-/** Компактная цена для пинов карты: «$98K», «1,5 млрд». */
-export function pinPrice(listing: Pick<Listing, 'price' | 'currency'>, t: T): string {
-  const n = Number(listing.price);
-  const isUSD = listing.currency === 'USD';
-  if (isUSD) {
-    if (n >= 1000) return '$' + trim(n / 1000) + 'K';
-    return '$' + trim(n);
+/** Компактная цена для пинов карты: «$98K», «1,5 млрд».
+ * При opts.display ≠ listing.currency и opts.rate > 0 — конвертирует с префиксом «≈ ».
+ */
+export function pinPrice(
+  listing: Pick<Listing, 'price' | 'currency'>,
+  t: T,
+  opts: { display?: Currency; rate?: number } = {},
+): string {
+  const convert =
+    opts.display != null && opts.display !== listing.currency && !!opts.rate && opts.rate > 0;
+  const target: Currency = convert ? opts.display! : listing.currency;
+  const raw = convert
+    ? convertPrice(Number(listing.price), listing.currency, target, opts.rate!)
+    : Number(listing.price);
+  const n = target === 'USD' ? Math.round(raw) : Math.round(raw / 1000) * 1000;
+  const approx = convert ? t('approx') + ' ' : '';
+  if (target === 'USD') {
+    if (n >= 1000) return approx + '$' + trim(n / 1000) + 'K';
+    return approx + '$' + trim(n);
   }
-  if (n >= 1e9) return trim(n / 1e9) + ' ' + t('billion');
-  if (n >= 1e6) return trim(n / 1e6) + ' ' + t('million');
-  if (n >= 1e3) return trim(n / 1e3) + 'K';
-  return trim(n);
+  if (n >= 1e9) return approx + trim(n / 1e9) + ' ' + t('billion');
+  if (n >= 1e6) return approx + trim(n / 1e6) + ' ' + t('million');
+  if (n >= 1e3) return approx + trim(n / 1e3) + 'K';
+  return approx + trim(n);
 }
 
 /** Округление до 1 знака с запятой как разделителем. */

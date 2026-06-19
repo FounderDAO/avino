@@ -29,6 +29,7 @@ import {
   useLazySearchPageQuery,
 } from '@/store/api/searchApi';
 import type { Listing, ListingFilter } from '@/lib/mock/types';
+import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
 
 // Карта — только на клиенте (Yandex JS API требует window). next/dynamic ssr:false.
 const MapView = dynamic(
@@ -69,6 +70,14 @@ export function SearchResults({
   const tCommon = useTranslations('common');
   const locale = useLocale();
   const [activeId, setActiveId] = React.useState<string | null>(null);
+
+  // Предпочтение валюты из Redux (Task 14): добавляем в RTK-запросы (polygon/keyset),
+  // чтобы бэкенд фильтровал price_min/price_max в правильной валюте.
+  const displayCurrency = useCurrencyPreference();
+  const filterWithCurrency = React.useMemo<ListingFilter>(
+    () => ({ ...filter, currency: displayCurrency }),
+    [filter, displayCurrency],
+  );
   // Режим рисования территории + нарисованное кольцо (как на /map).
   const [drawing, setDrawing] = React.useState(false);
   const [polygon, setPolygon] = React.useState<LatLng[] | null>(null);
@@ -84,9 +93,9 @@ export function SearchResults({
 
   // Поиск по территории (ST_Within на сервере). Без территории — skip, показываем
   // SSR-выдачу по фильтрам. Смена фильтров при активной территории автоматически
-  // рефетчит (ключ кэша = points + filter).
+  // рефетчит (ключ кэша = points + filterWithCurrency).
   const { data: polygonData, isFetching } = useSearchByPolygonQuery(
-    points ? { points, filter, limit: 100 } : skipToken,
+    points ? { points, filter: filterWithCurrency, limit: 100 } : skipToken,
   );
 
   // ── Пагинация по keyset-курсору (TASK-199) ──
@@ -94,7 +103,7 @@ export function SearchResults({
   // отдельно и дотягиваем по кнопке «Показать ещё» через RTK Query (CLAUDE.md §4).
   // Сбрасываем при смене фильтров: и сигнатура фильтра, и первый курсор приходят
   // новой SSR-выдачей одновременно.
-  const filterKey = React.useMemo(() => JSON.stringify(filter), [filter]);
+  const filterKey = React.useMemo(() => JSON.stringify(filterWithCurrency), [filterWithCurrency]);
   const [extra, setExtra] = React.useState<Listing[]>([]);
   const [cursor, setCursor] = React.useState<string | null>(initialCursor);
   React.useEffect(() => {
@@ -106,7 +115,7 @@ export function SearchResults({
   const loadMore = React.useCallback(async () => {
     if (!cursor || loadingMore) return;
     try {
-      const res = await loadPage({ cursor, filter, limit: 24 }).unwrap();
+      const res = await loadPage({ cursor, filter: filterWithCurrency, limit: 24 }).unwrap();
       // Append: набор листингов растёт → MapView перестраивает пины, а подсветка
       // activeId живёт отдельным эффектом, поэтому активный hover не сбрасывается.
       setExtra((prev) => [...prev, ...res.listings]);
@@ -114,7 +123,7 @@ export function SearchResults({
     } catch {
       // Сеть/5xx — курсор не двигаем, пользователь может повторить.
     }
-  }, [cursor, loadingMore, loadPage, filter]);
+  }, [cursor, loadingMore, loadPage, filterWithCurrency]);
 
   // Выдача по фильтрам = SSR-страница + докуданные; по территории — отдельный набор.
   const paged = React.useMemo(() => [...listings, ...extra], [listings, extra]);
