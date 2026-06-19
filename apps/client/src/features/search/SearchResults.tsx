@@ -30,6 +30,11 @@ import {
 } from '@/store/api/searchApi';
 import type { Listing, ListingFilter } from '@/lib/mock/types';
 import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
+import { useAppDispatch } from '@/store/hooks';
+import {
+  setTerritory,
+  clearTerritory as clearTerritoryRedux,
+} from '@/store/territorySlice';
 
 // Карта — только на клиенте (Yandex JS API требует window). next/dynamic ssr:false.
 const MapView = dynamic(
@@ -90,6 +95,15 @@ export function SearchResults({
     () => (polygon ? serializePolygonRing(polygon) : null),
     [polygon],
   );
+
+  // Зеркалим нарисованное кольцо в Redux, чтобы кнопка «Сохранить поиск» в FilterBar
+  // (соседний компонент) могла положить territory в сохранённый поиск.
+  const dispatch = useAppDispatch();
+  React.useEffect(() => {
+    dispatch(setTerritory(points));
+  }, [points, dispatch]);
+  // Уходим со страницы поиска — сбрасываем, чтобы не утащить чужую территорию.
+  React.useEffect(() => () => void dispatch(clearTerritoryRedux()), [dispatch]);
 
   // Поиск по территории (ST_Within на сервере). Без территории — skip, показываем
   // SSR-выдачу по фильтрам. Смена фильтров при активной территории автоматически

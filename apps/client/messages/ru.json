@@ -778,7 +778,8 @@
     "txRent": "Аренда",
     "upTo": "до {value}",
     "from": "от {value}",
-    "rooms": "{count} комн"
+    "rooms": "{count} комн",
+    "territory": "территория"
   },
   "units": {
     "approx": "≈",

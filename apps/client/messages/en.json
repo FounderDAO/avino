@@ -778,7 +778,8 @@
     "txRent": "Rent",
     "upTo": "up to {value}",
     "from": "from {value}",
-    "rooms": "{count} rm"
+    "rooms": "{count} rm",
+    "territory": "territory"
   },
   "units": {
     "approx": "≈",
