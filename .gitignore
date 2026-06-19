@@ -31,6 +31,9 @@ coverage/
 # Prisma
 apps/api/prisma/*.db
 
+# DB-бэкапы (deploy/backup.sh) — не коммитим дампы
+backups/
+
 # Локальные источники дизайна и старые версии приложений — не пушим в GitHub.
 # Источник правды дизайна и legacy-код держим только на диске.
 apps/client_old/
