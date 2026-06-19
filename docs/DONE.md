@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: fix/client-sellnew-gate-lightbox-portal
-PR: pending
+PR: #195
 
 Files changed:
 - apps/client: `src/features/listing-new/ListingNew.tsx` (гейт авторизации: ранний return + авто-открытие `LoginModal` через effect), `messages/{ru,uz,en}.json` (блок `listingNew.auth`)
