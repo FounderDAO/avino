@@ -4,6 +4,11 @@
 > Документ согласован с `ARCHITECTURE.md` (ADR-001…013, §28) и `DB_SCHEMA.md`.
 > При конфликте с кодом — этот документ и `ARCHITECTURE.md`/`DB_SCHEMA.md` выигрывают.
 > Breaking changes требуют новой версии API (`/api/v2`) и одобрения Team Lead.
+>
+> ⏳ **Planned** — эндпоинт описан в этом контракте, но ещё **не реализован в коде**:
+> не вызывается на живом API и отсутствует в `apps/api/openapi.*.json`. Помечен
+> бейджем у соответствующего заголовка ниже (важно для Flutter-клиента, который
+> генерируется из `openapi.public.json`).
 
 ---
 
@@ -461,6 +466,10 @@ See: ADR-0088.
 Все переводы листинга (uz/ru/en). Auth: **владелец/MODERATOR/ADMIN**.
 
 ### DELETE /api/v1/listings/:id
+> ⏳ **Planned — не реализовано в коде** (нет роута в `listings.controller.ts`). Сейчас
+> удаление недоступно; владелец скрывает листинг через `PATCH /api/v1/listings/:id/status`
+> (`action: "HIDE"` → `ARCHIVED`, ADR-0088).
+
 Soft-delete (`status → DELETED`). Auth: **владелец / MODERATOR / ADMIN**. Строка
 сохраняется; исключается из всех read-path (поиск, избранное, чат). → `204`.
 
@@ -492,6 +501,9 @@ MVP). DB-запись `listing_media` — source of truth; осиротевши�
 массив объектов media `{ id, url, thumbnail_url, sort_order, type }`.
 
 ### POST /api/v1/listings/:id/media/presign
+> ⏳ **Planned — не реализовано в коде** (целевой direct-to-S3 flow). Сейчас аплоад
+> только через `POST /api/v1/listings/:id/media` (proxy, MVP).
+
 Получить presigned PUT URL. Auth: **владелец листинга**.
 
 Body:
@@ -511,6 +523,8 @@ Body:
 Errors: `415 UNSUPPORTED_MEDIA_TYPE`, `413 FILE_TOO_LARGE`, `422 MEDIA_LIMIT_EXCEEDED`.
 
 ### POST /api/v1/listings/:id/media/confirm
+> ⏳ **Planned — не реализовано в коде** (часть direct-to-S3 flow, см. `/presign` выше).
+
 Подтвердить загруженный объект → создать запись `listing_media` (запускает
 EXIF-strip + thumbnail). Auth: **владелец**.
 ```json
@@ -671,6 +685,9 @@ promotion-приоритетный keyset, что и `/search/bounds` (`date_des
 Errors: `400 VALIDATION_ERROR`.
 
 ### GET /api/v1/search/clusters
+> ⏳ **Planned — не реализовано в коде** (нет роута в `search.controller.ts`). На карте
+> сейчас доступны `GET /search/bounds` и `GET /search/polygon` (§10).
+
 Кластеризация маркеров для зума карты. Auth: **public**.
 Query: `sw_lat`, `sw_lng`, `ne_lat`, `ne_lng`, `zoom` + фильтры.
 200:
@@ -845,6 +862,10 @@ FAILED|READ`), `type`, `cursor`, `limit`.
 
 ### POST /api/v1/notifications/devices
 Регистрация push-устройства (stub, ADR-0010 / ADR-0098). Auth: **Bearer**.
+> ⏳ **Planned — не реализовано в коде** (нет роута в `notifications.controller.ts`;
+> push-доставка — stub, ADR-010). Появится вместе с push-воркером.
+
+Регистрация push-устройства (stub, ADR-010). Auth: **Bearer**.
 ```json
 { "platform": "ANDROID", "push_token": "fcm:abc123..." }
 ```
@@ -859,6 +880,9 @@ upsert): один и тот же токен клиент FCM/APNs переотп
 ### DELETE /api/v1/notifications/devices/:id
 Отвязать своё устройство (**hard delete** — строка удаляется, токен освобождается
 для повторной регистрации). Auth: **владелец**; чужое/несуществующее → `404`. → `204`.
+> ⏳ **Planned — не реализовано в коде** (см. `POST …/devices` выше).
+
+Отвязать устройство (`is_active=false`/удаление). Auth: **владелец**. → `204`.
 
 ---
 
