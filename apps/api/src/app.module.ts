@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat';
 import { ComplaintsModule } from './complaints';
 import { AppConfigModule } from './config';
+import { ExchangeRateModule } from './exchange-rates/exchange-rate.module';
 import { FavoritesModule } from './favorites';
 import { GeoModule } from './geo';
 import { HealthModule } from './health/health.module';
@@ -39,6 +40,7 @@ import { UsersModule } from './users/users.module';
     FavoritesModule,
     SavedSearchesModule,
     PromotionsModule,
+    ExchangeRateModule,
     NotificationsModule,
     ChatModule,
     ComplaintsModule,
