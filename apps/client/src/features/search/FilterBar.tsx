@@ -97,7 +97,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
   const locale = useLocale();
   // Предпочтение отображаемой валюты (Task 14): маркируем ценовые поля символом.
   const displayCurrency = useCurrencyPreference();
-  const currencySymbol = displayCurrency === 'USD' ? '$' : tSearch('filters.currencySymbolUzs');
+  const currencySymbol = displayCurrency === 'USD' ? tSearch('filters.currencySymbolUsd') : tSearch('filters.currencySymbolUzs');
   const [suggestActive, setSuggestActive] = React.useState(false);
   const { items, loading } = useGeoSuggest(queryDraft, {
     enabled: suggestActive,

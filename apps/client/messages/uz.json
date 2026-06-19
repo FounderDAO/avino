@@ -195,6 +195,7 @@
       "priceRange": "Narx: {min}–{max}",
       "priceTitle": "Narx,",
       "currencySymbolUzs": "so'm",
+      "currencySymbolUsd": "$",
       "priceFrom": "dan",
       "priceTo": "gacha",
       "rooms": "Xonalar",

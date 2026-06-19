@@ -16,6 +16,7 @@ export function CurrencySwitcher() {
   return (
     <div
       className="inline-flex items-center rounded-pill border-[1.5px] border-border p-0.5 text-[13.5px] font-bold"
+      role="group"
       aria-label={t('currencyLabel')}
     >
       <button

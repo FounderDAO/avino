@@ -195,6 +195,7 @@
       "priceRange": "Price: {min}–{max}",
       "priceTitle": "Price,",
       "currencySymbolUzs": "sum",
+      "currencySymbolUsd": "$",
       "priceFrom": "from",
       "priceTo": "to",
       "rooms": "Rooms",

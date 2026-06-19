@@ -73,7 +73,7 @@ export function pinPrice(
   const raw = convert
     ? convertPrice(Number(listing.price), listing.currency, target, opts.rate!)
     : Number(listing.price);
-  const n = target === 'USD' ? Math.round(raw) : raw;
+  const n = target === 'USD' ? Math.round(raw) : Math.round(raw / 1000) * 1000;
   const approx = convert ? t('approx') + ' ' : '';
   if (target === 'USD') {
     if (n >= 1000) return approx + '$' + trim(n / 1000) + 'K';

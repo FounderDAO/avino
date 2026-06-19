@@ -195,6 +195,7 @@
       "priceRange": "Цена: {min}–{max}",
       "priceTitle": "Цена,",
       "currencySymbolUzs": "сум",
+      "currencySymbolUsd": "$",
       "priceFrom": "от",
       "priceTo": "до",
       "rooms": "Комнаты",
