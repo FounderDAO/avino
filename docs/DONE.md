@@ -39,6 +39,49 @@ Related ADR:
 
 ## 2026-06-19
 
+### Saved-search alerts по нарисованной территории (ADR-0096)
+
+Status: DONE
+Branch: feat/saved-search-polygon-api (api) + feat/saved-search-polygon-client (client)
+PR: #196 (api) + #197 (client)
+
+Files changed:
+- apps/api/src/search/dto/polygon-ring.util.ts (+ polygon-ring.spec.ts)
+- apps/api/src/search/search.service.ts (+ search.service.match.spec.ts)
+- apps/client/src/store/territorySlice.ts (+ test) + store.ts
+- apps/client/src/features/search/SearchResults.tsx + FilterBar.tsx
+- apps/client/src/lib/savedSearch.ts (+ test)
+- apps/client/messages/{ru,uz,en}.json
+- docs/adr/ADR-0096-saved-search-polygon-alerts.md
+
+Summary:
+- Сохранённый поиск теперь учитывает нарисованную территорию: алерты приходят
+  только по новым ACTIVE-объявлениям внутри полигона (CLAUDE.md §11). Раньше
+  матчер `matchNewlyActiveListings` намеренно игнорировал гео-фильтры — алерты шли
+  по скалярам (тип/район/цена/комнаты) по всему городу.
+- Backend: новый чистый хелпер `polygonVerticesFromFilters` (undefined/null/ring) +
+  `ST_Within` в матчере (зеркало `/search/polygon`, переиспользует `polygonSql`).
+  Общий `buildWhereSql` НЕ тронут → живые `/search*` эндпоинты не задеты. Битое
+  кольцо → пропуск прогона (НЕ city-wide алерты). Без бампа `schemaVersion`, без
+  миграции БД.
+- Client (save-only): Redux-слайс `territory` шарит кольцо между `SearchResults`
+  (рисует) и `FilterBar` (сохраняет `points`). Бейдж «территория» в `/account/saved`;
+  `filtersToSearchHref` намеренно НЕ мапит `points` — по клику территория заново не
+  рисуется (выдача по скалярам).
+- Trade-off: список по клику шире зоны алертов (осознанный MVP-компромисс).
+  Out of scope: сохранение территории с `/map`, redraw по клику, push-канал.
+- Проверка: api 464/464, client 144/144, lint+build зелёные обе папки.
+
+Commit messages:
+- feat(search): add polygonVerticesFromFilters helper for saved-search alerts
+- feat(search): match saved-search alerts inside saved polygon (ST_Within)
+- feat(search): add territory redux slice for saved-search polygon
+- feat(search): save drawn territory into saved search filters
+- feat(account): show territory chip on saved searches with a drawn polygon
+
+Related ADR:
+- docs/adr/ADR-0096-saved-search-polygon-alerts.md
+
 ### `/sell/new` auth-gate + lightbox portal fix (ADR-0094, ADR-0095)
 
 Status: DONE
