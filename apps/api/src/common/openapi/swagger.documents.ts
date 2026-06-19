@@ -73,7 +73,8 @@ export function buildBaseConfig() {
     .setDescription(
       'API портала недвижимости Avino. Аутентификация: ' +
         'POST /auth/otp/request → /auth/otp/verify → { accessToken, refreshToken }; ' +
-        'обновление — /auth/refresh; вход через Google — /auth/google. ' +
+        'обновление — /auth/refresh; вход через Google — /auth/google; ' +
+        'вход через Apple — /auth/apple. ' +
         'Bearer-токен передаётся в заголовке Authorization.',
     )
     .setVersion('1')
