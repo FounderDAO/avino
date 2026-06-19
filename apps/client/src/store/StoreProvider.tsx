@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Provider } from 'react-redux';
 import { makeStore, type AppStore } from './store';
 import { hydrateFavorites, readFavoritesFromStorage } from './favoritesSlice';
+import { hydrateCurrency, readCurrencyFromStorage } from './currencySlice';
 import { useAppDispatch } from './hooks';
 import { SessionBootstrap } from '@/components/SessionBootstrap';
 
@@ -15,6 +16,18 @@ function FavoritesHydrator() {
   const dispatch = useAppDispatch();
   useEffect(() => {
     dispatch(hydrateFavorites(readFavoritesFromStorage()));
+  }, [dispatch]);
+  return null;
+}
+
+/**
+ * Гидратация предпочтения валюты из localStorage после монтирования на клиенте.
+ * На сервере не выполняется — initialState остаётся 'UZS' (нет рассинхрона SSR).
+ */
+function CurrencyHydrator() {
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    dispatch(hydrateCurrency(readCurrencyFromStorage()));
   }, [dispatch]);
   return null;
 }
@@ -33,6 +46,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={storeRef.current}>
       <FavoritesHydrator />
+      <CurrencyHydrator />
       <SessionBootstrap />
       {children}
     </Provider>
