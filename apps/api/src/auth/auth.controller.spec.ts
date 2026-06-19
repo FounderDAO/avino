@@ -32,6 +32,7 @@ describe('AuthController.me', () => {
       {} as any,
       authService as any,
       {} as any,
+      {} as any,
     );
 
     await expect(controller.me('u1')).resolves.toBe(me);
@@ -47,6 +48,7 @@ describe('AuthController.google', () => {
       {} as any,
       {} as any,
       googleAuthService as any,
+      {} as any,
     );
 
     const res = await controller.google(
@@ -55,6 +57,31 @@ describe('AuthController.google', () => {
       'UA',
     );
     expect(googleAuthService.login).toHaveBeenCalledWith(
+      { id_token: 't' },
+      '1.1.1.1',
+      'UA',
+    );
+    expect(res).toBe(result);
+  });
+});
+
+describe('AuthController.apple', () => {
+  it('delegates to AppleAuthService.login with body, ip and user-agent', async () => {
+    const result = { access_token: 'a' };
+    const appleAuthService = { login: jest.fn().mockResolvedValue(result) };
+    const controller = new AuthController(
+      {} as any,
+      {} as any,
+      {} as any,
+      appleAuthService as any,
+    );
+
+    const res = await controller.apple(
+      { id_token: 't' } as any,
+      '1.1.1.1',
+      'UA',
+    );
+    expect(appleAuthService.login).toHaveBeenCalledWith(
       { id_token: 't' },
       '1.1.1.1',
       'UA',

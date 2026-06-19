@@ -34,7 +34,7 @@ export interface LoginSuccessAlert {
   ip?: string | null;
   isNewUser: boolean;
   roles?: string[];
-  provider?: 'GOOGLE';
+  provider?: 'GOOGLE' | 'APPLE';
 }
 
 /** Алерт «вход выполнен» (OTP или Google). */

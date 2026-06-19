@@ -163,6 +163,16 @@ export const googleConfig = registerAs('google', () => ({
   clientId: process.env.GOOGLE_CLIENT_ID,
 }));
 
+// Sign in with Apple (passwordless вход публичного портала). clientIds опциональны
+// на старте — без них /auth/apple отдаёт 503 AUTH_PROVIDER_UNAVAILABLE. CSV
+// разрешённых audience (Service ID веба; в будущем + bundle ID нативного app).
+export const appleConfig = registerAs('apple', () => ({
+  clientIds: (process.env.APPLE_CLIENT_ID ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+}));
+
 // Swagger / OpenAPI UI (config-gated). enabled определяется resolveSwaggerEnabled:
 // явный SWAGGER_ENABLED env → его значение; иначе dev=true / prod=false.
 export const swaggerConfig = registerAs('swagger', () => ({
@@ -202,6 +212,7 @@ export const configurations = [
   rateLimitConfig,
   jwtConfig,
   googleConfig,
+  appleConfig,
   telegramConfig,
   swaggerConfig,
   exchangeRateConfig,
