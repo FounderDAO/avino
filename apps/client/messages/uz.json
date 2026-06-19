@@ -769,6 +769,7 @@
     "rooms": "{count} xona"
   },
   "units": {
+    "approx": "≈",
     "roomsLabel": "{count, plural, other {xona}}",
     "sum": "so'm",
     "perMonth": "/oy",

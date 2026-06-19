@@ -769,6 +769,7 @@
     "rooms": "{count} комн"
   },
   "units": {
+    "approx": "≈",
     "roomsLabel": "{count, plural, one {комната} few {комнаты} many {комнат} other {комнаты}}",
     "sum": "сум",
     "perMonth": "/мес",

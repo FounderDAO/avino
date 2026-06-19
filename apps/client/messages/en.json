@@ -769,6 +769,7 @@
     "rooms": "{count} rm"
   },
   "units": {
+    "approx": "≈",
     "roomsLabel": "{count, plural, one {room} other {rooms}}",
     "sum": "UZS",
     "perMonth": "/mo",
