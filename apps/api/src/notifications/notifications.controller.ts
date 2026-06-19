@@ -1,5 +1,7 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -12,7 +14,9 @@ import { CurrentUser } from '../common/decorators';
 import type { AuthenticatedUser } from '../common/guards';
 import { JwtAuthGuard } from '../common/guards';
 import { ListNotificationsQueryDto } from './dto/list-notifications.dto';
+import { RegisterDeviceDto } from './dto/register-device.dto';
 import {
+  DeviceResponse,
   NotificationListResponse,
   NotificationsService,
 } from './notifications.service';
@@ -48,6 +52,37 @@ export class NotificationsController {
   @HttpCode(204)
   readAll(@CurrentUser() user: AuthenticatedUser): Promise<void> {
     return this.notificationsService.markAllRead(user);
+  }
+
+  /**
+   * `POST /api/v1/notifications/devices` — регистрация push-устройства (stub,
+   * ADR-0010). Body: `{ "platform": "ANDROID", "push_token": "..." }`.
+   * Идемпотентно по `push_token` (upsert/claim) → `201 { id, platform, is_active }`.
+   * Объявлен до `:id/read`, чтобы статический сегмент не перехватывался `:id`.
+   */
+  @Post('devices')
+  registerDevice(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: RegisterDeviceDto,
+  ): Promise<DeviceResponse> {
+    return this.notificationsService.registerDevice(
+      user,
+      dto.platform,
+      dto.push_token,
+    );
+  }
+
+  /**
+   * `DELETE /api/v1/notifications/devices/:id` — отвязать своё устройство
+   * (hard delete). → `204`. Чужое/несуществующее → `404`.
+   */
+  @Delete('devices/:id')
+  @HttpCode(204)
+  removeDevice(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    return this.notificationsService.removeDevice(user, id);
   }
 
   /**

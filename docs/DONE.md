@@ -37,6 +37,36 @@ Related ADR:
 
 ---
 
+## 2026-06-20
+
+### Регистрация push-устройств — POST/DELETE /notifications/devices (ADR-0098)
+
+Status: DONE
+Branch: feat/notification-device-registration
+PR: pending
+
+Files changed:
+- apps/api/src/notifications/dto/register-device.dto.ts (NEW — RegisterDeviceDto)
+- apps/api/src/notifications/notifications.controller.ts (POST devices, DELETE devices/:id)
+- apps/api/src/notifications/notifications.service.ts (registerDevice/removeDevice, DeviceResponse)
+- apps/api/src/notifications/notifications.service.spec.ts (+4 теста)
+- apps/api/openapi.public.json, apps/api/openapi.internal.json (регенерация)
+- docs/API.md (§14 — контракт под upsert/claim + hard delete)
+- docs/adr/ADR-0098-notification-device-registration.md
+
+Summary:
+- Дописаны эндпоинты регистрации/отвязки push-устройства (раньше были только таблица notification_devices, enum DevicePlatform и код ошибки — стаб ADR-0010; сами роуты отсутствовали, openapi ссылался на несуществующие пути → Flutter 404). Обнаружено при подготовке Swagger.
+- POST /notifications/devices — идемпотентно по push_token (upsert/claim): повторная регистрация реактивирует строку и переназначает её текущему пользователю; 409 не возвращается. → 201 { id, platform, is_active }.
+- DELETE /notifications/devices/:id — hard delete, scoped по владельцу (чужое/нет → 404). → 204.
+- Только backend (apps/api); миграции БД не нужны (таблица уже есть). PUSH-транспорт FCM/APNs остаётся стабом.
+- 475/475 api-тестов зелёные, build green, openapi-diff = только 2 новых роута + RegisterDeviceDto.
+
+Commit messages:
+- feat(notifications): register/unregister push devices (POST/DELETE /notifications/devices)
+
+Related ADR:
+- docs/adr/ADR-0098-notification-device-registration.md
+
 ## 2026-06-19
 
 ### Вход через Apple — Sign in with Apple (ADR-0097)
