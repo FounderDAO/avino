@@ -125,6 +125,43 @@
         }
       }
     },
+    "/api/v1/auth/apple": {
+      "post": {
+        "operationId": "AuthController_apple",
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppleLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/me": {
       "get": {
         "operationId": "AuthController_me",
@@ -2961,7 +2998,7 @@
   },
   "info": {
     "title": "Avino API",
-    "description": "API портала недвижимости Avino. Аутентификация: POST /auth/otp/request → /auth/otp/verify → { accessToken, refreshToken }; обновление — /auth/refresh; вход через Google — /auth/google. Bearer-токен передаётся в заголовке Authorization.",
+    "description": "API портала недвижимости Avino. Аутентификация: POST /auth/otp/request → /auth/otp/verify → { accessToken, refreshToken }; обновление — /auth/refresh; вход через Google — /auth/google; вход через Apple — /auth/apple. Bearer-токен передаётся в заголовке Authorization.",
     "version": "1",
     "contact": {}
   },
@@ -3020,6 +3057,25 @@
         "properties": {
           "id_token": {
             "type": "string"
+          }
+        },
+        "required": [
+          "id_token"
+        ]
+      },
+      "AppleLoginDto": {
+        "type": "object",
+        "properties": {
+          "id_token": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "last_name": {
+            "type": "string",
+            "maxLength": 100
           }
         },
         "required": [

@@ -13,8 +13,10 @@ import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
 import { AuthService, RefreshResult, VerifyOtpResult } from './auth.service';
 import { GoogleAuthService } from './google-auth.service';
+import { AppleAuthService } from './apple-auth.service';
 import { OtpService, RequestOtpResult } from './otp.service';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { AppleLoginDto } from './dto/apple-login.dto';
 import { MeResponse } from './dto/me-response.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
@@ -35,6 +37,7 @@ export class AuthController {
     private readonly otpService: OtpService,
     private readonly authService: AuthService,
     private readonly googleAuthService: GoogleAuthService,
+    private readonly appleAuthService: AppleAuthService,
   ) {}
 
   /**
@@ -78,6 +81,21 @@ export class AuthController {
     @Headers('user-agent') userAgent?: string,
   ): Promise<VerifyOtpResult> {
     return this.googleAuthService.login(dto, ip, userAgent);
+  }
+
+  /**
+   * Вход через Apple (public). Принимает Apple ID-token (Sign in with Apple JS),
+   * верифицирует офлайн, создаёт пользователя при первом входе (login=signup),
+   * выдаёт ту же сессию, что и OTP-verify. Провайдер не настроен → 503.
+   */
+  @Post('apple')
+  @HttpCode(HttpStatus.OK)
+  apple(
+    @Body() dto: AppleLoginDto,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent?: string,
+  ): Promise<VerifyOtpResult> {
+    return this.appleAuthService.login(dto, ip, userAgent);
   }
 
   /**

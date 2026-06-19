@@ -252,6 +252,11 @@ export class EnvironmentVariables {
   @IsOptional()
   GOOGLE_CLIENT_ID?: string;
 
+  // ── Sign in with Apple (опционально на старте) ──
+  @IsString()
+  @IsOptional()
+  APPLE_CLIENT_ID?: string;
+
   // ── Telegram admin-алерты (опционально на старте) ──
   @IsString()
   @IsOptional()

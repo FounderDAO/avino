@@ -83,6 +83,7 @@
     "close": "Yopish",
     "or": "yoki",
     "continueWithGoogle": "Google orqali kirish",
+    "continueWithApple": "Apple orqali kirish",
     "errors": {
       "otpInvalid": "Kod noto'g'ri. Tekshirib, qayta urinib ko'ring.",
       "otpExpired": "Kod muddati tugadi. Yangisini so'rang.",

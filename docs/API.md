@@ -143,6 +143,27 @@ Body:
 Errors: `401 UNAUTHORIZED` (невалидный токен или `email_verified=false`),
 `403 USER_BLOCKED`, `503 AUTH_PROVIDER_UNAVAILABLE` (не задан `GOOGLE_CLIENT_ID`).
 
+### POST /api/v1/auth/apple
+
+Вход через Apple (Sign in with Apple): верифицирует Apple ID-token офлайн
+(audience = Service ID из `APPLE_CLIENT_ID`), создаёт/обновляет пользователя
+(связывание по верифицированному email, login=signup), выдаёт токены. Тело
+ответа идентично `otp/verify`. Auth: **public** (ADR-0097).
+
+Body:
+```json
+{ "id_token": "eyJ... (Apple ID-token из Sign in with Apple JS)",
+  "first_name": "Имя (опц., только при первой авторизации)",
+  "last_name": "Фамилия (опц.)" }
+```
+
+200: тот же контракт, что `otp/verify` (`access_token`, `refresh_token`,
+`token_type`, `expires_in`, `user`). Аккаунт создаётся с ролью `USER`,
+`is_email_verified: true`.
+
+Errors: `401 UNAUTHORIZED` (невалидный токен или `email_verified` ≠ true),
+`403 USER_BLOCKED`, `503 AUTH_PROVIDER_UNAVAILABLE` (не задан `APPLE_CLIENT_ID`).
+
 ### POST /api/v1/auth/refresh
 
 Ротация refresh-токена. Auth: **valid refresh token** (в теле).

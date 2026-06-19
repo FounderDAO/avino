@@ -39,6 +39,35 @@ Related ADR:
 
 ## 2026-06-19
 
+### Вход через Apple — Sign in with Apple (ADR-0097)
+
+Status: DONE
+Branch: feat/apple-sign-in
+PR: #199 (https://github.com/FounderDAO/avino/pull/199)
+
+Files changed:
+- apps/api/src/auth/apple-auth.service.ts (+ spec), dto/apple-login.dto.ts
+- apps/api/src/auth/auth.controller.ts (POST /auth/apple), auth.module.ts (AppleAuthService)
+- apps/api/src/config (appleConfig, APPLE_CLIENT_ID), telegram/auth-alert.util.ts (provider APPLE)
+- apps/client/src/components/layout/AppleSignInButton.tsx, src/store/api/authApi.ts (appleLogin), src/components/layout/LoginModal.tsx, messages/*
+- docs/API.md, docs/ENV.md, docs/ICLOUD_SETUP.md, docs/adr/ADR-0097-sign-in-with-apple.md
+- apps/api/src/common/openapi/swagger.documents.ts, apps/api/openapi.public.json, apps/api/openapi.internal.json
+
+Summary:
+- Вход через Apple (Sign in with Apple) на публичном портале: POST /api/v1/auth/apple верифицирует Apple ID-token офлайн, линкует по email (login=signup), выдаёт сессию; кнопка Apple в LoginModal.
+- Config-gated (APPLE_CLIENT_ID / NEXT_PUBLIC_APPLE_*): без ключа — 503, без NEXT_PUBLIC — кнопка скрыта.
+- Только публичный портал (apps/client); админка остаётся на OTP.
+- ПРОД-TODO: Apple Developer Program, Service ID + домен/return URL, env при деплое
+
+Commit messages:
+- feat(auth): add Apple ID-token verification service (apple-signin-auth)
+- feat(auth): add POST /auth/apple endpoint + DTO
+- feat(client): add AppleSignInButton + appleLogin RTK mutation + LoginModal integration
+- docs(apple): API.md, ENV.md, ADR-0097, DONE.md + OpenAPI regen
+
+Related ADR:
+- docs/adr/ADR-0097-sign-in-with-apple.md
+
 ### Saved-search alerts по нарисованной территории (ADR-0096)
 
 Status: DONE

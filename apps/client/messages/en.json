@@ -83,6 +83,7 @@
     "close": "Close",
     "or": "or",
     "continueWithGoogle": "Continue with Google",
+    "continueWithApple": "Continue with Apple",
     "errors": {
       "otpInvalid": "Invalid code. Check it and try again.",
       "otpExpired": "The code has expired. Request a new one.",

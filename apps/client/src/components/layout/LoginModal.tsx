@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Logo } from './Logo';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import { AppleSignInButton } from './AppleSignInButton';
 import {
   useRequestOtpMutation,
   useVerifyOtpMutation,
@@ -244,6 +245,10 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
                 <span className="h-px flex-1 bg-border" />
               </div>
               <GoogleSignInButton onSuccess={() => onOpenChange(false)} />
+              <AppleSignInButton
+                label={t('continueWithApple')}
+                onSuccess={() => onOpenChange(false)}
+              />
             </>
           ) : (
             <>

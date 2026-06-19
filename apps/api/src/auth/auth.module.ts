@@ -7,6 +7,7 @@ import { TelegramModule } from '../telegram';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { GoogleAuthService } from './google-auth.service';
+import { AppleAuthService } from './apple-auth.service';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 import { OtpService } from './otp.service';
 import { TokenService } from './token.service';
@@ -38,6 +39,7 @@ import { TokenService } from './token.service';
     AuthService,
     TokenService,
     GoogleAuthService,
+    AppleAuthService,
   ],
   exports: [OtpService, TokenService],
 })

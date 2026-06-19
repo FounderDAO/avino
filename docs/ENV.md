@@ -192,7 +192,17 @@ schedule lives here; the rate source is the Central Bank of Uzbekistan (no key).
   Google недоступен (503), остальной auth-флоу не затронут.
 ```
 
-### 11.2 Telegram admin alerts (TASK-195)
+### 11.2 Apple sign-in (ADR-0097)
+
+| Variable                        | Req? | Secret | Client | Example          | Description                                                                                                     |
+|---------------------------------|------|--------|--------|------------------|-----------------------------------------------------------------------------------------------------------------|
+| APPLE_CLIENT_ID                 | no   | no     | no     | (set)            | CSV Service ID(s) Apple — audience (`aud`) для верификации ID-token. Empty → /auth/apple returns 503 AUTH_PROVIDER_UNAVAILABLE |
+| NEXT_PUBLIC_APPLE_CLIENT_ID     | no   | no     | yes    | (same as above)  | Service ID, отдаётся в браузер для Sign in with Apple JS. Пусто → кнопка Apple скрыта                         |
+| NEXT_PUBLIC_APPLE_REDIRECT_URI  | no   | no     | yes    | https://avino.uz | HTTPS-origin портала, зарегистрированный в Service ID (return URL)                                             |
+
+Как получить Service ID и куда положить значения — см. `docs/ICLOUD_SETUP.md`.
+
+### 11.3 Telegram admin alerts (TASK-195)
 
 | Variable                   | Req? | Secret | Client | Example       | Description                                                              |
 |----------------------------|------|--------|--------|---------------|--------------------------------------------------------------------------|
