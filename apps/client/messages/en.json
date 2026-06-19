@@ -31,7 +31,10 @@
     "postListingFull": "Post a listing",
     "menu": "Menu",
     "close": "Close",
-    "logoAria": "Avino — home"
+    "logoAria": "Avino — home",
+    "currencyUZS": "UZS",
+    "currencyUSD": "$",
+    "currencyLabel": "Currency"
   },
   "footer": {
     "aboutCompany": "Company",

@@ -31,7 +31,10 @@
     "postListingFull": "Разместить объявление",
     "menu": "Меню",
     "close": "Закрыть",
-    "logoAria": "Avino — на главную"
+    "logoAria": "Avino — на главную",
+    "currencyUZS": "сум",
+    "currencyUSD": "$",
+    "currencyLabel": "Валюта"
   },
   "footer": {
     "aboutCompany": "О компании",

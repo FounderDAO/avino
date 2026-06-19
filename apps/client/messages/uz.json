@@ -31,7 +31,10 @@
     "postListingFull": "E'lon joylashtirish",
     "menu": "Menyu",
     "close": "Yopish",
-    "logoAria": "Avino — bosh sahifaga"
+    "logoAria": "Avino — bosh sahifaga",
+    "currencyUZS": "so'm",
+    "currencyUSD": "$",
+    "currencyLabel": "Valyuta"
   },
   "footer": {
     "aboutCompany": "Kompaniya haqida",
