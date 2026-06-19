@@ -200,6 +200,8 @@ schedule lives here; the rate source is the Central Bank of Uzbekistan (no key).
 | NEXT_PUBLIC_APPLE_CLIENT_ID     | no   | no     | yes    | (same as above)  | Service ID, отдаётся в браузер для Sign in with Apple JS. Пусто → кнопка Apple скрыта                         |
 | NEXT_PUBLIC_APPLE_REDIRECT_URI  | no   | no     | yes    | https://avino.uz | HTTPS-origin портала, зарегистрированный в Service ID (return URL)                                             |
 
+Как получить Service ID и куда положить значения — см. `docs/ICLOUD_SETUP.md`.
+
 ### 11.3 Telegram admin alerts (TASK-195)
 
 | Variable                   | Req? | Secret | Client | Example       | Description                                                              |

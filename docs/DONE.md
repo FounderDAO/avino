@@ -43,14 +43,14 @@ Related ADR:
 
 Status: DONE
 Branch: feat/apple-sign-in
-PR: pending
+PR: #199 (https://github.com/FounderDAO/avino/pull/199)
 
 Files changed:
 - apps/api/src/auth/apple-auth.service.ts (+ spec), dto/apple-login.dto.ts
 - apps/api/src/auth/auth.controller.ts (POST /auth/apple), auth.module.ts (AppleAuthService)
 - apps/api/src/config (appleConfig, APPLE_CLIENT_ID), telegram/auth-alert.util.ts (provider APPLE)
 - apps/client/src/components/layout/AppleSignInButton.tsx, src/store/api/authApi.ts (appleLogin), src/components/layout/LoginModal.tsx, messages/*
-- docs/API.md, docs/ENV.md, docs/adr/ADR-0097-sign-in-with-apple.md
+- docs/API.md, docs/ENV.md, docs/ICLOUD_SETUP.md, docs/adr/ADR-0097-sign-in-with-apple.md
 - apps/api/src/common/openapi/swagger.documents.ts, apps/api/openapi.public.json, apps/api/openapi.internal.json
 
 Summary:
