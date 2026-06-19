@@ -471,6 +471,13 @@
       "loginRequired": "E'lonni chop etish uchun tizimga kiring.",
       "guestHint": "E'lonni chop etish uchun hisobingizga kiring (kirish tugmasi — sahifa yuqorisida)."
     },
+    "auth": {
+      "title": "E'lon joylash uchun tizimga kiring",
+      "text": "E'lon joylash faqat ro'yxatdan o'tgan foydalanuvchilar uchun mavjud. Tizimga kiring yoki ro'yxatdan o'ting — bu bir daqiqadan kam vaqt oladi.",
+      "context": "E'lon joylash uchun tizimga kiring",
+      "login": "Kirish",
+      "home": "Bosh sahifa"
+    },
     "success": {
       "title": "E'lon moderatsiyaga\nyuborildi",
       "status": "Holat: NEW · Tekshiruvda",

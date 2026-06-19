@@ -2,10 +2,17 @@
  * Lightbox — полноэкранный просмотр фото с навигацией.
  * Управляется индексом; стрелки/клавиатура листают, клик по фону закрывает.
  * TASK-198: добавлен touch-свайп (touchstart/touchend, порог 40px → prev/next).
+ *
+ * Рендерится через portal в document.body: на странице detail обёртка имеет
+ * класс `.fade-up` (animation с transform + fill-mode both), который создаёт
+ * containing block для position:fixed. Без портала `fixed inset-0` растягивался
+ * бы на всю высоту страницы (≈1600px), а не на вьюпорт — модалка «слишком
+ * длинная» и не центрирована. Портал выносит оверлей из-под трансформа.
  */
 'use client';
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { PhotoImg } from './photo-img';
@@ -46,6 +53,15 @@ export function Lightbox({ photos, index, onIndexChange, onClose, alt }: Lightbo
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, prev, next]);
 
+  // ── Блокировка прокрутки фона, пока лайтбокс открыт ───────────────────────
+  React.useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   // ── Touch-свайп ───────────────────────────────────────────────────────────
   const touchStartX = React.useRef<number | null>(null);
 
@@ -67,8 +83,11 @@ export function Lightbox({ photos, index, onIndexChange, onClose, alt }: Lightbo
   );
 
   if (!photos[index]) return null;
+  // SSR-guard: портал требует document. Лайтбокс открывается только на клиенте,
+  // но проверка делает компонент безопасным при любом серверном проходе.
+  if (typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
       onTouchStart={handleTouchStart}
@@ -103,7 +122,11 @@ export function Lightbox({ photos, index, onIndexChange, onClose, alt }: Lightbo
       <PhotoImg
         src={photos[index].url}
         alt={alt}
-        className="max-h-[88vh] max-w-[92vw] rounded-card object-contain"
+        // min-* — пол размера, чтобы битое/отсутствующее фото показывалось
+        // осмысленной брендовой карточкой, а не крошечным глифом. Для реальных
+        // фото пол ниже типичного fit-размера и не влияет (прозрачные поля над
+        // чёрным оверлеем не видны).
+        className="max-h-[88vh] min-h-[280px] w-auto min-w-[280px] max-w-[92vw] rounded-card object-contain"
         onClick={(e) => e.stopPropagation()}
       />
 
@@ -124,6 +147,7 @@ export function Lightbox({ photos, index, onIndexChange, onClose, alt }: Lightbo
       <div className="absolute bottom-5 text-sm font-semibold text-white/80">
         {index + 1} / {total}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

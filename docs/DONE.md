@@ -39,6 +39,34 @@ Related ADR:
 
 ## 2026-06-19
 
+### `/sell/new` auth-gate + lightbox portal fix (ADR-0094, ADR-0095)
+
+Status: DONE
+Branch: fix/client-sellnew-gate-lightbox-portal
+PR: #195
+
+Files changed:
+- apps/client: `src/features/listing-new/ListingNew.tsx` (гейт авторизации: ранний return + авто-открытие `LoginModal` через effect), `messages/{ru,uz,en}.json` (блок `listingNew.auth`)
+- apps/client: `src/components/ui/lightbox.tsx` (`createPortal` в `body` + scroll-lock + SSR-guard + `min-280` на медиа)
+- docs/adr/ADR-0094-sell-new-auth-gate.md, docs/adr/ADR-0095-lightbox-portal-to-body.md
+
+Summary:
+- **`/sell/new` гейт (ADR-0094):** визард «Разместить объявление» теперь доступен только вошедшим. Гость при открытии страницы сразу видит экран-заглушку + автоматически открытую `LoginModal` (вместо того чтобы пройти 8 шагов и упереться в `loginRequired` на финале). Авто-открытие — через `useEffect` (нет SSR/гидрационного мелькания у залогиненных); исход «закрыл vs вошёл» зависит только от `isAuthenticated` (race-free). Переиспользует существующий `LoginModal` и паттерн гейтинга `MyListings`/`ListingEdit`.
+- **Лайтбокс фикс (ADR-0095):** модалка просмотра фото на `/listing/:id` была «слишком длинной» — `fixed inset-0` растягивался на всю высоту страницы (~1600px), а не на вьюпорт, т.к. глобальный `.fade-up` (animation + transform + fill-mode both) создаёт containing block для `position:fixed`. Фикс = `createPortal(jsx, document.body)` (выносит оверлей из-под трансформа) + блокировка скролла фона + `min-280` на медиа (битое R2-фото → брендовая карточка, не глиф). Правило: любой fullscreen fixed-оверлей в client порталить в body (как Radix `Dialog.Portal`).
+
+Commit messages:
+- feat(client): gate /sell/new behind login modal for guests
+- fix(client): portal photo lightbox to body so overlay fits viewport
+- docs(adr): ADR-0094 sell/new auth-gate + ADR-0095 lightbox portal + DONE
+
+Verification:
+- tsc 0, next lint чисто, client vitest 138/138 зелёные.
+- Контейнер `avino-client` пересобран; live headless-Chrome: гейт `/sell/new` (визард скрыт у гостя во всех локалях), лайтбокс rect 1602×1280 → 900×1440 (= вьюпорт), фон/стрелки/счётчик центрированы.
+
+Related ADR:
+- docs/adr/ADR-0094-sell-new-auth-gate.md
+- docs/adr/ADR-0095-lightbox-portal-to-body.md
+
 ### Daily USD/UZS exchange rate + currency display toggle (ADR-0093)
 
 Status: DONE

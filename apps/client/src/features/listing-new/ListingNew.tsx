@@ -9,7 +9,7 @@
  */
 'use client';
 
-import { useReducer, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
@@ -25,6 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Home as HomeIcon,
+  Lock,
   Store,
   Trees,
 } from 'lucide-react';
@@ -42,6 +43,7 @@ import {
   type PropertyType,
   type TransactionType,
 } from '@/lib/mock';
+import { LoginModal } from '@/components/layout/LoginModal';
 import { Progress } from './Progress';
 import { type Coords } from './PickMap';
 import { AddressStep } from './AddressStep';
@@ -169,6 +171,14 @@ export function ListingNew() {
   const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
 
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  // Гейт авторизации: /sell/new доступна только вошедшим. Гостю сразу открываем
+  // модалку входа — но через эффект (после монтирования), чтобы не было SSR/
+  // гидрационного мелькания модалки у уже залогиненных пользователей.
+  const [loginOpen, setLoginOpen] = useState(false);
+  useEffect(() => {
+    if (!isAuthenticated) setLoginOpen(true);
+  }, [isAuthenticated]);
+
   const [createListing, { isLoading: creating, error: createError }] =
     useCreateListingMutation();
   const [uploadMedia, { isLoading: uploading }] = useUploadListingMediaMutation();
@@ -275,6 +285,38 @@ export function ListingNew() {
         return true;
     }
   };
+
+  // ---- Гейт авторизации (только для гостей) ----
+  // Размещение объявления требует входа: показываем экран-заглушку и модалку
+  // входа. После успешного входа isAuthenticated → true и рендерится визард.
+  if (!isAuthenticated) {
+    return (
+      <>
+        <div className="fade-up mx-auto max-w-[620px] px-6 py-16 text-center">
+          <div className="mx-auto mb-5 flex h-21 w-21 items-center justify-center rounded-full bg-mint text-teal-deep">
+            <Lock size={38} strokeWidth={2.2} />
+          </div>
+          <h1 className="text-[30px]">{t('auth.title')}</h1>
+          <p className="mx-auto mb-7 mt-3 max-w-[460px] text-base text-muted-foreground">
+            {t('auth.text')}
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button size="lg" onClick={() => setLoginOpen(true)}>
+              {t('auth.login')}
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href="/">{t('auth.home')}</Link>
+            </Button>
+          </div>
+        </div>
+        <LoginModal
+          open={loginOpen}
+          onOpenChange={setLoginOpen}
+          context={t('auth.context')}
+        />
+      </>
+    );
+  }
 
   // ---- Экран успеха ----
   if (done) {

@@ -471,6 +471,13 @@
       "loginRequired": "Sign in to publish your listing.",
       "guestHint": "To publish a listing, sign in to your account (the sign-in button is in the header)."
     },
+    "auth": {
+      "title": "Sign in to post a listing",
+      "text": "Posting a listing is available to signed-in users only. Sign in or create an account — it takes less than a minute.",
+      "context": "Sign in to post a listing",
+      "login": "Sign in",
+      "home": "Go home"
+    },
     "success": {
       "title": "Your listing has been\nsent for moderation",
       "status": "Status: NEW · Under review",
