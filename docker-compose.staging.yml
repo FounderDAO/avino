@@ -1,0 +1,31 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Avino — staging overlay поверх docker-compose.prod.yml (тестовый стенд).
+#
+# Назначение: тест-стенд «как прод» — реальные домены, авто-TLS (Caddy), закрытый
+# периметр (наружу только Caddy) и прод-сборка фронтов, — НО без настроенного
+# SMTP. Поэтому сервис `api` возвращается в NODE_ENV=development: тогда код
+# EMAIL-OTP пишется в лог (apps/api/src/email/email-sender.service.ts —
+# `env !== 'production'` → `[DEV EMAIL → …]`), и войти можно, читая код из
+# `… logs api | grep "DEV EMAIL"`, без почтового провайдера.
+#
+# В чистом production без SMTP письмо НЕ отправляется и НЕ логируется → войти
+# нельзя. Этот overlay снимает именно эту проблему для тест-стенда.
+#
+# Запуск (поверх base + prod):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#                  -f docker-compose.staging.yml --profile app up -d --build
+#
+# Merge-семантика Compose: карты `environment` объединяются по ключам, поэтому
+# CORS_ORIGINS (https-домены) и прочее наследуются из prod-overlay — здесь мы
+# переопределяем ТОЛЬКО NODE_ENV у `api`.
+#
+# Когда подключите реальный SMTP (docs/GUIDE_YANDEX_SMTP_SETUP.md) — overlay
+# больше не нужен: разворачивайте чистый прод (без `-f docker-compose.staging.yml`).
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  api:
+    environment:
+      # Только для тест-стенда: вернуть dev-режим, чтобы EMAIL-OTP попадал в лог
+      # (вход без SMTP). Фронты (web/client) остаются прод-сборкой из prod-overlay.
+      NODE_ENV: development
