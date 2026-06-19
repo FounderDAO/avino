@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ExchangeRateController } from './exchange-rate.controller';
 import { ExchangeRateService } from './exchange-rate.service';
 import { ExchangeRateWorker } from './exchange-rate.worker';
 
@@ -10,6 +11,7 @@ import { ExchangeRateWorker } from './exchange-rate.worker';
  * очереди BullMQ. `ExchangeRateQueue` (продюсер) живёт в QueuesModule (Global).
  */
 @Module({
+  controllers: [ExchangeRateController],
   providers: [ExchangeRateService, ExchangeRateWorker],
   exports: [ExchangeRateService],
 })
