@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   Currency,
   Language,
@@ -22,6 +22,7 @@ import {
   PolygonVertex,
   RadiusSearchQueryDto,
 } from './dto/geo-search.dto';
+import { polygonVerticesFromFilters } from './dto/polygon-ring.util';
 import { SearchListingsQueryDto, SortMode } from './dto/search-listings.dto';
 
 /** Дефолт/максимум размера страницы (API.md §4: default 20, max 100). */
@@ -230,6 +231,8 @@ type SearchRow = Prisma.ListingGetPayload<{ select: typeof SEARCH_SELECT }>;
  */
 @Injectable()
 export class SearchService {
+  private readonly logger = new Logger(SearchService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly translations: TranslationsService,
@@ -672,6 +675,22 @@ export class SearchService {
     const filterSql = this.buildWhereSql(
       filters as unknown as SearchListingsQueryDto,
     );
+
+    // Территория (saved-search-polygon): валидное кольцо → ST_Within; битое кольцо
+    // → пропуск прогона (НЕ алерты по всему городу); нет territory → без гео.
+    const ring = polygonVerticesFromFilters(filters);
+    if (ring === null) {
+      this.logger.warn(
+        'matchNewlyActiveListings: stored polygon invalid; skipping run',
+      );
+      return [];
+    }
+    let polygonSql = Prisma.empty;
+    if (ring) {
+      const poly = this.polygonSql(ring);
+      polygonSql = Prisma.sql`AND location IS NOT NULL AND location && ${poly}::geography AND ST_Within(location::geometry, ${poly})`;
+    }
+
     const rows = await this.prisma.$queryRaw<
       { id: string; published_at: Date }[]
     >(Prisma.sql`
@@ -680,6 +699,7 @@ export class SearchService {
       WHERE ${filterSql}
         AND published_at > ${publishedAfter}
         AND published_at <= ${publishedUntil}
+        ${polygonSql}
       ORDER BY published_at ASC, id ASC
       LIMIT ${limit}
     `);
