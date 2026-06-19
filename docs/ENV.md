@@ -84,6 +84,21 @@ Notes:
 
 `*` Secret if the managed Redis requires a password (`redis://:pass@host:port`).
 
+### 6.1 Exchange rate (cbu.uz daily cron)
+
+Daily USD→UZS refresh is a BullMQ repeatable job (`refresh_exchange_rate`) — its
+schedule lives here; the rate source is the Central Bank of Uzbekistan (no key).
+
+| Variable           | Req? | Secret | Client | Example         | Description                                                           |
+|--------------------|------|--------|--------|-----------------|----------------------------------------------------------------------|
+| EXCHANGE_RATE_CRON | no   | no     | no     | 0 6 * * *       | Cron for the daily rate refresh. Default `0 6 * * *` (06:00).         |
+| EXCHANGE_RATE_TZ   | no   | no     | no     | Asia/Tashkent   | Timezone for the refresh cron. Default `Asia/Tashkent`.              |
+| CBU_BASE_URL       | no   | no     | no     | https://cbu.uz  | CBU base URL (USD rate source, no API key). Default `https://cbu.uz`. |
+
+- All three have defaults — the feature boots and refreshes without any env set.
+  On fetch failure the last rate is kept (no row written); on cold start with an
+  empty table the worker fetches once. See `API.md` §19.
+
 ## 7. JWT / Auth
 
 > Required by `ARCHITECTURE.md` §6/§23 and `API.md` §3, but NOT yet present in

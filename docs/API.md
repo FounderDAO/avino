@@ -1215,3 +1215,41 @@ Backend client-neutral — один контракт для web (RTK Query) и F
   выпуска клиентов.
 - **Единые envelope/ошибки/пагинация** — §4 — одинаковы для всех клиентов.
 - Полный мобильный гайд ведётся в `docs/MOBILE_API_GUIDE.md`.
+
+---
+
+## 19. Exchange rate (USD→UZS)
+
+Курс ЦБ РУз (`cbu.uz`), обновляется ежедневно repeatable-джобой
+`refresh_exchange_rate` (дефолт `0 6 * * *`, TZ `Asia/Tashkent`; env — `ENV.md`
+§6.1). «Текущий курс» = последняя строка `exchange_rates` (история + ручной
+оверрайд `source=MANUAL`). При сбое запроса к ЦБ последний курс сохраняется (новая
+строка не пишется). **Только отображение**: нативная валюта листинга не меняется,
+backend search не конвертирует цены (кросс-валютный фильтр — Phase 2). Клиент сам
+переводит цены в выбранную валюту по этому курсу.
+
+`ExchangeRateView` (везде ниже):
+```json
+{ "base": "USD", "quote": "UZS", "rate": "12650.180000", "fetched_at": "2026-06-19T06:00:00.000Z", "source": "CBU" }
+```
+`source`: `CBU` (из ЦБ) | `MANUAL` (ручной оверрайд админа).
+
+### GET /api/v1/exchange-rate
+Текущий курс USD→UZS. Auth: **public** (кэшируемый). `404` если курса ещё нет.
+200 → `ExchangeRateView`.
+
+### GET /api/v1/admin/exchange-rate
+Текущий курс + недавняя история. Auth: **ADMIN**.
+200:
+```json
+{ "current": { "base": "USD", "quote": "UZS", "rate": "12650.180000", "fetched_at": "2026-06-19T06:00:00.000Z", "source": "CBU" }, "history": [ /* …последние строки ExchangeRateView */ ] }
+```
+
+### PUT /api/v1/admin/exchange-rate
+Ручной оверрайд курса. Auth: **ADMIN**. Вставляет строку `source=MANUAL` (становится
+текущей) и пишет `audit_logs` (`action=EXCHANGE_RATE_MANUAL_SET`). Следующий
+успешный прогон ЦБ заместит ручное значение.
+Body: `{ "rate": "12700" }` — decimal до 6 знаков дроби. 200 → новый `ExchangeRateView`.
+
+### POST /api/v1/admin/exchange-rate/refresh
+Немедленный прогон обновления из ЦБ. Auth: **ADMIN**. 200 → текущий `ExchangeRateView`.
