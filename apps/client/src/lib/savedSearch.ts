@@ -69,6 +69,8 @@ export function describeFilters(filters: SavedSearchFilters, t: T): string {
   const q = asString(filters.q);
   if (q) parts.push(`«${q}»`);
 
+  if (asString(filters.points)) parts.push(t('savedSearch.territory'));
+
   return parts.join(' · ');
 }
 
@@ -92,6 +94,8 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   set('rooms', asString(filters.rooms));
   set('query', asString(filters.q));
 
+  // `points` (нарисованная территория) намеренно НЕ мапим в URL: по клику территорию
+  // заново не рисуем (MVP) — выдача перезапускается по скалярам (решение 2026-06-19).
   const qs = params.toString();
   return qs ? `/search?${qs}` : '/search';
 }

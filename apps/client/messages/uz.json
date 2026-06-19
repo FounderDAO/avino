@@ -778,7 +778,8 @@
     "txRent": "Ijara",
     "upTo": "{value} gacha",
     "from": "{value} dan",
-    "rooms": "{count} xona"
+    "rooms": "{count} xona",
+    "territory": "hudud"
   },
   "units": {
     "approx": "≈",
