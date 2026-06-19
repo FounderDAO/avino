@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/currency-display-exchange-rate
-PR: pending
+PR: #194
 
 Files changed:
 - apps/api: `prisma/schema.prisma` (модель `ExchangeRate` + enum `ExchangeRateSource`) + миграция `20260619000000_exchange_rate` + сид; `src/exchange-rates/*` (cbu.provider, service, queue, worker, module, public + admin controllers, set-exchange-rate.dto); `src/config/configuration.ts`, `src/queues/queue.constants.ts`, `src/queues/queues.module.ts`, `src/app.module.ts`; `docs/API.md` §19, `docs/ENV.md` §6.1
