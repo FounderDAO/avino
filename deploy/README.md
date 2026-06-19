@@ -96,6 +96,44 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app do
   (`deploy.sh` делает её сам).
 - **CORS** настроен на реальные домены админки и портала.
 
+## Тестовый стенд (staging)
+
+Тест-стенд = «как прод» (реальные домены + авто-TLS + закрытый периметр +
+прод-сборка фронтов), но **без настроенного SMTP**. Чтобы войти по EMAIL-OTP без
+почтового провайдера, дополнительный overlay `../docker-compose.staging.yml`
+возвращает сервис `api` в `NODE_ENV=development` — тогда код OTP пишется в лог
+(в чистом production без SMTP письмо не отправляется и не логируется → войти
+нельзя).
+
+```bash
+# .env: те же DOMAIN_* / ACME_EMAIL / POSTGRES_PASSWORD / JWT_*, что и для прод.
+# DNS A-записи тест-доменов должны указывать на IP стенда ДО первого запуска.
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+               -f docker-compose.staging.yml --profile app up -d --build
+
+# войти: открыть https://$DOMAIN_CLIENT, ввести email, забрать код из лога api:
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+               -f docker-compose.staging.yml --profile app logs api | grep "DEV EMAIL"
+```
+
+Когда подключите реальный SMTP (`docs/GUIDE_YANDEX_SMTP_SETUP.md`) — overlay
+больше не нужен: разворачивайте чистый прод (без `-f docker-compose.staging.yml`).
+
+### Seed-данные на стенде
+
+- **Справочники — автоматически** (`migrate` → `prisma db seed`): роли, тарифы
+  TOP/VIP, курс USD→UZS, app-settings. Нужны приложению при любом окружении.
+- **Локальный ADMIN — автоматически на staging.** `seed-admin.cjs` пропускается
+  при `NODE_ENV=production`, поэтому staging-overlay держит `migrate` в `dev` —
+  тогда создаётся `admin@avino.uz` с ролью ADMIN (вход через dev-OTP из лога).
+- **Демо-контент — вручную** (не для прод, идемпотентно по фикс. UUID). После
+  поднятия стека:
+  ```bash
+  dc='docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.staging.yml --profile app'
+  $dc exec api node prisma/seed-demo.cjs   # объявления NEW/ACTIVE/DRAFT, районы, фото (picsum), жалобы
+  $dc exec api node prisma/seed-chat.cjs   # треды и сообщения чата
+  ```
+
 ## Бэкапы
 
 Дампы делает `deploy/backup.sh`: `pg_dump -Fc` (сжатый custom-формат) из
