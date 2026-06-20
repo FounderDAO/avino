@@ -506,6 +506,39 @@ describe('ListingsService', () => {
     });
   });
 
+  describe('tours', () => {
+    it('create сохраняет tours_enabled + tour_windows', async () => {
+      // $transaction уже замокан в beforeEach (cb(prisma))
+      prisma.userRole.count.mockResolvedValue(1);
+      prisma.listing.create.mockResolvedValue({
+        id: 'L1', status: ListingStatus.NEW, transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT, originalLanguage: Language.RU,
+        price: new Prisma.Decimal('100.00'), currency: Currency.UZS,
+        createdAt: new Date(),
+      });
+      await service.create('U1', {
+        transaction_type: TransactionType.SALE, property_type: PropertyType.APARTMENT,
+        original_language: Language.RU, price: '100.00', currency: Currency.UZS,
+        tours_enabled: true, tour_windows: [{ start: '07:00', end: '10:00' }],
+        translation: { title: 'T' },
+      } as any);
+      const arg = prisma.listing.create.mock.calls[0][0];
+      expect(arg.data.toursEnabled).toBe(true);
+      expect(arg.data.tourWindows).toEqual([{ start: '07:00', end: '10:00' }]);
+    });
+
+    it('create с tours_enabled и без окон → 422', async () => {
+      await expect(
+        service.create('U1', {
+          transaction_type: TransactionType.SALE, property_type: PropertyType.APARTMENT,
+          original_language: Language.RU, price: '100.00', currency: Currency.UZS,
+          tours_enabled: true, tour_windows: [],
+          translation: { title: 'T' },
+        } as any),
+      ).rejects.toMatchObject({ status: 422 });
+    });
+  });
+
   describe('findMine', () => {
     const listRow = {
       id: LISTING_ID,
