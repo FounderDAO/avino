@@ -1,0 +1,131 @@
+import { Test } from '@nestjs/testing';
+import { TourRequestsService } from './tour-requests.service';
+import { PrismaService } from '../prisma';
+import { NotificationsService } from '../notifications/notifications.service';
+import { TourRequestAction } from './dto/tour-request-status.dto';
+
+const future = (days: number): string => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+const ACTIVE_LISTING = {
+  id: 'L1', ownerId: 'OWNER1', status: 'ACTIVE', toursEnabled: true,
+  tourWindows: [{ start: '07:00', end: '10:00' }],
+};
+
+describe('TourRequestsService', () => {
+  let service: TourRequestsService;
+  let prisma: any;
+  let notifications: any;
+
+  beforeEach(async () => {
+    prisma = {
+      listing: { findFirst: jest.fn() },
+      tourRequest: { findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+      $transaction: jest.fn().mockImplementation(async (cb: any) => cb(prisma)),
+    };
+    notifications = { queueTourRequest: jest.fn(), queueTourStatusChanged: jest.fn() };
+    const mod = await Test.createTestingModule({
+      providers: [
+        TourRequestsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: NotificationsService, useValue: notifications },
+      ],
+    }).compile();
+    service = mod.get(TourRequestsService);
+  });
+
+  const validDto = () => ({
+    listing_id: 'L1', requested_date: future(2), window_start: '07:00', window_end: '10:00',
+    requester_name: 'Tap Links', requester_phone: '+998901112233', message: 'hi',
+  });
+
+  it('создаёт заявку и ставит NEW_LEAD владельцу', async () => {
+    prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
+    prisma.tourRequest.findFirst.mockResolvedValue(null);
+    prisma.tourRequest.create.mockResolvedValue({
+      id: 'TR1', listingId: 'L1', requesterId: 'U2', status: 'PENDING',
+      requestedDate: new Date(`${validDto().requested_date}T00:00:00.000Z`),
+      windowStart: '07:00', windowEnd: '10:00', requesterName: 'Tap Links',
+      requesterPhone: '+998901112233', message: 'hi', createdAt: new Date(),
+    });
+    const res = await service.create('U2', validDto() as any);
+    expect(res.status).toBe('PENDING');
+    expect(notifications.queueTourRequest).toHaveBeenCalledWith(prisma, 'OWNER1', expect.objectContaining({ tourRequestId: 'TR1' }));
+  });
+
+  it('409 если tours выключены', async () => {
+    prisma.listing.findFirst.mockResolvedValue({ ...ACTIVE_LISTING, toursEnabled: false });
+    await expect(service.create('U2', validDto() as any)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('409 если объявление не ACTIVE', async () => {
+    prisma.listing.findFirst.mockResolvedValue({ ...ACTIVE_LISTING, status: 'NEW' });
+    await expect(service.create('U2', validDto() as any)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('422 если окно не предложено', async () => {
+    prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
+    await expect(service.create('U2', { ...validDto(), window_start: '12:00', window_end: '15:00' } as any))
+      .rejects.toMatchObject({ status: 422 });
+  });
+
+  it('422 если дата в прошлом', async () => {
+    prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
+    await expect(service.create('U2', { ...validDto(), requested_date: future(-1) } as any))
+      .rejects.toMatchObject({ status: 422 });
+  });
+
+  it('422 если дата дальше 30 дней', async () => {
+    prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
+    await expect(service.create('U2', { ...validDto(), requested_date: future(40) } as any))
+      .rejects.toMatchObject({ status: 422 });
+  });
+
+  it('403 если владелец просит тур у себя', async () => {
+    prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
+    await expect(service.create('OWNER1', validDto() as any)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('409 при дубле PENDING', async () => {
+    prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
+    prisma.tourRequest.findFirst.mockResolvedValue({ id: 'DUP' });
+    await expect(service.create('U2', validDto() as any)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('владелец подтверждает PENDING → CONFIRMED + уведомление покупателю', async () => {
+    prisma.tourRequest.findUnique.mockResolvedValue({ id: 'TR1', requesterId: 'U2', status: 'PENDING', listing: { ownerId: 'OWNER1' } });
+    prisma.tourRequest.update.mockResolvedValue({
+      id: 'TR1', listingId: 'L1', requesterId: 'U2', status: 'CONFIRMED',
+      requestedDate: new Date('2026-06-25T00:00:00.000Z'), windowStart: '07:00', windowEnd: '10:00',
+      requesterName: 'Tap Links', requesterPhone: '+998901112233', message: null, createdAt: new Date(),
+    });
+    const res = await service.setStatus('OWNER1', 'TR1', TourRequestAction.CONFIRM);
+    expect(res.status).toBe('CONFIRMED');
+    expect(notifications.queueTourStatusChanged).toHaveBeenCalledWith(prisma, 'U2', expect.objectContaining({ status: 'CONFIRMED' }));
+  });
+
+  it('403 если не-владелец пытается подтвердить', async () => {
+    prisma.tourRequest.findUnique.mockResolvedValue({ id: 'TR1', requesterId: 'U2', status: 'PENDING', listing: { ownerId: 'OWNER1' } });
+    await expect(service.setStatus('U2', 'TR1', TourRequestAction.CONFIRM)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('422 при недопустимом переходе (confirm уже DECLINED)', async () => {
+    prisma.tourRequest.findUnique.mockResolvedValue({ id: 'TR1', requesterId: 'U2', status: 'DECLINED', listing: { ownerId: 'OWNER1' } });
+    await expect(service.setStatus('OWNER1', 'TR1', TourRequestAction.CONFIRM)).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('покупатель отменяет CONFIRMED → CANCELLED + уведомление владельцу', async () => {
+    prisma.tourRequest.findUnique.mockResolvedValue({ id: 'TR1', requesterId: 'U2', status: 'CONFIRMED', listing: { ownerId: 'OWNER1' } });
+    prisma.tourRequest.update.mockResolvedValue({
+      id: 'TR1', listingId: 'L1', requesterId: 'U2', status: 'CANCELLED',
+      requestedDate: new Date('2026-06-25T00:00:00.000Z'), windowStart: '07:00', windowEnd: '10:00',
+      requesterName: 'Tap Links', requesterPhone: '+998901112233', message: null, createdAt: new Date(),
+    });
+    const res = await service.setStatus('U2', 'TR1', TourRequestAction.CANCEL);
+    expect(res.status).toBe('CANCELLED');
+    expect(notifications.queueTourStatusChanged).toHaveBeenCalledWith(prisma, 'OWNER1', expect.objectContaining({ status: 'CANCELLED' }));
+  });
+});
