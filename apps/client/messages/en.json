@@ -315,8 +315,28 @@
       "showPhone": "Show phone",
       "message": "Send message",
       "share": "Share",
-      "loginToMessage": "Sign in to message the seller"
+      "loginToMessage": "Sign in to message the seller",
+      "requestTour": "Request a tour",
+      "loginToTour": "Sign in to request a tour"
     }
+  },
+  "tourRequest": {
+    "title": "Request a tour",
+    "name": "First & last name",
+    "email": "Email (from account)",
+    "phone": "Phone",
+    "date": "Date",
+    "window": "Time",
+    "message": "Message",
+    "messageDefault": "I would like to schedule a tour.",
+    "submit": "Send tour request",
+    "terms": "By sending this request, you agree to our Terms.",
+    "success": "Request sent",
+    "error": "Failed to send request",
+    "windowRequired": "Select a time",
+    "phoneRequired": "Enter a phone number",
+    "dateRequired": "Select a date",
+    "close": "Close"
   },
   "sell": {
     "meta": {
@@ -598,6 +618,16 @@
     "error": {
       "required": "Fill in the required fields: title, address, area, price and at least one photo.",
       "saveFailed": "Couldn't save changes. Please try again."
+    },
+    "tours": {
+      "title": "Tours (viewings)",
+      "enable": "Accept tour requests",
+      "hint": "Pick the times when visitors can come and view",
+      "addWindow": "Add window",
+      "from": "from",
+      "to": "to",
+      "remove": "Remove",
+      "needWindow": "Add at least one time window"
     }
   },
   "account": {
@@ -608,7 +638,8 @@
       "inbox": "Messages",
       "notifications": "Notifications",
       "profile": "Profile",
-      "settings": "Settings"
+      "settings": "Settings",
+      "tours": "My tours"
     },
     "userCard": {
       "guest": "Guest"
@@ -783,6 +814,22 @@
           "title": "Promotions and offers",
           "text": "TOP/VIP discounts and Avino news."
         }
+      }
+    },
+    "tours": {
+      "outgoing": "My requests",
+      "incoming": "Requests to me",
+      "empty": "No tour requests yet",
+      "guest": "Sign in to see tour requests",
+      "on": "on",
+      "confirm": "Confirm",
+      "decline": "Decline",
+      "cancel": "Cancel",
+      "status": {
+        "PENDING": "Pending",
+        "CONFIRMED": "Confirmed",
+        "DECLINED": "Declined",
+        "CANCELLED": "Cancelled"
       }
     }
   },

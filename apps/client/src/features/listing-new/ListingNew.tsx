@@ -48,6 +48,8 @@ import { Progress } from './Progress';
 import { type Coords } from './PickMap';
 import { AddressStep } from './AddressStep';
 import { PhotoUploader, type UploadPhoto } from './PhotoUploader';
+import { ToursSection } from '@/features/listing-shared/ToursSection';
+import type { TourWindow } from '@/lib/mock/types';
 
 /** Шаги прогресс-бара (подписи — в словаре `listingNew.steps`). */
 const STEPS = [
@@ -87,6 +89,8 @@ interface FormState {
   desc: string;
   name: string;
   phone: string;
+  toursEnabled: boolean;
+  tourWindows: TourWindow[];
 }
 
 const INITIAL: FormState = {
@@ -107,6 +111,8 @@ const INITIAL: FormState = {
   desc: '',
   name: '',
   phone: '',
+  toursEnabled: false,
+  tourWindows: [],
 };
 
 /** Действие редьюсера: установить поле либо заменить целиком (для photos). */
@@ -230,6 +236,10 @@ export function ListingNew() {
     }
     // name/phone — контакт владельца, не часть create-тела.
     // TODO: опционально PATCH профиля contact_phone.
+    if (f.toursEnabled) {
+      body.tours_enabled = true;
+      body.tour_windows = f.tourWindows;
+    }
     return body;
   };
 
@@ -569,6 +579,11 @@ export function ListingNew() {
                 onChange={(e) => set('phone', e.target.value)}
               />
             </FormField>
+            <ToursSection
+              enabled={f.toursEnabled}
+              windows={f.tourWindows}
+              onChange={(v) => { set('toursEnabled', v.enabled); set('tourWindows', v.windows); }}
+            />
           </div>
         )}
 

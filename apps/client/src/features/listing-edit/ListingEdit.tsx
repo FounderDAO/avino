@@ -53,6 +53,8 @@ import {
   type EditListingMedia,
   type UpdateListingPatch,
 } from '@/store/api/listingEditApi';
+import { ToursSection } from '@/features/listing-shared/ToursSection';
+import type { TourWindow } from '@/lib/mock/types';
 
 const ROOM_OPTIONS = ['studio', '1', '2', '3', '4', '5+'] as const;
 
@@ -81,6 +83,8 @@ interface EditForm {
   lang: Lang;
   title: string;
   desc: string;
+  toursEnabled: boolean;
+  tourWindows: TourWindow[];
 }
 
 /** Decimal-строка с ≤2 дробными (под DECIMAL_2 бэкенда). */
@@ -111,6 +115,8 @@ function detailToForm(d: EditListingDetail): EditForm {
     lang: d.language,
     title: d.title ?? '',
     desc: d.description ?? '',
+    toursEnabled: d.tours_enabled ?? false,
+    tourWindows: d.tour_windows ?? [],
   };
 }
 
@@ -248,6 +254,8 @@ export function ListingEdit({ id }: { id: string }) {
       patch.latitude = String(f.coords[0]);
       patch.longitude = String(f.coords[1]);
     }
+    patch.tours_enabled = f.toursEnabled;
+    patch.tour_windows = f.tourWindows;
     return patch;
   };
 
@@ -488,6 +496,15 @@ export function ListingEdit({ id }: { id: string }) {
               onChange={(e) => set('desc', e.target.value)}
             />
           </FormField>
+        </Section>
+
+        {/* Туры (просмотры) */}
+        <Section title={t('tours.title')}>
+          <ToursSection
+            enabled={f.toursEnabled}
+            windows={f.tourWindows}
+            onChange={(v) => { set('toursEnabled', v.enabled); set('tourWindows', v.windows); }}
+          />
         </Section>
       </div>
 

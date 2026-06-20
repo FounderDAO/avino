@@ -49,6 +49,8 @@ export interface EditListingDetail {
   description: string | null;
   address_note: string | null;
   media: EditListingMedia[];
+  tours_enabled: boolean;
+  tour_windows: { start: string; end: string }[];
 }
 
 /** Тело PATCH /listings/:id (строго поля UpdateListingDto). */
@@ -70,6 +72,8 @@ export interface UpdateListingPatch {
     description?: string;
     address_note?: string;
   };
+  tours_enabled?: boolean;
+  tour_windows?: { start: string; end: string }[];
 }
 
 export const listingEditApi = baseApi.injectEndpoints({

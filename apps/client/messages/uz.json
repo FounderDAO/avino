@@ -315,8 +315,28 @@
       "showPhone": "Telefonni ko'rsatish",
       "message": "Yozish",
       "share": "Ulashish",
-      "loginToMessage": "Sotuvchiga yozish uchun tizimga kiring"
+      "loginToMessage": "Sotuvchiga yozish uchun tizimga kiring",
+      "requestTour": "Tur so'rash",
+      "loginToTour": "Tur so'rash uchun tizimga kiring"
     }
+  },
+  "tourRequest": {
+    "title": "Tur uchun ariza",
+    "name": "Ism va familiya",
+    "email": "Email (akkauntdan)",
+    "phone": "Telefon",
+    "date": "Sana",
+    "window": "Vaqt",
+    "message": "Xabar",
+    "messageDefault": "Turga yozilmoqchiman.",
+    "submit": "Ariza yuborish",
+    "terms": "Ariza yuborish bilan Shartlarga rozilik bildirasiz.",
+    "success": "Ariza yuborildi",
+    "error": "Arizani yuborib bo'lmadi",
+    "windowRequired": "Vaqtni tanlang",
+    "phoneRequired": "Telefonni kiriting",
+    "dateRequired": "Sanani tanlang",
+    "close": "Yopish"
   },
   "sell": {
     "meta": {
@@ -598,6 +618,16 @@
     "error": {
       "required": "Majburiy maydonlarni to'ldiring: sarlavha, manzil, maydon, narx va kamida bitta rasm.",
       "saveFailed": "O'zgarishlarni saqlab bo'lmadi. Yana urinib ko'ring."
+    },
+    "tours": {
+      "title": "Turlar (ko'riklar)",
+      "enable": "Tur arizalarini qabul qilish",
+      "hint": "Ko'rikka kelish mumkin bo'lgan vaqtni tanlang",
+      "addWindow": "Oyna qo'shish",
+      "from": "dan",
+      "to": "gacha",
+      "remove": "O'chirish",
+      "needWindow": "Kamida bitta vaqt oynasini qo'shing"
     }
   },
   "account": {
@@ -608,7 +638,8 @@
       "inbox": "Xabarlar",
       "notifications": "Bildirishnomalar",
       "profile": "Profil",
-      "settings": "Sozlamalar"
+      "settings": "Sozlamalar",
+      "tours": "Mening turlarim"
     },
     "userCard": {
       "guest": "Mehmon"
@@ -783,6 +814,22 @@
           "title": "Aksiyalar va ilgari surish",
           "text": "TOP/VIP chegirmalari va Avino yangiliklari."
         }
+      }
+    },
+    "tours": {
+      "outgoing": "Mening so'rovlarim",
+      "incoming": "Menga so'rovlar",
+      "empty": "Hozircha tur arizalari yo'q",
+      "guest": "Tur arizalarini ko'rish uchun tizimga kiring",
+      "on": "—",
+      "confirm": "Tasdiqlash",
+      "decline": "Rad etish",
+      "cancel": "Bekor qilish",
+      "status": {
+        "PENDING": "Kutilmoqda",
+        "CONFIRMED": "Tasdiqlangan",
+        "DECLINED": "Rad etilgan",
+        "CANCELLED": "Bekor qilingan"
       }
     }
   },

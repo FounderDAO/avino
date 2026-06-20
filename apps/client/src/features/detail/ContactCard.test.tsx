@@ -60,13 +60,16 @@ vi.mock('@/store/api/chatApi', () => ({
   useCreateThreadMutation: () => [createSpy, { isLoading: false }],
 }));
 
-// LoginModal и FavButton тянут собственные стораджи — заменяем лёгкими стабами.
+// LoginModal, FavButton и TourRequestModal тянут собственные стораджи — заменяем лёгкими стабами.
 vi.mock('@/components/layout/LoginModal', () => ({
   LoginModal: ({ open }: { open: boolean }) =>
     open ? <div data-testid="login-modal" /> : null,
 }));
 vi.mock('@/components/ui/fav-button', () => ({
   FavButton: () => <button type="button">fav</button>,
+}));
+vi.mock('./TourRequestModal', () => ({
+  TourRequestModal: () => null,
 }));
 
 import { ContactCard } from './ContactCard';
