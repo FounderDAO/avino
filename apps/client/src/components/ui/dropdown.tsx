@@ -36,12 +36,14 @@ export interface DropdownItemProps
   extends React.ComponentPropsWithoutRef<typeof RadixDropdown.Item> {
   /** Показать галочку (выбранный пункт). */
   selected?: boolean;
+  /** Правый аддон (напр. пилюля-счётчик). */
+  trailing?: React.ReactNode;
 }
 
 export const DropdownItem = React.forwardRef<
   React.ComponentRef<typeof RadixDropdown.Item>,
   DropdownItemProps
->(({ className, children, selected, ...props }, ref) => (
+>(({ className, children, selected, trailing, ...props }, ref) => (
   <RadixDropdown.Item
     ref={ref}
     className={cn(
@@ -52,8 +54,13 @@ export const DropdownItem = React.forwardRef<
     )}
     {...props}
   >
-    <span>{children}</span>
-    {selected && <Check size={15} className="text-teal" />}
+    <span className="truncate">{children}</span>
+    {(trailing || selected) && (
+      <span className="flex shrink-0 items-center gap-2">
+        {trailing}
+        {selected && <Check size={15} className="text-teal" />}
+      </span>
+    )}
   </RadixDropdown.Item>
 ));
 DropdownItem.displayName = 'DropdownItem';
