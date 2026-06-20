@@ -119,6 +119,8 @@ interface ApiListingDetail {
   media: ApiMedia[];
   published_at: string | null;
   created_at: string;
+  tours_enabled: boolean;
+  tour_windows: { start: string; end: string }[];
 }
 
 /** Envelope поиска (API.md §9). Реиспользуется клиентским searchApi (TASK-152). */
@@ -277,6 +279,8 @@ export function mapListing(api: AnyApiListing): Listing {
 
     createdAt: api.created_at,
     status: api.status,
+    toursEnabled: detail?.tours_enabled,
+    tourWindows: detail?.tour_windows ?? [],
   };
 }
 

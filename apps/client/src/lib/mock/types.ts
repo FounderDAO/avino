@@ -61,6 +61,12 @@ export interface ListingAgent {
   phone?: string;
 }
 
+/** Окно для экскурсии (время начала и конца). */
+export interface TourWindow {
+  start: string; // "07:00"
+  end: string; // "10:00"
+}
+
 /**
  * Объявление о недвижимости (UI-модель).
  *
@@ -119,6 +125,10 @@ export interface Listing {
   originalLanguage?: Language;
   /** Статус (в публичной выдаче — всегда ACTIVE). */
   status?: ListingStatus;
+  /** Доступны ли экскурсии для этого объявления. */
+  toursEnabled?: boolean;
+  /** Окна доступности для экскурсий. */
+  tourWindows?: TourWindow[];
 }
 
 /** Район — справочник `GET /api/v1/geo/districts` (ADR-0068). */

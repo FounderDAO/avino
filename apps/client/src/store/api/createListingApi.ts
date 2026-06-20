@@ -42,6 +42,8 @@ export interface CreateListingBody {
   agency_id?: string;
   latitude?: string;
   longitude?: string;
+  tours_enabled?: boolean;
+  tour_windows?: { start: string; end: string }[];
 }
 
 /** Ответ 201 POST /listings. */
