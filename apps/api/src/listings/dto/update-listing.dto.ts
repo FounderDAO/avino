@@ -1,5 +1,8 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsLatitude,
@@ -14,6 +17,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Currency, PropertyType, TransactionType } from '@prisma/client';
+import { TourWindowDto } from './create-listing.dto';
 
 const DECIMAL_2 = /^\d{1,12}(\.\d{1,2})?$/;
 const SMALLINT_MAX = 32767;
@@ -123,6 +127,17 @@ export class UpdateListingDto {
   @IsOptional()
   @IsLongitude()
   longitude?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  tours_enabled?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @ValidateNested({ each: true })
+  @Type(() => TourWindowDto)
+  tour_windows?: TourWindowDto[];
 
   @IsOptional()
   @ValidateNested()

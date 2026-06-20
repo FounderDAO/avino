@@ -1,5 +1,8 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsLatitude,
@@ -27,6 +30,9 @@ import {
  */
 const DECIMAL_2 = /^\d{1,12}(\.\d{1,2})?$/;
 
+/** Время в формате HH:MM (00:00 – 23:59). */
+const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 /** PostgreSQL `SmallInt` — допустимый диапазон значений для rooms/floor/year_built. */
 const SMALLINT_MAX = 32767;
 
@@ -52,6 +58,15 @@ export class CreateListingTranslationDto {
   @IsOptional()
   @IsString()
   features_text?: string;
+}
+
+/** Окно доступного времени тура (общее). `start`/`end` — `HH:MM`. */
+export class TourWindowDto {
+  @Matches(HHMM_RE, { message: 'start must be HH:MM' })
+  start!: string;
+
+  @Matches(HHMM_RE, { message: 'end must be HH:MM' })
+  end!: string;
 }
 
 /**
@@ -136,6 +151,17 @@ export class CreateListingDto {
   @IsOptional()
   @IsLongitude()
   longitude?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  tours_enabled?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @ValidateNested({ each: true })
+  @Type(() => TourWindowDto)
+  tour_windows?: TourWindowDto[];
 
   @ValidateNested()
   @Type(() => CreateListingTranslationDto)
