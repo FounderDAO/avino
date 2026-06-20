@@ -3042,6 +3042,141 @@
           }
         }
       }
+    },
+    "/api/v1/tour-requests": {
+      "post": {
+        "operationId": "TourRequestsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTourRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tour-requests/outgoing": {
+      "get": {
+        "operationId": "TourRequestsController_outgoing",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tour-requests/incoming": {
+      "get": {
+        "operationId": "TourRequestsController_incoming",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tour-requests/{id}/status": {
+      "patch": {
+        "operationId": "TourRequestsController_setStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TourRequestStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "info": {
@@ -3181,6 +3316,23 @@
           }
         }
       },
+      "TourWindowDto": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "pattern": "HHMM_RE"
+          },
+          "end": {
+            "type": "string",
+            "pattern": "HHMM_RE"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ]
+      },
       "CreateListingTranslationDto": {
         "type": "object",
         "properties": {
@@ -3263,6 +3415,15 @@
           },
           "longitude": {
             "type": "string"
+          },
+          "tours_enabled": {
+            "type": "boolean"
+          },
+          "tour_windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TourWindowDto"
+            }
           },
           "translation": {
             "$ref": "#/components/schemas/CreateListingTranslationDto"
@@ -3353,6 +3514,15 @@
           },
           "longitude": {
             "type": "string"
+          },
+          "tours_enabled": {
+            "type": "boolean"
+          },
+          "tour_windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TourWindowDto"
+            }
           },
           "translation": {
             "$ref": "#/components/schemas/UpdateListingTranslationDto"
@@ -3696,6 +3866,64 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "CreateTourRequestDto": {
+        "type": "object",
+        "properties": {
+          "listing_id": {
+            "type": "string"
+          },
+          "requested_date": {
+            "type": "string",
+            "pattern": "DATE_RE"
+          },
+          "window_start": {
+            "type": "string",
+            "pattern": "HHMM_RE"
+          },
+          "window_end": {
+            "type": "string",
+            "pattern": "HHMM_RE"
+          },
+          "requester_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "requester_phone": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 32
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "listing_id",
+          "requested_date",
+          "window_start",
+          "window_end",
+          "requester_name",
+          "requester_phone"
+        ]
+      },
+      "TourRequestStatusDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "CONFIRM",
+              "DECLINE",
+              "CANCEL"
+            ]
+          }
+        },
+        "required": [
+          "action"
         ]
       },
       "ErrorDetailDto": {

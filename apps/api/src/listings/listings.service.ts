@@ -26,6 +26,7 @@ import { CreateListingDto } from './dto/create-listing.dto';
 import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { OwnerListingAction } from './dto/owner-status.dto';
+import { validateToursInput, TourWindow } from './tour-window';
 
 /**
  * Краткий ответ операций create/update (API.md §7, ответ 201/200). Полная
@@ -60,6 +61,8 @@ interface ListingScalarInput {
   agency_id?: string;
   latitude?: string;
   longitude?: string;
+  tours_enabled?: boolean;
+  tour_windows?: { start: string; end: string }[];
 }
 
 /** Поля авторского перевода, общие для create/update. */
@@ -91,6 +94,8 @@ interface ListingScalarData {
   agencyId?: string;
   latitude?: string;
   longitude?: string;
+  toursEnabled?: boolean;
+  tourWindows?: Prisma.InputJsonValue;
 }
 
 const LISTING_SELECT = {
@@ -191,6 +196,8 @@ export interface ListingDetailResponse {
   address_note: string | null;
   features_text: string | null;
   media: ListingMediaResponse[];
+  tours_enabled: boolean;
+  tour_windows: TourWindow[];
   published_at: string | null;
   created_at: string;
 }
@@ -236,6 +243,8 @@ const LISTING_DETAIL_SELECT = {
   promotionExpiresAt: true,
   publishedAt: true,
   createdAt: true,
+  toursEnabled: true,
+  tourWindows: true,
   translations: {
     select: {
       language: true,
@@ -379,6 +388,7 @@ export class ListingsService {
     ownerId: string,
     dto: CreateListingDto,
   ): Promise<ListingResponse> {
+    validateToursInput(dto.tours_enabled ?? false, (dto.tour_windows as TourWindow[]) ?? []);
     // Optional-поля даёт toScalarData; required (после спреда) выставляются явно,
     // чтобы их типы оставались non-undefined. ownerId + nested translations.create
     // резолвят data в UncheckedCreateInput (scalar FK + дочерняя relation).
@@ -453,7 +463,7 @@ export class ListingsService {
   ): Promise<ListingResponse> {
     const existing = await this.prisma.listing.findFirst({
       where: { id: listingId, status: { not: ListingStatus.DELETED } },
-      select: { id: true, ownerId: true, originalLanguage: true, status: true },
+      select: { id: true, ownerId: true, originalLanguage: true, status: true, toursEnabled: true, tourWindows: true },
     });
     if (!existing) {
       throw new NotFoundException({
@@ -467,6 +477,12 @@ export class ListingsService {
         message: 'You can only update your own listing',
       });
     }
+
+    const effectiveEnabled = dto.tours_enabled ?? (existing.toursEnabled as boolean);
+    const effectiveWindows =
+      (dto.tour_windows as TourWindow[]) ??
+      ((existing.tourWindows as unknown as TourWindow[]) ?? []);
+    validateToursInput(effectiveEnabled, effectiveWindows);
 
     const data: Prisma.ListingUpdateInput = this.toScalarData(dto);
 
@@ -733,6 +749,8 @@ export class ListingsService {
     if (dto.agency_id !== undefined) data.agencyId = dto.agency_id;
     if (dto.latitude !== undefined) data.latitude = dto.latitude;
     if (dto.longitude !== undefined) data.longitude = dto.longitude;
+    if (dto.tours_enabled !== undefined) data.toursEnabled = dto.tours_enabled;
+    if (dto.tour_windows !== undefined) data.tourWindows = dto.tour_windows as unknown as Prisma.InputJsonValue;
     return data;
   }
 
@@ -893,6 +911,8 @@ export class ListingsService {
       address_note: translation?.addressNote ?? null,
       features_text: translation?.featuresText ?? null,
       media,
+      tours_enabled: listing.toursEnabled,
+      tour_windows: (listing.tourWindows as unknown as TourWindow[]) ?? [],
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
     };

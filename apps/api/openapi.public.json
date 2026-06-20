@@ -2100,6 +2100,23 @@
           }
         }
       },
+      "TourWindowDto": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "pattern": "HHMM_RE"
+          },
+          "end": {
+            "type": "string",
+            "pattern": "HHMM_RE"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ]
+      },
       "CreateListingTranslationDto": {
         "type": "object",
         "properties": {
@@ -2182,6 +2199,15 @@
           },
           "longitude": {
             "type": "string"
+          },
+          "tours_enabled": {
+            "type": "boolean"
+          },
+          "tour_windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TourWindowDto"
+            }
           },
           "translation": {
             "$ref": "#/components/schemas/CreateListingTranslationDto"
@@ -2272,6 +2298,15 @@
           },
           "longitude": {
             "type": "string"
+          },
+          "tours_enabled": {
+            "type": "boolean"
+          },
+          "tour_windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TourWindowDto"
+            }
           },
           "translation": {
             "$ref": "#/components/schemas/UpdateListingTranslationDto"

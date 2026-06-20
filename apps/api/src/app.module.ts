@@ -19,6 +19,7 @@ import { QueuesModule } from './queues';
 import { RedisModule } from './redis';
 import { SavedSearchesModule } from './saved-searches';
 import { SearchModule } from './search';
+import { TourRequestsModule } from './tour-requests';
 import { TranslationsModule } from './translations';
 import { UploadsModule } from './uploads';
 import { UsersModule } from './users/users.module';
@@ -46,6 +47,7 @@ import { UsersModule } from './users/users.module';
     ComplaintsModule,
     AdminModule,
     UploadsModule,
+    TourRequestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

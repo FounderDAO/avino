@@ -182,6 +182,7 @@ enum NotificationType {
   NEW_LEAD
   PROMOTION_ACTIVATED
   PROMOTION_EXPIRED
+  TOUR_REQUEST_STATUS_CHANGED
 }
 
 /// Канал доставки уведомления (DB_SCHEMA.md §3/§11). В MVP надёжно доставляются
@@ -200,6 +201,15 @@ enum NotificationStatus {
   SENT
   FAILED
   READ
+}
+
+/// Статусы заявки на тур (TASK tour-requests). PENDING → CONFIRMED|DECLINED
+/// (решение владельца) | CANCELLED (отмена покупателем). DECLINED/CANCELLED — терминальны.
+enum TourRequestStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+  CANCELLED
 }
 
 /// Платформа устройства для push-токенов (DB_SCHEMA.md §3/§11, ADR-0010). PUSH-
@@ -260,6 +270,7 @@ model User {
   notificationDevices  NotificationDevice[]
   // Записи аудита, где этот пользователь — actor (FK SET NULL; null = system).
   auditLogs            AuditLog[]
+  tourRequests  TourRequest[]
 
   @@map("users")
 }
@@ -407,6 +418,11 @@ model Listing {
   promotionExpiresAt DateTime?                              @map("promotion_expires_at") @db.Timestamptz(6)
   publishedAt        DateTime?                              @map("published_at") @db.Timestamptz(6)
   editedSinceHidden  Boolean                                @default(false) @map("edited_since_hidden")
+  // Приём туров (просмотров): флаг + окна доступного времени (JSONB-массив
+  // [{ "start": "07:00", "end": "10:00" }]). tours_enabled=false → заявки не
+  // принимаются; окна — общие, локальное Asia/Tashkent.
+  toursEnabled       Boolean                                @default(false) @map("tours_enabled")
+  tourWindows        Json                                   @default("[]") @map("tour_windows")
   createdAt          DateTime                               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime                               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -419,6 +435,7 @@ model Listing {
   favorites      Favorite[]
   chatThreads    ChatThread[]
   complaints     Complaint[]
+  tourRequests   TourRequest[]
 
   @@index([status])
   @@index([propertyType])
@@ -851,4 +868,31 @@ model ExchangeRate {
 
   @@index([base, quote, fetchedAt(sort: Desc)])
   @@map("exchange_rates")
+}
+
+/// Заявка на тур (просмотр объявления). Хранит СНИМОК выбранного слота
+/// (window_start/end, requested_date) и контактов покупателя (requester_name/phone),
+/// чтобы правка окон продавцом не затрагивала историю. ON DELETE CASCADE — заявка
+/// не переживает удаление объявления/пользователя.
+model TourRequest {
+  id             String            @id @default(uuid()) @db.Uuid
+  listingId      String            @map("listing_id") @db.Uuid
+  requesterId    String            @map("requester_id") @db.Uuid
+  status         TourRequestStatus @default(PENDING)
+  requestedDate  DateTime          @map("requested_date") @db.Date
+  windowStart    String            @map("window_start")
+  windowEnd      String            @map("window_end")
+  requesterName  String            @map("requester_name")
+  requesterPhone String            @map("requester_phone")
+  message        String?
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  requester User    @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([requesterId])
+  @@index([status])
+  @@map("tour_requests")
 }

@@ -42,6 +42,22 @@ export interface ChatMessageNotificationData {
   senderId: string;
 }
 
+/** data_json уведомления о новой заявке на тур (NEW_LEAD). */
+export interface TourRequestNotificationData {
+  tourRequestId: string;
+  listingId: string;
+  requestedDate: string;
+  windowStart: string;
+  windowEnd: string;
+}
+
+/** data_json уведомления о смене статуса заявки (TOUR_REQUEST_STATUS_CHANGED). */
+export interface TourStatusChangedNotificationData {
+  tourRequestId: string;
+  listingId: string;
+  status: string;
+}
+
 /** Поля выборки уведомления под {@link NotificationResponse}. */
 const SELECT = {
   id: true,
@@ -195,6 +211,54 @@ export class NotificationsService {
           listing_id: data.listingId,
           message_id: data.messageId,
           sender_id: data.senderId,
+        },
+      },
+    });
+  }
+
+  /**
+   * Уведомить владельца о новой заявке на тур (оживляем NEW_LEAD). Канал IN_APP.
+   * Принимает `tx`, чтобы коммититься в одной транзакции с созданием заявки.
+   */
+  async queueTourRequest(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    data: TourRequestNotificationData,
+  ): Promise<void> {
+    await tx.notification.create({
+      data: {
+        userId,
+        type: NotificationType.NEW_LEAD,
+        channel: NotificationChannel.IN_APP,
+        dataJson: {
+          tour_request_id: data.tourRequestId,
+          listing_id: data.listingId,
+          requested_date: data.requestedDate,
+          window_start: data.windowStart,
+          window_end: data.windowEnd,
+        },
+      },
+    });
+  }
+
+  /**
+   * Уведомить вторую сторону о смене статуса заявки. Канал IN_APP.
+   * Принимает `tx`, чтобы коммититься в одной транзакции со сменой статуса.
+   */
+  async queueTourStatusChanged(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    data: TourStatusChangedNotificationData,
+  ): Promise<void> {
+    await tx.notification.create({
+      data: {
+        userId,
+        type: NotificationType.TOUR_REQUEST_STATUS_CHANGED,
+        channel: NotificationChannel.IN_APP,
+        dataJson: {
+          tour_request_id: data.tourRequestId,
+          listing_id: data.listingId,
+          status: data.status,
         },
       },
     });

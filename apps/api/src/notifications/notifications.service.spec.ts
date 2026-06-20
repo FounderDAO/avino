@@ -107,6 +107,35 @@ describe('NotificationsService', () => {
     });
   });
 
+  describe('queueTourRequest', () => {
+    it('queueTourRequest ставит NEW_LEAD владельцу', async () => {
+      const tx = { notification: { create: jest.fn() } } as any;
+      await service.queueTourRequest(tx, 'OWNER1', {
+        tourRequestId: 'TR1', listingId: 'L1', requestedDate: '2026-06-25',
+        windowStart: '07:00', windowEnd: '10:00',
+      });
+      expect(tx.notification.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: 'OWNER1', type: 'NEW_LEAD', channel: 'IN_APP',
+          dataJson: expect.objectContaining({ tour_request_id: 'TR1', listing_id: 'L1' }),
+        }),
+      });
+    });
+  });
+
+  describe('queueTourStatusChanged', () => {
+    it('queueTourStatusChanged ставит TOUR_REQUEST_STATUS_CHANGED', async () => {
+      const tx = { notification: { create: jest.fn() } } as any;
+      await service.queueTourStatusChanged(tx, 'U2', { tourRequestId: 'TR1', listingId: 'L1', status: 'CONFIRMED' });
+      expect(tx.notification.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: 'U2', type: 'TOUR_REQUEST_STATUS_CHANGED', channel: 'IN_APP',
+          dataJson: expect.objectContaining({ status: 'CONFIRMED' }),
+        }),
+      });
+    });
+  });
+
   describe('list', () => {
     function row(id: string, createdAt: Date) {
       return {
