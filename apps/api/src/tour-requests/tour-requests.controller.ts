@@ -13,6 +13,13 @@ import {
 export class TourRequestsController {
   constructor(private readonly service: TourRequestsService) {}
 
+  /** Парсит query `limit` в число; `undefined`/мусор → undefined (сервис применит дефолт). */
+  private parseLimit(limit?: string): number | undefined {
+    if (limit === undefined) return undefined;
+    const n = Number(limit);
+    return Number.isFinite(n) ? n : undefined;
+  }
+
   @Post()
   create(
     @CurrentUser('id') userId: string,
@@ -27,7 +34,7 @@ export class TourRequestsController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ): Promise<TourRequestListResponse> {
-    return this.service.listOutgoing(userId, { limit: limit ? Number(limit) : undefined, cursor });
+    return this.service.listOutgoing(userId, { limit: this.parseLimit(limit), cursor });
   }
 
   @Get('incoming')
@@ -36,7 +43,7 @@ export class TourRequestsController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ): Promise<TourRequestListResponse> {
-    return this.service.listIncoming(userId, { limit: limit ? Number(limit) : undefined, cursor });
+    return this.service.listIncoming(userId, { limit: this.parseLimit(limit), cursor });
   }
 
   @Patch(':id/status')
