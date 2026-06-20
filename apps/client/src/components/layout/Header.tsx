@@ -1,8 +1,10 @@
 /**
  * Header — шапка публичного портала (перенос Header из chrome.jsx).
  * Sticky, высота --header-h, фон surface c blur, тень при скролле.
- * Десктоп: лого + навигация + LangSwitcher + избранное + «Войти» + «Разместить».
- * Мобайл: бургер → полноэкранное меню. «Войти» открывает LoginModal-заглушку.
+ * Десктоп: лого + навигация + LangSwitcher + избранное + профиль-меню
+ *   (ProfileMenu) или «Войти» + «Разместить».
+ * Мобайл: бургер → полноэкранное меню (залогинен — ссылки аккаунта + «Выйти»;
+ *   гость — «Войти» открывает LoginModal).
  */
 'use client';
 
@@ -10,7 +12,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
-import { usePathname, useRouter } from '@/i18n/navigation';
+import { usePathname } from '@/i18n/navigation';
 import { Heart, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from './Logo';
@@ -21,42 +23,23 @@ import { NAV_ITEMS } from './Nav';
 import { Button } from '@/components/ui/button';
 import { useFavoritesCount } from '@/store/favorites';
 import { useAppSelector } from '@/store/hooks';
+import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import {
-  selectIsAuthenticated,
-  selectCurrentUser,
-  selectRefreshToken,
-} from '@/store/slices/authSlice';
-import { useLogoutMutation } from '@/store/api/authApi';
+  ProfileMenu,
+  PROFILE_MENU_LINKS,
+  FAVORITE_MENU_LINKS,
+} from './ProfileMenu';
+import { useLogout } from './useLogout';
 
 function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) {
   const t = useTranslations('nav');
   const pathname = usePathname();
-  const router = useRouter();
   const [scrolled, setScrolled] = React.useState(false);
   const [menu, setMenu] = React.useState(false);
   const [login, setLogin] = React.useState(false);
   const favCount = useFavoritesCount();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
-  const currentUser = useAppSelector(selectCurrentUser);
-  const refreshToken = useAppSelector(selectRefreshToken);
-  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
-
-  // Имя для подписи аккаунта (display_name → имя → телефон → запасной текст).
-  const accountLabel =
-    currentUser?.profile?.display_name ??
-    currentUser?.profile?.first_name ??
-    currentUser?.phone ??
-    t('account');
-
-  const handleLogout = React.useCallback(async () => {
-    // clearCredentials вызывается в onQueryStarted независимо от исхода.
-    try {
-      await logout({ refresh_token: refreshToken ?? '' });
-    } finally {
-      // После выхода уводим с приватных страниц аккаунта на главную.
-      router.push('/');
-    }
-  }, [logout, refreshToken, router]);
+  const { logout, isLoggingOut } = useLogout();
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -136,19 +119,7 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
             )}
           </Link>
           {isAuthenticated ? (
-            <>
-              <Button variant="ghost" asChild className="text-[15px]">
-                <Link href="/account/profile">{accountLabel}</Link>
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="text-[15px]"
-              >
-                {t('logout')}
-              </Button>
-            </>
+            <ProfileMenu />
           ) : (
             <Button variant="ghost" onClick={() => setLogin(true)} className="text-[15px]">
               {t('login')}
@@ -198,16 +169,18 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
               </Button>
               {isAuthenticated ? (
                 <>
-                  <Button size="lg" variant="outline" asChild>
-                    <Link href="/account/profile">{accountLabel}</Link>
-                  </Button>
+                  {[...PROFILE_MENU_LINKS, ...FAVORITE_MENU_LINKS].map((it) => (
+                    <Button key={it.key} size="lg" variant="outline" asChild>
+                      <Link href={it.href}>{t(it.labelKey)}</Link>
+                    </Button>
+                  ))}
                   <Button
                     size="lg"
                     variant="ghost"
                     disabled={isLoggingOut}
                     onClick={() => {
                       setMenu(false);
-                      handleLogout();
+                      void logout();
                     }}
                   >
                     {t('logout')}
