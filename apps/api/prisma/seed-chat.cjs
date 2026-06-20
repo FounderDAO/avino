@@ -33,7 +33,7 @@ const SELLER_EMAIL = 'chat-seller@demo.avino.uz';
 const photoUrl = (seed) => `https://picsum.photos/seed/${seed}/1024/768`;
 const thumbUrl = (seed) => `https://picsum.photos/seed/${seed}/320/240`;
 
-async function upsertUser(id, email, first, last) {
+async function upsertUser(id, email, first, last, contactPhone = null) {
   await prisma.user.upsert({
     where: { id },
     update: { email, isEmailVerified: true, status: 'ACTIVE' },
@@ -47,10 +47,12 @@ async function upsertUser(id, email, first, last) {
   });
   await prisma.userProfile.upsert({
     where: { userId: id },
+    // contactPhone — публичный контактный номер для карточки контакта.
     update: {
       firstName: first,
       lastName: last,
       displayName: `${first} ${last}`,
+      contactPhone,
     },
     create: {
       userId: id,
@@ -58,6 +60,7 @@ async function upsertUser(id, email, first, last) {
       lastName: last,
       displayName: `${first} ${last}`,
       preferredLanguage: 'RU',
+      contactPhone,
     },
   });
   // Базовая роль USER (как при OTP-signup) — идемпотентно. Если справочник ролей
@@ -79,8 +82,8 @@ async function upsertUser(id, email, first, last) {
 
 async function main() {
   // 1) Два пользователя.
-  await upsertUser(BUYER, BUYER_EMAIL, 'Камила', 'Назарова');
-  await upsertUser(SELLER, SELLER_EMAIL, 'Тимур', 'Сафаров');
+  await upsertUser(BUYER, BUYER_EMAIL, 'Камила', 'Назарова', '+998 90 777-56-78');
+  await upsertUser(SELLER, SELLER_EMAIL, 'Тимур', 'Сафаров', '+998 90 777-12-34');
 
   // 2) ACTIVE-объявление продавца (владелец треда) + RU-перевод + фото.
   await prisma.listing.upsert({

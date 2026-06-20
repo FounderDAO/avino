@@ -303,7 +303,8 @@
       "owner": "Mulk egasi",
       "showPhone": "Telefonni ko'rsatish",
       "message": "Yozish",
-      "share": "Ulashish"
+      "share": "Ulashish",
+      "loginToMessage": "Sotuvchiga yozish uchun tizimga kiring"
     }
   },
   "sell": {

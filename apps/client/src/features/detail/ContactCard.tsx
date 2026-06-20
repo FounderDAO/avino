@@ -12,6 +12,7 @@ import { useRouter } from '@/i18n/navigation';
 import { MessageSquare, Phone, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FavButton } from '@/components/ui/fav-button';
+import { LoginModal } from '@/components/layout/LoginModal';
 import type { Listing } from '@/lib/mock/types';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
@@ -32,14 +33,12 @@ export function ContactCard({ listing, className }: ContactCardProps) {
   const [chatError, setChatError] = React.useState<string | null>(null);
   // Раскрытие телефона по клику (как в прототипе — номер из мока).
   const [phoneShown, setPhoneShown] = React.useState(false);
+  // Модалка входа для гостя + «отложенное намерение» написать после входа.
+  const [loginOpen, setLoginOpen] = React.useState(false);
+  const [pendingMessage, setPendingMessage] = React.useState(false);
 
-  // «Написать»: гость → на главную (вход — модалка в Header, /login нет).
-  // Авторизован → создаём (идемпотентно) диалог по объявлению и переходим в инбокс.
-  const handleMessage = React.useCallback(async () => {
-    if (!isAuthenticated) {
-      router.push('/');
-      return;
-    }
+  // Создаёт (идемпотентно) диалог по объявлению и переходит в инбокс.
+  const createThreadAndGo = React.useCallback(async () => {
     setChatError(null);
     try {
       await createThread({
@@ -52,7 +51,26 @@ export function ContactCard({ listing, className }: ContactCardProps) {
       const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);
       setChatError(apiErr?.message ?? t('contact.chatError'));
     }
-  }, [isAuthenticated, createThread, listing.id, router, t]);
+  }, [createThread, listing.id, router, t]);
+
+  // «Написать»: гость → открываем модалку входа (не редиректим на главную) и
+  // запоминаем намерение; авторизован → сразу создаём диалог.
+  const handleMessage = React.useCallback(() => {
+    if (!isAuthenticated) {
+      setPendingMessage(true);
+      setLoginOpen(true);
+      return;
+    }
+    void createThreadAndGo();
+  }, [isAuthenticated, createThreadAndGo]);
+
+  // После успешного входа из карточки — продолжаем отложенное намерение «Написать».
+  React.useEffect(() => {
+    if (isAuthenticated && pendingMessage) {
+      setPendingMessage(false);
+      void createThreadAndGo();
+    }
+  }, [isAuthenticated, pendingMessage, createThreadAndGo]);
 
   // Заглушка «Поделиться»: системный шэр, иначе копируем ссылку.
   const handleShare = React.useCallback(() => {
@@ -88,26 +106,28 @@ export function ContactCard({ listing, className }: ContactCardProps) {
 
       {/* Кнопки связи */}
       <div className="mt-5 flex flex-col gap-2.5">
-        {/* «Показать телефон» раскрывает номер; «Написать» — заглушка */}
-        {phoneShown && agent.phone ? (
-          <a
-            href={`tel:${agent.phone.replace(/\s/g, '')}`}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-pill bg-ink px-7 py-4 text-base font-bold tracking-[-0.01em] text-white transition-colors hover:bg-black"
-          >
-            <Phone size={18} /> {agent.phone}
-          </a>
-        ) : (
-          <Button size="lg" className="w-full" onClick={() => setPhoneShown(true)}>
-            <Phone size={18} /> {t('contact.showPhone')}
-          </Button>
-        )}
+        {/* «Показать телефон» показываем только когда телефон реально есть —
+            иначе кнопка была бы «мёртвой» (owner без contact_phone). */}
+        {agent.phone &&
+          (phoneShown ? (
+            <a
+              href={`tel:${agent.phone.replace(/\s/g, '')}`}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-pill bg-ink px-7 py-4 text-base font-bold tracking-[-0.01em] text-white transition-colors hover:bg-black"
+            >
+              <Phone size={18} /> {agent.phone}
+            </a>
+          ) : (
+            <Button size="lg" className="w-full" onClick={() => setPhoneShown(true)}>
+              <Phone size={18} /> {t('contact.showPhone')}
+            </Button>
+          ))}
 
         <Button
           variant="outline"
           size="lg"
           className="w-full"
           disabled={isCreatingThread}
-          onClick={() => void handleMessage()}
+          onClick={handleMessage}
         >
           <MessageSquare size={18} /> {t('contact.message')}
         </Button>
@@ -121,6 +141,13 @@ export function ContactCard({ listing, className }: ContactCardProps) {
           </Button>
         </div>
       </div>
+
+      {/* Вход гостя при попытке написать продавцу. */}
+      <LoginModal
+        open={loginOpen}
+        onOpenChange={setLoginOpen}
+        context={t('contact.loginToMessage')}
+      />
     </div>
   );
 }
