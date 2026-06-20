@@ -34,7 +34,18 @@
     "logoAria": "Avino — home",
     "currencyUZS": "UZS",
     "currencyUSD": "$",
-    "currencyLabel": "Currency"
+    "currencyLabel": "Currency",
+    "profileMenu": {
+      "trigger": "Your profile",
+      "sectionMain": "Your profile",
+      "profile": "Profile",
+      "listings": "Listings",
+      "chat": "Chat",
+      "settings": "Settings",
+      "favorites": "Saved:",
+      "favListings": "Listings",
+      "favSearches": "Searches"
+    }
   },
   "footer": {
     "aboutCompany": "Company",
