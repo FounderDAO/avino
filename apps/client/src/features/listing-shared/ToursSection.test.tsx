@@ -15,10 +15,17 @@ describe('ToursSection', () => {
     expect(onChange.mock.calls.at(-1)![0].windows.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('добавляет и удаляет окно', () => {
+  it('добавляет окно', () => {
     const onChange = vi.fn();
     render(<ToursSection enabled windows={[{ start: '07:00', end: '10:00' }]} onChange={onChange} />);
     fireEvent.click(screen.getByText(ru.listingEdit.tours.addWindow));
     expect(onChange.mock.calls.at(-1)![0].windows.length).toBe(2);
+  });
+
+  it('удаляет окно', () => {
+    const onChange = vi.fn();
+    render(<ToursSection enabled windows={[{ start: '07:00', end: '10:00' }, { start: '18:00', end: '20:00' }]} onChange={onChange} />);
+    fireEvent.click(screen.getAllByText(ru.listingEdit.tours.remove)[0]);
+    expect(onChange.mock.calls.at(-1)![0].windows.length).toBe(1);
   });
 });
