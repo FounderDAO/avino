@@ -335,6 +335,7 @@
     "error": "Failed to send request",
     "windowRequired": "Select a time",
     "phoneRequired": "Enter a phone number",
+    "dateRequired": "Select a date",
     "close": "Close"
   },
   "sell": {

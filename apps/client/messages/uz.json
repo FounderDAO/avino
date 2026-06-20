@@ -335,6 +335,7 @@
     "error": "Arizani yuborib bo'lmadi",
     "windowRequired": "Vaqtni tanlang",
     "phoneRequired": "Telefonni kiriting",
+    "dateRequired": "Sanani tanlang",
     "close": "Yopish"
   },
   "sell": {

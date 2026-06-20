@@ -40,7 +40,10 @@ export function ContactCard({ listing, className }: ContactCardProps) {
   // Тур: модалка + отложенное намерение для гостя.
   const [tourOpen, setTourOpen] = React.useState(false);
   const [pendingTour, setPendingTour] = React.useState(false);
-  const canTour = listing.toursEnabled === true && (listing.status ?? 'ACTIVE') === 'ACTIVE';
+  const canTour =
+    listing.toursEnabled === true &&
+    (listing.status ?? 'ACTIVE') === 'ACTIVE' &&
+    (listing.tourWindows?.length ?? 0) > 0;
 
   // Создаёт (идемпотентно) диалог по объявлению и переходит в инбокс.
   const createThreadAndGo = React.useCallback(async () => {

@@ -30,6 +30,9 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
   const user = useAppSelector(selectCurrentUser);
   const [createTour, { isLoading }] = useCreateTourRequestMutation();
 
+  const minDate = React.useMemo(() => todayISO(), []);
+  const maxDate = React.useMemo(() => horizonISO(30), []);
+
   const windows = listing.tourWindows ?? [];
 
   const initialName = user?.profile?.display_name ?? user?.profile?.first_name ?? '';
@@ -63,7 +66,7 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
     if (!phone.trim()) { setError(t('phoneRequired')); return; }
     const w = windows[windowIdx];
     if (!w) { setError(t('windowRequired')); return; }
-    if (!date) { setError(t('windowRequired')); return; }
+    if (!date) { setError(t('dateRequired')); return; }
     try {
       await createTour({
         listing_id: listing.id,
@@ -128,8 +131,8 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
                   aria-label={t('date')}
                   type="date"
                   value={date}
-                  min={todayISO()}
-                  max={horizonISO(30)}
+                  min={minDate}
+                  max={maxDate}
                   onChange={(e) => setDate(e.target.value)}
                   className="rounded-lg border border-border bg-bg px-3 py-2 text-[15px] font-normal"
                 />
@@ -165,7 +168,7 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
               {error && <div className="text-[12.5px] text-red">{error}</div>}
               <p className="text-[12px] text-muted-foreground">{t('terms')}</p>
 
-              <Button size="lg" className="w-full" disabled={isLoading} onClick={submit}>
+              <Button type="button" size="lg" className="w-full" disabled={isLoading} onClick={submit}>
                 {t('submit')}
               </Button>
             </div>

@@ -335,6 +335,7 @@
     "error": "Не удалось отправить заявку",
     "windowRequired": "Выберите время",
     "phoneRequired": "Укажите телефон",
+    "dateRequired": "Выберите дату",
     "close": "Закрыть"
   },
   "sell": {
