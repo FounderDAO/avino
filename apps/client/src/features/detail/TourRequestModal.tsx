@@ -33,7 +33,7 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
   const minDate = React.useMemo(() => todayISO(), []);
   const maxDate = React.useMemo(() => horizonISO(30), []);
 
-  const windows = listing.tourWindows ?? [];
+  const windows = React.useMemo(() => listing.tourWindows ?? [], [listing.tourWindows]);
 
   const initialName = user?.profile?.display_name ?? user?.profile?.first_name ?? '';
   const initialPhone = user?.profile?.contact_phone ?? user?.phone ?? '';
