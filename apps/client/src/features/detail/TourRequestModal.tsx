@@ -30,6 +30,8 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
   const user = useAppSelector(selectCurrentUser);
   const [createTour, { isLoading }] = useCreateTourRequestMutation();
 
+  const closeTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
   const minDate = React.useMemo(() => todayISO(), []);
   const maxDate = React.useMemo(() => horizonISO(30), []);
 
@@ -61,6 +63,13 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
     prevOpen.current = open;
   }, [open, user, t]);
 
+  // Clear pending close timer on unmount.
+  React.useEffect(() => {
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    };
+  }, []);
+
   const submit = React.useCallback(async () => {
     setError(null);
     if (!phone.trim()) { setError(t('phoneRequired')); return; }
@@ -78,7 +87,7 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
         message: message.trim() || undefined,
       }).unwrap();
       setDone(true);
-      setTimeout(() => onOpenChange(false), 1200);
+      closeTimer.current = setTimeout(() => onOpenChange(false), 1200);
     } catch (err) {
       const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);
       setError(apiErr?.message ?? t('error'));
