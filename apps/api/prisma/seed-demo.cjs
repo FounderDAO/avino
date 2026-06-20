@@ -38,7 +38,7 @@ const M = (listing, idx) =>
 const photoUrl = (seed) => `https://picsum.photos/seed/${seed}/1024/768`;
 const thumbUrl = (seed) => `https://picsum.photos/seed/${seed}/320/240`;
 
-async function upsertUser(id, email, first, last) {
+async function upsertUser(id, email, first, last, contactPhone = null) {
   await prisma.user.upsert({
     where: { id },
     update: {},
@@ -52,13 +52,21 @@ async function upsertUser(id, email, first, last) {
   });
   await prisma.userProfile.upsert({
     where: { userId: id },
-    update: { firstName: first, lastName: last, displayName: `${first} ${last}` },
+    // contactPhone — публичный контактный номер (показывается в карточке
+    // контакта «Показать телефон»; buildContact: contact_phone ?? owner.phone).
+    update: {
+      firstName: first,
+      lastName: last,
+      displayName: `${first} ${last}`,
+      contactPhone,
+    },
     create: {
       userId: id,
       firstName: first,
       lastName: last,
       displayName: `${first} ${last}`,
       preferredLanguage: 'RU',
+      contactPhone,
     },
   });
 }
@@ -137,9 +145,9 @@ async function backfillDistricts() {
 }
 
 async function main() {
-  await upsertUser(O1, 'owner1@demo.avino.uz', 'Алишер', 'Каримов');
-  await upsertUser(O2, 'owner2@demo.avino.uz', 'Дилноза', 'Юсупова');
-  await upsertUser(R1, 'reporter@demo.avino.uz', 'Бекзод', 'Рахимов');
+  await upsertUser(O1, 'owner1@demo.avino.uz', 'Алишер', 'Каримов', '+998 90 333-11-22');
+  await upsertUser(O2, 'owner2@demo.avino.uz', 'Дилноза', 'Юсупова', '+998 90 333-44-55');
+  await upsertUser(R1, 'reporter@demo.avino.uz', 'Бекзод', 'Рахимов', '+998 90 333-66-77');
 
   await upsertListing(
     1, O1,
