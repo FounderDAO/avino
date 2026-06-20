@@ -80,3 +80,15 @@ export enum PromotionType {
   TOP = 'TOP',
   VIP = 'VIP',
 }
+
+/**
+ * Статусы заявки на тур (просмотр). PENDING — создана покупателем; CONFIRMED/
+ * DECLINED — решение владельца; CANCELLED — отмена покупателем. DECLINED/CANCELLED
+ * терминальны. Зеркалит Prisma-enum `TourRequestStatus`.
+ */
+export enum TourRequestStatus {
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
+  DECLINED = 'DECLINED',
+  CANCELLED = 'CANCELLED',
+}
