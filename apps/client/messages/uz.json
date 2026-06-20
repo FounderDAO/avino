@@ -34,7 +34,18 @@
     "logoAria": "Avino — bosh sahifaga",
     "currencyUZS": "so'm",
     "currencyUSD": "$",
-    "currencyLabel": "Valyuta"
+    "currencyLabel": "Valyuta",
+    "profileMenu": {
+      "trigger": "Profilingiz",
+      "sectionMain": "Profilingiz",
+      "profile": "Profil",
+      "listings": "E'lonlar",
+      "chat": "Chat",
+      "settings": "Sozlamalar",
+      "favorites": "Saqlanganlar:",
+      "favListings": "E'lonlar",
+      "favSearches": "Qidiruvlar"
+    }
   },
   "footer": {
     "aboutCompany": "Kompaniya haqida",

@@ -34,7 +34,18 @@
     "logoAria": "Avino — на главную",
     "currencyUZS": "сум",
     "currencyUSD": "$",
-    "currencyLabel": "Валюта"
+    "currencyLabel": "Валюта",
+    "profileMenu": {
+      "trigger": "Ваш профиль",
+      "sectionMain": "Ваш профиль",
+      "profile": "Профиль",
+      "listings": "Объявления",
+      "chat": "Чат",
+      "settings": "Настройки",
+      "favorites": "Избранные:",
+      "favListings": "Объявления",
+      "favSearches": "Поиски"
+    }
   },
   "footer": {
     "aboutCompany": "О компании",
