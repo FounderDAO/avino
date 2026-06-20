@@ -303,7 +303,8 @@
       "owner": "Owner",
       "showPhone": "Show phone",
       "message": "Send message",
-      "share": "Share"
+      "share": "Share",
+      "loginToMessage": "Sign in to message the seller"
     }
   },
   "sell": {
