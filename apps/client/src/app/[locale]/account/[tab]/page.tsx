@@ -18,6 +18,7 @@ import { Notifications } from '@/features/account/Notifications';
 import { Inbox } from '@/features/account/Inbox';
 import { Profile } from '@/features/account/Profile';
 import { Settings } from '@/features/account/Settings';
+import Tours from '@/features/account/Tours';
 
 /** Карта «таб → компонент контента». Ключи = допустимые значения params.tab. */
 const TAB_CONTENT: Record<string, React.ComponentType> = {
@@ -28,6 +29,7 @@ const TAB_CONTENT: Record<string, React.ComponentType> = {
   notifications: Notifications,
   profile: Profile,
   settings: Settings,
+  tours: Tours,
 };
 
 export default function AccountTabPage({
