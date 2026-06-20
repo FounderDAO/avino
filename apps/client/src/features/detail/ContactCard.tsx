@@ -9,10 +9,11 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { MessageSquare, Phone, Share2 } from 'lucide-react';
+import { CalendarDays, MessageSquare, Phone, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FavButton } from '@/components/ui/fav-button';
 import { LoginModal } from '@/components/layout/LoginModal';
+import { TourRequestModal } from './TourRequestModal';
 import type { Listing } from '@/lib/mock/types';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
@@ -36,6 +37,10 @@ export function ContactCard({ listing, className }: ContactCardProps) {
   // Модалка входа для гостя + «отложенное намерение» написать после входа.
   const [loginOpen, setLoginOpen] = React.useState(false);
   const [pendingMessage, setPendingMessage] = React.useState(false);
+  // Тур: модалка + отложенное намерение для гостя.
+  const [tourOpen, setTourOpen] = React.useState(false);
+  const [pendingTour, setPendingTour] = React.useState(false);
+  const canTour = listing.toursEnabled === true && (listing.status ?? 'ACTIVE') === 'ACTIVE';
 
   // Создаёт (идемпотентно) диалог по объявлению и переходит в инбокс.
   const createThreadAndGo = React.useCallback(async () => {
@@ -71,6 +76,17 @@ export function ContactCard({ listing, className }: ContactCardProps) {
       void createThreadAndGo();
     }
   }, [isAuthenticated, pendingMessage, createThreadAndGo]);
+
+  // «Запросить тур»: гость → логин + запомнить намерение; авторизован → открыть модалку.
+  const handleTour = React.useCallback(() => {
+    if (!isAuthenticated) { setPendingTour(true); setLoginOpen(true); return; }
+    setTourOpen(true);
+  }, [isAuthenticated]);
+
+  // После входа гостя — продолжаем намерение «тур».
+  React.useEffect(() => {
+    if (isAuthenticated && pendingTour) { setPendingTour(false); setTourOpen(true); }
+  }, [isAuthenticated, pendingTour]);
 
   // Заглушка «Поделиться»: системный шэр, иначе копируем ссылку.
   const handleShare = React.useCallback(() => {
@@ -122,6 +138,12 @@ export function ContactCard({ listing, className }: ContactCardProps) {
             </Button>
           ))}
 
+        {canTour && (
+          <Button size="lg" className="w-full" onClick={handleTour}>
+            <CalendarDays size={18} /> {t('contact.requestTour')}
+          </Button>
+        )}
+
         <Button
           variant="outline"
           size="lg"
@@ -148,6 +170,7 @@ export function ContactCard({ listing, className }: ContactCardProps) {
         onOpenChange={setLoginOpen}
         context={t('contact.loginToMessage')}
       />
+      <TourRequestModal listing={listing} open={tourOpen} onOpenChange={setTourOpen} />
     </div>
   );
 }
