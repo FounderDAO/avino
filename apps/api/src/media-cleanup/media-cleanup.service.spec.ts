@@ -53,6 +53,22 @@ describe('MediaCleanupService', () => {
     expect(deleted).toBe(1);
   });
 
+  it('findMany вызывается с bounded where (candidate storageKey + legacy null)', async () => {
+    const key = 'listings/a/media/bounded.jpg';
+    uploads.listKeys.mockResolvedValue([{ key, lastModified: old() }]);
+    await make().run();
+    expect(prisma.listingMedia.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [
+            { storageKey: { in: [key] } },
+            { storageKey: null },
+          ],
+        },
+      }),
+    );
+  });
+
   it('НЕ трогает объект с живой строкой (storageKey)', async () => {
     uploads.listKeys.mockResolvedValue([
       { key: 'listings/a/media/live.jpg', lastModified: old() },

@@ -54,7 +54,16 @@ export class MediaCleanupService {
     }
 
     // Множество живых ключей: резолвим ровно как в delete-пути.
+    // Запрос ограничен кандидатами (современные строки по storageKey) и legacy-строками
+    // (storageKey=null, ключ восстанавливается из url) — полный скан таблицы не нужен.
+    const candidateKeys = candidates.map((o) => o.key);
     const rows = await this.prisma.listingMedia.findMany({
+      where: {
+        OR: [
+          { storageKey: { in: candidateKeys } },
+          { storageKey: null },
+        ],
+      },
       select: { storageKey: true, url: true },
     });
     const live = new Set<string>(
