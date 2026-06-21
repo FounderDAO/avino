@@ -200,6 +200,11 @@ describe('UploadsService', () => {
     });
   });
 
+  it('rootPrefix возвращает нормализованный s3.keyPrefix (или пусто)', () => {
+    expect(makeService({ 's3.keyPrefix': 'dev' }).rootPrefix()).toBe('dev');
+    expect(makeService().rootPrefix()).toBe('');
+  });
+
   it('listKeys возвращает ключи со всех страниц ListObjectsV2', async () => {
     const service = makeService();
     send
