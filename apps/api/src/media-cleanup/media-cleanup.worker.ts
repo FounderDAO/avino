@@ -47,7 +47,14 @@ export class MediaCleanupWorker implements OnModuleInit, OnModuleDestroy {
         `Media cleanup job ${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`,
       );
     });
-    this.logger.log('Media cleanup worker started');
+    // Announce the effective mode so an operator can confirm from logs whether
+    // the sweep is actually deleting (dryRun=false) or observing (dryRun=true).
+    const dryRun =
+      this.configService.get<boolean>('mediaCleanup.dryRun') ?? true;
+    this.logger.log(
+      `Media cleanup worker started (dryRun=${dryRun}, ` +
+        `maxDeleteRatio=${this.configService.get<number>('mediaCleanup.maxDeleteRatio') ?? 0.5})`,
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
