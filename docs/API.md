@@ -1052,9 +1052,9 @@ ADMIN**.
 GET /api/v1/admin/listings?status=NEW
 ```
 200 → пагинированный список листингов (любые статусы). Каждый элемент несёт
-`owner_id`, `created_at`, `published_at` и инлайн-профиль автора `owner`
-(ADR-0084) — чтобы карточка модерации показывала «кто и когда создал» без
-ADMIN-only `GET /admin/users/:id`:
+`owner_id`, `created_at`, `published_at`, `photo_url` (обложка) и инлайн-профиль
+автора `owner` (ADR-0084) — чтобы карточка модерации показывала «кто и когда
+создал» без ADMIN-only `GET /admin/users/:id`:
 ```json
 {
   "id": "l1",
@@ -1062,6 +1062,7 @@ ADMIN-only `GET /admin/users/:id`:
   "owner_id": "u1",
   "created_at": "2026-06-02T08:00:00Z",
   "published_at": null,
+  "photo_url": "https://cdn/listings/l1/cover.jpg?...",
   "owner": {
     "id": "u1",
     "display_name": "Алишер У.",
@@ -1078,7 +1079,9 @@ ADMIN-only `GET /admin/users/:id`:
 ```
 `owner.*` профильные поля (`display_name`/`first_name`/`last_name`/
 `contact_phone`) — `null`, если профиль не заполнен. Поле `owner` добавлено как
-optional response field (non-breaking, §14).
+optional response field (non-breaking, §14). `photo_url` — свежий URL первой
+фотографии по `sort_order` (sign-on-read, ADR-0086) или `null`, если фото нет;
+тоже optional response field (non-breaking, §14, ADR-0101).
 
 ### PATCH /api/v1/admin/listings/:id/status
 Сменить статус (модерация). Auth: **MODERATOR / ADMIN**. Действие — одно из
@@ -1193,6 +1196,20 @@ Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
 - `complaints_new` — необработанные жалобы (`ComplaintStatus.NEW`);
 - `users_total` — все пользователи (как `meta.total` в `/admin/users` без фильтра);
 - `promotions_active` — активные промо VIP/TOP (`PromotionStatus.ACTIVE`).
+
+#### GET /api/v1/admin/analytics
+Ряды для графиков дашборда и лента «Последних действий» (ADR-0101). Auth:
+**MODERATOR / ADMIN**. Без query-параметров. Везде исключён `DELETED`.
+200 → `{ listings_over_time, buy_rent, by_district, recent_activity }`:
+- `listings_over_time` — 12 помесячных счётчиков (старые→новые), включая нулевые
+  месяцы: `[{ "month": "2025-07", "count": 5 }, …]`;
+- `buy_rent` — сырые счётчики `{ "buy": 64, "rent": 36 }` (SALE/RENT); проценты
+  считает клиент;
+- `by_district` — топ-6 районов по числу объявлений с локализованными именами:
+  `[{ "district_id": "d1", "name_ru": "Чиланзар", "name_uz": "Chilonzor", "name_en": "Chilanzar", "count": 21 }, …]`;
+- `recent_activity` — последние 6 записей журнала модерации (свежие сверху):
+  `[{ "id": "log1", "action": "APPROVE", "new_status": "ACTIVE", "listing_id": "l1", "listing_title": "2-комн квартира", "moderator_name": "Алишер У.", "created_at": "2026-06-20T10:00:00Z" }, …]`;
+  `listing_title`/`moderator_name` — `null`, если перевода/имени нет.
 
 ---
 

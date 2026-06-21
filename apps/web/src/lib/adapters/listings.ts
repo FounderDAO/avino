@@ -120,7 +120,9 @@ export function rowToAdminListing(r: AdminListingRow): AdminListing {
   return {
     id: r.id,
     title: r.title,
-    photo: FALLBACK_PHOTO,
+    // Главное фото из списка (sign-on-read, ADR-0086); нет фото / старый бэкенд
+    // без поля → брендовый плейсхолдер.
+    photo: r.photo_url ?? FALLBACK_PHOTO,
     price: formatPrice(
       { price: r.price, currency: r.currency, tx: r.transaction_type },
       { suffix: false },

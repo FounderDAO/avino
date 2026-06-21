@@ -111,6 +111,12 @@ export interface AdminListingRow {
   /** Язык исходного (авторского) текста — на нём отдан `title` (§7, ADR-012). */
   original_language: Language;
   title: string;
+  /**
+   * Свежий URL обложки (sign-on-read, ADR-0086) или `null`, если фото нет.
+   * `optional`: старый бэкенд (до этого поля) его не отдаёт — UI падает на
+   * плейсхолдер `FALLBACK_PHOTO`, не на ошибку.
+   */
+  photo_url?: string | null;
   published_at: string | null;
   created_at: string;
 }
@@ -523,6 +529,45 @@ export interface AdminStats {
   complaints_new: number;
   users_total: number;
   promotions_active: number;
+}
+
+/** Один помесячный бакет ряда «объявления за год» (12 точек, старые→новые). */
+export interface AdminMonthlyCount {
+  /** Метка месяца `YYYY-MM`. */
+  month: string;
+  count: number;
+}
+
+/** Район + локализованные имена + число объявлений (столбчатый график). */
+export interface AdminDistrictCount {
+  district_id: string;
+  name_ru: string;
+  name_uz: string;
+  name_en: string;
+  count: number;
+}
+
+/** Запись «последних действий» (из журнала модерации). */
+export interface AdminActivityItem {
+  id: string;
+  action: ModerationAction;
+  new_status: ListingStatus | null;
+  listing_id: string;
+  listing_title: string | null;
+  moderator_name: string | null;
+  created_at: string;
+}
+
+/**
+ * `GET /admin/analytics` — данные графиков дашборда (зеркало
+ * `AdminAnalyticsResponse` из `apps/api/src/admin`). `buy_rent` — сырые
+ * счётчики (проценты считает фронт), `by_district` — топ-6.
+ */
+export interface AdminAnalytics {
+  listings_over_time: AdminMonthlyCount[];
+  buy_rent: { buy: number; rent: number };
+  by_district: AdminDistrictCount[];
+  recent_activity: AdminActivityItem[];
 }
 
 // ─── DTO: тарифы и настройки промо (API.md §15) ─────────────────────────────

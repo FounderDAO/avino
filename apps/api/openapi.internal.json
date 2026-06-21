@@ -3091,6 +3091,24 @@
         }
       }
     },
+    "/api/v1/admin/analytics": {
+      "get": {
+        "operationId": "AdminAnalyticsController_getAnalytics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tour-requests": {
       "post": {
         "operationId": "TourRequestsController_create",
