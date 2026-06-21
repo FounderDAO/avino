@@ -37,6 +37,35 @@ Related ADR:
 
 ---
 
+## 2026-06-21
+
+### Продвижение объявлений — admin feature-flag (ADR-0100)
+
+Status: DONE
+Branch: feat/promotions-flag (api) · feat/promotions-flag-web · feat/promotions-flag-client
+PR: #214 (api) · #215 (web) · #216 (client)
+
+Admin-управляемый Boolean `promotions_enabled` (дефолт OFF) скрывает кнопку
+«Продвинуть» в кабинете клиента, пока продвижение не запущено. Новый
+`SettingsModule`: публичный `GET /settings/public` + admin `GET/PATCH
+/admin/promotions-flag` (зарегистрирован в AdminModule, audit
+`PROMOTIONS_FLAG_UPDATE`); web-тумблер «Продвижение объявлений» в /admin/settings;
+клиентский хук `usePromotionsEnabled` гейтит кнопку. Без миграции (ключ в
+`app_settings`, env-дефолт `promotion.enabled` / `PROMOTION_ENABLED`). OpenAPI
+public-док обновлён (admin-DTO держится только в internal).
+
+Files changed:
+- apps/api/src/settings/* (SettingsModule, PromotionsFlagService, controllers, DTO, constants)
+- apps/api/src/config/{configuration,env.validation}.ts, src/app.module.ts, src/admin/admin.module.ts
+- apps/api/src/common/openapi/swagger.documents.ts, openapi.{public,internal}.json
+- apps/web/src/store/api/adminPromotionsFlagApi.ts, components/admin/PromotionsAvailabilityToggle.tsx, app/admin/settings/page.tsx
+- apps/client/src/store/api/publicSettingsApi.ts, lib/usePromotionsEnabled.ts, features/account/MyListings.tsx
+
+Related ADR:
+- docs/adr/ADR-0100-promotions-feature-flag.md
+
+Прод: дефолт OFF; после мёржа — ребилд avino-client/avino-web (baked-образы).
+
 ## 2026-06-20
 
 ### Регистрация push-устройств — POST/DELETE /notifications/devices (ADR-0098)
