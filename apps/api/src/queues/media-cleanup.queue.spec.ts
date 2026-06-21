@@ -50,6 +50,7 @@ describe('MediaCleanupQueue', () => {
   it('НЕ регистрирует джобу, когда выключено', async () => {
     const queue = new MediaCleanupQueue(config(false));
     await queue.onModuleInit();
+    expect(Queue).not.toHaveBeenCalled();
     expect(upsertMock).not.toHaveBeenCalled();
   });
 });

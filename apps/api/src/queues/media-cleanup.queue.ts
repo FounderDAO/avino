@@ -23,24 +23,26 @@ const CLEANUP_SCHEDULER_ID = 'cleanup-orphan-media';
 @Injectable()
 export class MediaCleanupQueue implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MediaCleanupQueue.name);
-  private readonly queue: Queue;
+  private readonly queue?: Queue;
   private readonly enabled: boolean;
   private readonly cron: string;
 
   constructor(configService: ConfigService) {
-    const url = configService.get<string>('redis.url');
-    if (!url) {
-      throw new Error('REDIS_URL is not configured');
-    }
     this.enabled = configService.get<boolean>('mediaCleanup.enabled') ?? false;
     this.cron = configService.get<string>('mediaCleanup.cron') ?? '0 4 * * *';
-    this.queue = new Queue(MEDIA_CLEANUP_QUEUE_NAME, {
-      connection: buildBullConnection(url),
-    });
+    if (this.enabled) {
+      const url = configService.get<string>('redis.url');
+      if (!url) {
+        throw new Error('REDIS_URL is not configured');
+      }
+      this.queue = new Queue(MEDIA_CLEANUP_QUEUE_NAME, {
+        connection: buildBullConnection(url),
+      });
+    }
   }
 
   async onModuleInit(): Promise<void> {
-    if (!this.enabled) {
+    if (!this.enabled || !this.queue) {
       this.logger.log('Media cleanup disabled — not scheduling sweep');
       return;
     }
@@ -57,6 +59,6 @@ export class MediaCleanupQueue implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    await this.queue.close();
+    await this.queue?.close();
   }
 }
