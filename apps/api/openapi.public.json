@@ -1401,6 +1401,24 @@
         }
       }
     },
+    "/api/v1/settings/public": {
+      "get": {
+        "operationId": "PublicSettingsController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/favorites": {
       "get": {
         "operationId": "FavoritesController_list",
@@ -2342,6 +2360,17 @@
         },
         "required": [
           "order"
+        ]
+      },
+      "UpdatePromotionsFlagDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
         ]
       },
       "CreateFavoriteDto": {
