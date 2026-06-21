@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MediaCleanupService } from './media-cleanup.service';
 
@@ -181,10 +182,20 @@ describe('MediaCleanupService', () => {
     uploads.listKeys.mockResolvedValue([
       { key: 'listings/a/media/orphan.jpg', lastModified: old() },
     ]);
-    const svc = makeWith({ dryRun: true });
-    const deleted = await svc.run();
-    expect(uploads.delete).not.toHaveBeenCalled();
-    expect(deleted).toBe(0);
+    const warnSpy = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+    try {
+      const svc = makeWith({ dryRun: true });
+      const deleted = await svc.run();
+      expect(uploads.delete).not.toHaveBeenCalled();
+      expect(deleted).toBe(0);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[DRY-RUN]'),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('circuit-breaker: при доле сирот выше maxDeleteRatio и достаточной выборке — abort, ничего не удаляет', async () => {
@@ -194,9 +205,19 @@ describe('MediaCleanupService', () => {
     }));
     uploads.listKeys.mockResolvedValue(many);
     prisma.listingMedia.findMany.mockResolvedValue([]); // живых нет
-    const svc = makeWith({ dryRun: false, maxDeleteRatio: 0.5 });
-    const deleted = await svc.run();
-    expect(uploads.delete).not.toHaveBeenCalled();
-    expect(deleted).toBe(0);
+    const errorSpy = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => {});
+    try {
+      const svc = makeWith({ dryRun: false, maxDeleteRatio: 0.5 });
+      const deleted = await svc.run();
+      expect(uploads.delete).not.toHaveBeenCalled();
+      expect(deleted).toBe(0);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('ABORT'),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
