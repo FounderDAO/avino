@@ -17,6 +17,23 @@ import { rowToAdminListing, UI_FILTER_TO_API_STATUS } from '@/lib/adapters/listi
 
 const LIMIT = 20;
 
+/**
+ * Оконный список номеров страниц с многоточием (как у Zillow/OLX): для ≤7
+ * страниц — все, иначе первая/последняя + текущая ±1, разрывы — '…'. Так видно
+ * общее число страниц и можно прыгнуть к любой, не дёргая бесконечный «next».
+ */
+function pageItems(current: number, pages: number): (number | '…')[] {
+  if (pages <= 7) return Array.from({ length: pages }, (_, i) => i + 1);
+  const out: (number | '…')[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(pages - 1, current + 1);
+  if (start > 2) out.push('…');
+  for (let p = start; p <= end; p++) out.push(p);
+  if (end < pages - 1) out.push('…');
+  out.push(pages);
+  return out;
+}
+
 const filters: [string, string][] = [
   ['ALL', 'Все'],
   ['ACTIVE', 'Опубликовано'],
@@ -138,10 +155,37 @@ export default function ListingsPage() {
         </div>
       )}
       <div className="row" style={{ justifyContent: 'space-between', marginTop: 14, fontSize: 13.5, color: 'var(--muted)' }}>
-        <span>{isFetching ? 'Обновление…' : `Показано ${rows.length} из ${total}`}</span>
+        <span>
+          {isFetching
+            ? 'Обновление…'
+            : total === 0
+              ? 'Ничего не найдено'
+              : `Показано ${rows.length} из ${total}${pages > 1 ? ` · стр. ${page} из ${pages}` : ''}`}
+        </span>
         <div className="row gap-4">
           <button className="aicon-btn" style={{ width: 32, height: 32 }} disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}><IC.ChevronLeft size={16} /></button>
-          <button className="abtn abtn-sm" style={{ background: 'var(--ink)', color: '#fff' }}>{page}</button>
+          {pages > 1
+            ? pageItems(page, pages).map((it, i) =>
+                it === '…' ? (
+                  <span key={`gap-${i}`} style={{ width: 24, textAlign: 'center', color: 'var(--muted)' }}>…</span>
+                ) : (
+                  <button
+                    key={it}
+                    className="abtn abtn-sm"
+                    style={
+                      it === page
+                        ? { background: 'var(--ink)', color: '#fff' }
+                        : { background: 'var(--surface)', color: 'var(--ink)', border: '1.5px solid var(--border)' }
+                    }
+                    onClick={() => setPage(it)}
+                  >
+                    {it}
+                  </button>
+                ),
+              )
+            : (
+                <button className="abtn abtn-sm" style={{ background: 'var(--ink)', color: '#fff' }}>{page}</button>
+              )}
           <button className="aicon-btn" style={{ width: 32, height: 32 }} disabled={pages > 0 && page >= pages} onClick={() => setPage((p) => p + 1)}><IC.ChevronRight size={16} /></button>
         </div>
       </div>

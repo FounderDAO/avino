@@ -18,6 +18,7 @@ import {
 } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { PrismaService } from '../prisma';
+import { UploadsService } from '../uploads';
 import { ListAdminListingsQueryDto } from './dto/list-admin-listings.dto';
 import { ModerateListingDto } from './dto/moderate-listing.dto';
 
@@ -65,6 +66,14 @@ export interface AdminListingListItem {
   owner: AdminListingOwner;
   original_language: Language;
   title: string;
+  /**
+   * Свежий URL обложки (первое media по `sort_order`) или `null`, если фото нет.
+   * Sign-on-read (ADR-0086): presigned-URL генерируется на каждый ответ из
+   * `storage_key` (legacy-фолбэк — `extractKey` из сохранённого `url`). Нужен,
+   * чтобы админ-список и очередь модерации показывали реальную обложку, а не
+   * статичный плейсхолдер.
+   */
+  photo_url: string | null;
   published_at: string | null;
   created_at: string;
 }
@@ -143,6 +152,13 @@ const LISTING_LIST_SELECT = {
   translations: {
     select: { language: true, title: true },
   },
+  // Обложка для строки списка: первое media по sort_order. storage_key/url —
+  // для sign-on-read (ADR-0086), thumbnailUrl — облегчённая версия, если есть.
+  media: {
+    select: { url: true, storageKey: true, thumbnailUrl: true },
+    orderBy: { sortOrder: Prisma.SortOrder.asc },
+    take: 1,
+  },
   // Инлайн-профиль автора для карточки модерации (см. AdminListingOwner).
   owner: {
     select: {
@@ -180,7 +196,10 @@ type AdminListingRow = Prisma.ListingGetPayload<{
  */
 @Injectable()
 export class ModerationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploads: UploadsService,
+  ) {}
 
   /**
    * `GET /api/v1/admin/listings` — очередь модерации и админ-список (API.md §16).
@@ -218,7 +237,7 @@ export class ModerationService {
     ]);
 
     return {
-      data: rows.map((row) => this.toListItem(row)),
+      data: await Promise.all(rows.map((row) => this.toListItem(row))),
       meta: { page, limit, total },
     };
   }
@@ -401,11 +420,21 @@ export class ModerationService {
   }
 
   /** Компактная карточка листинга в snake_case для админ-списка. */
-  private toListItem(listing: AdminListingRow): AdminListingListItem {
+  private async toListItem(
+    listing: AdminListingRow,
+  ): Promise<AdminListingListItem> {
     const translation =
       listing.translations.find(
         (t) => t.language === listing.originalLanguage,
       ) ?? listing.translations[0];
+    // Свежий presigned-URL обложки (ADR-0086): предпочитаем thumbnail (его url
+    // уже хранит ключ), иначе основное фото из storage_key. Нет media → null.
+    const cover = listing.media[0];
+    const photoUrl = cover
+      ? cover.thumbnailUrl
+        ? await this.uploads.resolveMediaUrl(null, cover.thumbnailUrl)
+        : await this.uploads.resolveMediaUrl(cover.storageKey, cover.url)
+      : null;
     return {
       id: listing.id,
       status: listing.status,
@@ -419,6 +448,7 @@ export class ModerationService {
       owner: this.toOwner(listing.owner),
       original_language: listing.originalLanguage,
       title: translation?.title ?? '',
+      photo_url: photoUrl,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
     };

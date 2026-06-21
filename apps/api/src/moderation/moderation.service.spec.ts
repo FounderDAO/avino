@@ -28,6 +28,7 @@ describe('ModerationService', () => {
   const LISTING_ID = '11111111-1111-1111-1111-111111111111';
 
   let prisma: any;
+  let uploads: any;
   let service: ModerationService;
 
   const dbListItem = {
@@ -44,6 +45,13 @@ describe('ModerationService', () => {
     publishedAt: null,
     createdAt: new Date('2026-06-02T08:00:00.000Z'),
     translations: [{ language: Language.RU, title: '2-комн квартира' }],
+    media: [
+      {
+        url: 'https://r2/listings/x/orig.jpg',
+        storageKey: 'listings/x/orig.jpg',
+        thumbnailUrl: 'https://r2/listings/x/thumb.jpg',
+      },
+    ],
     owner: {
       id: OWNER_ID,
       email: 'seller@example.com',
@@ -75,7 +83,14 @@ describe('ModerationService', () => {
       // Интерактивная транзакция: коллбэк получает тот же мок (tx === prisma).
       $transaction: jest.fn(async (cb: any) => cb(prisma)),
     };
-    service = new ModerationService(prisma);
+    // UploadsService: sign-on-read обложки. Возвращаем стабильный URL, чтобы
+    // отличать «есть фото» от null без обращения к S3.
+    uploads = {
+      resolveMediaUrl: jest
+        .fn()
+        .mockResolvedValue('https://signed.example/cover.jpg'),
+    };
+    service = new ModerationService(prisma, uploads);
   });
 
   async function expectCode(promise: Promise<unknown>, code: ApiErrorCode) {
@@ -149,6 +164,30 @@ describe('ModerationService', () => {
         contact_phone: null,
         email: 'seller@example.com',
       });
+    });
+
+    it('resolves a fresh cover URL from the first media (prefers thumbnail)', async () => {
+      prisma.listing.findMany.mockResolvedValue([dbListItem]);
+      prisma.listing.count.mockResolvedValue(1);
+
+      const result = await service.listListings({ status: ListingStatus.NEW });
+
+      // thumbnailUrl присутствует → sign-on-read из него (storageKey не нужен).
+      expect(uploads.resolveMediaUrl).toHaveBeenCalledWith(
+        null,
+        'https://r2/listings/x/thumb.jpg',
+      );
+      expect(result.data[0].photo_url).toBe('https://signed.example/cover.jpg');
+    });
+
+    it('returns photo_url=null when the listing has no media', async () => {
+      prisma.listing.findMany.mockResolvedValue([{ ...dbListItem, media: [] }]);
+      prisma.listing.count.mockResolvedValue(1);
+
+      const result = await service.listListings({ status: ListingStatus.NEW });
+
+      expect(result.data[0].photo_url).toBeNull();
+      expect(uploads.resolveMediaUrl).not.toHaveBeenCalled();
     });
 
     it('combines property_type, transaction_type and q filters', async () => {

@@ -8,9 +8,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { IC, type LucideIcon } from './icons';
-import { ADMIN } from '@/lib/mock';
+import { useGetAdminStatsQuery } from '@/store/api/adminStatsApi';
 
-type NavItem = [href: string, label: string, Icon: LucideIcon, count?: number];
+type NavItem = [href: string, label: string, Icon: LucideIcon];
 
 const NAV: { group: string; items: NavItem[] }[] = [
   { group: 'Обзор', items: [['/admin', 'Панель управления', IC.Building]] },
@@ -18,7 +18,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     group: 'Контент',
     items: [
       ['/admin/listings', 'Объявления', IC.Home],
-      ['/admin/moderation', 'Модерация', IC.Check, ADMIN.moderation.length],
+      ['/admin/moderation', 'Модерация', IC.Check],
     ],
   },
   { group: 'Люди', items: [['/admin/users', 'Пользователи', IC.User]] },
@@ -39,6 +39,10 @@ function isActive(pathname: string, href: string): boolean {
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
+  // Живой счётчик очереди модерации (NEW-листинги) для бейджа — тот же источник,
+  // что и KPI «На проверке» на дашборде; инвалидируется после каждой модерации.
+  const { data: stats } = useGetAdminStatsQuery();
+  const moderationCount = stats?.listings_new ?? 0;
   return (
     <aside className={'a-side' + (open ? ' open' : '')}>
       <div className="a-side-head row" style={{ justifyContent: 'space-between' }}>
@@ -60,12 +64,15 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         {NAV.map((g) => (
           <div key={g.group}>
             <div className="a-navgroup">{g.group}</div>
-            {g.items.map(([href, label, Icon, count]) => (
-              <Link key={href} href={href} className={'a-navitem' + (isActive(pathname, href) ? ' active' : '')} onClick={onClose}>
-                <Icon size={19} strokeWidth={1.9} /> {label}
-                {count ? <span className="badge-count">{count}</span> : null}
-              </Link>
-            ))}
+            {g.items.map(([href, label, Icon]) => {
+              const count = href === '/admin/moderation' ? moderationCount : 0;
+              return (
+                <Link key={href} href={href} className={'a-navitem' + (isActive(pathname, href) ? ' active' : '')} onClick={onClose}>
+                  <Icon size={19} strokeWidth={1.9} /> {label}
+                  {count ? <span className="badge-count">{count}</span> : null}
+                </Link>
+              );
+            })}
           </div>
         ))}
       </div>
