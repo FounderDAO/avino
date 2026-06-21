@@ -15,7 +15,7 @@ import { PhotoImg } from '@/components/ui/photo-img';
 export interface UploadPhoto {
   id: string;
   url: string;
-  /** Исходный File (для multipart-загрузки). Отсутствует у демо-фото. */
+  /** Исходный File (для multipart-загрузки). Отсутствует у уже загруженных фото (edit). */
   file?: File;
 }
 
