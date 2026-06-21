@@ -1,4 +1,4 @@
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { UploadsService } from './uploads.service';
 
@@ -26,6 +26,10 @@ jest.mock('@aws-sdk/client-s3', () => ({
     __type: 'delete',
     input,
   })),
+  ListObjectsV2Command: jest.fn().mockImplementation((input) => ({
+    __type: 'list',
+    input,
+  })),
 }));
 
 jest.mock('@aws-sdk/s3-request-presigner', () => ({
@@ -34,6 +38,7 @@ jest.mock('@aws-sdk/s3-request-presigner', () => ({
 
 // jest.mock хойстится выше импортов, поэтому здесь — уже мокнутые реализации.
 const putObjectCommandMock = PutObjectCommand as unknown as jest.Mock;
+const listObjectsV2CommandMock = ListObjectsV2Command as unknown as jest.Mock;
 const getSignedUrlMock = getSignedUrl as unknown as jest.Mock;
 
 function makeService(overrides: Record<string, unknown> = {}): UploadsService {
@@ -58,6 +63,7 @@ describe('UploadsService', () => {
   beforeEach(() => {
     send.mockClear();
     putObjectCommandMock.mockClear();
+    listObjectsV2CommandMock.mockClear();
     getSignedUrlMock.mockClear();
   });
 
@@ -192,5 +198,31 @@ describe('UploadsService', () => {
         service.extractKey('https://minio.local/avino-media/listings/42/u.jpg?sig=x'),
       ).toBe('listings/42/u.jpg');
     });
+  });
+
+  it('listKeys возвращает ключи со всех страниц ListObjectsV2', async () => {
+    const service = makeService();
+    send
+      .mockResolvedValueOnce({
+        Contents: [
+          { Key: 'listings/a/media/1.jpg', LastModified: new Date('2026-01-01T00:00:00Z') },
+        ],
+        IsTruncated: true,
+        NextContinuationToken: 'tok',
+      })
+      .mockResolvedValueOnce({
+        Contents: [
+          { Key: 'listings/b/media/2.jpg', LastModified: new Date('2026-02-01T00:00:00Z') },
+        ],
+        IsTruncated: false,
+      });
+
+    const keys = await service.listKeys('listings/');
+
+    expect(keys).toEqual([
+      { key: 'listings/a/media/1.jpg', lastModified: new Date('2026-01-01T00:00:00Z') },
+      { key: 'listings/b/media/2.jpg', lastModified: new Date('2026-02-01T00:00:00Z') },
+    ]);
+    expect(send).toHaveBeenCalledTimes(2);
   });
 });

@@ -12,6 +12,7 @@ import { GeoModule } from './geo';
 import { HealthModule } from './health/health.module';
 import { ListingMediaModule } from './listing-media';
 import { ListingsModule } from './listings/listings.module';
+import { MediaCleanupModule } from './media-cleanup/media-cleanup.module';
 import { NotificationsModule } from './notifications';
 import { PrismaModule } from './prisma';
 import { PromotionsModule } from './promotions';
@@ -47,6 +48,7 @@ import { UsersModule } from './users/users.module';
     ComplaintsModule,
     AdminModule,
     UploadsModule,
+    MediaCleanupModule,
     TourRequestsModule,
   ],
   controllers: [AppController],

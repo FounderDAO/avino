@@ -3,6 +3,7 @@ import { extname } from 'node:path';
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -116,6 +117,35 @@ export class UploadsService {
   ): Promise<string> {
     const key = storageKey ?? this.extractKey(fallbackUrl);
     return this.getObjectUrl(key);
+  }
+
+  /**
+   * Перечислить все объекты под префиксом (пагинация ListObjectsV2). Для
+   * media-cleanup воркера (чистка осиротевших объектов). Возвращает ключ и время
+   * последней модификации — последнее нужно для grace-окна.
+   */
+  async listKeys(
+    prefix: string,
+  ): Promise<Array<{ key: string; lastModified: Date }>> {
+    const client = this.getClient();
+    const out: Array<{ key: string; lastModified: Date }> = [];
+    let token: string | undefined;
+    do {
+      const res = await client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket(),
+          Prefix: prefix,
+          ContinuationToken: token,
+        }),
+      );
+      for (const obj of res.Contents ?? []) {
+        if (obj.Key) {
+          out.push({ key: obj.Key, lastModified: obj.LastModified ?? new Date(0) });
+        }
+      }
+      token = res.IsTruncated ? res.NextContinuationToken : undefined;
+    } while (token);
+    return out;
   }
 
   /** Удалить объект (для очистки orphaned media, ARCHITECTURE §14 п.4). */

@@ -99,6 +99,24 @@ schedule lives here; the rate source is the Central Bank of Uzbekistan (no key).
   On fetch failure the last rate is kept (no row written); on cold start with an
   empty table the worker fetches once. See `API.md` §19.
 
+### 6.2 Media cleanup (orphan R2 photos)
+
+Background sweep that deletes orphaned listing photos from R2 — objects under
+`listings/.../media/` with no live `listing_media` row. A BullMQ repeatable job
+(`cleanup_orphan_media`). Destructive → **disabled by default**; both producer and
+worker are full NO-OP when off (no Redis connection, no schedule). See ADR-0099.
+
+| Variable                  | Req? | Secret | Client | Example     | Description                                                                                  |
+|---------------------------|------|--------|--------|-------------|----------------------------------------------------------------------------------------------|
+| MEDIA_CLEANUP_ENABLED     | no   | no     | no     | false       | Master switch. Default `false` (off). Set `true` to activate the sweep (staging/prod).       |
+| MEDIA_CLEANUP_CRON        | no   | no     | no     | 0 4 * * *   | Cron for the sweep. Default `0 4 * * *` (04:00 daily).                                        |
+| MEDIA_CLEANUP_GRACE_HOURS | no   | no     | no     | 24          | Skip objects younger than N hours (avoids racing a just-uploaded photo). Default `24`.       |
+| MEDIA_CLEANUP_BATCH_SIZE  | no   | no     | no     | 500         | Max deletions per run; a large orphan backlog drains over several runs. Default `500`.       |
+
+- Leaving `MEDIA_CLEANUP_ENABLED` unset/`false` is safe everywhere — the feature
+  does nothing. Orphans only accumulate slowly (failed best-effort delete, or
+  upload-without-create); enable explicitly once verified. See ADR-0099.
+
 ## 7. JWT / Auth
 
 > Required by `ARCHITECTURE.md` §6/§23 and `API.md` §3, but NOT yet present in

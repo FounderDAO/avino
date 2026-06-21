@@ -2,6 +2,7 @@ export { QueuesModule } from './queues.module';
 export { PromotionQueue } from './promotion.queue';
 export { EmailQueue } from './email.queue';
 export { SavedSearchQueue } from './saved-search.queue';
+export { MediaCleanupQueue } from './media-cleanup.queue';
 export {
   PROMOTION_QUEUE_NAME,
   EXPIRE_LISTING_PROMOTIONS_JOB,
@@ -12,4 +13,7 @@ export {
   SAVED_SEARCH_QUEUE_NAME,
   CHECK_SAVED_SEARCHES_JOB,
   CheckSavedSearchesJobData,
+  MEDIA_CLEANUP_QUEUE_NAME,
+  CLEANUP_ORPHAN_MEDIA_JOB,
+  CleanupOrphanMediaJobData,
 } from './queue.constants';
