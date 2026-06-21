@@ -82,6 +82,15 @@ export const translateConfig = registerAs('translate', () => ({
 // батча sweep'а ограничивают нагрузку на БД. Поиск и так time-guard'ит истёкшую
 // промо в SQL (ADR-0004 §4), джоба лишь приводит ledger/read-cache в покой.
 export const promotionConfig = registerAs('promotion', () => ({
+  // Master-флаг ДОСТУПНОСТИ продвижения для клиентов (ADR-0100). По умолчанию
+  // ВЫКЛЮЧЕНО (ранний этап — кнопку «Продвинуть» прячем). Явный
+  // PROMOTION_ENABLED=true → true. Перебивается runtime-строкой
+  // promotions_enabled в app_settings (admin-тоггл). НЕ путать с expiry* ниже —
+  // те про cron истечения промо.
+  enabled:
+    process.env.PROMOTION_ENABLED != null
+      ? process.env.PROMOTION_ENABLED === 'true'
+      : false,
   expiryCron: process.env.PROMOTION_EXPIRY_CRON ?? '* * * * *',
   expiryConcurrency: parseInt(
     process.env.PROMOTION_EXPIRY_CONCURRENCY ?? '1',

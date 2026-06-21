@@ -5,6 +5,7 @@
 import { SectionTitle } from '@/components/admin/ui/section-title';
 import { TelegramNotificationsToggle } from '@/components/admin/TelegramNotificationsToggle';
 import { SmsSendingToggle } from '@/components/admin/SmsSendingToggle';
+import { PromotionsAvailabilityToggle } from '@/components/admin/PromotionsAvailabilityToggle';
 import { ExchangeRatePanel } from '@/components/admin/ExchangeRatePanel';
 
 export default function SettingsPage() {
@@ -50,6 +51,7 @@ export default function SettingsPage() {
       </div>
       <TelegramNotificationsToggle />
       <SmsSendingToggle />
+      <PromotionsAvailabilityToggle />
       <ExchangeRatePanel />
     </div>
   );
