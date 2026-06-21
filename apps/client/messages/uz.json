@@ -433,7 +433,6 @@
       "price": "Narx",
       "photos": "Foto",
       "description": "Tavsif",
-      "contacts": "Kontaktlar",
       "preview": "Ko'rish"
     },
     "languages": { "RU": "Русский", "UZ": "O‘zbekcha", "EN": "English" },
@@ -462,14 +461,11 @@
       "photos": "Fotosuratlar",
       "lang": { "label": "Asl til", "hint": "Boshqa tillar avtotarjima orqali yaratiladi." },
       "title": { "label": "Sarlavha", "placeholder": "Metro yonidagi keng 3 xonali kvartira" },
-      "desc": { "label": "Tavsif", "placeholder": "Kvartira haqida gapirib bering: ta'mir, infratuzilma, atrofda nimalar bor…" },
-      "name": { "label": "Ismingiz", "placeholder": "Masalan, Alisher" },
-      "phone": { "label": "Telefon", "hint": "Xaridorlar uni bog'lanish uchun ko'radi." }
+      "desc": { "label": "Tavsif", "placeholder": "Kvartira haqida gapirib bering: ta'mir, infratuzilma, atrofda nimalar bor…" }
     },
     "photoUploader": {
       "dropTitle": "Fotolarni shu yerga tashlang yoki tanlash uchun bosing",
       "dropHint": "JPG/PNG, 20 tagacha foto. Birinchi foto — muqova.",
-      "addDemo": "Demo foto qo'shish",
       "cover": "Muqova",
       "makeCover": "Muqova qilish",
       "remove": "O'chirish"
@@ -495,8 +491,7 @@
         "area": "Maydon",
         "floor": "Qavat",
         "year": "Yil",
-        "photos": "Foto",
-        "contact": "Kontakt"
+        "photos": "Foto"
       }
     },
     "nav": { "back": "Orqaga", "next": "Keyingi", "publish": "Chop etish", "publishing": "Chop etilmoqda…" },

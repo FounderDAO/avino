@@ -59,7 +59,6 @@ const STEPS = [
   'price',
   'photos',
   'description',
-  'contacts',
   'preview',
 ] as const;
 const TOTAL = STEPS.length;
@@ -87,8 +86,6 @@ interface FormState {
   lang: Lang;
   title: string;
   desc: string;
-  name: string;
-  phone: string;
   toursEnabled: boolean;
   tourWindows: TourWindow[];
 }
@@ -109,8 +106,6 @@ const INITIAL: FormState = {
   lang: 'RU',
   title: '',
   desc: '',
-  name: '',
-  phone: '',
   toursEnabled: false,
   tourWindows: [],
 };
@@ -234,8 +229,6 @@ export function ListingNew() {
       body.latitude = String(f.coords[0]);
       body.longitude = String(f.coords[1]);
     }
-    // name/phone — контакт владельца, не часть create-тела.
-    // TODO: опционально PATCH профиля contact_phone.
     if (f.toursEnabled) {
       body.tours_enabled = true;
       body.tour_windows = f.tourWindows;
@@ -289,8 +282,6 @@ export function ListingNew() {
         return f.photos.length > 0;
       case 6:
         return f.title.trim().length > 3;
-      case 7:
-        return f.name.trim().length > 1 && f.phone.replace(/\D/g, '').length >= 9;
       default:
         return true;
     }
@@ -557,28 +548,6 @@ export function ListingNew() {
                 onChange={(e) => set('desc', e.target.value)}
               />
             </FormField>
-          </div>
-        )}
-
-        {/* Шаг 7 — Контакты */}
-        {step === 7 && (
-          <div className="flex flex-col gap-5">
-            <FormField label={t('fields.name.label')}>
-              <Field
-                placeholder={t('fields.name.placeholder')}
-                value={f.name}
-                onChange={(e) => set('name', e.target.value)}
-              />
-            </FormField>
-            <FormField label={t('fields.phone.label')} hint={t('fields.phone.hint')}>
-              <Field
-                type="tel"
-                inputMode="tel"
-                placeholder="+998 90 123 45 67"
-                value={f.phone}
-                onChange={(e) => set('phone', e.target.value)}
-              />
-            </FormField>
             <ToursSection
               enabled={f.toursEnabled}
               windows={f.tourWindows}
@@ -587,8 +556,8 @@ export function ListingNew() {
           </div>
         )}
 
-        {/* Шаг 8 — Превью */}
-        {step === 8 && (
+        {/* Шаг 7 — Превью */}
+        {step === 7 && (
           <div className="flex flex-col gap-4">
             {f.photos[0] && (
               <div className="aspect-[16/10] overflow-hidden rounded-input">
@@ -633,7 +602,6 @@ export function ListingNew() {
                 label={t('preview.rows.photos')}
                 value={f.photos.length ? t('preview.photosCount', { count: f.photos.length }) : null}
               />
-              <Row label={t('preview.rows.contact')} value={f.name ? `${f.name} · ${f.phone}` : null} />
             </div>
             {f.desc && (
               <p className="whitespace-pre-line text-[14.5px] leading-[1.6] text-muted-foreground">
