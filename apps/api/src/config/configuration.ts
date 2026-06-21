@@ -87,6 +87,18 @@ export const promotionConfig = registerAs('promotion', () => ({
   expiryBatchSize: parseInt(process.env.PROMOTION_EXPIRY_BATCH_SIZE ?? '100', 10),
 }));
 
+// Фоновая чистка осиротевших фото в R2 (ADR-XXXX). Деструктивно → по умолчанию
+// ВЫКЛЮЧЕНО (явный MEDIA_CLEANUP_ENABLED=true в deploy env включает). cron —
+// расписание (по умолчанию ежедневно 04:00); graceHours — не трогать объекты
+// моложе N часов (защита от гонки с только что загруженным фото, чья DB-строка
+// могла ещё коммититься); batchSize — потолок объектов на запуск.
+export const mediaCleanupConfig = registerAs('mediaCleanup', () => ({
+  enabled: process.env.MEDIA_CLEANUP_ENABLED === 'true',
+  cron: process.env.MEDIA_CLEANUP_CRON ?? '0 4 * * *',
+  graceHours: parseInt(process.env.MEDIA_CLEANUP_GRACE_HOURS ?? '24', 10),
+  batchSize: parseInt(process.env.MEDIA_CLEANUP_BATCH_SIZE ?? '500', 10),
+}));
+
 // Ежедневное обновление курса USD/UZS с сайта ЦБ Узбекистана (cbu.uz). Ключ API
 // не требуется — данные публичны. cron определяет расписание repeatable-джобы
 // (по умолчанию 06:00 ежедневно, Ташкентское время); cbuBaseUrl — базовый адрес
@@ -216,4 +228,5 @@ export const configurations = [
   telegramConfig,
   swaggerConfig,
   exchangeRateConfig,
+  mediaCleanupConfig,
 ];
