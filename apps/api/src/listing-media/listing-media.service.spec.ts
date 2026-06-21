@@ -195,7 +195,33 @@ describe('ListingMediaService', () => {
       expect(result.thumbnail_url).toBeNull();
     });
 
-    it('lets an ADMIN upload to someone else’s listing', async () => {
+    it('includes the env prefix in the S3 upload path when rootPrefix returns "dev"', async () => {
+      // Локальный override: rootPrefix → 'dev', сбрасываем после теста
+      uploads.rootPrefix.mockReturnValue('dev');
+      try {
+        mockListing();
+        prisma.listingMedia.count.mockResolvedValue(0);
+        prisma.listingMedia.create.mockResolvedValue({
+          id: M1,
+          url: 'https://cdn.avino.uz/dev/listings/x/media/u.webp',
+          thumbnailUrl: null,
+          sortOrder: 0,
+          type: MediaType.IMAGE,
+        });
+
+        await service.uploadFile(LISTING_ID, owner, makeFile());
+
+        expect(uploads.upload).toHaveBeenCalledWith(
+          expect.objectContaining({
+            prefix: `dev/listings/${LISTING_ID}/media`,
+          }),
+        );
+      } finally {
+        uploads.rootPrefix.mockReturnValue('');
+      }
+    });
+
+    it("lets an ADMIN upload to someone else's listing", async () => {
       mockListing();
       prisma.listingMedia.count.mockResolvedValue(0);
       prisma.listingMedia.create.mockResolvedValue({
