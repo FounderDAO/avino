@@ -131,7 +131,12 @@ export class EnvironmentVariables {
   @IsOptional()
   TRANSLATE_FOLDER_ID?: string;
 
-  // ── Истечение промо VIP/TOP (TASK-123, опционально — есть дефолты) ──
+  // ── Продвижение объявлений (ADR-0100): master-флаг доступности + истечение ──
+  // Булева как строка (class-transformer привёл бы любую непустую к true).
+  @IsString()
+  @IsOptional()
+  PROMOTION_ENABLED?: string;
+
   @IsString()
   @IsOptional()
   PROMOTION_EXPIRY_CRON?: string;

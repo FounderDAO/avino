@@ -13,6 +13,7 @@ import { NotificationsModule } from '../../notifications';
 import { PromotionsModule } from '../../promotions';
 import { SavedSearchesModule } from '../../saved-searches';
 import { SearchModule } from '../../search';
+import { SettingsModule } from '../../settings';
 import { TranslationsModule } from '../../translations';
 import { UsersModule } from '../../users/users.module';
 import {
@@ -41,6 +42,7 @@ export const PUBLIC_MODULES = [
   ComplaintsModule,
   ExchangeRateModule,
   HealthModule,
+  SettingsModule,
 ];
 
 /**
@@ -64,6 +66,7 @@ export const PUBLIC_PATH_PREFIXES = [
   '/api/v1/complaints',
   '/api/v1/exchange-rate',
   '/api/v1/health',
+  '/api/v1/settings', // покрывает /api/v1/settings/public (admin/* остаётся в internal)
 ];
 
 /** Базовая конфигурация документа (заголовок, версия, bearer-схема). */

@@ -1433,6 +1433,24 @@
         }
       }
     },
+    "/api/v1/settings/public": {
+      "get": {
+        "operationId": "PublicSettingsController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/favorites": {
       "get": {
         "operationId": "FavoritesController_list",
@@ -2561,6 +2579,36 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/promotions-flag": {
+      "get": {
+        "operationId": "AdminPromotionsFlagController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "operationId": "AdminPromotionsFlagController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePromotionsFlagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
           }
         }
       }
@@ -3810,6 +3858,17 @@
         ]
       },
       "UpdateSmsSettingsDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "UpdatePromotionsFlagDto": {
         "type": "object",
         "properties": {
           "enabled": {
