@@ -112,10 +112,22 @@ worker are full NO-OP when off (no Redis connection, no schedule). See ADR-0099.
 | MEDIA_CLEANUP_CRON        | no   | no     | no     | 0 4 * * *   | Cron for the sweep. Default `0 4 * * *` (04:00 daily).                                        |
 | MEDIA_CLEANUP_GRACE_HOURS | no   | no     | no     | 24          | Skip objects younger than N hours (avoids racing a just-uploaded photo). Default `24`.       |
 | MEDIA_CLEANUP_BATCH_SIZE  | no   | no     | no     | 500         | Max deletions per run; a large orphan backlog drains over several runs. Default `500`.       |
+| MEDIA_CLEANUP_DRY_RUN     | no   | no     | no     | true        | Observe-only: log what WOULD be deleted, delete nothing. **Default `true`** — first activation is observational; set `false` to actually delete after checking the dry-run log. |
+| MEDIA_CLEANUP_MAX_DELETE_RATIO | no | no  | no     | 0.5         | Circuit-breaker: if more than this fraction of the inspected batch (≥20 objects) looks orphaned, **abort and log an error** instead of deleting — a wrong/empty DB or missing `S3_KEY_PREFIX` signal. Default `0.5`. |
 
 - Leaving `MEDIA_CLEANUP_ENABLED` unset/`false` is safe everywhere — the feature
   does nothing. Orphans only accumulate slowly (failed best-effort delete, or
   upload-without-create); enable explicitly once verified. See ADR-0099.
+- **Shared-bucket safety (important).** Orphan cleanup deletes objects with no
+  matching `listing_media` row in the env's OWN database. If two environments
+  share one bucket (e.g. local + staging both on `avinodev`), set a distinct
+  `S3_KEY_PREFIX` per env (§9) so each sweep is scoped to its own subtree —
+  otherwise one env's cleanup would treat the other's live photos as orphans.
+- **Safe activation recipe:** (1) set `S3_KEY_PREFIX` per env; (2) enable with
+  `MEDIA_CLEANUP_ENABLED=true` while `MEDIA_CLEANUP_DRY_RUN` stays `true`;
+  (3) read the `[DRY-RUN] would delete …` log lines and confirm they list only
+  genuine orphans; (4) only then set `MEDIA_CLEANUP_DRY_RUN=false`. The
+  circuit-breaker is the backstop if a misconfiguration slips through.
 
 ## 7. JWT / Auth
 
@@ -156,10 +168,14 @@ worker are full NO-OP when off (no Redis connection, no schedule). See ADR-0099.
 | S3_BUCKET            | yes  | no     | no     | avino-media   | Bucket for listing media          |
 | S3_ACCESS_KEY_ID     | yes  | yes    | no     | (set)         | Access key                        |
 | S3_SECRET_ACCESS_KEY | yes  | yes    | no     | (set)         | Secret key                        |
+| S3_KEY_PREFIX        | no   | no     | no     | dev           | Per-env key namespace. Photos write to `{prefix}/listings/...`; **media cleanup sweeps only its own subtree** (§6.2). Empty default → flat `listings/...`. **If several environments SHARE one bucket, give each a distinct prefix** (e.g. local=`dev`, staging=`staging`, prod=`prod` or empty if it has its own bucket) — this is what makes orphan cleanup safe on a shared bucket. See ADR-0099. |
 
 ```text
 - Listing photos are stored in S3, never on the app FS (DB_SCHEMA §6, ADR-008).
 - EXIF/GPS is stripped during processing. Target upload path is presigned PUT.
+- Read-path is unaffected by S3_KEY_PREFIX: storage_key stores the full key
+  verbatim. Existing pre-prefix objects (`listings/...`) keep working and are
+  never swept by a prefixed-environment cleanup (safe).
 ```
 
 ## 10. Yandex Maps
