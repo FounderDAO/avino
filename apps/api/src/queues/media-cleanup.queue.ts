@@ -15,7 +15,7 @@ import {
 const CLEANUP_SCHEDULER_ID = 'cleanup-orphan-media';
 
 /**
- * MediaCleanupQueue — продюсер очереди `media_cleanup_queue` (ADR-XXXX). По
+ * MediaCleanupQueue — продюсер очереди `media_cleanup_queue` (ADR-0099). По
  * аналогии с {@link SavedSearchQueue}: тонкая обёртка над BullMQ `Queue`.
  * Config-gated: при `mediaCleanup.enabled=false` repeatable-джоба НЕ ставится
  * (sweep деструктивен — по умолчанию выключен).

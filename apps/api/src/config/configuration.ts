@@ -87,7 +87,7 @@ export const promotionConfig = registerAs('promotion', () => ({
   expiryBatchSize: parseInt(process.env.PROMOTION_EXPIRY_BATCH_SIZE ?? '100', 10),
 }));
 
-// Фоновая чистка осиротевших фото в R2 (ADR-XXXX). Деструктивно → по умолчанию
+// Фоновая чистка осиротевших фото в R2 (ADR-0099). Деструктивно → по умолчанию
 // ВЫКЛЮЧЕНО (явный MEDIA_CLEANUP_ENABLED=true в deploy env включает). cron —
 // расписание (по умолчанию ежедневно 04:00); graceHours — не трогать объекты
 // моложе N часов (защита от гонки с только что загруженным фото, чья DB-строка

@@ -8,7 +8,7 @@ const DEFAULT_GRACE_HOURS = 24;
 const DEFAULT_BATCH_SIZE = 500;
 
 /**
- * MediaCleanupService — фоновый sweep осиротевших фото в R2 (ADR-XXXX).
+ * MediaCleanupService — фоновый sweep осиротевших фото в R2 (ADR-0099).
  *
  * Запускается периодической джобой `cleanup_orphan_media` (MediaCleanupWorker →
  * `media_cleanup_queue`). Перечисляет объекты под префиксом `listings/`, берёт

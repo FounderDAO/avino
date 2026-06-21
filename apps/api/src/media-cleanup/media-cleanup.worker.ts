@@ -11,7 +11,7 @@ import { MEDIA_CLEANUP_QUEUE_NAME } from '../queues/queue.constants';
 import { MediaCleanupService } from './media-cleanup.service';
 
 /**
- * MediaCleanupWorker — консьюмер `media_cleanup_queue` (ADR-XXXX). По аналогии с
+ * MediaCleanupWorker — консьюмер `media_cleanup_queue` (ADR-0099). По аналогии с
  * {@link PromotionWorker}. Config-gated: при `mediaCleanup.enabled=false` воркер
  * не стартует (sweep деструктивен — выключен по умолчанию).
  */

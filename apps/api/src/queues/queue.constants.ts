@@ -78,7 +78,7 @@ export const REFRESH_EXCHANGE_RATE_JOB = 'refresh_exchange_rate';
 export type RefreshExchangeRateJobData = Record<string, never>;
 
 /**
- * Очередь фоновой чистки осиротевших фото в R2 (ADR-XXXX). Несёт периодическую
+ * Очередь фоновой чистки осиротевших фото в R2 (ADR-0099). Несёт периодическую
  * джобу `cleanup_orphan_media` (sweep, без точечной нагрузки).
  */
 export const MEDIA_CLEANUP_QUEUE_NAME = 'media_cleanup_queue';
