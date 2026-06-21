@@ -37,6 +37,41 @@ Related ADR:
 
 ---
 
+## 2026-06-22
+
+### Дашборд админки на живых данных + фото в таблице + пагинация (ADR-0101)
+
+Status: DONE
+Branch: feat/admin-dashboard-realdata
+PR: #217
+
+Дашборд `/admin` и таблица объявлений переведены с моков на живые данные.
+Новый `GET /api/v1/admin/analytics` (MODERATOR/ADMIN) отдаёт ряды графиков:
+объявления за 12 мес (`generate_series`, нулевые месяцы включены), покупка/аренда
+(сырые SALE/RENT), топ-6 районов с именами (`groupBy` + справочник), последние
+6 действий из `moderation_logs`. Вынесено в отдельный `AdminAnalyticsService`
+(лёгкий `/admin/stats` не трогали). `GET /admin/listings` теперь отдаёт
+`photo_url` (первое медиа по `sort_order`, sign-on-read ADR-0086) — реальная
+обложка в таблице и в очереди модерации на дашборде. Бейдж модерации в сайдбаре
+берёт `listings_new` из `/admin/stats` (была статичная мок-цифра). Таблица:
+оконный нумерованный пейджер + «Показано X из Y · стр. P из N».
+
+Files changed:
+- apps/api/src/moderation/moderation.service.ts, moderation.module.ts, moderation.service.spec.ts
+- apps/api/src/admin/admin-analytics.{service,controller,service.spec}.ts (NEW), admin.module.ts
+- apps/api/openapi.internal.json
+- apps/web/src/store/api/{adminTypes,adminAnalyticsApi}.ts
+- apps/web/src/lib/adapters/{analytics,listings}.ts
+- apps/web/src/app/admin/page.tsx, app/admin/listings/page.tsx, components/admin/Sidebar.tsx
+- docs/API.md
+
+Related ADR:
+- docs/adr/ADR-0101-admin-dashboard-live-data.md
+
+Заметки: API 534/534 тестов (+8). OpenAPI регенерён (только internal — путь
+`/admin/analytics`). Live-verified. Колонка «Просм.» в таблице остаётся «—» —
+счётчик просмотров на бэке не реализован (отдельная задача).
+
 ## 2026-06-21
 
 ### Продвижение объявлений — admin feature-flag (ADR-0100)
