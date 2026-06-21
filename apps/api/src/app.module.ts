@@ -20,6 +20,7 @@ import { QueuesModule } from './queues';
 import { RedisModule } from './redis';
 import { SavedSearchesModule } from './saved-searches';
 import { SearchModule } from './search';
+import { SettingsModule } from './settings';
 import { TourRequestsModule } from './tour-requests';
 import { TranslationsModule } from './translations';
 import { UploadsModule } from './uploads';
@@ -38,6 +39,7 @@ import { UsersModule } from './users/users.module';
     ListingsModule,
     ListingMediaModule,
     SearchModule,
+    SettingsModule,
     GeoModule,
     FavoritesModule,
     SavedSearchesModule,
