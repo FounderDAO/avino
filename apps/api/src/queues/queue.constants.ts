@@ -76,3 +76,15 @@ export const REFRESH_EXCHANGE_RATE_JOB = 'refresh_exchange_rate';
 
 /** Нагрузка пустая: джоба сама делает один fetch + insert. */
 export type RefreshExchangeRateJobData = Record<string, never>;
+
+/**
+ * Очередь фоновой чистки осиротевших фото в R2 (ADR-0099). Несёт периодическую
+ * джобу `cleanup_orphan_media` (sweep, без точечной нагрузки).
+ */
+export const MEDIA_CLEANUP_QUEUE_NAME = 'media_cleanup_queue';
+
+/** Периодическая sweep-джоба чистки orphan-медиа. Нагрузка пустая. */
+export const CLEANUP_ORPHAN_MEDIA_JOB = 'cleanup_orphan_media';
+
+/** Нагрузка пустая: джоба сама перечисляет объекты и сверяет с listing_media. */
+export type CleanupOrphanMediaJobData = Record<string, never>;
