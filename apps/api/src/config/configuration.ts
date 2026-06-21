@@ -100,6 +100,12 @@ export const mediaCleanupConfig = registerAs('mediaCleanup', () => ({
   cron: process.env.MEDIA_CLEANUP_CRON ?? '0 4 * * *',
   graceHours: parseInt(process.env.MEDIA_CLEANUP_GRACE_HOURS ?? '24', 10),
   batchSize: parseInt(process.env.MEDIA_CLEANUP_BATCH_SIZE ?? '500', 10),
+  // Наблюдательный режим: логировать, что удалили БЫ, но НЕ удалять. Default true
+  // (безопаснее — первое включение наблюдательное; явный `false` включает удаление).
+  dryRun: process.env.MEDIA_CLEANUP_DRY_RUN !== 'false',
+  // Автостоп: если доля «сирот» среди осмотренной выборки выше — прерваться (не та/
+  // пустая база, чужой бакет). Default 0.5.
+  maxDeleteRatio: parseFloat(process.env.MEDIA_CLEANUP_MAX_DELETE_RATIO ?? '0.5'),
 }));
 
 // Ежедневное обновление курса USD/UZS с сайта ЦБ Узбекистана (cbu.uz). Ключ API

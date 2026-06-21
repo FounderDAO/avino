@@ -6,6 +6,10 @@ import { UploadsService } from '../uploads';
 /** Дефолты sweep'а, если конфиг не задан. */
 const DEFAULT_GRACE_HOURS = 24;
 const DEFAULT_BATCH_SIZE = 500;
+const DEFAULT_DRY_RUN = true;
+const DEFAULT_MAX_DELETE_RATIO = 0.5;
+/** Ниже этого размера выборки ratio-проверка не применяется (шум малых чисел). */
+const MIN_SAMPLE_FOR_RATIO = 20;
 
 /**
  * MediaCleanupService — фоновый sweep осиротевших фото в R2 (ADR-0099).
@@ -26,6 +30,8 @@ export class MediaCleanupService {
   private readonly logger = new Logger(MediaCleanupService.name);
   private readonly graceHours: number;
   private readonly batchSize: number;
+  private readonly dryRun: boolean;
+  private readonly maxDeleteRatio: number;
 
   constructor(
     private readonly uploads: UploadsService,
@@ -38,6 +44,10 @@ export class MediaCleanupService {
     this.graceHours = Number.isFinite(grace) ? (grace as number) : DEFAULT_GRACE_HOURS;
     const batch = configService.get<number>('mediaCleanup.batchSize');
     this.batchSize = Number.isFinite(batch) ? (batch as number) : DEFAULT_BATCH_SIZE;
+    const dry = configService.get<boolean>('mediaCleanup.dryRun');
+    this.dryRun = typeof dry === 'boolean' ? dry : DEFAULT_DRY_RUN;
+    const ratio = configService.get<number>('mediaCleanup.maxDeleteRatio');
+    this.maxDeleteRatio = Number.isFinite(ratio) ? (ratio as number) : DEFAULT_MAX_DELETE_RATIO;
   }
 
   /**
@@ -76,11 +86,35 @@ export class MediaCleanupService {
       ),
     );
 
+    const orphans = candidates.filter((o) => !live.has(o.key));
+
+    // Circuit-breaker: аномально высокая доля «сирот» при достаточной выборке =
+    // почти наверняка не та/пустая база или чужой бакет → прерываемся.
+    if (
+      candidates.length >= MIN_SAMPLE_FOR_RATIO &&
+      orphans.length / candidates.length > this.maxDeleteRatio
+    ) {
+      this.logger.error(
+        `ABORT media cleanup: ${orphans.length}/${candidates.length} objects under ` +
+          `${listingsRoot} look orphaned (> ${this.maxDeleteRatio}). ` +
+          `Wrong DB/bucket or missing S3_KEY_PREFIX? Deleting nothing.`,
+      );
+      return 0;
+    }
+
+    if (this.dryRun) {
+      this.logger.warn(
+        `[DRY-RUN] media cleanup would delete ${orphans.length} orphan object(s) under ` +
+          `${listingsRoot}` +
+          (orphans.length
+            ? `; sample: ${orphans.slice(0, 5).map((o) => o.key).join(', ')}`
+            : ''),
+      );
+      return 0;
+    }
+
     let deleted = 0;
-    for (const obj of candidates) {
-      if (live.has(obj.key)) {
-        continue;
-      }
+    for (const obj of orphans) {
       try {
         await this.uploads.delete(obj.key);
         deleted += 1;
@@ -90,7 +124,6 @@ export class MediaCleanupService {
         );
       }
     }
-
     if (deleted > 0) {
       this.logger.log(`Deleted ${deleted} orphan media object(s)`);
     }
