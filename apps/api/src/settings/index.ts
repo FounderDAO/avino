@@ -4,3 +4,4 @@ export {
   PROMOTIONS_ENABLED_KEY,
   resolvePromotionsEnabled,
 } from './promotions-flag.constants';
+export { AdminPromotionsFlagController } from './admin-promotions-flag.controller';

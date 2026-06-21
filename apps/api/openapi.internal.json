@@ -1451,36 +1451,6 @@
         }
       }
     },
-    "/api/v1/admin/promotions-flag": {
-      "get": {
-        "operationId": "AdminPromotionsFlagController_get",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        }
-      },
-      "patch": {
-        "operationId": "AdminPromotionsFlagController_update",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdatePromotionsFlagDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        }
-      }
-    },
     "/api/v1/favorites": {
       "get": {
         "operationId": "FavoritesController_list",
@@ -2613,6 +2583,36 @@
         }
       }
     },
+    "/api/v1/admin/promotions-flag": {
+      "get": {
+        "operationId": "AdminPromotionsFlagController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "operationId": "AdminPromotionsFlagController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePromotionsFlagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/admin/users": {
       "get": {
         "operationId": "AdminUsersController_list",
@@ -3608,17 +3608,6 @@
           "order"
         ]
       },
-      "UpdatePromotionsFlagDto": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "enabled"
-        ]
-      },
       "CreateFavoriteDto": {
         "type": "object",
         "properties": {
@@ -3869,6 +3858,17 @@
         ]
       },
       "UpdateSmsSettingsDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "UpdatePromotionsFlagDto": {
         "type": "object",
         "properties": {
           "enabled": {

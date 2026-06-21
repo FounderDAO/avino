@@ -49,4 +49,25 @@ describe('PromotionsFlagService', () => {
       }),
     );
   });
+
+  it('setEnabled() upserts false value + writes audit with enabled:false', async () => {
+    const result = await service.setEnabled('admin1', false);
+    expect(result).toBe(false);
+    expect(prisma.appSetting.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { key: 'promotions_enabled' },
+        update: { value: 'false' },
+        create: { key: 'promotions_enabled', value: 'false' },
+      }),
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          actorId: 'admin1',
+          action: 'PROMOTIONS_FLAG_UPDATE',
+          metadata: { enabled: false },
+        }),
+      }),
+    );
+  });
 });

@@ -2362,17 +2362,6 @@
           "order"
         ]
       },
-      "UpdatePromotionsFlagDto": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "enabled"
-        ]
-      },
       "CreateFavoriteDto": {
         "type": "object",
         "properties": {

@@ -1,23 +1,18 @@
 import { Module } from '@nestjs/common';
-import { RolesModule } from '../roles';
-import { AdminPromotionsFlagController } from './admin-promotions-flag.controller';
 import { PublicSettingsController } from './public-settings.controller';
 import { PromotionsFlagService } from './promotions-flag.service';
 
 /**
- * SettingsModule — публичные фиче-флаги + admin-тогглы платформы.
+ * SettingsModule — публичные фиче-флаги платформы.
  *
  * `PublicSettingsController` (`GET /settings/public`) — без авторизации, отдаёт
- * флаги порталу/мобильным клиентам. `AdminPromotionsFlagController`
- * (`GET/PATCH /admin/promotions-flag`) — ADMIN-управление флагом продвижения.
- * `RolesModule` импортируется ради Bearer-аутентификации/ролей
- * ({@link JwtAuthGuard}/{@link RolesGuard}) admin-контроллера — тот же приём,
- * что в ExchangeRateModule/AdminModule. `PromotionsFlagService` экспортируется
- * на случай серверного гейта будущего клиентского promote-эндпоинта.
+ * флаги порталу/мобильным клиентам. `PromotionsFlagService` экспортируется
+ * для использования в AdminModule (admin-тоггл `AdminPromotionsFlagController`
+ * зарегистрирован там, чтобы его DTO не просачивались в публичный OpenAPI-документ).
  */
 @Module({
-  imports: [RolesModule],
-  controllers: [PublicSettingsController, AdminPromotionsFlagController],
+  imports: [],
+  controllers: [PublicSettingsController],
   providers: [PromotionsFlagService],
   exports: [PromotionsFlagService],
 })
