@@ -2,7 +2,7 @@
  * PhotoUploader — загрузчик фото-ЗАГЛУШКА (порт PhotoUploader из listing-new.jsx).
  * Реальной загрузки нет: файлы превращаются в blob-URL через URL.createObjectURL.
  * Поддержка: выбор/перетаскивание файлов в зону, drag&drop переупорядочивания,
- * удаление, назначение обложки, демо-фото. Первое фото — обложка.
+ * удаление, назначение обложки. Первое фото — обложка.
  */
 'use client';
 
@@ -10,13 +10,12 @@ import { useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Camera, X } from 'lucide-react';
 import { PhotoImg } from '@/components/ui/photo-img';
-import { Button } from '@/components/ui/button';
 
 /** Одно фото в загрузчике. */
 export interface UploadPhoto {
   id: string;
   url: string;
-  /** Исходный File (для multipart-загрузки). Отсутствует у демо-фото. */
+  /** Исходный File (для multipart-загрузки). Отсутствует у уже загруженных фото (edit). */
   file?: File;
 }
 
@@ -25,15 +24,6 @@ export interface PhotoUploaderProps {
   /** Сеттер в стиле useState (значение или функция-апдейтер). */
   setPhotos: (next: UploadPhoto[] | ((prev: UploadPhoto[]) => UploadPhoto[])) => void;
 }
-
-/** Демо-плейсхолдеры (без реальной загрузки). */
-const DEMO_PHOTOS = [
-  'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=70',
-  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=600&q=70',
-  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=70',
-  'https://images.unsplash.com/photo-1505873242700-f289a29e1e0f?auto=format&fit=crop&w=600&q=70',
-  'https://images.unsplash.com/photo-1556912173-3bb406ef7e77?auto=format&fit=crop&w=600&q=70',
-];
 
 const uid = () => Math.random().toString(36).slice(2);
 
@@ -61,9 +51,6 @@ export function PhotoUploader({ photos, setPhotos }: PhotoUploaderProps) {
       return a;
     });
 
-  const addDemo = () =>
-    setPhotos((p) => [...p, ...DEMO_PHOTOS.map((url) => ({ id: uid(), url }))].slice(0, 20));
-
   return (
     <div>
       {/* Drag&drop / выбор файлов */}
@@ -88,12 +75,6 @@ export function PhotoUploader({ photos, setPhotos }: PhotoUploaderProps) {
           onChange={(e) => onFiles(e.target.files)}
         />
       </label>
-
-      {photos.length === 0 && (
-        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={addDemo}>
-          {t('photoUploader.addDemo')}
-        </Button>
-      )}
 
       {photos.length > 0 && (
         <div className="mt-3.5 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2.5">
