@@ -32,10 +32,12 @@ export class MediaCleanupService {
     private readonly prisma: PrismaService,
     configService: ConfigService,
   ) {
-    this.graceHours =
-      configService.get<number>('mediaCleanup.graceHours') ?? DEFAULT_GRACE_HOURS;
-    this.batchSize =
-      configService.get<number>('mediaCleanup.batchSize') ?? DEFAULT_BATCH_SIZE;
+    // ?? не защищает от NaN (parseInt('abc')=NaN, NaN ?? default = NaN).
+    // Number.isFinite гарантирует фолбэк при любом некорректном значении.
+    const grace = configService.get<number>('mediaCleanup.graceHours');
+    this.graceHours = Number.isFinite(grace) ? (grace as number) : DEFAULT_GRACE_HOURS;
+    const batch = configService.get<number>('mediaCleanup.batchSize');
+    this.batchSize = Number.isFinite(batch) ? (batch as number) : DEFAULT_BATCH_SIZE;
   }
 
   /**

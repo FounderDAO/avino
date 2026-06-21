@@ -110,4 +110,25 @@ describe('MediaCleanupService', () => {
     expect(uploads.delete).not.toHaveBeenCalled();
     expect(deleted).toBe(0);
   });
+
+  it('при NaN-конфиге (malformed env) применяет DEFAULT_GRACE_HOURS=24 и удаляет объект старше 24ч', async () => {
+    // Симулируем parseInt('abc',10) → NaN, который ?? не перехватывает.
+    const nanConfig = {
+      get: (key: string) =>
+        key === 'mediaCleanup.graceHours' ? NaN : key === 'mediaCleanup.batchSize' ? NaN : undefined,
+    } as unknown as ConfigService;
+
+    // Объект возрастом 48ч — старше дефолтного grace 24ч, должен быть удалён.
+    uploads.listKeys.mockResolvedValue([
+      { key: 'listings/a/media/oldorphan.jpg', lastModified: new Date(Date.now() - 48 * HOUR) },
+    ]);
+
+    const svc = new MediaCleanupService(uploads as any, prisma, nanConfig);
+    const deleted = await svc.run();
+
+    // Если бы graceHours=NaN, cutoff=NaN и lastModified<NaN=false → deleted=0.
+    // Правильная ветка: graceHours=24, cutoff=now-24h, объект 48h старше → удаляется.
+    expect(deleted).toBe(1);
+    expect(uploads.delete).toHaveBeenCalledWith('listings/a/media/oldorphan.jpg');
+  });
 });
