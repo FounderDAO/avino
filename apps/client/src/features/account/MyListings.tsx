@@ -42,6 +42,7 @@ import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import { useGetMyListingsQuery, useSetMyListingStatusMutation } from '@/store/api/myListingsApi';
+import { usePromotionsEnabled } from '@/lib/usePromotionsEnabled';
 import {
   ownerActionsFor,
   type OwnerAction,
@@ -85,7 +86,7 @@ function StatusPill({ s }: { s: ListingStatus | undefined }) {
 }
 
 /** Строка объявления в кабинете. */
-function ListingRow({ l }: { l: Listing }) {
+function ListingRow({ l, promotionsEnabled }: { l: Listing; promotionsEnabled: boolean }) {
   const t = useTranslations('account');
   const fmt = usePriceFormatter();
   const [setStatus, { isLoading }] = useSetMyListingStatusMutation();
@@ -134,8 +135,8 @@ function ListingRow({ l }: { l: Listing }) {
           </Link>
         </Button>
 
-        {/* Продвинуть — мягкий золотой premium-акцент (стаб вне области задачи). */}
-        {l.promo === 'NORMAL' && (
+        {/* Продвинуть — показывается только если admin включил промо-функцию. */}
+        {promotionsEnabled && l.promo === 'NORMAL' && (
           <Button
             size="sm"
             type="button"
@@ -206,6 +207,7 @@ function SkeletonRow() {
 export function MyListings() {
   const t = useTranslations('account');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const promotionsEnabled = usePromotionsEnabled();
   const { data, isLoading } = useGetMyListingsQuery(undefined, {
     skip: !isAuthenticated,
   });
@@ -290,7 +292,7 @@ export function MyListings() {
       {header}
       <div className="flex flex-col gap-3">
         {items.map((l) => (
-          <ListingRow key={l.id} l={l} />
+          <ListingRow key={l.id} l={l} promotionsEnabled={promotionsEnabled} />
         ))}
       </div>
     </div>
