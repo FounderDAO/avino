@@ -160,10 +160,14 @@ export class ListingMediaService {
       });
     }
 
+    const root = this.uploads.rootPrefix();
+    const prefix = [root, 'listings', listingId, 'media']
+      .filter(Boolean)
+      .join('/');
     const { key, url } = await this.uploads.upload({
       buffer: file.buffer,
       contentType: file.mimetype,
-      prefix: `listings/${listingId}/media`,
+      prefix,
       extension,
     });
 

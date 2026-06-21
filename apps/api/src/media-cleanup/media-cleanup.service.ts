@@ -47,7 +47,9 @@ export class MediaCleanupService {
   async run(): Promise<number> {
     const cutoff = new Date(Date.now() - this.graceHours * 3600_000);
 
-    const objects = await this.uploads.listKeys('listings/');
+    const root = this.uploads.rootPrefix();
+    const listingsRoot = root ? `${root}/listings/` : 'listings/';
+    const objects = await this.uploads.listKeys(listingsRoot);
     const candidates = objects
       .filter((o) => o.key.includes('/media/') && o.lastModified < cutoff)
       .slice(0, this.batchSize);

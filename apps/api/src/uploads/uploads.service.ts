@@ -156,6 +156,15 @@ export class UploadsService {
     );
   }
 
+  /**
+   * Корень-неймспейс ключей среды (`S3_KEY_PREFIX`). Используется upload'ом и
+   * media-cleanup, чтобы каждая среда писала/сметала ТОЛЬКО своё поддерево
+   * `{prefix}/listings/...` — изоляция при общем бакете. Пусто → плоский `listings/`.
+   */
+  rootPrefix(): string {
+    return this.configService.get<string>('s3.keyPrefix') ?? '';
+  }
+
   /** Публичный режим включён, если задан базовый публичный URL/CDN. */
   private isPublic(): boolean {
     return Boolean(this.configService.get<string>('s3.publicBaseUrl'));

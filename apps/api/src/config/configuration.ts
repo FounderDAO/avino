@@ -48,6 +48,9 @@ export const s3Config = registerAs('s3', () => ({
   // presigned GET URL (приватный bucket). См. ARCHITECTURE §14, ENV §9.
   publicBaseUrl: process.env.S3_PUBLIC_BASE_URL,
   signedUrlTtl: parseInt(process.env.S3_SIGNED_URL_TTL ?? '3600', 10),
+  // Корень-неймспейс ключей media для ИЗОЛЯЦИИ сред на общем бакете (dev|staging|
+  // prod). Пусто → плоский `listings/...` (back-compat, одна среда = один бакет).
+  keyPrefix: (process.env.S3_KEY_PREFIX ?? '').replace(/^\/+|\/+$/g, ''),
 }));
 
 export const mapsConfig = registerAs('maps', () => ({

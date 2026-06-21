@@ -16,6 +16,7 @@ describe('MediaCleanupService', () => {
     listKeys: jest.Mock;
     delete: jest.Mock;
     extractKey: jest.Mock;
+    rootPrefix: jest.Mock;
   };
   let prisma: any;
 
@@ -38,6 +39,8 @@ describe('MediaCleanupService', () => {
       delete: jest.fn().mockResolvedValue(undefined),
       // legacy extractKey: из url достаём path после домена/бакета.
       extractKey: jest.fn((url: string) => new URL(url).pathname.replace(/^\/+/, '')),
+      // back-compat: пустой префикс → listKeys('listings/')
+      rootPrefix: jest.fn().mockReturnValue(''),
     };
     prisma = {
       listingMedia: { findMany: jest.fn().mockResolvedValue([]) },
@@ -109,6 +112,18 @@ describe('MediaCleanupService', () => {
     const deleted = await make().run();
     expect(uploads.delete).not.toHaveBeenCalled();
     expect(deleted).toBe(0);
+  });
+
+  it('при rootPrefix="dev" listKeys вызывается с "dev/listings/"', async () => {
+    uploads.rootPrefix.mockReturnValue('dev');
+    await make().run();
+    expect(uploads.listKeys).toHaveBeenCalledWith('dev/listings/');
+  });
+
+  it('при rootPrefix="" listKeys вызывается с "listings/" (back-compat)', async () => {
+    uploads.rootPrefix.mockReturnValue('');
+    await make().run();
+    expect(uploads.listKeys).toHaveBeenCalledWith('listings/');
   });
 
   it('при NaN-конфиге (malformed env) применяет DEFAULT_GRACE_HOURS=24 и удаляет объект старше 24ч', async () => {

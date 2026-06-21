@@ -68,6 +68,8 @@ describe('ListingMediaService', () => {
       }),
       delete: jest.fn().mockResolvedValue(undefined),
       extractKey: jest.fn().mockReturnValue('listings/x/media/u.webp'),
+      // back-compat: пустой префикс → ключи остаются `listings/...`
+      rootPrefix: jest.fn().mockReturnValue(''),
       // Отдача всегда идёт через свежий presigned URL (ADR-0086): по умолчанию
       // echo (key ?? fallbackUrl), чтобы не-URL-тесты остались зелёными; тесты на
       // протухание переопределяют возврат.
