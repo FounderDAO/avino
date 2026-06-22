@@ -183,6 +183,7 @@ enum NotificationType {
   PROMOTION_ACTIVATED
   PROMOTION_EXPIRED
   TOUR_REQUEST_STATUS_CHANGED
+  ADMIN_BROADCAST
 }
 
 /// Канал доставки уведомления (DB_SCHEMA.md §3/§11). В MVP надёжно доставляются
@@ -191,6 +192,7 @@ enum NotificationChannel {
   EMAIL
   PUSH
   IN_APP
+  SMS
 }
 
 /// Статус доставки уведомления (DB_SCHEMA.md §3/§11). PENDING — поставлено в
@@ -270,7 +272,10 @@ model User {
   notificationDevices  NotificationDevice[]
   // Записи аудита, где этот пользователь — actor (FK SET NULL; null = system).
   auditLogs            AuditLog[]
-  tourRequests  TourRequest[]
+  tourRequests         TourRequest[]
+  // Рассылки: созданные этим пользователем (как админ) и адресованные ему (SINGLE).
+  broadcastsCreated    Broadcast[]          @relation("BroadcastCreatedBy")
+  broadcastsReceived   Broadcast[]          @relation("BroadcastTargetUser")
 
   @@map("users")
 }
@@ -784,12 +789,16 @@ model Notification {
   sentAt    DateTime?           @map("sent_at") @db.Timestamptz(6)
   createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  broadcastId String?    @map("broadcast_id") @db.Uuid
+  broadcast   Broadcast? @relation(fields: [broadcastId], references: [id], onDelete: SetNull)
+
   user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   deliveries NotificationDelivery[]
 
   @@index([userId, createdAt])
   @@index([userId, status])
   @@index([type])
+  @@index([broadcastId])
   @@map("notifications")
 }
 
@@ -917,4 +926,48 @@ model TourRequest {
   @@index([requesterId])
   @@index([status])
   @@map("tour_requests")
+}
+
+/// Ручная админ-рассылка (массовая или точечная). Одна строка = одна рассылка
+/// = запись истории. Воркер материализует её в Notification+NotificationDelivery.
+model Broadcast {
+  id             String                @id @default(uuid()) @db.Uuid
+  createdById    String                @map("created_by") @db.Uuid
+  audienceType   BroadcastAudience     @map("audience_type")
+  targetUserId   String?               @map("target_user_id") @db.Uuid
+  language       Language
+  filterStatus   UserStatus?           @map("filter_status")
+  filterRole     String?               @map("filter_role") @db.VarChar(40)
+  channels       NotificationChannel[]
+  title          String                @db.VarChar(255)
+  body           String
+  status         BroadcastStatus       @default(SCHEDULED)
+  scheduledAt    DateTime?             @map("scheduled_at") @db.Timestamptz(6)
+  recipientCount Int                   @default(0) @map("recipient_count")
+  sentAt         DateTime?             @map("sent_at") @db.Timestamptz(6)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy     User           @relation("BroadcastCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  targetUser    User?          @relation("BroadcastTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  notifications Notification[]
+
+  @@index([status, scheduledAt])
+  @@index([createdById, createdAt])
+  @@map("broadcasts")
+}
+
+/// Тип аудитории рассылки: SINGLE — конкретный пользователь; SEGMENT — фильтр.
+enum BroadcastAudience {
+  SINGLE
+  SEGMENT
+}
+
+/// Статусы рассылки. SCHEDULED → SENDING → SENT; CANCELED из SCHEDULED; FAILED при ошибке.
+enum BroadcastStatus {
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
+  CANCELED
 }
