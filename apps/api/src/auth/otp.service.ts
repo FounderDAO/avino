@@ -73,11 +73,21 @@ export class OtpService {
       });
     }
 
+    // Тест-стенд: config-gated доставка телефонного OTP через Telegram (admin-чат),
+    // минуя Eskiz, — как локально. Default OFF (прод не затрагивается). В этом
+    // режиме SMS-канал не требует включённого SMS-тоггла, поэтому 503 ниже не кидаем.
+    const telegramDelivery =
+      this.configService.get<boolean>('otp.telegramDelivery') ?? false;
+
     // Канал SMS может быть выключен админом (runtime-тоггл, sms_enabled).
     // Падаем быстро — до rate-limit и генерации кода — единым кодом
     // AUTH_PROVIDER_UNAVAILABLE (как /auth/google без ключа), чтобы клиент
     // предложил другой канал, а не «успех» без доставки.
-    if (dto.channel === OtpChannel.SMS && !(await this.sms.isEnabled())) {
+    if (
+      dto.channel === OtpChannel.SMS &&
+      !telegramDelivery &&
+      !(await this.sms.isEnabled())
+    ) {
       throw new ServiceUnavailableException({
         code: ApiErrorCode.AUTH_PROVIDER_UNAVAILABLE,
         message: 'SMS channel is temporarily unavailable',
@@ -114,21 +124,40 @@ export class OtpService {
       },
     });
 
-    await this.deliver(dto.channel, destination, code);
+    const isNewUser = user == null;
 
-    // Admin-алерт (best-effort, fire-and-forget): код включается флагом
-    // TELEGRAM_INCLUDE_OTP_CODE (MVP). Сбой алерта не влияет на выдачу OTP.
-    const includeCode =
-      this.configService.get<boolean>('telegram.includeOtpCode') ?? true;
-    void this.telegram.sendAdminAlert(
-      formatOtpRequest({
-        destination,
-        channel: dto.channel,
-        code: includeCode ? code : undefined,
-        ip,
-        isNewUser: user == null,
-      }),
-    );
+    if (dto.channel === OtpChannel.SMS && telegramDelivery) {
+      // Telegram-доставка (staging): сам admin-алерт С КОДОМ и есть доставка —
+      // шлём синхронно (best-effort, не бросает) и НЕ трогаем Eskiz. Обычный
+      // алерт ниже при этом не шлём, чтобы не было дубля сообщения. ВНИМАНИЕ:
+      // доставка завязана на включённые Telegram-уведомления (notifications-тоггл
+      // + TELEGRAM_BOT_TOKEN/ADMIN_CHAT_ID) — это намеренно, режим только для стенда.
+      await this.telegram.sendAdminAlert(
+        formatOtpRequest({
+          destination,
+          channel: dto.channel,
+          code,
+          ip,
+          isNewUser,
+        }),
+      );
+    } else {
+      await this.deliver(dto.channel, destination, code);
+
+      // Admin-алерт (best-effort, fire-and-forget): код включается флагом
+      // TELEGRAM_INCLUDE_OTP_CODE (MVP). Сбой алерта не влияет на выдачу OTP.
+      const includeCode =
+        this.configService.get<boolean>('telegram.includeOtpCode') ?? true;
+      void this.telegram.sendAdminAlert(
+        formatOtpRequest({
+          destination,
+          channel: dto.channel,
+          code: includeCode ? code : undefined,
+          ip,
+          isNewUser,
+        }),
+      );
+    }
 
     const resendAfter = await this.rateLimit.startCooldown(
       dto.channel,
