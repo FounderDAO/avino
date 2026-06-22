@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EmailModule } from '../email/email.module';
+import { SmsModule } from '../sms/sms.module';
 import { RolesModule } from '../roles';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
@@ -28,7 +29,7 @@ import { NotificationRendererService } from './delivery/notification-renderer.se
  * {@link EmailService}.
  */
 @Module({
-  imports: [RolesModule, ConfigModule, EmailModule],
+  imports: [RolesModule, ConfigModule, EmailModule, SmsModule],
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
