@@ -302,6 +302,36 @@ describe('NotificationDispatcherService', () => {
     );
   });
 
+  // (f-1) fanOut фильтрует broadcast-уведомления через broadcastId: null
+  it('(f-1) fanOut передаёт broadcastId: null в where запроса notification.findMany', async () => {
+    const prisma = buildPrisma();
+    const config = buildConfig();
+    const renderer = buildRenderer();
+    const fcm = buildFcm();
+    const emailService = buildEmailService();
+
+    (prisma.notification.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.notificationDelivery.findMany as jest.Mock).mockResolvedValue([]);
+
+    const service = new NotificationDispatcherService(
+      prisma as never,
+      config as never,
+      renderer as never,
+      fcm as never,
+      emailService as never,
+      buildSms() as never,
+    );
+
+    await service.run();
+
+    // fan-out должен исключать broadcast-уведомления через broadcastId: null
+    expect(prisma.notification.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ broadcastId: null }),
+      }),
+    );
+  });
+
   // (f) FAILED delivery with attempts >= 3 is not retried
   it('(f) FAILED delivery with attempts >= 3 is not retried', async () => {
     const prisma = buildPrisma();
