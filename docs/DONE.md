@@ -4500,3 +4500,38 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0102-notification-delivery.md
+
+### TASK — Admin broadcast backend layer (PR-1)
+
+Status: REVIEW (PR открыт на ветке feat/notifications-email-push, awaiting merge)
+Branch: feat/notifications-email-push
+
+Files changed (основное):
+- apps/api/prisma/schema.prisma + migrations/20260622100000_admin_broadcast/migration.sql
+- apps/api/src/admin/broadcasts/ (module, controller, service, dto, spec)
+- apps/api/src/notifications/notification.constants.ts (ADMIN_BROADCAST, SMS channel)
+- apps/api/openapi.internal.json (5 broadcast-роутов)
+- docs/adr/ADR-0103-admin-broadcast.md
+
+Summary:
+- Реализован backend-слой ручной массовой рассылки (AdminBroadcast) поверх диспетчера
+  ADR-0102. ADMIN-only, аддитивно: продюсеры/диспетчер/read-path не тронуты.
+- Каналы: EMAIL / PUSH / IN_APP / SMS; аудитория: ALL / BY_ROLE / SINGLE_USER.
+- Guard-переход SCHEDULED→SENDING обеспечивает идемпотентность; батчевая материализация
+  аудитории; best-effort доставка через существующий NotificationDeliveryService.
+- SMS = канал NotificationChannel + фиксированный шаблон smsBroadcastNudge (Eskiz).
+- Превью аудитории (POST /admin/broadcasts/preview) — подсчёт без доставки.
+- Lint/tsc/test зелёные; openapi.internal.json обновлён (5 новых broadcast-путей).
+
+Прод-TODO (вне кода, после мёржа):
+- `migrate deploy` миграции 20260622100000 на staging/CI.
+- Одобрить в кабинете Eskiz шаблон `smsBroadcastNudge` (иначе SMS-рассылка будет FAILED).
+- SMTP (Yandex) + Firebase + Eskiz EMAIL/PASSWORD — те же креды что и для PR #221.
+- web = PR-2 (экраны /admin/broadcasts, /admin/broadcasts/new, /admin/broadcasts/[id],
+  RTK-слайс adminBroadcastsApi.ts, пункт навигации «Уведомления» в Sidebar.tsx).
+
+Related spec/plan:
+- .superpowers/sdd/task-10-brief.md
+
+Related ADR:
+- docs/adr/ADR-0103-admin-broadcast.md

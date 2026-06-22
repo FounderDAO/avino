@@ -1860,6 +1860,145 @@
         }
       }
     },
+    "/api/v1/admin/broadcasts/preview": {
+      "post": {
+        "operationId": "AdminBroadcastsController_preview",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewAudienceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/broadcasts": {
+      "post": {
+        "operationId": "AdminBroadcastsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBroadcastDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "AdminBroadcastsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/admin/broadcasts/{id}": {
+      "get": {
+        "operationId": "AdminBroadcastsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/broadcasts/{id}/cancel": {
+      "post": {
+        "operationId": "AdminBroadcastsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chat/threads": {
       "get": {
         "operationId": "ChatController_listThreads",
@@ -3756,6 +3895,86 @@
         },
         "required": [
           "rate"
+        ]
+      },
+      "PreviewAudienceDto": {
+        "type": "object",
+        "properties": {
+          "audienceType": {
+            "type": "object"
+          },
+          "targetUserId": {
+            "type": "string"
+          },
+          "language": {
+            "type": "object"
+          },
+          "filterStatus": {
+            "type": "object"
+          },
+          "filterRole": {
+            "type": "string",
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "audienceType",
+          "language"
+        ]
+      },
+      "CreateBroadcastDto": {
+        "type": "object",
+        "properties": {
+          "audienceType": {
+            "type": "object"
+          },
+          "targetUserId": {
+            "type": "string"
+          },
+          "language": {
+            "type": "object"
+          },
+          "filterStatus": {
+            "type": "object"
+          },
+          "filterRole": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "now",
+              "scheduled"
+            ]
+          },
+          "scheduledAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "audienceType",
+          "language",
+          "channels",
+          "title",
+          "body",
+          "mode"
         ]
       },
       "CreateThreadDto": {
