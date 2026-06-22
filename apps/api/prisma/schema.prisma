@@ -784,12 +784,34 @@ model Notification {
   sentAt    DateTime?           @map("sent_at") @db.Timestamptz(6)
   createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
 
   @@index([userId, createdAt])
   @@index([userId, status])
   @@index([type])
   @@map("notifications")
+}
+
+/// Доставка уведомления по каналу (ADR-0102). Таблица отслеживает статус
+/// email/push-доставки отдельно от in-app фида. Уникальность по
+/// (notification_id, channel) гарантирует идемпотентность fan-out.
+model NotificationDelivery {
+  id             String              @id @default(uuid()) @db.Uuid
+  notificationId String              @map("notification_id") @db.Uuid
+  channel        NotificationChannel
+  status         NotificationStatus  @default(PENDING)
+  attempts       Int                 @default(0)
+  lastError      String?             @map("last_error")
+  sentAt         DateTime?           @map("sent_at") @db.Timestamptz(6)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, channel])
+  @@index([status, createdAt])
+  @@map("notification_deliveries")
 }
 
 /// Реестр push-токенов (DB_SCHEMA.md §11, ADR-0010). Заглушка под MVP: PUSH-

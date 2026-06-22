@@ -15,6 +15,8 @@ import { resolveSwaggerEnabled } from '../common/openapi/swagger.gating';
 export const appConfig = registerAs('app', () => ({
   env: process.env.NODE_ENV ?? 'development',
   port: parseInt(process.env.API_PORT ?? '4000', 10),
+  // Базовый URL публичного портала для deep-link в email/push (ADR-0102).
+  publicUrl: process.env.APP_PUBLIC_URL ?? 'https://avino.uz',
 }));
 
 // CORS allowlist (TASK-024, ENV.md §15). Origin-список НЕ хардкодится — берётся
@@ -226,6 +228,54 @@ export const telegramConfig = registerAs('telegram', () => ({
       : process.env.NODE_ENV !== 'production',
 }));
 
+// Настройки слоя доставки уведомлений (email + push, ADR-0102). Master-флаги
+// перебиваются runtime-строками в app_settings (admin-тоггл, как SMS/Telegram).
+// dispatchCron — расписание BullMQ repeatable job; прочие параметры ограничивают
+// нагрузку на БД и антиспам.
+export const notificationsConfig = registerAs('notifications', () => ({
+  // Master-флаги доступности доставки (env-дефолт true, переб. app_settings).
+  emailEnabled:
+    process.env.NOTIFICATIONS_EMAIL_ENABLED != null
+      ? process.env.NOTIFICATIONS_EMAIL_ENABLED === 'true'
+      : true,
+  pushEnabled:
+    process.env.NOTIFICATIONS_PUSH_ENABLED != null
+      ? process.env.NOTIFICATIONS_PUSH_ENABLED === 'true'
+      : true,
+  // BullMQ repeatable job — расписание диспетчера (по умолчанию каждую минуту).
+  dispatchCron: process.env.NOTIFICATION_DISPATCH_CRON ?? '*/1 * * * *',
+  // Ретроспектива fan-out: обрабатывать уведомления за последние N минут.
+  dispatchLookbackMin: parseInt(
+    process.env.NOTIFICATION_DISPATCH_LOOKBACK_MIN ?? '60',
+    10,
+  ),
+  // Максимальное число доставок за один прогон диспетчера.
+  dispatchBatch: parseInt(
+    process.env.NOTIFICATION_DISPATCH_BATCH ?? '200',
+    10,
+  ),
+  // Параллелизм воркера.
+  dispatchConcurrency: parseInt(
+    process.env.NOTIFICATION_DISPATCH_CONCURRENCY ?? '1',
+    10,
+  ),
+  // Тротлинг email для NEW_CHAT_MESSAGE: не слать повторное письмо если уже
+  // было в течение этого числа минут (30 мин = рекомендуемый антиспам-порог).
+  emailChatThrottleMin: parseInt(
+    process.env.EMAIL_CHAT_THROTTLE_MIN ?? '30',
+    10,
+  ),
+}));
+
+// Firebase Admin SDK (config-gated). Без кредов FcmService.isConfigured()=false;
+// FIREBASE_PRIVATE_KEY хранится с литеральными \n — заменяем перед передачей
+// в cert().
+export const firebaseConfig = registerAs('firebase', () => ({
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+}));
+
 export const configurations = [
   appConfig,
   corsConfig,
@@ -247,4 +297,6 @@ export const configurations = [
   swaggerConfig,
   exchangeRateConfig,
   mediaCleanupConfig,
+  notificationsConfig,
+  firebaseConfig,
 ];

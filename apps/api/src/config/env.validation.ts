@@ -305,6 +305,57 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   SWAGGER_PASS?: string;
+
+  // ── Firebase Admin SDK / push-уведомления (опционально — FCM config-gated) ──
+  @IsString()
+  @IsOptional()
+  FIREBASE_PROJECT_ID?: string;
+
+  @IsString()
+  @IsOptional()
+  FIREBASE_CLIENT_EMAIL?: string;
+
+  @IsString()
+  @IsOptional()
+  FIREBASE_PRIVATE_KEY?: string;
+
+  // ── Notification delivery / диспетчер (ADR-0102, есть безопасные дефолты) ──
+  // Булевы как строки (class-transformer привёл бы любую непустую к true).
+  @IsString()
+  @IsOptional()
+  NOTIFICATIONS_EMAIL_ENABLED?: string;
+
+  @IsString()
+  @IsOptional()
+  NOTIFICATIONS_PUSH_ENABLED?: string;
+
+  @IsString()
+  @IsOptional()
+  NOTIFICATION_DISPATCH_CRON?: string;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  NOTIFICATION_DISPATCH_LOOKBACK_MIN?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  NOTIFICATION_DISPATCH_BATCH?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  NOTIFICATION_DISPATCH_CONCURRENCY?: number;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  EMAIL_CHAT_THROTTLE_MIN?: number;
+
+  @IsString()
+  @IsOptional()
+  APP_PUBLIC_URL?: string;
 }
 
 /**
