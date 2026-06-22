@@ -15,6 +15,7 @@ import * as React from 'react';
 import { Link } from '@/i18n/navigation';
 import {
   Bell,
+  CalendarCheck,
   Home,
   Mail,
   MessageCircle,
@@ -46,6 +47,7 @@ const TYPE_ICON: Record<NotificationType, LucideIcon> = {
   NEW_LEAD: Mail,
   PROMOTION_ACTIVATED: Sparkles,
   PROMOTION_EXPIRED: Sparkles,
+  TOUR_REQUEST_STATUS_CHANGED: CalendarCheck,
 };
 
 function iconFor(type: NotificationType): LucideIcon {

@@ -27,6 +27,7 @@ export interface NotificationContent {
 /** Корневой префикс ключей i18n (внутри неймспейса `account`). */
 const K = 'notifications.types';
 const MOD = `${K}.LISTING_MODERATION_STATUS_CHANGED`;
+const TOUR = `${K}.TOUR_REQUEST_STATUS_CHANGED`;
 
 /** Безопасно достаёт непустую строку из `data_json` (иначе undefined). */
 function str(value: unknown): string | undefined {
@@ -50,6 +51,19 @@ function moderationBody(
     return t(`${MOD}.body_${status}`);
   }
   return t(`${MOD}.body`);
+}
+
+/** Тело уведомления о смене статуса тура — по `status` из data_json. */
+function tourStatusBody(
+  data: Record<string, unknown>,
+  t: Translate,
+): string {
+  const status = str(data.status);
+  // CONFIRMED / DECLINED / CANCELLED — собственные ключи; иначе общий фолбэк.
+  if (status === 'CONFIRMED' || status === 'DECLINED' || status === 'CANCELLED') {
+    return t(`${TOUR}.body_${status}`);
+  }
+  return t(`${TOUR}.body`);
 }
 
 /**
@@ -88,6 +102,11 @@ export function notificationContent(
       return {
         title: t(`${MOD}.title`),
         body: moderationBody(d, t),
+      };
+    case 'TOUR_REQUEST_STATUS_CHANGED':
+      return {
+        title: t(`${TOUR}.title`),
+        body: tourStatusBody(d, t),
       };
     case 'NEW_LEAD':
       return {

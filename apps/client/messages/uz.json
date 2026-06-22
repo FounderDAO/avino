@@ -153,9 +153,18 @@
       "text": "E’lonni bir necha daqiqada joylashtiring. Bepul nashr, TOP/VIP targ‘ibot va lidlarga kirish imkoniyati.",
       "button": "E’lon joylashtirish",
       "perks": {
-        "top": { "title": "TOP", "text": "Natijalarda yuqorida" },
-        "vip": { "title": "VIP", "text": "Maksimal ko‘rishlar" },
-        "leads": { "title": "Lidlar", "text": "Chat va qo‘ng‘iroqlar" }
+        "top": {
+          "title": "TOP",
+          "text": "Natijalarda yuqorida"
+        },
+        "vip": {
+          "title": "VIP",
+          "text": "Maksimal ko‘rishlar"
+        },
+        "leads": {
+          "title": "Lidlar",
+          "text": "Chat va qo‘ng‘iroqlar"
+        }
       }
     },
     "faq": {
@@ -350,9 +359,18 @@
       "ctaPost": "E'lon joylashtirish",
       "ctaHow": "Bu qanday ishlaydi",
       "stats": {
-        "free": { "value": "Bepul", "label": "oddiy joylashtirish" },
-        "langs": { "value": "3 til", "label": "avtotarjima" },
-        "buyers": { "value": "12 000+", "label": "kunlik xaridorlar" }
+        "free": {
+          "value": "Bepul",
+          "label": "oddiy joylashtirish"
+        },
+        "langs": {
+          "value": "3 til",
+          "label": "avtotarjima"
+        },
+        "buyers": {
+          "value": "12 000+",
+          "label": "kunlik xaridorlar"
+        }
       }
     },
     "paths": {
@@ -377,18 +395,36 @@
     "how": {
       "title": "Avinoda qanday sotish mumkin",
       "steps": {
-        "post": { "title": "E'lon joylashtiring", "text": "Formani bir necha daqiqada to'ldiring: foto, narx, xaritadagi manzil." },
-        "moderation": { "title": "Moderatsiyadan o'ting", "text": "Biz e'lonni tekshirib, uni barcha tillarda e'lon qilamiz." },
-        "replies": { "title": "Murojaatlar oling", "text": "Xaridorlar chatda yozadi va sizga to'g'ridan-to'g'ri qo'ng'iroq qiladi." },
-        "deal": { "title": "Bitimni yakunlang", "text": "Shartlarni kelishib oling va xavfsiz bitim o'tkazing." }
+        "post": {
+          "title": "E'lon joylashtiring",
+          "text": "Formani bir necha daqiqada to'ldiring: foto, narx, xaritadagi manzil."
+        },
+        "moderation": {
+          "title": "Moderatsiyadan o'ting",
+          "text": "Biz e'lonni tekshirib, uni barcha tillarda e'lon qilamiz."
+        },
+        "replies": {
+          "title": "Murojaatlar oling",
+          "text": "Xaridorlar chatda yozadi va sizga to'g'ridan-to'g'ri qo'ng'iroq qiladi."
+        },
+        "deal": {
+          "title": "Bitimni yakunlang",
+          "text": "Shartlarni kelishib oling va xavfsiz bitim o'tkazing."
+        }
       }
     },
     "promo": {
       "badge": "Ilgari surish",
       "title": "TOP va VIP bilan tezroq soting",
       "subtitle": "E'lonni qidiruv natijalarida yuqoriga ko'taring va 5 barobargacha ko'proq ko'rishlar oling.",
-      "top": { "text": "Qidiruv ro'yxatida oddiy e'lonlardan yuqorida", "price": "50 000 so'mdan" },
-      "vip": { "text": "Premium belgi va maksimal qamrov", "price": "120 000 so'mdan" },
+      "top": {
+        "text": "Qidiruv ro'yxatida oddiy e'lonlardan yuqorida",
+        "price": "50 000 so'mdan"
+      },
+      "vip": {
+        "text": "Premium belgi va maksimal qamrov",
+        "price": "120 000 so'mdan"
+      },
       "cta": "Joylashtirish va ilgari surish"
     },
     "faq": {
@@ -435,7 +471,11 @@
       "description": "Tavsif",
       "preview": "Ko'rish"
     },
-    "languages": { "RU": "Русский", "UZ": "O‘zbekcha", "EN": "English" },
+    "languages": {
+      "RU": "Русский",
+      "UZ": "O‘zbekcha",
+      "EN": "English"
+    },
     "fields": {
       "txType": "Bitim turi",
       "propertyType": "Ko'chmas mulk turi",
@@ -445,8 +485,14 @@
         "placeholder": "Toshkent, Yunusobod, Amir Temur ko'chasi 12"
       },
       "mapPoint": "Xaritadagi nuqta",
-      "rooms": { "label": "Xonalar soni", "studio": "Studiya" },
-      "area": { "label": "Maydon, m²", "placeholder": "masalan, 78" },
+      "rooms": {
+        "label": "Xonalar soni",
+        "studio": "Studiya"
+      },
+      "area": {
+        "label": "Maydon, m²",
+        "placeholder": "masalan, 78"
+      },
       "floor": "Qavat",
       "totalFloors": "Qavatlar soni",
       "yearBuilt": "Qurilgan yili",
@@ -459,9 +505,18 @@
         "hint": "Haqiqiy narxni ko'rsating — bu xaridorlar ishonchiga ta'sir qiladi."
       },
       "photos": "Fotosuratlar",
-      "lang": { "label": "Asl til", "hint": "Boshqa tillar avtotarjima orqali yaratiladi." },
-      "title": { "label": "Sarlavha", "placeholder": "Metro yonidagi keng 3 xonali kvartira" },
-      "desc": { "label": "Tavsif", "placeholder": "Kvartira haqida gapirib bering: ta'mir, infratuzilma, atrofda nimalar bor…" }
+      "lang": {
+        "label": "Asl til",
+        "hint": "Boshqa tillar avtotarjima orqali yaratiladi."
+      },
+      "title": {
+        "label": "Sarlavha",
+        "placeholder": "Metro yonidagi keng 3 xonali kvartira"
+      },
+      "desc": {
+        "label": "Tavsif",
+        "placeholder": "Kvartira haqida gapirib bering: ta'mir, infratuzilma, atrofda nimalar bor…"
+      }
     },
     "photoUploader": {
       "dropTitle": "Fotolarni shu yerga tashlang yoki tanlash uchun bosing",
@@ -494,7 +549,12 @@
         "photos": "Foto"
       }
     },
-    "nav": { "back": "Orqaga", "next": "Keyingi", "publish": "Chop etish", "publishing": "Chop etilmoqda…" },
+    "nav": {
+      "back": "Orqaga",
+      "next": "Keyingi",
+      "publish": "Chop etish",
+      "publishing": "Chop etilmoqda…"
+    },
     "errors": {
       "loginRequired": "E'lonni chop etish uchun tizimga kiring.",
       "guestHint": "E'lonni chop etish uchun hisobingizga kiring (kirish tugmasi — sahifa yuqorisida)."
@@ -749,6 +809,13 @@
         "generic": {
           "title": "Bildirishnoma",
           "body": "Tafsilotlarni ko'rish uchun oching."
+        },
+        "TOUR_REQUEST_STATUS_CHANGED": {
+          "title": "Ko'rik holati o'zgardi",
+          "body_CONFIRMED": "Ko'rikka so'rovingiz tasdiqlandi.",
+          "body_DECLINED": "Ko'rikka so'rovingiz rad etildi.",
+          "body_CANCELLED": "Ko'rikka so'rov bekor qilindi.",
+          "body": "Ko'rikka so'rovingiz holati yangilandi."
         }
       }
     },

@@ -2583,6 +2583,50 @@
         }
       }
     },
+    "/api/v1/admin/notification-settings": {
+      "get": {
+        "operationId": "AdminNotificationSettingsController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "AdminNotificationSettingsController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/promotions-flag": {
       "get": {
         "operationId": "AdminPromotionsFlagController_get",
@@ -3885,6 +3929,17 @@
         "required": [
           "enabled"
         ]
+      },
+      "UpdateNotificationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "emailEnabled": {
+            "type": "boolean"
+          },
+          "pushEnabled": {
+            "type": "boolean"
+          }
+        }
       },
       "UpdatePromotionsFlagDto": {
         "type": "object",

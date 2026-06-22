@@ -88,3 +88,23 @@ export const CLEANUP_ORPHAN_MEDIA_JOB = 'cleanup_orphan_media';
 
 /** Нагрузка пустая: джоба сама перечисляет объекты и сверяет с listing_media. */
 export type CleanupOrphanMediaJobData = Record<string, never>;
+
+/**
+ * Очередь диспетчера доставки уведомлений (ADR-0102). Несёт периодическую
+ * джобу `dispatch_notifications`, которая fan-out'ит свежие уведомления по
+ * email/push и доставляет PENDING-записи NotificationDelivery.
+ */
+export const NOTIFICATION_DISPATCH_QUEUE_NAME = 'notification_dispatch_queue';
+
+/**
+ * Периодическая sweep-джоба диспетчера (ADR-0102). Запускается по расписанию
+ * (repeatable job scheduler), без точечной нагрузки — sweep по последним
+ * уведомлениям внутри lookback-окна.
+ */
+export const DISPATCH_NOTIFICATIONS_JOB = 'dispatch_notifications';
+
+/**
+ * Нагрузка sweep-джобы диспетчера. Пустая: джоба сама находит все свежие
+ * уведомления в lookback-окне и PENDING-доставки для обработки.
+ */
+export type DispatchNotificationsJobData = Record<string, never>;
