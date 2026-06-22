@@ -168,6 +168,11 @@ export const otpConfig = registerAs('otp', () => ({
   ttl: parseInt(process.env.OTP_TTL ?? '300', 10),
   maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS ?? '5', 10),
   resendCooldown: parseInt(process.env.OTP_RESEND_COOLDOWN ?? '60', 10),
+  // Тест-стенд: доставлять OTP по телефону через Telegram (admin-чат), минуя
+  // Eskiz, — как локально. Default OFF (прод не затрагивается); явный
+  // OTP_TELEGRAM_DELIVERY=true включает на staging. В этом режиме SMS-канал
+  // не шлёт SMS и не требует включённого SMS-тоггла (см. OtpService).
+  telegramDelivery: process.env.OTP_TELEGRAM_DELIVERY === 'true',
 }));
 
 // Общий per-IP rate-limit (TASK-041, ENV.md §8).

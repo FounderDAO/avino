@@ -38,3 +38,8 @@ services:
       # Только для тест-стенда: вернуть dev-режим, чтобы EMAIL-OTP попадал в лог
       # (вход без SMTP). Фронты (web/client) остаются прод-сборкой из prod-overlay.
       NODE_ENV: development
+      # Тест-стенд: вход по телефону без Eskiz — OTP доставляется в Telegram
+      # (admin-чат), как локально. Требует включённых Telegram-уведомлений
+      # (TELEGRAM_BOT_TOKEN + TELEGRAM_ADMIN_CHAT_ID в .env + notifications-тоггл ON).
+      # Код приходит в админ-чат строкой «КОД: ...». Default OFF в проде.
+      OTP_TELEGRAM_DELIVERY: "true"

@@ -221,6 +221,12 @@ export class EnvironmentVariables {
   @IsOptional()
   OTP_RESEND_COOLDOWN?: number;
 
+  // Тест-стенд: доставка телефонного OTP через Telegram (admin-чат), минуя Eskiz.
+  // Булева как строка (class-transformer привёл бы любую непустую к true).
+  @IsString()
+  @IsOptional()
+  OTP_TELEGRAM_DELIVERY?: string;
+
   @IsInt()
   @Min(1)
   @IsOptional()

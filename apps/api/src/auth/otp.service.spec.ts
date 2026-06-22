@@ -86,4 +86,34 @@ describe('OtpService', () => {
     expect(msg).not.toContain(sentCode);
     expect(msg).toContain('существующий');
   });
+
+  it('delivers phone OTP via Telegram and skips Eskiz when OTP_TELEGRAM_DELIVERY is on (staging)', async () => {
+    config.get.mockImplementation((k: string) => {
+      if (k === 'otp.ttl') return 300;
+      if (k === 'otp.telegramDelivery') return true;
+      if (k === 'telegram.includeOtpCode') return true;
+      return undefined;
+    });
+    // SMS-тоггл выключен — в режиме telegram-доставки это не должно мешать.
+    sms.isEnabled.mockResolvedValue(false);
+    prisma.user.findFirst.mockResolvedValue(null); // новый контакт
+
+    const res = await service.requestOtp(
+      { channel: OtpChannel.SMS, destination: '+998901234567' } as never,
+      '1.2.3.4',
+    );
+
+    // Eskiz не трогаем; 503 на выключенном SMS не кидаем.
+    expect(sms.sendOtp).not.toHaveBeenCalled();
+    // Ровно один Telegram-вызов (доставка = алерт, без дубля), и в нём — код.
+    expect(telegram.sendAdminAlert).toHaveBeenCalledTimes(1);
+    const msg = telegram.sendAdminAlert.mock.calls[0][0] as string;
+    expect(msg).toContain('+998901234567');
+    expect(msg).toContain('КОД'); // 6-значный код доставлен в Telegram
+    expect(msg).toMatch(/\b\d{6}\b/);
+    // Код всё равно сохранён в БД для verify, и rate-limit отработал.
+    expect(prisma.otpCode.create).toHaveBeenCalledTimes(1);
+    expect(rateLimit.assertCanRequest).toHaveBeenCalledTimes(1);
+    expect(res.channel).toBe(OtpChannel.SMS);
+  });
 });

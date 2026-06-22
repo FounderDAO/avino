@@ -156,6 +156,7 @@ worker are full NO-OP when off (no Redis connection, no schedule). See ADR-0099.
 | OTP_TTL             | no   | no     | no     | 300     | OTP validity, seconds                        |
 | OTP_MAX_ATTEMPTS    | no   | no     | no     | 5       | Max verify attempts before invalidation      |
 | OTP_RESEND_COOLDOWN | no   | no     | no     | 60      | Seconds between OTP resend requests          |
+| OTP_TELEGRAM_DELIVERY | no | no    | no     | false   | Staging only: deliver phone OTP via Telegram admin chat (bypasses Eskiz & the SMS toggle). Requires Telegram notifications enabled. Default OFF — keep OFF in prod. |
 | RATE_LIMIT_WINDOW   | no   | no     | no     | 60      | Global rate-limit window, seconds            |
 | RATE_LIMIT_MAX      | no   | no     | no     | 100     | Max requests per window per client           |
 
