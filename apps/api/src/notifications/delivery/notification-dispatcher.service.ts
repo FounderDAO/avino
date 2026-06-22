@@ -126,9 +126,11 @@ export class NotificationDispatcherService {
 
     const since = new Date(Date.now() - lookbackMin * 60 * 1000);
 
-    // Загружаем свежие уведомления с уже существующими доставками.
+    // Загружаем свежие доменные уведомления (broadcastId=null).
+    // Broadcast-уведомления (ADMIN_BROADCAST) имеют broadcastId != null —
+    // их доставки создаёт BroadcastDispatcher, а не этот fan-out (иначе дубли).
     const notifications = await this.prisma.notification.findMany({
-      where: { createdAt: { gte: since } },
+      where: { createdAt: { gte: since }, broadcastId: null },
       include: {
         deliveries: { select: { channel: true } },
       },
