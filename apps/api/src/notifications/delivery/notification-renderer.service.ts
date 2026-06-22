@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma';
 import {
   buildDeepLink,
   ctaLabelFor,
+  escapeHtml,
   interpolate,
   moderationStatusBody,
   pickCopy,
@@ -72,8 +73,12 @@ export class NotificationRendererService {
 
     const vars = await this.buildInterpolationVars(n, data, lang, publicUrl);
 
+    // subject и text — plain-text (raw). HTML-тело интерполируем ЭКРАНИРОВАННЫМИ
+    // значениями (listingTitle/statusBody — free-text/ввод модератора), при этом
+    // статический HTML шаблона (<b>, <br>) остаётся литеральным.
+    const htmlVars = this.escapeVarsForHtml(vars);
     const subject = interpolate(copy.email.subject, vars);
-    const bodyHtml = interpolate(copy.email.bodyHtml, vars);
+    const bodyHtml = interpolate(copy.email.bodyHtml, htmlVars);
     const bodyText = interpolate(copy.email.bodyText, vars);
 
     const ctaUrl = vars['ctaUrl'] ?? buildDeepLink(publicUrl, n.type, data, lang);
@@ -127,6 +132,21 @@ export class NotificationRendererService {
       return raw as Record<string, unknown>;
     }
     return {};
+  }
+
+  /**
+   * HTML-экранированная копия карты переменных — для интерполяции в HTML-тело
+   * письма. Экранируем ЗНАЧЕНИЯ (а не шаблон), чтобы пользовательский ввод
+   * (заголовок объявления, reason) не мог внедрить разметку в письмо.
+   */
+  private escapeVarsForHtml(
+    vars: Record<string, string>,
+  ): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(vars)) {
+      out[key] = escapeHtml(value);
+    }
+    return out;
   }
 
   /**

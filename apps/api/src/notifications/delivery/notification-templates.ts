@@ -253,6 +253,22 @@ export function interpolate(
 }
 
 /**
+ * Экранирует HTML-значимые символы. Применяется к ПОДСТАВЛЯЕМЫМ значениям
+ * (listingTitle, reason, ctaUrl и т.п.) перед вставкой в HTML письма — статический
+ * HTML шаблона (<b>, <br>) при этом не трогаем (экранируем значения, а не шаблон).
+ * Защита от HTML/markup-инъекции через пользовательский ввод: заголовок объявления
+ * — free-text (@MaxLength(255) без ограничения символов), reason — ввод модератора.
+ */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Брендированная HTML-обёртка для email (inline-стили, email-safe).
  * Принимает уже-интерполированный bodyHtml с CTA-кнопкой.
  */
@@ -290,9 +306,9 @@ export function renderEmailHtml(
           <!-- CTA -->
           <tr>
             <td style="padding:0 32px 32px;">
-              <a href="${ctaUrl}"
+              <a href="${escapeHtml(ctaUrl)}"
                  style="display:inline-block;background:#1d4ed8;color:#ffffff;padding:12px 28px;border-radius:6px;text-decoration:none;font-size:15px;font-weight:600;">
-                ${ctaLabel}
+                ${escapeHtml(ctaLabel)}
               </a>
             </td>
           </tr>

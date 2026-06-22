@@ -3,6 +3,7 @@ import {
   buildDeepLink,
   catalog,
   ctaLabelFor,
+  escapeHtml,
   interpolate,
   moderationStatusBody,
   pickCopy,
@@ -218,6 +219,26 @@ describe('notification-templates', () => {
           }
         }
       }
+    });
+  });
+
+  describe('escapeHtml()', () => {
+    it('escapes all five HTML-significant characters', () => {
+      expect(escapeHtml('<img src=x onerror=alert(1)>')).toBe(
+        '&lt;img src=x onerror=alert(1)&gt;',
+      );
+      expect(escapeHtml('a & b')).toBe('a &amp; b');
+      expect(escapeHtml(`"quote" 'apos'`)).toBe('&quot;quote&quot; &#39;apos&#39;');
+    });
+
+    it('escapes & first so entities are not double-encoded incorrectly', () => {
+      expect(escapeHtml('<')).toBe('&lt;');
+      // & before < ensures "<" -> "&lt;" not "&amp;lt;"
+      expect(escapeHtml('&lt;')).toBe('&amp;lt;');
+    });
+
+    it('leaves plain text untouched', () => {
+      expect(escapeHtml('Квартира в центре')).toBe('Квартира в центре');
     });
   });
 });

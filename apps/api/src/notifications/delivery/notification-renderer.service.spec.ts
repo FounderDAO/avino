@@ -196,6 +196,70 @@ describe('NotificationRendererService', () => {
 
       expect(result).not.toBeNull();
     });
+
+    it('escapes HTML in user-controlled listing title for the HTML body (XSS-in-email)', async () => {
+      mockListingTranslation.findFirst.mockResolvedValue({
+        title: '<img src=x onerror=alert(1)><script>alert(1)</script>',
+      });
+
+      const result = await service.renderEmail(
+        {
+          id: 'notif-xss-1',
+          type: NotificationType.NEW_LEAD,
+          dataJson: { listing_id: 'list-xss' },
+        },
+        Language.RU,
+      );
+
+      expect(result).not.toBeNull();
+      // HTML body: dangerous markup is escaped, no raw tags survive.
+      expect(result!.html).not.toContain('<img src=x');
+      expect(result!.html).not.toContain('<script>alert(1)</script>');
+      expect(result!.html).toContain('&lt;img src=x');
+      expect(result!.html).toContain('&lt;script&gt;');
+      // Plain-text stays raw (text is not HTML, escaping is HTML-only).
+      expect(result!.text).toContain('<img src=x onerror=alert(1)>');
+    });
+
+    it('escapes HTML in moderator reason for the HTML body', async () => {
+      mockListingTranslation.findFirst.mockResolvedValue({ title: 'Apartment' });
+
+      const result = await service.renderEmail(
+        {
+          id: 'notif-xss-2',
+          type: NotificationType.LISTING_MODERATION_STATUS_CHANGED,
+          dataJson: {
+            listing_id: 'list-xss-2',
+            moderation_action: 'REJECT',
+            old_status: 'NEW',
+            new_status: 'REJECTED',
+            reason: '<b onmouseover=alert(1)>spam</b>',
+          },
+        },
+        Language.EN,
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.html).not.toContain('<b onmouseover=alert(1)>');
+      expect(result!.html).toContain('&lt;b onmouseover=alert(1)&gt;');
+    });
+
+    it('does not alter a normal listing title without special chars', async () => {
+      mockListingTranslation.findFirst.mockResolvedValue({ title: 'Квартира в центре' });
+
+      const result = await service.renderEmail(
+        {
+          id: 'notif-xss-3',
+          type: NotificationType.NEW_LEAD,
+          dataJson: { listing_id: 'list-normal' },
+        },
+        Language.RU,
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.html).toContain('Квартира в центре');
+      expect(result!.text).toContain('Квартира в центре');
+    });
   });
 
   describe('renderPush()', () => {
