@@ -73,7 +73,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       request.requestId ?? this.incomingRequestId(request) ?? randomUUID();
     const { status, body } = this.buildError(exception, requestId);
 
-    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+    // Стек со стороны сервера пишем только для ПОДЛИННЫХ внутренних сбоев (тело
+    // свелось к INTERNAL_ERROR). Осознанный доменный 5xx (например, 503
+    // AUTH_PROVIDER_UNAVAILABLE — канал/провайдер выключен) — это ожидаемый ответ,
+    // а не сбой: не засоряем error-лог стеком (иначе нормальная работа выглядит
+    // как поток ошибок).
+    if (
+      status >= HttpStatus.INTERNAL_SERVER_ERROR &&
+      body.code === ApiErrorCode.INTERNAL_ERROR
+    ) {
       // Полную причину пишем только в серверный лог (наружу — обобщённое сообщение).
       this.logger.error(
         `${request.method ?? '-'} ${request.url ?? '-'} → ${status} [${requestId}]`,
@@ -94,8 +102,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const res = exception.getResponse();
 
-      // 5xx через HttpException тоже не должен раскрывать внутренности.
-      if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      // 5xx БЕЗ явного доменного `code` (фреймворковый/raw InternalServerError)
+      // может нести внутренности — отдаём обобщённый INTERNAL_ERROR. Но осознанный
+      // доменный 5xx со структурой `{ code, message }` (например, 503
+      // AUTH_PROVIDER_UNAVAILABLE — SMS-канал/Google/Apple выключены) НЕ перетираем:
+      // его `code` и текст — часть контракта и безопасны by construction, а клиент
+      // по ним предлагает другой канал входа (иначе видит «Internal server error»).
+      if (
+        status >= HttpStatus.INTERNAL_SERVER_ERROR &&
+        !this.hasDomainCode(res)
+      ) {
         return {
           status,
           body: {
@@ -172,6 +188,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
   private isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
+  }
+
+  /**
+   * Признак ОСОЗНАННОЙ доменной ошибки: payload `HttpException` несёт строковый
+   * `code` (наш каталог из {@link ApiErrorCode}). Фреймворковые исключения такого
+   * поля не кладут — у них `{ statusCode, message, error }`. По этому признаку
+   * фильтр отличает доменный 5xx (сохранить как есть) от внутреннего (скрыть).
+   */
+  private hasDomainCode(res: string | object): boolean {
+    return this.isRecord(res) && typeof res.code === 'string';
   }
 
   /** Входящий `X-Request-Id` (от прокси/клиента), если есть и не пуст. */
