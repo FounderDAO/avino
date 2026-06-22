@@ -7,6 +7,7 @@ import { TelegramNotificationsToggle } from '@/components/admin/TelegramNotifica
 import { SmsSendingToggle } from '@/components/admin/SmsSendingToggle';
 import { PromotionsAvailabilityToggle } from '@/components/admin/PromotionsAvailabilityToggle';
 import { ExchangeRatePanel } from '@/components/admin/ExchangeRatePanel';
+import { NotificationsSendingToggle } from '@/components/admin/NotificationsSendingToggle';
 
 export default function SettingsPage() {
   return (
@@ -51,6 +52,7 @@ export default function SettingsPage() {
       </div>
       <TelegramNotificationsToggle />
       <SmsSendingToggle />
+      <NotificationsSendingToggle />
       <PromotionsAvailabilityToggle />
       <ExchangeRatePanel />
     </div>
