@@ -461,3 +461,18 @@ export function moderationStatusBody(
   }
   return (b as Record<string, string>)[newStatus] ?? b.default;
 }
+
+/**
+ * Фикс. SMS-«пинок» для админ-рассылки (ADMIN_BROADCAST). Eskiz доставляет
+ * только предодобренные шаблоны, поэтому SMS несёт не свободный текст рассылки,
+ * а короткий локализованный нудж — полный текст пользователь видит в приложении.
+ * ВАЖНО: текст должен совпадать с одобренным шаблоном в кабинете Eskiz.
+ */
+export function smsBroadcastNudge(lang: Language): string {
+  const byLang: Record<Language, string> = {
+    [Language.RU]: 'Avino: у вас новое сообщение. Откройте приложение: avino.uz',
+    [Language.UZ]: 'Avino: sizda yangi xabar bor. Ilovani oching: avino.uz',
+    [Language.EN]: 'Avino: you have a new message. Open the app: avino.uz',
+  };
+  return byLang[lang] ?? byLang[Language.RU];
+}

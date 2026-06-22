@@ -54,6 +54,11 @@ export const notificationRouting: Record<
     NotificationChannel.EMAIL,
   ],
 
+  // Админ-рассылка: доставки создаёт BroadcastDispatcher напрямую (по выбранным
+  // каналам), а не штатный fan-out — поэтому здесь пусто (иначе будут дубли/нежеланные
+  // каналы). SMS-нудж/email/push подключает BroadcastDispatcher + deliver-стадия (Task 4).
+  [NotificationType.ADMIN_BROADCAST]: [],
+
   // Продюсеров нет — инертные типы; routing задан для полноты записи.
   [NotificationType.FAVORITE_PRICE_DROP]: [],
   [NotificationType.PROMOTION_ACTIVATED]: [],

@@ -8,6 +8,7 @@ import {
   moderationStatusBody,
   pickCopy,
   renderEmailHtml,
+  smsBroadcastNudge,
 } from './notification-templates';
 import { channelsFor } from './notification-routing';
 import { NotificationChannel } from '@prisma/client';
@@ -239,6 +240,18 @@ describe('notification-templates', () => {
 
     it('leaves plain text untouched', () => {
       expect(escapeHtml('Квартира в центре')).toBe('Квартира в центре');
+    });
+  });
+
+  describe('smsBroadcastNudge', () => {
+    it('returns a non-empty localized string per language', () => {
+      expect(smsBroadcastNudge(Language.RU)).toContain('Avino');
+      expect(smsBroadcastNudge(Language.UZ)).toContain('Avino');
+      expect(smsBroadcastNudge(Language.EN)).toContain('Avino');
+    });
+
+    it('falls back to RU for an unknown language value', () => {
+      expect(smsBroadcastNudge('XX' as Language)).toBe(smsBroadcastNudge(Language.RU));
     });
   });
 });
