@@ -8,6 +8,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { EmailService } from '../../email/email.service';
+import { SmsService } from '../../sms/sms.service';
 import { PrismaService } from '../../prisma';
 import {
   NOTIFICATION_EMAIL_ENABLED_KEY,
@@ -20,6 +21,7 @@ import {
   EMAIL_THROTTLED_TYPES,
   channelsFor,
 } from './notification-routing';
+import { smsBroadcastNudge } from './notification-templates';
 
 /** Тип доставки с вложенными notification → user, используемый в deliver(). */
 type DeliveryWithContext = {
@@ -31,9 +33,12 @@ type DeliveryWithContext = {
     id: string;
     type: string;
     dataJson: Prisma.JsonValue;
+    title: string | null;
+    body: string | null;
     user: {
       id: string;
       email: string | null;
+      phone: string | null;
       defaultLanguage: Language;
       profile: { preferredLanguage: Language | null } | null;
     };
@@ -68,6 +73,7 @@ export class NotificationDispatcherService {
     private readonly renderer: NotificationRendererService,
     private readonly fcm: FcmService,
     private readonly emailService: EmailService,
+    private readonly sms: SmsService,
   ) {}
 
   // ─── Public API ──────────────────────────────────────────────────────────
@@ -225,11 +231,17 @@ export class NotificationDispatcherService {
       take: batchSize,
       include: {
         notification: {
-          include: {
+          select: {
+            id: true,
+            type: true,
+            dataJson: true,
+            title: true,
+            body: true,
             user: {
               select: {
                 id: true,
                 email: true,
+                phone: true,
                 defaultLanguage: true,
                 profile: { select: { preferredLanguage: true } },
               },
@@ -239,14 +251,15 @@ export class NotificationDispatcherService {
       },
     })) as unknown as DeliveryWithContext[];
 
-    const [emailEnabled, pushEnabled] = await Promise.all([
+    const [emailEnabled, pushEnabled, smsEnabled] = await Promise.all([
       this.isEmailEnabled(),
       this.isPushEnabled(),
+      this.sms.isEnabled(),
     ]);
 
     for (const delivery of deliveries) {
       try {
-        await this.processDelivery(delivery, emailEnabled, pushEnabled);
+        await this.processDelivery(delivery, emailEnabled, pushEnabled, smsEnabled);
       } catch (err) {
         // Не должны сюда попасть (processDelivery всё ловит сама), но на всякий.
         this.logger.error(
@@ -263,28 +276,38 @@ export class NotificationDispatcherService {
     delivery: DeliveryWithContext,
     emailEnabled: boolean,
     pushEnabled: boolean,
+    smsEnabled: boolean,
   ): Promise<void> {
     const { id: deliveryId, channel, notification } = delivery;
-    const { user, id: notifId, type, dataJson } = notification;
+    const { user, id: notifId, type, dataJson, title, body } = notification;
     const lang: Language =
       user.profile?.preferredLanguage ?? user.defaultLanguage ?? Language.RU;
 
     // Если глобальный тоггл выключен — оставляем PENDING (доедет при включении).
     if (channel === NotificationChannel.EMAIL && !emailEnabled) return;
     if (channel === NotificationChannel.PUSH && !pushEnabled) return;
+    if (channel === NotificationChannel.SMS && !smsEnabled) return;
 
-    const notifContext = { id: notifId, type: type as NotificationType, dataJson };
+    const notifContext = {
+      id: notifId,
+      type: type as NotificationType,
+      dataJson,
+      title,
+      body,
+    };
 
     if (channel === NotificationChannel.EMAIL) {
       await this.deliverEmail(deliveryId, notifContext, user, lang);
     } else if (channel === NotificationChannel.PUSH) {
       await this.deliverPush(deliveryId, notifContext, user, lang);
+    } else if (channel === NotificationChannel.SMS) {
+      await this.deliverSms(deliveryId, user, lang);
     }
   }
 
   private async deliverEmail(
     deliveryId: string,
-    notifContext: { id: string; type: NotificationType; dataJson: Prisma.JsonValue },
+    notifContext: { id: string; type: NotificationType; dataJson: Prisma.JsonValue; title?: string | null; body?: string | null },
     user: { id: string; email: string | null },
     lang: Language,
   ): Promise<void> {
@@ -317,7 +340,7 @@ export class NotificationDispatcherService {
 
   private async deliverPush(
     deliveryId: string,
-    notifContext: { id: string; type: NotificationType; dataJson: Prisma.JsonValue },
+    notifContext: { id: string; type: NotificationType; dataJson: Prisma.JsonValue; title?: string | null; body?: string | null },
     user: { id: string },
     lang: Language,
   ): Promise<void> {
@@ -357,6 +380,26 @@ export class NotificationDispatcherService {
       } else {
         await this.markFailed(deliveryId, 'FCM returned 0 successes');
       }
+    } catch (err) {
+      await this.markFailed(
+        deliveryId,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
+  private async deliverSms(
+    deliveryId: string,
+    user: { phone: string | null },
+    lang: Language,
+  ): Promise<void> {
+    try {
+      if (!user.phone) {
+        await this.markFailed(deliveryId, 'recipient has no phone');
+        return;
+      }
+      await this.sms.send(user.phone, smsBroadcastNudge(lang));
+      await this.markSent(deliveryId);
     } catch (err) {
       await this.markFailed(
         deliveryId,
