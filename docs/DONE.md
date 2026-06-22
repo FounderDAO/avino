@@ -4451,3 +4451,52 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0012-otp-request-and-rate-limiting.md
+
+## 2026-06-22
+
+### TASK — Notification delivery: localized email + Firebase push (MVP §11)
+
+Status: REVIEW (PR #221 open, awaiting merge — main protected)
+Branch: feat/notifications-email-push
+PR: https://github.com/FounderDAO/avino/pull/221
+
+Files changed (основное):
+- apps/api/prisma/schema.prisma + migrations/20260622000000_notification_deliveries/migration.sql
+- apps/api/src/notifications/delivery/* (routing, templates, renderer, fcm, dispatcher, dispatch queue/worker + specs)
+- apps/api/src/notifications/notification.constants.ts, notifications.module.ts
+- apps/api/src/admin/admin-notification-settings.{service,controller}.ts (+dto, spec)
+- apps/api/src/config/configuration.ts, env.validation.ts, .env.example
+- apps/api/src/queues/queue.constants.ts, openapi.internal.json
+- apps/web/src/components/admin/NotificationsSendingToggle.tsx, store/api/adminNotificationSettingsApi.ts, app/admin/settings/page.tsx
+- apps/client/src/features/account/notificationText.ts, Notifications.tsx, store/api/notificationsApi.ts, messages/{ru,uz,en}.json
+- docs/adr/ADR-0102-notification-delivery.md, docs/GUIDE_FIREBASE_PUSH_SETUP.md
+
+Summary:
+- Достроен слой доставки уведомлений (был только каркас): локализованный email + Firebase (FCM)
+  push на языке получателя (`profile.preferredLanguage ?? defaultLanguage`). Закрывает MVP §11.
+- Аддитивно: новая таблица `notification_deliveries` (идемпотентность fan-out по
+  unique(notification_id, channel)); продюсеры и in-app read-path не тронуты.
+- Расширяемость: routing-policy (тип→каналы) + i18n-каталог — новый тип подключается двумя записями.
+- BullMQ repeatable-диспетчер (зеркало saved-search): fan-out → рендер → email_queue / FCM,
+  тротлинг чат-email, деактивация мёртвых push-токенов, best-effort прогон, ретраи до 3.
+- Admin kill-switches (email/push) — GET/PATCH /admin/notification-settings + тумблеры в /admin/settings.
+- Config-gated (firebase-admin/SMTP): без кредов собирается и работает (dev лог / prod skip).
+- Безопасность: ревью нашло XSS-в-письме (listingTitle/reason в HTML без экранирования) → исправлено
+  (escapeHtml для значений HTML-тела) + регресс-тесты.
+- 664/664 API-теста зелёные; nest build чистый; openapi.internal.json обновлён (public без изменений).
+
+Commit messages:
+- feat(notifications): delivery foundation — schema, migration, config, admin toggle
+- feat(notifications): delivery core — routing, i18n templates, renderer, FCM
+- feat(web): admin email/push notification kill-switch toggles
+- feat(client): render TOUR_REQUEST_STATUS_CHANGED notifications (ru/uz/en)
+- feat(notifications): dispatcher — fan-out + localized delivery (email/push)
+- chore(openapi): regenerate internal doc for admin notification-settings route
+- fix(notifications): HTML-escape user input in email bodies (XSS-in-email)
+
+Прод-TODO (нужны креды, PR не блокируют):
+- SMTP Yandex (docs/GUIDE_YANDEX_SMTP_SETUP.md) + Firebase service account (docs/GUIDE_FIREBASE_PUSH_SETUP.md).
+- Применить миграцию 20260622000000 в staging/CI; live-verify реальной отправки; пересборка web/client.
+
+Related ADR:
+- docs/adr/ADR-0102-notification-delivery.md
