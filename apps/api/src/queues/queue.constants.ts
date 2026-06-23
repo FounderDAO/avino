@@ -108,3 +108,23 @@ export const DISPATCH_NOTIFICATIONS_JOB = 'dispatch_notifications';
  * уведомления в lookback-окне и PENDING-доставки для обработки.
  */
 export type DispatchNotificationsJobData = Record<string, never>;
+
+/**
+ * Очередь sweep-рассылок (ADR-0103). Несёт периодическую джобу
+ * `dispatch_broadcasts`, которая материализует SCHEDULED-рассылки с
+ * `scheduled_at <= now()` в Notification/NotificationDelivery.
+ */
+export const BROADCAST_DISPATCH_QUEUE_NAME = 'broadcast_dispatch_queue';
+
+/**
+ * Периодическая sweep-джоба диспетчера рассылок (ADR-0103). Запускается по
+ * расписанию (repeatable job scheduler), без точечной нагрузки — sweep по
+ * всем SCHEDULED с `scheduled_at <= now()`.
+ */
+export const DISPATCH_BROADCASTS_JOB = 'dispatch_broadcasts';
+
+/**
+ * Нагрузка sweep-джобы. Пустая: джоба сама находит все созревшие SCHEDULED
+ * рассылки — конкретный broadcastId не передаётся.
+ */
+export type DispatchBroadcastsJobData = Record<string, never>;

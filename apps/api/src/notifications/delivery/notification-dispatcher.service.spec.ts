@@ -66,6 +66,13 @@ function buildEmailService() {
   };
 }
 
+function buildSms(enabled = true) {
+  return {
+    isEnabled: jest.fn().mockResolvedValue(enabled),
+    send: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
 /** Фабрика минимального notification для findMany в fan-out. */
 function makeNotification(
   type: NotificationType,
@@ -135,6 +142,7 @@ describe('NotificationDispatcherService', () => {
       renderer as never,
       fcm as never,
       emailService as never,
+      buildSms() as never,
     );
 
     await service.run();
@@ -171,6 +179,7 @@ describe('NotificationDispatcherService', () => {
       renderer as never,
       fcm as never,
       emailService as never,
+      buildSms() as never,
     );
 
     await service.run();
@@ -203,6 +212,7 @@ describe('NotificationDispatcherService', () => {
       renderer as never,
       fcm as never,
       emailService as never,
+      buildSms() as never,
     );
 
     await service.run();
@@ -237,6 +247,7 @@ describe('NotificationDispatcherService', () => {
       renderer as never,
       fcm as never,
       emailService as never,
+      buildSms() as never,
     );
 
     await service.run();
@@ -272,6 +283,7 @@ describe('NotificationDispatcherService', () => {
       renderer as never,
       fcm as never,
       emailService as never,
+      buildSms() as never,
     );
 
     await service.run();
@@ -286,6 +298,36 @@ describe('NotificationDispatcherService', () => {
     expect(prisma.notificationDelivery.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: NotificationStatus.FAILED }),
+      }),
+    );
+  });
+
+  // (f-1) fanOut фильтрует broadcast-уведомления через broadcastId: null
+  it('(f-1) fanOut передаёт broadcastId: null в where запроса notification.findMany', async () => {
+    const prisma = buildPrisma();
+    const config = buildConfig();
+    const renderer = buildRenderer();
+    const fcm = buildFcm();
+    const emailService = buildEmailService();
+
+    (prisma.notification.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.notificationDelivery.findMany as jest.Mock).mockResolvedValue([]);
+
+    const service = new NotificationDispatcherService(
+      prisma as never,
+      config as never,
+      renderer as never,
+      fcm as never,
+      emailService as never,
+      buildSms() as never,
+    );
+
+    await service.run();
+
+    // fan-out должен исключать broadcast-уведомления через broadcastId: null
+    expect(prisma.notification.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ broadcastId: null }),
       }),
     );
   });
@@ -309,6 +351,7 @@ describe('NotificationDispatcherService', () => {
       renderer as never,
       fcm as never,
       emailService as never,
+      buildSms() as never,
     );
 
     await service.run();
@@ -325,5 +368,73 @@ describe('NotificationDispatcherService', () => {
     // No sendEmail or FCM send called
     expect(emailService.sendEmail).not.toHaveBeenCalled();
     expect(fcm.send).not.toHaveBeenCalled();
+  });
+});
+
+describe('deliver — SMS channel', () => {
+  it('sends localized nudge when SMS enabled and user has phone', async () => {
+    const prisma = buildPrisma();
+    prisma.notificationDelivery.findMany.mockResolvedValue([
+      {
+        id: 'd1',
+        channel: 'SMS',
+        status: 'PENDING',
+        attempts: 0,
+        notification: {
+          id: 'n1',
+          type: 'ADMIN_BROADCAST',
+          dataJson: {},
+          title: 'T',
+          body: 'B',
+          user: { id: 'u1', email: null, phone: '+998901234567', defaultLanguage: 'RU', profile: null },
+        },
+      },
+    ]);
+    const sms = buildSms(true);
+    const service = new NotificationDispatcherService(
+      prisma as never, buildConfig() as never, buildRenderer() as never,
+      buildFcm() as never, buildEmailService() as never, sms as never,
+    );
+    await service.run();
+    expect(sms.send).toHaveBeenCalledWith('+998901234567', expect.stringContaining('Avino'));
+    expect(prisma.notificationDelivery.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'd1' }, data: expect.objectContaining({ status: 'SENT' }) }),
+    );
+  });
+
+  it('leaves PENDING (no send) when SMS globally disabled', async () => {
+    const prisma = buildPrisma();
+    prisma.notificationDelivery.findMany.mockResolvedValue([
+      { id: 'd1', channel: 'SMS', status: 'PENDING', attempts: 0,
+        notification: { id: 'n1', type: 'ADMIN_BROADCAST', dataJson: {}, title: 'T', body: 'B',
+          user: { id: 'u1', email: null, phone: '+998901234567', defaultLanguage: 'RU', profile: null } } },
+    ]);
+    const sms = buildSms(false);
+    const service = new NotificationDispatcherService(
+      prisma as never, buildConfig() as never, buildRenderer() as never,
+      buildFcm() as never, buildEmailService() as never, sms as never,
+    );
+    await service.run();
+    expect(sms.send).not.toHaveBeenCalled();
+    expect(prisma.notificationDelivery.update).not.toHaveBeenCalled();
+  });
+
+  it('marks FAILED when recipient has no phone', async () => {
+    const prisma = buildPrisma();
+    prisma.notificationDelivery.findMany.mockResolvedValue([
+      { id: 'd1', channel: 'SMS', status: 'PENDING', attempts: 0,
+        notification: { id: 'n1', type: 'ADMIN_BROADCAST', dataJson: {}, title: 'T', body: 'B',
+          user: { id: 'u1', email: null, phone: null, defaultLanguage: 'RU', profile: null } } },
+    ]);
+    const sms = buildSms(true);
+    const service = new NotificationDispatcherService(
+      prisma as never, buildConfig() as never, buildRenderer() as never,
+      buildFcm() as never, buildEmailService() as never, sms as never,
+    );
+    await service.run();
+    expect(sms.send).not.toHaveBeenCalled();
+    expect(prisma.notificationDelivery.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED' }) }),
+    );
   });
 });

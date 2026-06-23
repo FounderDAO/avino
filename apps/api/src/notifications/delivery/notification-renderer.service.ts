@@ -35,6 +35,9 @@ export interface NotificationContext {
   id: string;
   type: NotificationType;
   dataJson: Prisma.JsonValue;
+  /** Свободный текст для ADMIN_BROADCAST (вшит в строку notification). */
+  title?: string | null;
+  body?: string | null;
 }
 
 /**
@@ -63,6 +66,16 @@ export class NotificationRendererService {
     n: NotificationContext,
     lang: Language,
   ): Promise<RenderedEmail | null> {
+    if (n.type === NotificationType.ADMIN_BROADCAST) {
+      const publicUrl =
+        this.config.get<string>('app.publicUrl') ?? 'https://avino.uz';
+      const subject = n.title ?? '';
+      const safeBody = escapeHtml(n.body ?? '').replace(/\n/g, '<br>');
+      const ctaLabel = ctaLabelFor(n.type, lang); // 'default' → «Открыть Avino»
+      const html = renderEmailHtml(safeBody, publicUrl, ctaLabel, lang);
+      return { subject, html, text: n.body ?? '' };
+    }
+
     const copy = pickCopy(n.type, lang);
     if (!copy?.email) {
       return null;
@@ -97,6 +110,14 @@ export class NotificationRendererService {
     n: NotificationContext,
     lang: Language,
   ): Promise<RenderedPush | null> {
+    if (n.type === NotificationType.ADMIN_BROADCAST) {
+      return {
+        title: n.title ?? '',
+        body: n.body ?? '',
+        data: { type: n.type, notificationId: n.id },
+      };
+    }
+
     const copy = pickCopy(n.type, lang);
     if (!copy?.push) {
       return null;

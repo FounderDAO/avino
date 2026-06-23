@@ -281,6 +281,14 @@ export const firebaseConfig = registerAs('firebase', () => ({
   privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
 }));
 
+// Расписание sweep'а созревших рассылок (ADR-0103). По умолчанию каждую
+// минуту — компромисс между задержкой доставки и нагрузкой на БД. Переопределяется
+// через BROADCAST_DISPATCH_CRON в deploy env.
+export const broadcastsConfig = registerAs('broadcasts', () => ({
+  // Расписание sweep'а запланированных рассылок (по умолчанию каждую минуту).
+  dispatchCron: process.env.BROADCAST_DISPATCH_CRON ?? '*/1 * * * *',
+}));
+
 export const configurations = [
   appConfig,
   corsConfig,
@@ -304,4 +312,5 @@ export const configurations = [
   mediaCleanupConfig,
   notificationsConfig,
   firebaseConfig,
+  broadcastsConfig,
 ];

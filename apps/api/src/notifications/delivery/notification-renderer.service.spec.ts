@@ -1,6 +1,49 @@
 import { Language, NotificationType } from '@prisma/client';
 import { NotificationRendererService } from './notification-renderer.service';
 
+function makeRenderer() {
+  const prisma = {
+    listingTranslation: { findFirst: jest.fn().mockResolvedValue(null) },
+    user: { findUnique: jest.fn().mockResolvedValue(null) },
+  };
+  const config = { get: jest.fn().mockReturnValue('https://avino.uz') };
+  return new NotificationRendererService(prisma as never, config as never);
+}
+
+describe('renderEmail (ADMIN_BROADCAST)', () => {
+  it('uses notification title/body as subject/body and escapes HTML', async () => {
+    const renderer = makeRenderer();
+    const result = await renderer.renderEmail(
+      {
+        id: 'n1',
+        type: NotificationType.ADMIN_BROADCAST,
+        dataJson: {},
+        title: 'Важное <b>объявление</b>',
+        body: 'Привет, <script>alert(1)</script>',
+      },
+      Language.RU,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.subject).toBe('Важное <b>объявление</b>'); // subject = plain text
+    expect(result!.html).toContain('&lt;script&gt;'); // body экранирован в HTML
+    expect(result!.html).not.toContain('<script>');
+    expect(result!.text).toContain('Привет');
+  });
+});
+
+describe('renderPush (ADMIN_BROADCAST)', () => {
+  it('uses notification title/body directly', async () => {
+    const renderer = makeRenderer();
+    const result = await renderer.renderPush(
+      { id: 'n1', type: NotificationType.ADMIN_BROADCAST, dataJson: {}, title: 'Заголовок', body: 'Тело' },
+      Language.RU,
+    );
+    expect(result).toEqual(
+      expect.objectContaining({ title: 'Заголовок', body: 'Тело' }),
+    );
+  });
+});
+
 describe('NotificationRendererService', () => {
   const mockListingTranslation = {
     findFirst: jest.fn(),
