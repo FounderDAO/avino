@@ -51,7 +51,7 @@ export function ExchangeRatePanel() {
         </button>
         <button
           type="button"
-          className="abtn"
+          className="abtn abtn-outline"
           disabled={isRefreshing}
           onClick={() => void refresh()}
         >

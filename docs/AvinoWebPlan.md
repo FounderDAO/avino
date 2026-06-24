@@ -412,7 +412,7 @@ NEXT_PUBLIC_YANDEX_MAPS_API_KEY=""            # Yandex Maps JS API
 |---|---|---|---|
 | **157** | `feat/web-homepage` | Главная: Hero + `SearchBar` + карусель TOP/VIP (`searchApi`) | 142, 151 |
 | **158** | `feat/web-notifications` | `/account/notifications`: список + read/read-all, polling | 100, 141 |
-| **159** | `feat/web-dashboard` | `/account/listings`: owner/agent dashboard (`GET /listings/mine`) | 052, 150 |
+| **159** | `feat/web-dashboard` | `/account/my-listings`: owner/agent dashboard (`GET /listings/mine`) | 052, 150 |
 | **183** | `feat/web-seo` | `generateMetadata`, JSON-LD `RealEstateListing`, sitemap, robots, hreflang | 151, 153 |
 
 **Вне MVP (Phase 1.5, требует новых backend-endpoint + согласования):** каталог

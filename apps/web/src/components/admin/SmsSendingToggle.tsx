@@ -35,7 +35,7 @@ export function SmsSendingToggle() {
         </div>
         <button
           type="button"
-          className={enabled ? 'abtn abtn-primary' : 'abtn'}
+          className={enabled ? 'abtn abtn-primary' : 'abtn abtn-outline'}
           disabled={isLoading || isSaving}
           onClick={() => void update({ enabled: !enabled })}
         >
@@ -44,4 +44,4 @@ export function SmsSendingToggle() {
       </div>
     </div>
   );
-}
+} 

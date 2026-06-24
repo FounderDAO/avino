@@ -105,6 +105,15 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app do
 (в чистом production без SMTP письмо не отправляется и не логируется → войти
 нельзя).
 
+Первый и повторные деплои стенда — одной командой `deploy/deploy-staging.sh`
+(аналог `deploy.sh`, но с третьим overlay; те же флаги `--no-pull` / `--ref`):
+
+```bash
+./deploy/deploy-staging.sh              # git pull + сборка + up + health-check
+```
+
+Ручной эквивалент (без скрипта):
+
 ```bash
 # .env: те же DOMAIN_* / ACME_EMAIL / POSTGRES_PASSWORD / JWT_*, что и для прод.
 # DNS A-записи тест-доменов должны указывать на IP стенда ДО первого запуска.

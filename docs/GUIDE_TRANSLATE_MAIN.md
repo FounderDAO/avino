@@ -1,5 +1,5 @@
 # GUIDE_TRANSLATE_MAIN — перевод объявлений (Yandex/Google Translate)
-
+# URL: https://console.yandex.cloud/folders/b1gcih32jec1oi73o80d/dashboard
 Runbook: где взять ключ перевода, куда положить, как проверить. Чтобы не искать
 данные заново. Связано: ADR-0091 (перевод под контролем модератора), ADR-0024/005/012.
 

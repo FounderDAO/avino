@@ -1,3 +1,6 @@
+# URL: https://360.yandex.uz/business/tariff/?from=tariffPage&utm_source=google&utm_medium=cpc&utm_campaign=UZ_B2B_WB_Y360_Search_Brand_IndividualSemant%7Csmb0626&utm_term=main
+
+
 # GUIDE — SMTP / Email через Yandex 360 (prod-готовность)
 
 > Как устроена email-подсистема Avino и как настроить **реальную** отправку

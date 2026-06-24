@@ -1,5 +1,8 @@
 # GUIDE_S3 — Объектное хранилище фото (Cloudflare R2)
 
+# URL: https://dash.cloudflare.com/7e69309dc186c3fe6c4c84847884ffa8/r2/default/buckets/avinodev?prefix=listings%2F9959f796-3bed-40fa-b6a8-5d787e89fe5e%2Fmedia%2F
+
+
 > **Зачем этот файл.** Сейчас хранилище фото поднято на **Cloudflare R2 с личного
 > аккаунта** (dev-режим). На релизе всё пересоздаётся **на аккаунте клиента**.
 > Этот документ — пошаговый runbook, чтобы production-настройку сделать по
