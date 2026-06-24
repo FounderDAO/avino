@@ -37,6 +37,60 @@ Related ADR:
 
 ---
 
+## 2026-06-25
+
+### TASK-SEO-01 — SEO foundation публичного портала (robots, hreflang, metadata, JSON-LD)
+
+Status: DONE
+Branch: feature/seo-quick-wins
+PR: #225
+
+Пакет SEO quick-wins в `apps/client` по итогам аудита (`scratchpad/seo-audit.md`).
+Добавлены `robots.ts` (allow `/`, disallow `/*/account/` и `/*/sell/new`,
+декларация sitemap+host), `metadataBase` + title template `%s | Avino`,
+hreflang/canonical-хелпер `lib/seo/alternates.ts` (+ единый `lib/seo/base.ts`)
+во всех публичных `generateMetadata`, noindex приватных страниц
+(`/sell/new` + segment-layout `/account/*`), `<h1>` с заголовком объявления на
+детальной карточке, Open Graph/Twitter на детальной и home, JSON-LD
+`Organization`+`WebSite`/`SearchAction` (серверный `components/seo/JsonLd.tsx`),
+trim meta description до 155 символов с fallback, рабочие соц-`<a>` в футере +
+`sameAs`. Динамический sitemap, графы `RealEstateListing`/`BreadcrumbList`,
+`next/image` для фото и canonical-стратегия `/search` — отдельный PR.
+
+Build: успешно (25/25 страниц, `/robots.txt` в роутах). Lint: чисто.
+
+Files changed:
+- apps/client/src/app/robots.ts (new)
+- apps/client/src/lib/seo/base.ts (new)
+- apps/client/src/lib/seo/alternates.ts (new)
+- apps/client/src/components/seo/JsonLd.tsx (new)
+- apps/client/src/app/[locale]/account/layout.tsx (new)
+- apps/client/src/app/[locale]/layout.tsx
+- apps/client/src/app/[locale]/page.tsx
+- apps/client/src/app/[locale]/listing/[id]/page.tsx
+- apps/client/src/app/[locale]/search/page.tsx
+- apps/client/src/app/[locale]/map/page.tsx
+- apps/client/src/app/[locale]/sell/page.tsx
+- apps/client/src/app/[locale]/sell/new/page.tsx
+- apps/client/src/app/[locale]/help/page.tsx
+- apps/client/src/features/detail/Detail.tsx
+- apps/client/src/components/layout/Footer.tsx
+- apps/client/src/app/{favicon.ico,icon.svg,apple-icon.png} (brand/SEO assets)
+
+Summary:
+- Закрыты разделы аудита #2,4,6,7,9,10,14,15 + частично #3.
+- Нужно для органического трафика трёхъязычного маркетплейса недвижимости.
+- Note: og:image использует sign-on-read R2-URL (временный) — стабильный
+  public image-route в follow-up; `/sitemap.xml` появится в structured-data PR.
+
+Commit messages:
+- feat(client): SEO foundation — robots, hreflang/canonical, OG, JSON-LD, h1
+
+Related ADR:
+- docs/adr/ADR-0104-public-portal-seo-foundation.md
+
+---
+
 ## 2026-06-22
 
 ### Дашборд админки на живых данных + фото в таблице + пагинация (ADR-0101)

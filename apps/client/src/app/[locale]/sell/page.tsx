@@ -5,6 +5,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { Sell } from '@/features/sell/Sell';
+import { alternatesFor } from '@/lib/seo/alternates';
 
 interface PageProps {
   // В Next 15 params — асинхронные.
@@ -14,7 +15,11 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'sell' });
-  return { title: t('meta.title'), description: t('meta.description') };
+  return {
+    title: t('meta.title'),
+    description: t('meta.description'),
+    alternates: alternatesFor('/sell'),
+  };
 }
 
 export default function SellPage() {
