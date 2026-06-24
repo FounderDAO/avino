@@ -9,6 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
 import { AuthService, RefreshResult, VerifyOtpResult } from './auth.service';
@@ -43,8 +44,10 @@ export class AuthController {
   /**
    * Запросить OTP-код (public/GUEST). `@Ip()` даёт IP клиента для per-IP
    * rate-limit без зависимости от `@types/express`.
+   * Throttle: 10 req/60s (строже глобального — OTP-канал критичен, M-3).
    */
   @Post('otp/request')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   requestOtp(
     @Body() dto: RequestOtpDto,
@@ -57,8 +60,10 @@ export class AuthController {
    * Подтвердить OTP-код и получить сессию (public). При первом входе создаётся
    * пользователь. `@Ip()`/`User-Agent` сохраняются в строке refresh-токена и
    * в audit-логе логина.
+   * Throttle: 10 req/60s (H-1 + M-3 — брутфорс-защита verify).
    */
   @Post('otp/verify')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   verifyOtp(
     @Body() dto: VerifyOtpDto,
@@ -72,8 +77,10 @@ export class AuthController {
    * Вход через Google (public). Принимает Google ID-token (GIS на клиенте),
    * верифицирует офлайн, создаёт пользователя при первом входе (login=signup),
    * выдаёт ту же сессию, что и OTP-verify. Провайдер не настроен → 503.
+   * Throttle: 20 req/60s (M-3).
    */
   @Post('google')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   google(
     @Body() dto: GoogleLoginDto,
@@ -87,8 +94,10 @@ export class AuthController {
    * Вход через Apple (public). Принимает Apple ID-token (Sign in with Apple JS),
    * верифицирует офлайн, создаёт пользователя при первом входе (login=signup),
    * выдаёт ту же сессию, что и OTP-verify. Провайдер не настроен → 503.
+   * Throttle: 20 req/60s (M-3).
    */
   @Post('apple')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   apple(
     @Body() dto: AppleLoginDto,
@@ -114,8 +123,10 @@ export class AuthController {
    * Ротация refresh-токена (public — авторизует сам refresh-токен в теле).
    * Возвращает новую пару access+refresh; reuse ротированного токена отзывает
    * всю session family (TOKEN_REUSED).
+   * Throttle: 20 req/60s (M-3).
    */
   @Post('refresh')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   refresh(
     @Body() dto: RefreshTokenDto,
@@ -130,8 +141,10 @@ export class AuthController {
    * Content. Защищён Bearer-guard (TASK-044, API.md §3): вызвать может только
    * аутентифицированный пользователь, а конкретную family адресует refresh-токен
    * в теле.
+   * Throttle: 20 req/60s (M-3).
    */
   @Post('logout')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   logout(

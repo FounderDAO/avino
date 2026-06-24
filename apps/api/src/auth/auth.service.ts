@@ -17,6 +17,7 @@ import {
 } from '../telegram';
 import { normalizeContact } from './contact.util';
 import { verifyOtpCode } from './otp-hash.util';
+import { OtpRateLimitService } from './otp-rate-limit.service';
 import { TokenService } from './token.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -89,6 +90,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly tokenService: TokenService,
     private readonly telegram: TelegramService,
+    private readonly rateLimitService: OtpRateLimitService,
   ) {}
 
   /** Коды OTP-ошибок, на которые шлём admin-алерт о неудачном входе. */
@@ -131,6 +133,10 @@ export class AuthService {
         ],
       });
     }
+
+    // Brute-force guard: per-IP/per-dest window + cumulative lock (H-1).
+    // Проверяем ДО любого DB-доступа, чтобы брутфорс не дотянулся до хеш-сравнения.
+    await this.rateLimitService.assertCanVerify(destination, ip);
 
     try {
       const maxAttempts = this.config.get<number>('otp.maxAttempts') ?? 5;
@@ -181,6 +187,9 @@ export class AuthService {
           where: { id: otp.id },
           data: { attempts },
         });
+        // Кумулятивный счётчик brute-force (H-1): запоминаем неудачу даже если
+        // потом запросят новый код — бюджет не сбрасывается при ре-запросе.
+        void this.rateLimitService.recordFailedVerify(destination);
         // Если эта попытка исчерпала лимит — сразу локаут, иначе обычный мисс.
         throw attempts >= maxAttempts
           ? this.otpError(

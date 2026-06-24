@@ -37,6 +37,54 @@ Related ADR:
 
 ---
 
+## 2026-06-25
+
+### TASK-SEC-01 — API security hardening (throttling, helmet, trust proxy, OTP brute-force lock)
+
+Status: DONE
+Branch: feature/security-hardening
+PR: #226
+
+Пакет hardening в `apps/api` по итогам security-аудита (`scratchpad/security-audit.md`).
+Глобальный `@nestjs/throttler` (in-memory, `ConditionalThrottlerGuard`, дефолт
+300/60s на IP, выключаем в тестах через `THROTTLE_DISABLED`) + жёсткие `@Throttle`
+на auth (20/60s) и OTP (10/60s). H-1: durable brute-force lock на `verifyOtp` —
+`assertCanVerify` (per-IP/per-dest окна до DB-доступа) + `recordFailedVerify`
+(кумулятивный per-destination счётчик в Redis, TTL перекрывает несколько жизней
+кода → ре-запрос кода не сбрасывает бюджет; после порога — лок destination).
+M-1: `trust proxy 1` (req.ip = клиент за nginx/CF). M-2: helmet (HSTS/noSniff/
+frameguard/referrer + CSP, отдельный CSP для Swagger). M-4: `BROADCAST_MAX_RECIPIENTS`
+(5000, превышение → 422). M-5: `TELEGRAM_INCLUDE_OTP_CODE` default OFF. L-2:
+`filterRole` → `@IsEnum(UserRole)`.
+
+Build: GREEN (`nest build`). Тесты: 698/698 PASS (было 691). 15 новых env (все с
+дефолтами, задокументированы в `.env.example`).
+
+Files changed:
+- apps/api/package.json (helmet, @nestjs/throttler)
+- apps/api/src/main.ts (trust proxy, helmet)
+- apps/api/src/app.module.ts (ThrottlerModule, APP_GUARD)
+- apps/api/src/common/guards/conditional-throttler.guard.ts (new)
+- apps/api/src/auth/auth.controller.ts, auth.service.ts (+ spec)
+- apps/api/src/auth/otp-rate-limit.service.ts (+ otp-rate-limit.service.spec.ts new)
+- apps/api/src/auth/otp.service.ts
+- apps/api/src/broadcasts/broadcasts.service.ts (+ spec), dto/create-broadcast.dto.ts
+- apps/api/src/config/configuration.ts
+- apps/api/.env.example
+
+Summary:
+- Закрыты H-1, M-1, M-2, M-3, M-4, M-5, L-2 из аудита.
+- Отложено (отдельные PR): H-2 account-linking, L-1 Apple nonce, L-3/L-4 media.
+- Note: throttler — in-memory (per-instance); Redis-storage — follow-up при 2+ инстансах. H-1-лок уже в Redis.
+
+Commit messages:
+- feat(api): security hardening — throttler, helmet, trust proxy, OTP brute-force lock
+
+Related ADR:
+- docs/adr/ADR-0105-api-security-hardening.md
+
+---
+
 ## 2026-06-22
 
 ### Дашборд админки на живых данных + фото в таблице + пагинация (ADR-0101)

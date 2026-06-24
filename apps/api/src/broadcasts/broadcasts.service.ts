@@ -1,8 +1,11 @@
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   BroadcastStatus,
   NotificationChannel,
@@ -54,6 +57,7 @@ export class BroadcastsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audience: BroadcastAudienceService,
+    private readonly config: ConfigService,
   ) {}
 
   /** Превью аудитории без создания рассылки. Делегирует BroadcastAudienceService. */
@@ -74,6 +78,20 @@ export class BroadcastsService {
         code: ApiErrorCode.VALIDATION_ERROR,
         message: 'scheduledAt must be in the future',
       });
+    }
+
+    // Защита от рассылки на всю базу (M-4). Считаем аудиторию до сохранения строки.
+    const maxRecipients =
+      this.config.get<number>('broadcasts.maxRecipients') ?? 5000;
+    const preview = await this.audience.previewCounts(dto);
+    if (preview.total > maxRecipients) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.VALIDATION_ERROR,
+          message: `Audience size ${preview.total} exceeds the maximum allowed ${maxRecipients} recipients. Use a more specific filter or increase BROADCAST_MAX_RECIPIENTS.`,
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
     }
 
     const row = await this.prisma.broadcast.create({

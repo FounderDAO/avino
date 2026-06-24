@@ -17,6 +17,7 @@ import {
   NotificationChannel,
   UserStatus,
 } from '@prisma/client';
+import { UserRole } from '@avino/shared';
 
 export class CreateBroadcastDto {
   @IsEnum(BroadcastAudience)
@@ -34,8 +35,7 @@ export class CreateBroadcastDto {
   filterStatus?: UserStatus;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(40)
+  @IsEnum(UserRole)
   filterRole?: string;
 
   @IsArray()
