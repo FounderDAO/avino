@@ -23,6 +23,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
   },
   { group: 'Люди', items: [['/admin/users', 'Пользователи', IC.User]] },
   { group: 'Монетизация', items: [['/admin/promotions', 'Продвижение', IC.Sparkle]] },
+  { group: 'Уведомления', items: [['/admin/broadcasts', 'Рассылки', IC.Megaphone]] },
   {
     group: 'Система',
     items: [

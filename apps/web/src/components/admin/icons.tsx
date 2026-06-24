@@ -25,6 +25,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Send,
+  MessageSquare,
+  Megaphone,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -49,6 +52,9 @@ export const IC = {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Send,
+  MessageSquare,
+  Megaphone,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof IC;
