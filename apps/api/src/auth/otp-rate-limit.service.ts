@@ -74,12 +74,99 @@ export class OtpRateLimitService {
     return cooldown;
   }
 
+  /**
+   * Проверить лимиты ПЕРЕД верификацией кода. Бросает 429 RATE_LIMITED если:
+   * - destination заблокирован (кумулятивный brute-force lock);
+   * - per-IP лимит верификаций за окно превышен;
+   * - per-destination лимит верификаций за окно превышен.
+   */
+  async assertCanVerify(destination: string, ip: string): Promise<void> {
+    // 1. Проверить блокировку destination.
+    const lockKey = this.verifyLockKey(destination);
+    const locked = await this.redis.exists(lockKey);
+    if (locked) {
+      const ttl = await this.redis.ttl(lockKey);
+      throw this.rateLimited(
+        `Too many failed attempts. Try again in ${ttl}s`,
+      );
+    }
+
+    const window =
+      this.configService.get<number>('rateLimit.verifyWindowS') ?? 60;
+
+    // 2. Per-IP лимит.
+    const maxPerIp =
+      this.configService.get<number>('rateLimit.verifyMaxPerIp') ?? 10;
+    const ipKey = this.verifyIpKey(ip);
+    const ipCount = await this.redis.incr(ipKey);
+    if (ipCount === 1) {
+      await this.redis.expire(ipKey, window);
+    }
+    if (ipCount > maxPerIp) {
+      throw this.rateLimited('Too many verification attempts, try again later');
+    }
+
+    // 3. Per-destination лимит.
+    const maxPerDest =
+      this.configService.get<number>('rateLimit.verifyMaxPerDest') ?? 10;
+    const destKey = this.verifyDestKey(destination);
+    const destCount = await this.redis.incr(destKey);
+    if (destCount === 1) {
+      await this.redis.expire(destKey, window);
+    }
+    if (destCount > maxPerDest) {
+      throw this.rateLimited('Too many verification attempts for this contact');
+    }
+  }
+
+  /**
+   * Зафиксировать неудачную верификацию. Инкрементирует кумулятивный счётчик;
+   * если достигнут порог — блокирует destination на verifyLockS секунд.
+   * Вызывается при OTP_INVALID (неверный код); НЕ вызывается при OTP_EXPIRED
+   * или OTP_ATTEMPTS_EXCEEDED (те — уже конечные состояния конкретного кода).
+   */
+  async recordFailedVerify(destination: string): Promise<void> {
+    const threshold =
+      this.configService.get<number>('rateLimit.verifyFailThreshold') ?? 15;
+    const failTtl =
+      this.configService.get<number>('rateLimit.verifyFailTtlS') ?? 3600;
+    const lockS =
+      this.configService.get<number>('rateLimit.verifyLockS') ?? 900;
+
+    const failKey = this.verifyFailKey(destination);
+    const failCount = await this.redis.incr(failKey);
+    if (failCount === 1) {
+      await this.redis.expire(failKey, failTtl);
+    }
+    if (failCount >= threshold) {
+      await this.redis.set(this.verifyLockKey(destination), '1', 'EX', lockS);
+      // Сброс кумулятивного счётчика (блокировка теперь активна — счётчик не нужен).
+      await this.redis.del(failKey);
+    }
+  }
+
   private cooldownKey(channel: OtpChannel, destination: string): string {
     return `otp:cooldown:${channel}:${destination}`;
   }
 
   private ipKey(ip: string): string {
     return `otp:ip:${ip}`;
+  }
+
+  private verifyIpKey(ip: string): string {
+    return `otp:verify:ip:${ip}`;
+  }
+
+  private verifyDestKey(destination: string): string {
+    return `otp:verify:dest:${destination}`;
+  }
+
+  private verifyFailKey(destination: string): string {
+    return `otp:verify:fail:${destination}`;
+  }
+
+  private verifyLockKey(destination: string): string {
+    return `otp:verify:lock:${destination}`;
   }
 
   private rateLimited(message: string): HttpException {

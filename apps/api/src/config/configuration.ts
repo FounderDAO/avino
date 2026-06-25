@@ -181,6 +181,19 @@ export const otpConfig = registerAs('otp', () => ({
 export const rateLimitConfig = registerAs('rateLimit', () => ({
   window: parseInt(process.env.RATE_LIMIT_WINDOW ?? '60', 10),
   max: parseInt(process.env.RATE_LIMIT_MAX ?? '100', 10),
+  // Лимиты верификации OTP — отдельные оси (H-1, ADR security hardening).
+  // verifyWindowS — окно счётчиков per-IP/per-dest (секунды).
+  verifyWindowS: parseInt(process.env.OTP_VERIFY_WINDOW_S ?? '60', 10),
+  // Максимум verify-запросов per-IP за окно.
+  verifyMaxPerIp: parseInt(process.env.OTP_VERIFY_MAX_PER_IP ?? '10', 10),
+  // Максимум verify-запросов per-destination за окно.
+  verifyMaxPerDest: parseInt(process.env.OTP_VERIFY_MAX_PER_DEST ?? '10', 10),
+  // Кумулятивный порог неудачных верификаций до блокировки destination.
+  verifyFailThreshold: parseInt(process.env.OTP_VERIFY_FAIL_THRESHOLD ?? '15', 10),
+  // TTL кумулятивного счётчика неудач (секунды) — должен перекрывать несколько TTL кода.
+  verifyFailTtlS: parseInt(process.env.OTP_VERIFY_FAIL_TTL_S ?? '3600', 10),
+  // Время блокировки destination после превышения порога (секунды).
+  verifyLockS: parseInt(process.env.OTP_VERIFY_LOCK_S ?? '900', 10),
 }));
 
 // JWT / auth-токены (TASK-042, ENV.md §7). access и refresh подписываются
@@ -223,8 +236,9 @@ export const swaggerConfig = registerAs('swagger', () => ({
 export const telegramConfig = registerAs('telegram', () => ({
   botToken: process.env.TELEGRAM_BOT_TOKEN,
   adminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID,
-  // Включать ли сам OTP-код в сообщение (MVP). Default true.
-  includeOtpCode: process.env.TELEGRAM_INCLUDE_OTP_CODE !== 'false',
+  // Включать ли сам OTP-код в сообщение (MVP). Default false — безопаснее
+  // (M-5, ADR security hardening). Включить только в dev/staging: =true
+  includeOtpCode: process.env.TELEGRAM_INCLUDE_OTP_CODE === 'true',
   // Master-флаг по умолчанию: явное значение → оно; иначе dev=true / prod=false.
   // Перебивается runtime-строкой в app_settings (admin-тоггл).
   notificationStateDefault:
@@ -287,6 +301,29 @@ export const firebaseConfig = registerAs('firebase', () => ({
 export const broadcastsConfig = registerAs('broadcasts', () => ({
   // Расписание sweep'а запланированных рассылок (по умолчанию каждую минуту).
   dispatchCron: process.env.BROADCAST_DISPATCH_CRON ?? '*/1 * * * *',
+  // Максимально допустимое число получателей рассылки (M-4, защита от fat-finger /
+  // компрометированной сессии админа). Превышение → 422. Default 5000.
+  maxRecipients: parseInt(process.env.BROADCAST_MAX_RECIPIENTS ?? '5000', 10),
+}));
+
+// Глобальный HTTP throttler (@nestjs/throttler, M-3/H-1). In-memory storage
+// (одиночный VPS). THROTTLE_DISABLED=true — выключить (в тест-окружении).
+// Значения: глобальный дефолт + два override'а — auth и otp.
+export const throttlerConfig = registerAs('throttler', () => ({
+  // Полностью выключить гард (для тестов / локального dev без ограничений).
+  disabled: process.env.THROTTLE_DISABLED === 'true',
+  // Глобальный лимит: N запросов за TTL секунд (per IP, in-memory).
+  // Дефолт щедрый (300/60s ≈ 5 rps): нормальный браузинг SPA не ловит 429
+  // (за CGNAT/корп-NAT много реальных юзеров делят один публичный IP); DoS-защита
+  // остаётся, а auth/otp перекрыты жёсткими override'ами (20/10 за 60s).
+  limit: parseInt(process.env.THROTTLE_LIMIT ?? '300', 10),
+  ttl: parseInt(process.env.THROTTLE_TTL ?? '60', 10),
+  // Auth-роуты (/auth/google, /auth/apple, /auth/refresh, /auth/logout).
+  authLimit: parseInt(process.env.THROTTLE_AUTH_LIMIT ?? '20', 10),
+  authTtl: parseInt(process.env.THROTTLE_AUTH_TTL ?? '60', 10),
+  // OTP-роуты (/auth/otp/request, /auth/otp/verify).
+  otpLimit: parseInt(process.env.THROTTLE_OTP_LIMIT ?? '10', 10),
+  otpTtl: parseInt(process.env.THROTTLE_OTP_TTL ?? '60', 10),
 }));
 
 export const configurations = [
@@ -313,4 +350,5 @@ export const configurations = [
   notificationsConfig,
   firebaseConfig,
   broadcastsConfig,
+  throttlerConfig,
 ];

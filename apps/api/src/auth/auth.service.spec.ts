@@ -55,7 +55,11 @@ describe('AuthService.verifyOtp', () => {
     };
     config = { get: jest.fn().mockReturnValue(5) }; // otp.maxAttempts
     telegram = { sendAdminAlert: jest.fn().mockResolvedValue(undefined) };
-    service = new AuthService(prisma, config, tokenService, telegram);
+    const rateLimitService = {
+      assertCanVerify: jest.fn().mockResolvedValue(undefined),
+      recordFailedVerify: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new AuthService(prisma, config, tokenService, telegram, rateLimitService as any);
   });
 
   const dto = (code = CODE) => ({
@@ -297,6 +301,7 @@ describe('AuthService.getMe', () => {
       { get: jest.fn() } as any,
       {} as any,
       { sendAdminAlert: jest.fn() } as any,
+      { assertCanVerify: jest.fn().mockResolvedValue(undefined), recordFailedVerify: jest.fn().mockResolvedValue(undefined) } as any,
     );
   });
 

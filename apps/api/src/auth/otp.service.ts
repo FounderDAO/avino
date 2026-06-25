@@ -147,7 +147,7 @@ export class OtpService {
       // Admin-алерт (best-effort, fire-and-forget): код включается флагом
       // TELEGRAM_INCLUDE_OTP_CODE (MVP). Сбой алерта не влияет на выдачу OTP.
       const includeCode =
-        this.configService.get<boolean>('telegram.includeOtpCode') ?? true;
+        this.configService.get<boolean>('telegram.includeOtpCode') ?? false;
       void this.telegram.sendAdminAlert(
         formatOtpRequest({
           destination,
