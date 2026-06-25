@@ -1,7 +1,9 @@
 /**
- * PropertyCard — карточка объекта (общая для home/search/account).
- * Перенос PropertyCard из ui.jsx. Вся карточка — ссылка на /listing/[id];
- * поверх фото: PromoBadge/«Новое» и FavButton.
+ * PropertyCard — компактная карточка объекта (Zillow-минимализм).
+ * Вся карточка — ссылка на /listing/[id]; поверх фото: PromoBadge/«Новое» и
+ * FavButton. Тело: цена → строка спеков (комнаты·площадь·…·тип жилья) → локация.
+ * Лейбл сделки, отдельный заголовок и строка «тип · агентство» убраны намеренно
+ * (компактность, ADR/спек 2026-06-26).
  */
 'use client';
 
@@ -12,7 +14,7 @@ import { MapPin } from 'lucide-react';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { PromoBadge, NewBadge } from '@/components/ui/promo-badge';
 import { FavButton } from '@/components/ui/fav-button';
-import { specs, txLabel, propertyTypeLabel, isFresh } from '@/lib/format';
+import { specs, propertyTypeLabel, isFresh } from '@/lib/format';
 import type { Listing } from '@/lib/mock/types';
 import { usePriceFormatter } from '@/lib/usePriceFormatter';
 
@@ -26,18 +28,20 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
   const tEnums = useTranslations('enums');
   const fmt = usePriceFormatter();
   const parts = specs(listing, tUnits);
+  // Тип жилья — последним элементом строки спеков (как «House for sale» у Zillow).
+  const specParts = [...parts, propertyTypeLabel(listing.type, tEnums)];
   const fresh = isFresh(listing.createdAt);
 
   return (
     <Link
       href={`/listing/${listing.id}`}
       className={
-        'group flex h-full flex-col overflow-hidden rounded-card border border-border/60 bg-surface shadow-card transition-[box-shadow,transform] duration-200 hover:-translate-y-[3px] hover:shadow-card-hover ' +
+        'group flex h-full flex-col overflow-hidden rounded-card border border-border/60 bg-surface shadow-card transition-shadow duration-200 hover:shadow-card-hover ' +
         (className ?? '')
       }
     >
       {/* Фото */}
-      <div className="relative aspect-[16/11] shrink-0 overflow-hidden">
+      <div className="relative aspect-[3/2] shrink-0 overflow-hidden">
         <PhotoImg
           src={listing.photos[0]?.thumb ?? ''}
           alt={listing.title}
@@ -54,53 +58,27 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
       </div>
 
       {/* Тело */}
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-3.5">
-        <span className="text-xs font-bold uppercase tracking-[0.03em] text-teal">
-          {txLabel(listing.tx, tEnums)}
-        </span>
-        <div className="mt-0.5 truncate text-[23px] font-extrabold tracking-[-0.02em]">
+      <div className="flex flex-1 flex-col px-3 py-2.5">
+        <div className="truncate text-[19px] font-bold tracking-[-0.01em] text-ink">
           {fmt.price(listing)}
         </div>
 
-        {/* Характеристики */}
-        <div className="mt-2 flex flex-wrap items-center text-[14.5px] font-medium text-muted-foreground">
-          {parts.map((p, i) => {
-            const m = p.match(/^([\d/.,]+)\s*(.*)$/);
-            return (
-              <span key={i} className="inline-flex items-center">
-                {i > 0 && <span className="mx-[9px] text-border">•</span>}
-                {m ? (
-                  <>
-                    <b className="font-bold text-ink">{m[1]}</b>&nbsp;{m[2]}
-                  </>
-                ) : (
-                  p
-                )}
-              </span>
-            );
-          })}
+        {/* Характеристики + тип жилья одной строкой */}
+        <div className="mt-1 flex flex-wrap items-center text-[13px] text-muted-foreground">
+          {specParts.map((p, i) => (
+            <span key={i} className="inline-flex items-center">
+              {i > 0 && <span className="mx-[7px] text-border">·</span>}
+              {p}
+            </span>
+          ))}
         </div>
 
-        {/* Заголовок */}
-        <div className="mt-2 truncate text-base font-bold leading-snug text-ink">
-          {listing.title}
-        </div>
-
-        {/* Локация */}
-        <div className="mt-[5px] flex items-center gap-1 text-[13.5px] text-muted-foreground">
-          <MapPin size={14} strokeWidth={1.8} className="shrink-0" />
+        {/* Локация (заголовок-адрес, по-зилловски) */}
+        <div className="mt-1 flex items-center gap-1 text-[12.5px] text-muted-foreground">
+          <MapPin size={13} strokeWidth={1.8} className="shrink-0" />
           <span className="truncate">
             {listing.district} · {listing.address}
           </span>
-        </div>
-
-        {/* Низ: тип + агентство */}
-        <div className="mt-auto flex items-center gap-1.5 border-t border-border pt-[11px] text-[12.5px] text-muted-foreground">
-          <span className={listing.agent.pro ? 'font-semibold text-teal' : 'font-semibold'}>
-            {propertyTypeLabel(listing.type, tEnums)}
-          </span>
-          <span>·</span>
-          <span className="truncate">{listing.agent.agency}</span>
         </div>
       </div>
     </Link>

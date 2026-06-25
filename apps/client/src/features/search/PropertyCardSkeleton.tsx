@@ -1,18 +1,17 @@
 /**
  * PropertyCardSkeleton — скелетон карточки объекта (loading-состояние).
- * Повторяет геометрию PropertyCard (перенос CardSkeleton из ui.jsx).
+ * Повторяет геометрию компактной PropertyCard (фото 3:2 + 3 строки тела).
  */
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function PropertyCardSkeleton() {
   return (
     <div className="overflow-hidden rounded-card bg-surface shadow-card">
-      <Skeleton className="aspect-[16/11] rounded-none" />
-      <div className="p-4">
-        <Skeleton className="h-6 w-[55%]" />
-        <Skeleton className="mt-3 h-3.5 w-[75%]" />
-        <Skeleton className="mt-3 h-4 w-[90%]" />
-        <Skeleton className="mt-2.5 h-[13px] w-[60%]" />
+      <Skeleton className="aspect-[3/2] rounded-none" />
+      <div className="px-3 py-2.5">
+        <Skeleton className="h-5 w-[45%]" />
+        <Skeleton className="mt-2 h-3.5 w-[70%]" />
+        <Skeleton className="mt-2 h-3 w-[55%]" />
       </div>
     </div>
   );
