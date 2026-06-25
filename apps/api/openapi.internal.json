@@ -2796,6 +2796,36 @@
         }
       }
     },
+    "/api/v1/admin/map-hover-recenter-flag": {
+      "get": {
+        "operationId": "AdminMapHoverRecenterFlagController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "operationId": "AdminMapHoverRecenterFlagController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMapHoverRecenterFlagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/admin/users": {
       "get": {
         "operationId": "AdminUsersController_list",
@@ -4160,6 +4190,17 @@
         }
       },
       "UpdatePromotionsFlagDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "UpdateMapHoverRecenterFlagDto": {
         "type": "object",
         "properties": {
           "enabled": {
