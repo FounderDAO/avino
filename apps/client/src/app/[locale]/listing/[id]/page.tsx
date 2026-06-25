@@ -2,6 +2,10 @@
  * Страница объекта /listing/[id].
  * Server component: достаёт листинг из мок-слоя; если не найден — notFound().
  * Интерактив (галерея/лайтбокс/контакт/избранное) — в дочерних 'use client'.
+ *
+ * SEO (ADR-0104):
+ * - JSON-LD RealEstateListing + Offer + BreadcrumbList (зеркалит видимую крошку).
+ * - JSON-LD генерируется серверно через <JsonLd>.
  */
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -11,6 +15,7 @@ import { formatPrice } from '@/lib/format';
 import { Detail } from '@/features/detail/Detail';
 import { alternatesFor } from '@/lib/seo/alternates';
 import { BASE } from '@/lib/seo/base';
+import { JsonLd } from '@/components/seo/JsonLd';
 
 interface PageProps {
   // В Next 15 params — асинхронные.
@@ -54,5 +59,108 @@ export default async function ListingPage({ params }: PageProps) {
   const { locale, id } = await params;
   const listing = await getListingById(id, locale);
   if (!listing) notFound();
-  return <Detail listing={listing} />;
+
+  const tCrumb = await getTranslations({ locale, namespace: 'breadcrumb' });
+
+  // ─── BreadcrumbList: Главная › Купить/Аренда › Район › Текущее ─────────
+  const txCrumbKey = listing.tx === 'RENT' ? 'rent' : 'sale';
+  const txCrumbLabel = tCrumb(txCrumbKey);
+  const txCrumbPath = `/search?tx=${listing.tx}`;
+
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: tCrumb('home'),
+        item: `${BASE}/${locale}`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: txCrumbLabel,
+        item: `${BASE}/${locale}${txCrumbPath}`,
+      },
+      ...(listing.district
+        ? [
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: listing.district,
+              item: `${BASE}/${locale}/search?tx=${listing.tx}`,
+            },
+            {
+              '@type': 'ListItem',
+              position: 4,
+              name: listing.title,
+              item: `${BASE}/${locale}/listing/${id}`,
+            },
+          ]
+        : [
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: listing.title,
+              item: `${BASE}/${locale}/listing/${id}`,
+            },
+          ]),
+    ],
+  };
+
+  // ─── RealEstateListing + Offer ─────────────────────────────────────────────
+  // tx=RENT → businessFunction LeaseOut, tx=SALE → Sell
+  const businessFunction =
+    listing.tx === 'RENT'
+      ? 'http://purl.org/goodrelations/v1#LeaseOut'
+      : 'http://purl.org/goodrelations/v1#Sell';
+
+  const listingJsonLd: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'RealEstateListing',
+    name: listing.title,
+    description: listing.desc ?? undefined,
+    url: `${BASE}/${locale}/listing/${id}`,
+    datePosted: listing.createdAt,
+    ...(listing.photos.length > 0 && {
+      image: listing.photos.map((p) => p.url),
+    }),
+    offers: {
+      '@type': 'Offer',
+      price: listing.price,
+      priceCurrency: listing.currency,
+      availability: 'https://schema.org/InStock',
+      businessFunction,
+    },
+    ...(listing.lat != null && listing.lng != null && {
+      geo: {
+        '@type': 'GeoCoordinates',
+        latitude: listing.lat,
+        longitude: listing.lng,
+      },
+    }),
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: listing.district || undefined,
+      addressRegion: 'Toshkent',
+      addressCountry: 'UZ',
+      ...(listing.address && { streetAddress: listing.address }),
+    },
+  };
+
+  return (
+    <>
+      <JsonLd data={listingJsonLd} />
+      <JsonLd data={breadcrumbJsonLd} />
+      <Detail
+        listing={listing}
+        breadcrumb={{
+          homeLabel: tCrumb('home'),
+          txLabel: txCrumbLabel,
+          txPath: txCrumbPath,
+        }}
+      />
+    </>
+  );
 }

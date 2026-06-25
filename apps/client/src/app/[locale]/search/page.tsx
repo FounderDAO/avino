@@ -5,6 +5,12 @@
  * рендерит: FilterBar (sticky, client) сверху + SearchResults (список/карта).
  * Фильтры — единственный источник истины в URL, поэтому страница
  * пересобирается при каждом изменении query (FilterBar → router.replace).
+ *
+ * SEO canonical (ADR-0104):
+ * - Сохраняем только семантические параметры (tx, type, district_id).
+ * - Дроп: view, sort, cursor, priceMin/priceMax/rooms (длиннохвостые комбинации).
+ * - Длиннохвостые URL (priceMin/priceMax/rooms) → robots: noindex.
+ * - Базовые tx/type/district — индексируемые лендинги.
  */
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
@@ -19,18 +25,52 @@ import type {
 import { FilterBar, type FilterValues } from '@/features/search/FilterBar';
 import { SearchResults } from '@/features/search/SearchResults';
 import { alternatesFor } from '@/lib/seo/alternates';
+import { BASE } from '@/lib/seo/base';
+import { routing } from '@/i18n/routing';
+
+/** Семантические параметры поиска — остаются в canonical (формируют лендинги). */
+const SEMANTIC_PARAMS = ['tx', 'type', 'district_id'] as const;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const sp = await searchParams;
   const t = await getTranslations({ locale, namespace: 'search' });
+
+  // Флаг «длиннохвостой» комбинации фильтров — цена или кол-во комнат задано.
+  const isLongTail = Boolean(sp.priceMin || sp.priceMax || sp.rooms);
+
+  // Canonical: оставляем только семантические параметры (strip sort/view/cursor/price/rooms).
+  const canonicalParams = new URLSearchParams();
+  for (const key of SEMANTIC_PARAMS) {
+    const val = Array.isArray(sp[key]) ? sp[key][0] : sp[key];
+    if (val) canonicalParams.set(key, val);
+  }
+  const canonicalSuffix = canonicalParams.toString() ? `?${canonicalParams.toString()}` : '';
+  const canonicalPath = `/search${canonicalSuffix}`;
+
+  // alternatesFor строит canonical + hreflang; для поиска подставляем canonical-путь.
+  const canonicalUrl = `${BASE}/${locale}${canonicalPath}`;
+  const languages: Record<string, string> = {};
+  for (const l of routing.locales) {
+    languages[l] = `${BASE}/${l}${canonicalPath}`;
+  }
+  languages['x-default'] = `${BASE}/${routing.defaultLocale}${canonicalPath}`;
+
   return {
     title: t('metaTitle'),
     description: t('metaDescription'),
-    alternates: alternatesFor('/search'),
+    alternates: {
+      canonical: canonicalUrl,
+      languages,
+    },
+    // Длиннохвостые URL (цена + комнаты) — не индексируем, не дублируем контент.
+    ...(isLongTail && { robots: { index: false, follow: true } }),
   };
 }
 

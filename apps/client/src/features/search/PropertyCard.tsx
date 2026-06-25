@@ -41,7 +41,8 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
         <PhotoImg
           src={listing.photos[0]?.thumb ?? ''}
           alt={listing.title}
-          className="h-full w-full transition-transform duration-[400ms] group-hover:scale-105"
+          className="transition-transform duration-[400ms] group-hover:scale-105"
+          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
         />
         <div className="absolute left-3 top-3 flex gap-1.5">
           <PromoBadge promo={listing.promo} />

@@ -560,8 +560,8 @@ export function ListingNew() {
         {step === 7 && (
           <div className="flex flex-col gap-4">
             {f.photos[0] && (
-              <div className="aspect-[16/10] overflow-hidden rounded-input">
-                <PhotoImg src={f.photos[0].url} alt={f.title} className="h-full w-full" />
+              <div className="relative aspect-[16/10] overflow-hidden rounded-input">
+                <PhotoImg src={f.photos[0].url} alt={f.title} />
               </div>
             )}
             <div>

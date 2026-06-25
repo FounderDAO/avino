@@ -119,14 +119,16 @@ export function Lightbox({ photos, index, onIndexChange, onClose, alt }: Lightbo
         </button>
       )}
 
+      {/* fill={false}: лайтбокс требует intrinsic-sizing (object-contain + max-h). */}
       <PhotoImg
         src={photos[index].url}
         alt={alt}
+        fill={false}
         // min-* — пол размера, чтобы битое/отсутствующее фото показывалось
         // осмысленной брендовой карточкой, а не крошечным глифом. Для реальных
         // фото пол ниже типичного fit-размера и не влияет (прозрачные поля над
         // чёрным оверлеем не видны).
-        className="max-h-[88vh] min-h-[280px] w-auto min-w-[280px] max-w-[92vw] rounded-card object-contain"
+        className="max-h-[88vh] min-h-[280px] w-auto min-w-[280px] max-w-[92vw] rounded-card"
         onClick={(e) => e.stopPropagation()}
       />
 
