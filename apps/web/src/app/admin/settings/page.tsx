@@ -6,6 +6,7 @@ import { SectionTitle } from '@/components/admin/ui/section-title';
 import { TelegramNotificationsToggle } from '@/components/admin/TelegramNotificationsToggle';
 import { SmsSendingToggle } from '@/components/admin/SmsSendingToggle';
 import { PromotionsAvailabilityToggle } from '@/components/admin/PromotionsAvailabilityToggle';
+import { MapHoverRecenterToggle } from '@/components/admin/MapHoverRecenterToggle';
 import { ExchangeRatePanel } from '@/components/admin/ExchangeRatePanel';
 import { NotificationsSendingToggle } from '@/components/admin/NotificationsSendingToggle';
 
@@ -54,6 +55,7 @@ export default function SettingsPage() {
       <SmsSendingToggle />
       <NotificationsSendingToggle />
       <PromotionsAvailabilityToggle />
+      <MapHoverRecenterToggle />
       <ExchangeRatePanel />
     </div>
   );
