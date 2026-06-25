@@ -39,10 +39,15 @@ interface ResolvedGoogleUser {
  * GoogleAuthService — passwordless вход через Google ID-token.
  *
  * Верификация токена офлайн через google-auth-library (проверка подписи/aud/
- * iss/exp); связывание аккаунта по верифицированному email (email_verified=true
- * обязателен). Логин=signup, как и в OTP-флоу. Сессия выпускается тем же
- * TokenService. Провайдер не настроен (нет GOOGLE_CLIENT_ID) → 503
- * AUTH_PROVIDER_UNAVAILABLE.
+ * iss/exp). Связывание аккаунта (account-linking hardening, H-2): авто-привязка
+ * к СУЩЕСТВУЮЩЕМУ аккаунту разрешена только когда провайдер утверждает
+ * email_verified=true; при наличии аккаунта на этот email с непроверенным флагом
+ * молчаливый мерж запрещён → 409 ACCOUNT_LINK_REQUIRED. Новый пользователь
+ * создаётся всегда (login=signup), но `isEmailVerified` пишется РЕАЛЬНЫМ флагом
+ * провайдера, а не литералом true. Email и phone — раздельные namespace'ы: вход
+ * по Google матчится только по email, телефон никогда не клеймится. Сессия
+ * выпускается тем же TokenService. Провайдер не настроен (нет GOOGLE_CLIENT_ID)
+ * → 503 AUTH_PROVIDER_UNAVAILABLE.
  */
 @Injectable()
 export class GoogleAuthService {
@@ -73,16 +78,10 @@ export class GoogleAuthService {
     }
 
     const payload = await this.verifyToken(dto.id_token, clientId);
-    if (!payload.emailVerified) {
-      throw new HttpException(
-        {
-          code: ApiErrorCode.UNAUTHORIZED,
-          message: 'Google email is not verified',
-        },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
 
+    // Гейт verified переехал в resolveByEmail (account-linking, H-2): непроверенный
+    // email больше НЕ блокирует вход глобально — новый пользователь создаётся с
+    // is_email_verified=false, а молчаливый мерж в существующий аккаунт запрещён.
     const { user, isNew } = await this.resolveByEmail(payload);
 
     const tokens = await this.tokenService.issueSession({
@@ -170,8 +169,16 @@ export class GoogleAuthService {
   }
 
   /**
-   * Найти активного (не-DELETED) пользователя по email или создать нового
-   * (логин=signup). Контакт помечается verified; профиль сидируется из Google.
+   * Найти активного (не-DELETED) пользователя по email (только email-namespace —
+   * телефон не клеймится) или создать нового (логин=signup).
+   *
+   * Account-linking hardening (H-2):
+   *  - email_verified≠true → отказ ВСЕГДА (и для новых, и для существующих) —
+   *    непроверенный email никогда не даёт доступ и не создаёт аккаунт;
+   *  - existing + email_verified=true → авто-привязка, isEmailVerified=true;
+   *  - existing + email_verified≠true → 409 ACCOUNT_LINK_REQUIRED (без мержа);
+   *  - нет аккаунта + email_verified=true → создаём с isEmailVerified=true;
+   *  - нет аккаунта + email_verified≠true → 401 UNAUTHORIZED (не создаём).
    */
   private async resolveByEmail(
     payload: GooglePayload,
@@ -188,12 +195,36 @@ export class GoogleAuthService {
           message: 'Account is blocked',
         });
       }
+      // Авто-привязка к существующему аккаунту разрешена ТОЛЬКО при verified email.
+      // Непроверенный email → отдельный доменный код (не тихий мерж, не 401):
+      // клиент предлагает войти через исходный метод и уже там прилинковать Google.
+      if (!payload.emailVerified) {
+        throw new HttpException(
+          {
+            code: ApiErrorCode.ACCOUNT_LINK_REQUIRED,
+            message:
+              'An account with this email already exists. Sign in with your existing method to link Google.',
+          },
+          HttpStatus.CONFLICT,
+        );
+      }
       const updated = await this.prisma.user.update({
         where: { id: existing.id },
         data: { isEmailVerified: true, lastLoginAt: new Date() },
         include: { roles: { include: { role: true } } },
       });
       return { user: this.toResolved(updated), isNew: false };
+    }
+
+    // Нет аккаунта + email не верифицирован → не создаём аккаунт (hardening H-2).
+    if (!payload.emailVerified) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.UNAUTHORIZED,
+          message: 'Google email is not verified',
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const created = await this.prisma.$transaction(async (tx) => {

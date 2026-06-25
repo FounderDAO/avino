@@ -37,6 +37,48 @@ Related ADR:
 
 ---
 
+## 2026-06-26
+
+### TASK-SEC-02 — OAuth/OTP account-linking hardening (H-2)
+
+Status: DONE
+Branch: feature/auth-account-linking
+PR: #228
+
+Закрыта находка H-2 (silent-merge/takeover) в `apps/api`. Линковка больше не
+кейзится на голую строку контакта с хардкодом `isEmailVerified:true`. Новый
+`ApiErrorCode.ACCOUNT_LINK_REQUIRED` (409). Поведение OAuth (Google/Apple):
+verified=true + нет аккаунта → создать (verified); verified=true + существует →
+привязка; verified≠true + существует → 409 ACCOUNT_LINK_REQUIRED (без мержа/
+сессии); verified≠true + новый → 401 (не создаём — сохранён исходный отказ).
+Namespace email/phone изолирован (email-провайдеры матчат только email, OTP-SMS
+только phone). OTP-пути по логике не менялись (успешный OTP сам доказывает
+контроль), добавлены namespace-тесты. Полноценный интерактивный link-confirm flow
+— follow-up на клиенте.
+
+Build: GREEN. Тесты: 82 suites / 704 PASS. Все правки существующих тестов —
+ужесточения (нет ни одного послабления; unverified OAuth не попадает в систему
+ни одним путём).
+
+Files changed:
+- apps/api/src/common/dto/error-response.dto.ts (ACCOUNT_LINK_REQUIRED)
+- apps/api/src/auth/google-auth.service.ts (+ spec)
+- apps/api/src/auth/apple-auth.service.ts (+ spec)
+- apps/api/src/auth/auth.service.ts (+ spec — namespace tests, doc)
+
+Summary:
+- Закрыта H-2 из security-аудита; чистый hardening, ноль послаблений.
+- Не трогали: Apple nonce (L-1), throttling/OTP-rate-limit (#226, уже в main), JWT/refresh/media.
+- Note: edge-case — provider verified=false при ранее verified email в БД → 409 (приоритет заявлению провайдера); продукт может ослабить отдельным решением.
+
+Commit messages:
+- feat(api): account-linking hardening — verified-gate, ACCOUNT_LINK_REQUIRED, namespace isolation
+
+Related ADR:
+- docs/adr/ADR-0107-oauth-account-linking-hardening.md
+
+---
+
 ## 2026-06-25
 
 ### TASK-SEC-01 — API security hardening (throttling, helmet, trust proxy, OTP brute-force lock)
