@@ -101,6 +101,17 @@ export const promotionConfig = registerAs('promotion', () => ({
   expiryBatchSize: parseInt(process.env.PROMOTION_EXPIRY_BATCH_SIZE ?? '100', 10),
 }));
 
+export const mapHoverRecenterConfig = registerAs('mapHoverRecenter', () => ({
+  // Центрирование карты к пину при наведении на карточку в /search (поведение
+  // «карта едет»). По умолчанию ВЫКЛЮЧЕНО — карта стоит на месте (Zillow-режим).
+  // MAP_HOVER_RECENTER_ENABLED=true → true. Перебивается runtime-строкой
+  // map_hover_recenter в app_settings (admin-тоггл).
+  enabled:
+    process.env.MAP_HOVER_RECENTER_ENABLED != null
+      ? process.env.MAP_HOVER_RECENTER_ENABLED === 'true'
+      : false,
+}));
+
 // Фоновая чистка осиротевших фото в R2 (ADR-0099). Деструктивно → по умолчанию
 // ВЫКЛЮЧЕНО (явный MEDIA_CLEANUP_ENABLED=true в deploy env включает). cron —
 // расписание (по умолчанию ежедневно 04:00); graceHours — не трогать объекты
@@ -336,6 +347,7 @@ export const configurations = [
   smsConfig,
   translateConfig,
   promotionConfig,
+  mapHoverRecenterConfig,
   savedSearchConfig,
   mailConfig,
   otpConfig,
