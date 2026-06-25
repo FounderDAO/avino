@@ -30,6 +30,7 @@ import {
 } from '@/store/api/searchApi';
 import type { Listing, ListingFilter } from '@/lib/mock/types';
 import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
+import { useMapHoverRecenter } from '@/lib/useMapHoverRecenter';
 import { useAppDispatch } from '@/store/hooks';
 import {
   setTerritory,
@@ -75,6 +76,7 @@ export function SearchResults({
   const tCommon = useTranslations('common');
   const locale = useLocale();
   const [activeId, setActiveId] = React.useState<string | null>(null);
+  const recenterOnHover = useMapHoverRecenter();
 
   // Предпочтение валюты из Redux (Task 14): добавляем в RTK-запросы (polygon/keyset),
   // чтобы бэкенд фильтровал price_min/price_max в правильной валюте.
@@ -184,6 +186,7 @@ export function SearchResults({
           drawMode={drawing ? 'polygon' : null}
           onPolygonComplete={handlePolygonComplete}
           autoFit
+          recenterOnHover={recenterOnHover}
         />
 
         {/* ---- Управление территорией (поверх карты, как на /map) ---- */}
@@ -254,7 +257,7 @@ export function SearchResults({
         </div>
 
         {busy ? (
-          <div className="grid grid-cols-1 gap-5 px-5 pb-6 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 px-4 pb-6 sm:grid-cols-2">
             {Array.from({ length: 6 }).map((_, i) => (
               <PropertyCardSkeleton key={i} />
             ))}
@@ -281,7 +284,7 @@ export function SearchResults({
             />
           )
         ) : (
-          <div className="grid grid-cols-1 gap-5 px-5 pb-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 px-4 pb-5 sm:grid-cols-2">
             {displayed.map((l) => (
               <div
                 key={l.id}

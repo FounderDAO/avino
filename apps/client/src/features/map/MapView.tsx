@@ -11,7 +11,8 @@
  *
  * Маркеры — кластеризуются (ymaps.Clusterer). Пины брендовые (ADR-0060): VIP
  * золотой, TOP красный, активный — тёмный (ink). Клик по пину → `onSelect`,
- * наведение → `onHover`; активный пин подсвечивается и карта к нему панорамируется.
+ * наведение → `onHover`; активный пин подсвечивается, центрирование карты —
+ * опционально (admin-флаг recenterOnHover).
  *
  * Только клиент ('use client' + next/dynamic ssr:false на месте использования).
  * `ymaps` — внешний глобал (any), вся работа с ним инкапсулирована здесь.
@@ -58,6 +59,9 @@ export interface MapViewProps {
   drawMode?: DrawMode;
   /** Автоподгон вида под маркеры при смене набора (true на /search, false на /map). */
   autoFit?: boolean;
+  /** Центрировать карту к активному пину при наведении/выборе. Default false
+   *  (карта стоит на месте — Zillow-режим). Управляется admin-флагом. */
+  recenterOnHover?: boolean;
 }
 
 /** Центр карты по умолчанию — Ташкент. */
@@ -140,6 +144,7 @@ export function MapView({
   onBoundsChange,
   drawMode = null,
   autoFit = false,
+  recenterOnHover = false,
 }: MapViewProps) {
   const fmt = usePriceFormatter();
   const tSearch = useTranslations('search');
@@ -277,12 +282,12 @@ export function MapView({
       pm.options.set('iconLayout', makeIconLayout(ymaps, pinHTML(l, l.id === activeId, fmtRef.current.pin(l))));
       pm.options.set('zIndex', l.id === activeId ? 1000 : 0);
     });
-    if (activeId) {
+    if (recenterOnHover && activeId) {
       const a = listings.find((l) => l.id === activeId);
       if (a?.lat != null && a?.lng != null) map.panTo([a.lat, a.lng], { flying: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, ymaps]);
+  }, [activeId, ymaps, recenterOnHover]);
 
   // ── Оверлей: круг радиуса (/search) или территория (/map) ──
   const overlayKey = circle

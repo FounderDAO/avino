@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PublicSettingsController } from './public-settings.controller';
 import { PromotionsFlagService } from './promotions-flag.service';
+import { MapHoverRecenterFlagService } from './map-hover-recenter-flag.service';
 
 /**
  * SettingsModule — публичные фиче-флаги платформы.
@@ -13,7 +14,7 @@ import { PromotionsFlagService } from './promotions-flag.service';
 @Module({
   imports: [],
   controllers: [PublicSettingsController],
-  providers: [PromotionsFlagService],
-  exports: [PromotionsFlagService],
+  providers: [PromotionsFlagService, MapHoverRecenterFlagService],
+  exports: [PromotionsFlagService, MapHoverRecenterFlagService],
 })
 export class SettingsModule {}
