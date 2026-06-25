@@ -929,5 +929,10 @@
       "LAND": "Land",
       "COMMERCIAL": "Commercial"
     }
+  },
+  "breadcrumb": {
+    "home": "Home",
+    "sale": "Buy",
+    "rent": "Rent"
   }
 }
