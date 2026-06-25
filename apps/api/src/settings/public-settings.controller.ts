@@ -1,12 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { PromotionsFlagService } from './promotions-flag.service';
 import { MapHoverRecenterFlagService } from './map-hover-recenter-flag.service';
-
-/** Публичные настройки/фиче-флаги для портала и мобильных клиентов. */
-export interface PublicSettingsView {
-  promotionsEnabled: boolean;
-  mapHoverRecenter: boolean;
-}
+import { PublicSettingsView } from './dto/public-settings-view.dto';
 
 /**
  * `GET /api/v1/settings/public` — публичные флаги без авторизации. Точка

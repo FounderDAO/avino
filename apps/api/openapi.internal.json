@@ -1443,7 +1443,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/PublicSettingsView"
                 }
               }
             }
@@ -3837,6 +3837,21 @@
         },
         "required": [
           "order"
+        ]
+      },
+      "PublicSettingsView": {
+        "type": "object",
+        "properties": {
+          "promotionsEnabled": {
+            "type": "boolean"
+          },
+          "mapHoverRecenter": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "promotionsEnabled",
+          "mapHoverRecenter"
         ]
       },
       "CreateFavoriteDto": {
