@@ -8,6 +8,7 @@ import { baseApi } from './baseApi';
 
 export interface PublicSettings {
   promotionsEnabled: boolean;
+  mapHoverRecenter: boolean;
 }
 
 export const publicSettingsApi = baseApi.injectEndpoints({
