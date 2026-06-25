@@ -66,17 +66,48 @@ describe('GoogleAuthService', () => {
     });
   });
 
-  it('401 when email not verified', async () => {
+  // Account-linking hardening (H-2): непроверенный email + СУЩЕСТВУЮЩИЙ аккаунт →
+  // молчаливый мерж ЗАПРЕЩЁН → 409 ACCOUNT_LINK_REQUIRED (ужесточение: раньше любой
+  // непроверенный email давал 401, теперь существующий аккаунт защищён отдельным
+  // доменным кодом, а пользователь не получает чужой аккаунт).
+  it('409 ACCOUNT_LINK_REQUIRED when email not verified and account exists', async () => {
     verifyIdToken.mockResolvedValue({
       getPayload: () => ({ email: 'a@b.com', sub: 's', email_verified: false }),
     });
-    const { service } = makeService('CID');
-    await expect(service.login({ id_token: 't' })).rejects.toMatchObject({
-      response: { code: 'UNAUTHORIZED' },
+    const { service, prisma, tokenService } = makeService('CID');
+    prisma.user.findFirst.mockResolvedValue(EXISTING_USER);
+    const promise = service.login({ id_token: 't' });
+    await expect(promise).rejects.toMatchObject({
+      response: { code: 'ACCOUNT_LINK_REQUIRED' },
     });
+    // Никакого мержа/сессии для непроверенного входа в существующий аккаунт.
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(tokenService.issueSession).not.toHaveBeenCalled();
   });
 
-  it('issues session for existing user', async () => {
+  // Непроверенный email + НЕТ аккаунта → отказ, аккаунт НЕ создаётся (hardening
+  // H-2: не допускаем аккаунты с неверифицированным OAuth-email).
+  it('401 UNAUTHORIZED when email not verified and no account exists (no account created)', async () => {
+    verifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        email: 'new@b.com',
+        sub: 's',
+        email_verified: false,
+        name: 'New User',
+      }),
+    });
+    const { service, prisma, tokenService } = makeService('CID');
+    prisma.user.findFirst.mockResolvedValue(null);
+    const promise = service.login({ id_token: 't' });
+    await expect(promise).rejects.toMatchObject({
+      response: { code: 'UNAUTHORIZED' },
+    });
+    // Никакого аккаунта и никакой сессии.
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(tokenService.issueSession).not.toHaveBeenCalled();
+  });
+
+  it('issues session for existing user (verified → auto-link)', async () => {
     verifyIdToken.mockResolvedValue({
       getPayload: () => ({
         email: 'a@b.com',
@@ -94,7 +125,20 @@ describe('GoogleAuthService', () => {
     expect(res.user.email).toBe('a@b.com');
   });
 
-  it('creates a new user when none exists', async () => {
+  it('namespace isolation: matches existing account by email only, never by phone', async () => {
+    verifyIdToken.mockResolvedValue({
+      getPayload: () => ({ email: 'a@b.com', sub: 's', email_verified: true }),
+    });
+    const { service, prisma } = makeService('CID');
+    prisma.user.findFirst.mockResolvedValue(EXISTING_USER);
+    prisma.user.update.mockResolvedValue(EXISTING_USER);
+    await service.login({ id_token: 't' });
+    const whereArg = prisma.user.findFirst.mock.calls[0][0].where;
+    expect(whereArg).toHaveProperty('email', 'a@b.com');
+    expect(whereArg).not.toHaveProperty('phone');
+  });
+
+  it('creates a new user with is_email_verified=true when none exists (verified)', async () => {
     verifyIdToken.mockResolvedValue({
       getPayload: () => ({
         email: 'new@b.com',
@@ -114,6 +158,8 @@ describe('GoogleAuthService', () => {
     });
     const res = await service.login({ id_token: 't' });
     expect(prisma.user.create).toHaveBeenCalled();
+    const createArg = prisma.user.create.mock.calls[0][0];
+    expect(createArg.data.isEmailVerified).toBe(true);
     expect(res.user.id).toBe('u2');
   });
 });

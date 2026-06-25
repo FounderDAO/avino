@@ -39,47 +39,43 @@ Related ADR:
 
 ## 2026-06-26
 
-### TASK-SEO-02 — SEO structured data, dynamic sitemap, next/image
+### TASK-SEC-02 — OAuth/OTP account-linking hardening (H-2)
 
 Status: DONE
-Branch: feature/seo-structured-data
-PR: #227
+Branch: feature/auth-account-linking
+PR: #228
 
-Продолжение SEO поверх #225/ADR-0104. Динамический `app/sitemap.ts` (статика +
-все объявления через keyset-пагинацию `/api/v1/search`, потолок 5000 с логом
-пропущенных, деградация до статики при ошибке API, hreflang на каждой записи).
-JSON-LD `RealEstateListing`+`Offer`+`BreadcrumbList` на детальной (через
-`components/seo/JsonLd.tsx`). Видимый breadcrumb (`components/ui/breadcrumb.tsx`,
-i18n). Миграция фото на `next/image`: `remotePatterns` (cdn.avino.uz + `**.r2.dev`
-+ unsplash) в `next.config.mjs`, `priority` на LCP, затронуты gallery/lightbox/
-PropertyCard/MyListings/ListingNew/Sell/Districts (API компонента сохранён).
-Canonical для `/search` (стрип `view`/`sort`/пагинации; длиннохвостые фильтры →
-noindex). Backend НЕ трогали.
+Закрыта находка H-2 (silent-merge/takeover) в `apps/api`. Линковка больше не
+кейзится на голую строку контакта с хардкодом `isEmailVerified:true`. Новый
+`ApiErrorCode.ACCOUNT_LINK_REQUIRED` (409). Поведение OAuth (Google/Apple):
+verified=true + нет аккаунта → создать (verified); verified=true + существует →
+привязка; verified≠true + существует → 409 ACCOUNT_LINK_REQUIRED (без мержа/
+сессии); verified≠true + новый → 401 (не создаём — сохранён исходный отказ).
+Namespace email/phone изолирован (email-провайдеры матчат только email, OTP-SMS
+только phone). OTP-пути по логике не менялись (успешный OTP сам доказывает
+контроль), добавлены namespace-тесты. Полноценный интерактивный link-confirm flow
+— follow-up на клиенте.
 
-Build: GREEN (`sitemap.xml` + `robots.txt` в роутах, все локали). Lint: чисто
-(один warning в pre-existing тест-файле).
+Build: GREEN. Тесты: 82 suites / 704 PASS. Все правки существующих тестов —
+ужесточения (нет ни одного послабления; unverified OAuth не попадает в систему
+ни одним путём).
 
 Files changed:
-- apps/client/src/app/sitemap.ts (new)
-- apps/client/src/components/ui/breadcrumb.tsx (new)
-- apps/client/next.config.mjs
-- apps/client/src/app/[locale]/listing/[id]/page.tsx
-- apps/client/src/app/[locale]/search/page.tsx
-- apps/client/src/components/ui/{photo-img.tsx,gallery.tsx,lightbox.tsx,photo-img.test.tsx}
-- apps/client/src/features/{detail/Detail.tsx,search/PropertyCard.tsx,account/MyListings.tsx,home/Districts.tsx,listing-new/ListingNew.tsx,sell/Sell.tsx}
-- apps/client/messages/{ru,uz,en}.json
+- apps/api/src/common/dto/error-response.dto.ts (ACCOUNT_LINK_REQUIRED)
+- apps/api/src/auth/google-auth.service.ts (+ spec)
+- apps/api/src/auth/apple-auth.service.ts (+ spec)
+- apps/api/src/auth/auth.service.ts (+ spec — namespace tests, doc)
 
 Summary:
-- Закрыты разделы аудита #1, #3, #5, #8, #12.
-- Отложено: slugs (#11, backend), ISR (#13), manifest/PWA (#17).
-- Note: sitemap через пагинацию /search (cap 5000); next/image перефетчивает
-  подписанные R2-URL — см. ADR-0106.
+- Закрыта H-2 из security-аудита; чистый hardening, ноль послаблений.
+- Не трогали: Apple nonce (L-1), throttling/OTP-rate-limit (#226, уже в main), JWT/refresh/media.
+- Note: edge-case — provider verified=false при ранее verified email в БД → 409 (приоритет заявлению провайдера); продукт может ослабить отдельным решением.
 
 Commit messages:
-- feat(client): SEO structured data, dynamic sitemap, next/image migration
+- feat(api): account-linking hardening — verified-gate, ACCOUNT_LINK_REQUIRED, namespace isolation
 
 Related ADR:
-- docs/adr/ADR-0106-seo-structured-data-sitemap.md
+- docs/adr/ADR-0107-oauth-account-linking-hardening.md
 
 ---
 

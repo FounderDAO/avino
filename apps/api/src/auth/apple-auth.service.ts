@@ -39,9 +39,14 @@ interface ResolvedAppleUser {
  * AppleAuthService — passwordless вход через Apple ID (Sign in with Apple).
  *
  * Верификация ID-token офлайн через apple-signin-auth (подпись по JWKS Apple,
- * aud ∈ APPLE_CLIENT_ID, exp); связывание по верифицированному email (как
- * GoogleAuthService/ADR-0065). Логин=signup. Сессия — общим TokenService.
- * Провайдер не настроен (нет APPLE_CLIENT_ID) → 503 AUTH_PROVIDER_UNAVAILABLE.
+ * aud ∈ APPLE_CLIENT_ID, exp). Account-linking hardening (H-2, как
+ * GoogleAuthService): авто-привязка к существующему аккаунту только при
+ * email_verified=true; непроверенный email на занятый аккаунт → 409
+ * ACCOUNT_LINK_REQUIRED (без молчаливого мержа). Новый пользователь создаётся
+ * всегда, но `isEmailVerified` пишется РЕАЛЬНЫМ флагом провайдера. Email/phone —
+ * раздельные namespace'ы (Apple матчится только по email). Логин=signup. Сессия
+ * — общим TokenService. Провайдер не настроен (нет APPLE_CLIENT_ID) → 503
+ * AUTH_PROVIDER_UNAVAILABLE.
  */
 @Injectable()
 export class AppleAuthService {
@@ -71,16 +76,10 @@ export class AppleAuthService {
     }
 
     const verified = await this.verifyToken(dto.id_token, clientIds);
-    if (!verified.emailVerified) {
-      throw new HttpException(
-        {
-          code: ApiErrorCode.UNAUTHORIZED,
-          message: 'Apple email is not verified',
-        },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
 
+    // Гейт verified переехал в resolveByEmail (account-linking, H-2): непроверенный
+    // email больше НЕ блокирует вход глобально — новый пользователь создаётся с
+    // is_email_verified=false, а молчаливый мерж в существующий аккаунт запрещён.
     const payload: ApplePayload = {
       ...verified,
       firstName: dto.first_name?.trim() || null,
@@ -170,9 +169,16 @@ export class AppleAuthService {
   }
 
   /**
-   * Найти активного (не-DELETED) пользователя по email или создать нового
-   * (логин=signup). Email помечается verified; имя профиля — из DTO (Apple даёт
-   * имя только при первой авторизации), иначе пусто.
+   * Найти активного (не-DELETED) пользователя по email (только email-namespace —
+   * телефон не клеймится) или создать нового (логин=signup). Имя профиля — из DTO
+   * (Apple даёт имя только при первой авторизации), иначе пусто.
+   *
+   * Account-linking hardening (H-2):
+   *  - email_verified≠true → отказ ВСЕГДА (и для новых, и для существующих);
+   *  - existing + email_verified=true → авто-привязка, isEmailVerified=true;
+   *  - existing + email_verified≠true → 409 ACCOUNT_LINK_REQUIRED (без мержа);
+   *  - нет аккаунта + email_verified=true → создаём с isEmailVerified=true;
+   *  - нет аккаунта + email_verified≠true → 401 UNAUTHORIZED (не создаём).
    */
   private async resolveByEmail(
     payload: ApplePayload,
@@ -189,12 +195,34 @@ export class AppleAuthService {
           message: 'Account is blocked',
         });
       }
+      // Авто-привязка к существующему аккаунту разрешена ТОЛЬКО при verified email.
+      if (!payload.emailVerified) {
+        throw new HttpException(
+          {
+            code: ApiErrorCode.ACCOUNT_LINK_REQUIRED,
+            message:
+              'An account with this email already exists. Sign in with your existing method to link Apple.',
+          },
+          HttpStatus.CONFLICT,
+        );
+      }
       const updated = await this.prisma.user.update({
         where: { id: existing.id },
         data: { isEmailVerified: true, lastLoginAt: new Date() },
         include: { roles: { include: { role: true } } },
       });
       return { user: this.toResolved(updated), isNew: false };
+    }
+
+    // Нет аккаунта + email не верифицирован → не создаём аккаунт (hardening H-2).
+    if (!payload.emailVerified) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.UNAUTHORIZED,
+          message: 'Apple email is not verified',
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const created = await this.prisma.$transaction(async (tx) => {

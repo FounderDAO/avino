@@ -238,6 +238,60 @@ describe('AuthService.verifyOtp', () => {
     );
   });
 
+  // Account-linking (H-2) namespace isolation: SMS-вход резолвит пользователя
+  // ТОЛЬКО по phone (никогда по email) — телефонный OTP не клеймит email-аккаунт.
+  it('namespace isolation: SMS login resolves user by phone only, never by email', async () => {
+    prisma.otpCode.findFirst.mockResolvedValue({
+      id: 'o1',
+      codeHash: await hashOtpCode(CODE),
+      attempts: 0,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    prisma.user.findFirst.mockResolvedValue(baseUser);
+    prisma.user.update.mockResolvedValue(baseUser);
+
+    await service.verifyOtp(dto(), '127.0.0.1');
+
+    const whereArg = prisma.user.findFirst.mock.calls[0][0].where;
+    expect(whereArg).toHaveProperty('phone', DEST);
+    expect(whereArg).not.toHaveProperty('email');
+  });
+
+  // Email-вход (OTP) резолвит ТОЛЬКО по email и помечает is_email_verified — успешный
+  // OTP сам по себе доказывает контроль над контактом (линковка здесь легитимна).
+  it('namespace isolation: EMAIL login resolves user by email only and marks email verified', async () => {
+    const emailDest = 'user@example.com';
+    const emailUser = {
+      ...baseUser,
+      phone: null,
+      email: emailDest,
+      isPhoneVerified: false,
+      isEmailVerified: true,
+    };
+    prisma.otpCode.findFirst.mockResolvedValue({
+      id: 'o1',
+      codeHash: await hashOtpCode(CODE),
+      attempts: 0,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    prisma.user.findFirst.mockResolvedValue(emailUser);
+    prisma.user.update.mockResolvedValue(emailUser);
+
+    await service.verifyOtp(
+      { channel: OtpChannel.EMAIL, destination: emailDest, code: CODE },
+      '127.0.0.1',
+    );
+
+    const whereArg = prisma.user.findFirst.mock.calls[0][0].where;
+    expect(whereArg).toHaveProperty('email', emailDest);
+    expect(whereArg).not.toHaveProperty('phone');
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ isEmailVerified: true }),
+      }),
+    );
+  });
+
   it('fires a telegram success alert after a successful login', async () => {
     prisma.otpCode.findFirst.mockResolvedValue({
       id: 'o1',
