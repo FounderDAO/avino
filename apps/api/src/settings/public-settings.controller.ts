@@ -1,10 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { PromotionsFlagService } from './promotions-flag.service';
-
-/** Публичные настройки/фиче-флаги для портала и мобильных клиентов. */
-export interface PublicSettingsView {
-  promotionsEnabled: boolean;
-}
+import { MapHoverRecenterFlagService } from './map-hover-recenter-flag.service';
+import { PublicSettingsView } from './dto/public-settings-view.dto';
 
 /**
  * `GET /api/v1/settings/public` — публичные флаги без авторизации. Точка
@@ -12,10 +9,16 @@ export interface PublicSettingsView {
  */
 @Controller({ path: 'settings/public', version: '1' })
 export class PublicSettingsController {
-  constructor(private readonly flags: PromotionsFlagService) {}
+  constructor(
+    private readonly flags: PromotionsFlagService,
+    private readonly mapHover: MapHoverRecenterFlagService,
+  ) {}
 
   @Get()
   async get(): Promise<PublicSettingsView> {
-    return { promotionsEnabled: await this.flags.isEnabled() };
+    return {
+      promotionsEnabled: await this.flags.isEnabled(),
+      mapHoverRecenter: await this.mapHover.isEnabled(),
+    };
   }
 }
