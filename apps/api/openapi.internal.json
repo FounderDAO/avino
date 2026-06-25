@@ -3938,8 +3938,7 @@
             "type": "object"
           },
           "filterRole": {
-            "type": "string",
-            "maxLength": 40
+            "type": "string"
           },
           "channels": {
             "type": "array",
