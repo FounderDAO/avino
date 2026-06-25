@@ -59,13 +59,24 @@ export function Footer() {
             <Logo light />
             <p className="mt-3.5 max-w-[240px] text-sm leading-relaxed">{t('slogan')}</p>
             <div className="mt-4 flex gap-2">
-              {['TG', 'IG', 'FB', 'YT'].map((s) => (
-                <span
-                  key={s}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.18] text-xs font-bold"
+              {(
+                [
+                  { label: 'TG', href: 'https://t.me/avino_uz' },
+                  { label: 'IG', href: 'https://www.instagram.com/avino.uz' },
+                  { label: 'FB', href: 'https://www.facebook.com/avino.uz' },
+                  { label: 'YT', href: 'https://www.youtube.com/@avino_uz' },
+                ] as const
+              ).map(({ label, href }) => (
+                <a
+                  key={label}
+                  href={href}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  aria-label={label}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.18] text-xs font-bold hover:border-white/40 hover:text-white"
                 >
-                  {s}
-                </span>
+                  {label}
+                </a>
               ))}
             </div>
           </div>

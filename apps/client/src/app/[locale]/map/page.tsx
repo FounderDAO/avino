@@ -6,19 +6,25 @@
  * области (RTK Query searchByBounds) и рисование территории. Карта — Yandex
  * Maps (CLAUDE.md §12).
  */
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { searchListings } from '@/lib/api/listings';
 import type { ListingFilter, TransactionType } from '@/lib/mock/types';
 import { MapSearch } from '@/features/map/MapSearch';
+import { alternatesFor } from '@/lib/seo/alternates';
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ locale: string }>;
-}) {
+}): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'search' });
-  return { title: t('map.metaTitle'), description: t('map.metaDescription') };
+  return {
+    title: t('map.metaTitle'),
+    description: t('map.metaDescription'),
+    alternates: alternatesFor('/map'),
+  };
 }
 
 type SearchParams = Record<string, string | string[] | undefined>;

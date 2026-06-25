@@ -3,7 +3,10 @@
  * Server component: собирает секции и тянет мок-данные синхронно через @/lib/mock.
  * Интерактив (поиск, карусель, FAQ) вынесен в дочерние 'use client' компоненты.
  */
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { alternatesFor } from '@/lib/seo/alternates';
+import { BASE } from '@/lib/seo/base';
 import {
   getFeaturedListings,
   prioritizePhotos,
@@ -17,6 +20,30 @@ import { Districts } from '@/features/home/Districts';
 import { Agents } from '@/features/home/Agents';
 import { AgentCTA } from '@/features/home/AgentCTA';
 import { Faq } from '@/features/home/Faq';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'meta' });
+  const title = t('title');
+  const description = t('description');
+  return {
+    title,
+    description,
+    alternates: alternatesFor('/'),
+    openGraph: {
+      type: 'website',
+      title,
+      description,
+      url: `${BASE}/${locale}`,
+      locale,
+    },
+    twitter: { card: 'summary_large_image' },
+  };
+}
 
 export default async function HomePage({
   params,

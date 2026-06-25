@@ -6,6 +6,7 @@
  * Фильтры — единственный источник истины в URL, поэтому страница
  * пересобирается при каждом изменении query (FilterBar → router.replace).
  */
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { getDistricts } from '@/lib/api/geo';
 import { searchListingsPage } from '@/lib/api/listings';
@@ -17,15 +18,20 @@ import type {
 } from '@/lib/mock/types';
 import { FilterBar, type FilterValues } from '@/features/search/FilterBar';
 import { SearchResults } from '@/features/search/SearchResults';
+import { alternatesFor } from '@/lib/seo/alternates';
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ locale: string }>;
-}) {
+}): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'search' });
-  return { title: t('metaTitle'), description: t('metaDescription') };
+  return {
+    title: t('metaTitle'),
+    description: t('metaDescription'),
+    alternates: alternatesFor('/search'),
+  };
 }
 
 /** Допустимые значения, чтобы безопасно сузить строки из URL. */

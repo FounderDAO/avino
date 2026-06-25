@@ -5,6 +5,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { Help } from '@/features/help/Help';
+import { alternatesFor } from '@/lib/seo/alternates';
 
 export async function generateMetadata({
   params,
@@ -13,7 +14,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'help' });
-  return { title: t('meta.title'), description: t('meta.description') };
+  return {
+    title: t('meta.title'),
+    description: t('meta.description'),
+    alternates: alternatesFor('/help'),
+  };
 }
 
 export default function HelpPage() {
