@@ -929,5 +929,10 @@
       "LAND": "Yer uchastkasi",
       "COMMERCIAL": "Tijorat"
     }
+  },
+  "breadcrumb": {
+    "home": "Bosh sahifa",
+    "sale": "Sotib olish",
+    "rent": "Ijara"
   }
 }

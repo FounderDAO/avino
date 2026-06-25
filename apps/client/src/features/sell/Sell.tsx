@@ -99,8 +99,8 @@ export function Sell() {
               ))}
             </div>
           </div>
-          <div className="aspect-[4/5] overflow-hidden rounded-feature shadow-raised">
-            <PhotoImg src={HERO} alt="" className="h-full w-full" />
+          <div className="relative aspect-[4/5] overflow-hidden rounded-feature shadow-raised">
+            <PhotoImg src={HERO} alt="" sizes="(max-width: 1280px) 50vw, 600px" />
           </div>
         </div>
       </section>

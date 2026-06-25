@@ -2,9 +2,12 @@
  * Detail — основной layout страницы объекта.
  * Перенос Detail из claudeDesign/detail.jsx на токены/компоненты проекта.
  *
- * Структура: хлебные крошки/назад → галерея → две колонки (контент + sticky-
+ * Структура: хлебные крошки → галерея → две колонки (контент + sticky-
  * контакт) → похожие объявления. Server component; интерактив (галерея,
  * лайтбокс, контакт, избранное) — внутри дочерних 'use client'-компонентов.
+ *
+ * SEO (ADR-0104): принимает breadcrumb-пропы от page.tsx для видимой крошки,
+ * зеркалящей JSON-LD BreadcrumbList.
  */
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
@@ -13,6 +16,7 @@ import { Gallery } from '@/components/ui/gallery';
 import { PromoBadge } from '@/components/ui/promo-badge';
 import { SectionTitle } from '@/components/ui/section-title';
 import { Button } from '@/components/ui/button';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { specs, txLabel, propertyTypeLabel } from '@/lib/format';
 import { getSimilarListings } from '@/lib/api/listings';
 import type { Listing } from '@/lib/mock/types';
@@ -22,11 +26,20 @@ import { ContactCard } from './ContactCard';
 import { DetailMap } from './DetailMap';
 import { DetailPrice } from './DetailPrice';
 
-export interface DetailProps {
-  listing: Listing;
+/** Пропы хлебной крошки — передаются из page.tsx (уже имеет переводы). */
+export interface DetailBreadcrumb {
+  homeLabel: string;
+  txLabel: string;
+  txPath: string;
 }
 
-export async function Detail({ listing }: DetailProps) {
+export interface DetailProps {
+  listing: Listing;
+  /** Если не передан — показываем только ссылку «Назад к поиску» (backward-compat). */
+  breadcrumb?: DetailBreadcrumb;
+}
+
+export async function Detail({ listing, breadcrumb }: DetailProps) {
   const locale = await getLocale();
   const t = await getTranslations('listing');
   const tUnits = await getTranslations('units');
@@ -36,10 +49,23 @@ export async function Detail({ listing }: DetailProps) {
   // Ссылка «Назад к поиску» сохраняет тип сделки текущего объекта.
   const backHref = `/search?tx=${listing.tx}`;
 
+  // Формируем элементы видимой крошки (зеркалят JSON-LD BreadcrumbList из page.tsx).
+  const breadcrumbItems = breadcrumb
+    ? [
+        { label: breadcrumb.homeLabel, href: '/' },
+        { label: breadcrumb.txLabel, href: breadcrumb.txPath },
+        ...(listing.district ? [{ label: listing.district }] : []),
+        { label: listing.title },
+      ]
+    : null;
+
   return (
     <div className="fade-up mx-auto max-w-[1280px] px-4 pb-12 pt-5 sm:px-6">
-      {/* Назад к поиску */}
-      <div className="mb-4">
+      {/* Хлебная крошка (SEO-видимая) + ссылка «Назад к поиску» */}
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {breadcrumbItems ? (
+          <Breadcrumb items={breadcrumbItems} />
+        ) : null}
         <Link
           href={backHref}
           className="inline-flex items-center gap-1.5 text-[14.5px] font-bold text-teal hover:text-teal-deep"

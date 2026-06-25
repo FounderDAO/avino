@@ -30,11 +30,10 @@ export function Gallery({ photos, alt, className }: GalleryProps) {
   if (photos.length === 0) {
     return (
       <div className={className}>
-        <PhotoImg
-          src=""
-          alt={alt}
-          className="aspect-[4/3] w-full overflow-hidden rounded-card sm:aspect-[16/9]"
-        />
+        {/* Плейсхолдер: fill=true требует relative-контейнер */}
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card sm:aspect-[16/9]">
+          <PhotoImg src="" alt={alt} />
+        </div>
       </div>
     );
   }
@@ -69,7 +68,7 @@ export function Gallery({ photos, alt, className }: GalleryProps) {
           }
           className="relative block aspect-[4/3] w-full cursor-pointer overflow-hidden sm:aspect-auto sm:row-span-2"
         >
-          <PhotoImg src={main.url} alt={alt} className="h-full w-full" />
+          <PhotoImg src={main.url} alt={alt} priority />
 
           {/* Счётчик «1 / N» — всегда, когда фото > 1 */}
           {hasMany && (
@@ -108,7 +107,7 @@ export function Gallery({ photos, alt, className }: GalleryProps) {
                 rest.length === 1 && 'col-span-2',
               )}
             >
-              <PhotoImg src={p.thumb} alt={alt} className="h-full w-full" />
+              <PhotoImg src={p.thumb} alt={alt} />
             </button>
           ))}
         </div>

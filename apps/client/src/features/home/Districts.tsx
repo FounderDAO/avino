@@ -40,7 +40,8 @@ export async function Districts() {
             <PhotoImg
               src={`https://images.unsplash.com/photo-${COVER_IDS[i % COVER_IDS.length]}?auto=format&fit=crop&w=600&q=60`}
               alt={d.name}
-              className="h-full w-full transition-transform duration-[400ms] group-hover:scale-105"
+              className="transition-transform duration-[400ms] group-hover:scale-105"
+              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 25vw"
             />
             {/* Затемнение снизу для читаемости подписи */}
             <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgba(26,26,26,0.78))]" />

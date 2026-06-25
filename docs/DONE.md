@@ -37,6 +37,52 @@ Related ADR:
 
 ---
 
+## 2026-06-26
+
+### TASK-SEO-02 — SEO structured data, dynamic sitemap, next/image
+
+Status: DONE
+Branch: feature/seo-structured-data
+PR: #227
+
+Продолжение SEO поверх #225/ADR-0104. Динамический `app/sitemap.ts` (статика +
+все объявления через keyset-пагинацию `/api/v1/search`, потолок 5000 с логом
+пропущенных, деградация до статики при ошибке API, hreflang на каждой записи).
+JSON-LD `RealEstateListing`+`Offer`+`BreadcrumbList` на детальной (через
+`components/seo/JsonLd.tsx`). Видимый breadcrumb (`components/ui/breadcrumb.tsx`,
+i18n). Миграция фото на `next/image`: `remotePatterns` (cdn.avino.uz + `**.r2.dev`
++ unsplash) в `next.config.mjs`, `priority` на LCP, затронуты gallery/lightbox/
+PropertyCard/MyListings/ListingNew/Sell/Districts (API компонента сохранён).
+Canonical для `/search` (стрип `view`/`sort`/пагинации; длиннохвостые фильтры →
+noindex). Backend НЕ трогали.
+
+Build: GREEN (`sitemap.xml` + `robots.txt` в роутах, все локали). Lint: чисто
+(один warning в pre-existing тест-файле).
+
+Files changed:
+- apps/client/src/app/sitemap.ts (new)
+- apps/client/src/components/ui/breadcrumb.tsx (new)
+- apps/client/next.config.mjs
+- apps/client/src/app/[locale]/listing/[id]/page.tsx
+- apps/client/src/app/[locale]/search/page.tsx
+- apps/client/src/components/ui/{photo-img.tsx,gallery.tsx,lightbox.tsx,photo-img.test.tsx}
+- apps/client/src/features/{detail/Detail.tsx,search/PropertyCard.tsx,account/MyListings.tsx,home/Districts.tsx,listing-new/ListingNew.tsx,sell/Sell.tsx}
+- apps/client/messages/{ru,uz,en}.json
+
+Summary:
+- Закрыты разделы аудита #1, #3, #5, #8, #12.
+- Отложено: slugs (#11, backend), ISR (#13), manifest/PWA (#17).
+- Note: sitemap через пагинацию /search (cap 5000); next/image перефетчивает
+  подписанные R2-URL — см. ADR-0106.
+
+Commit messages:
+- feat(client): SEO structured data, dynamic sitemap, next/image migration
+
+Related ADR:
+- docs/adr/ADR-0106-seo-structured-data-sitemap.md
+
+---
+
 ## 2026-06-25
 
 ### TASK-SEC-01 — API security hardening (throttling, helmet, trust proxy, OTP brute-force lock)

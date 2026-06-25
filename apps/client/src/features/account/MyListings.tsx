@@ -108,9 +108,9 @@ function ListingRow({ l, promotionsEnabled }: { l: Listing; promotionsEnabled: b
       {/* Превью */}
       <Link
         href={`/listing/${l.id}`}
-        className="block h-[84px] w-[120px] overflow-hidden rounded-[10px]"
+        className="relative block h-[84px] w-[120px] overflow-hidden rounded-[10px]"
       >
-        <PhotoImg src={l.photos[0]?.thumb ?? ''} alt={l.title} className="h-full w-full" />
+        <PhotoImg src={l.photos[0]?.thumb ?? ''} alt={l.title} />
       </Link>
 
       {/* Текстовая часть */}
