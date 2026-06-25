@@ -1,6 +1,6 @@
 /**
  * publicSettingsApi — публичные фиче-флаги портала (CLAUDE.md §4).
- * GET /api/v1/settings/public → { promotionsEnabled }. Ответ уже camelCase
+ * GET /api/v1/settings/public → { promotionsEnabled, mapHoverRecenter }. camelCase
  * (контроллер отдаёт PublicSettingsView как есть) — transformResponse НЕ нужен.
  * Зеркалит exchangeRateApi (но тот мапит snake_case, здесь не требуется).
  */
