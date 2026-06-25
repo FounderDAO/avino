@@ -12,6 +12,8 @@ import { routing } from '@/i18n/routing';
 import { StoreProvider } from '@/store/StoreProvider';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { BASE } from '@/lib/seo/base';
 import '../globals.css';
 
 const inter = Inter({
@@ -34,7 +36,17 @@ export async function generateMetadata({
 }: Pick<LayoutProps, 'params'>): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'meta' });
-  return { title: t('title'), description: t('description') };
+  return {
+    metadataBase: new URL(BASE),
+    title: { default: t('title'), template: '%s | Avino' },
+    description: t('description'),
+    openGraph: {
+      type: 'website',
+      siteName: 'Avino',
+      locale,
+    },
+    twitter: { card: 'summary_large_image' },
+  };
 }
 
 export default async function RootLayout({ children, params }: LayoutProps) {
@@ -42,9 +54,39 @@ export default async function RootLayout({ children, params }: LayoutProps) {
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
 
+  const organizationLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Avino',
+    url: BASE,
+    sameAs: [
+      'https://t.me/avino_uz',
+      'https://www.instagram.com/avino.uz',
+      'https://www.facebook.com/avino.uz',
+      'https://www.youtube.com/@avino_uz',
+    ],
+  };
+
+  const websiteLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Avino',
+    url: BASE,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${BASE}/${locale}/search?query={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  };
+
   return (
     <html lang={locale} className={inter.variable}>
       <body className="font-sans antialiased">
+        <JsonLd data={organizationLd} />
+        <JsonLd data={websiteLd} />
         <NextIntlClientProvider>
           <StoreProvider>
             <div className="flex min-h-dvh flex-col">

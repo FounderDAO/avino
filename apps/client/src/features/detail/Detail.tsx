@@ -55,8 +55,13 @@ export async function Detail({ listing }: DetailProps) {
       <div className="mt-7 grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_360px]">
         {/* Левая колонка — контент */}
         <div className="min-w-0">
+          {/* Заголовок объявления — единственный h1 на странице (SEO) */}
+          <h1 className="text-[26px] font-extrabold leading-snug text-ink">
+            {listing.title}
+          </h1>
+
           {/* Бейджи: промо + тип + сделка */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="mt-3 flex flex-wrap items-center gap-2.5">
             <PromoBadge promo={listing.promo} />
             <span className="rounded-badge border border-border bg-surface-2 px-2.5 py-1 text-[12.5px] font-bold text-teal">
               {propertyTypeLabel(listing.type, tEnums)}
