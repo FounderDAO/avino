@@ -160,3 +160,10 @@ export function isFresh(createdAt: string): boolean {
   if (Number.isNaN(then)) return false;
   return Date.now() - then < 3 * 24 * 60 * 60 * 1000;
 }
+
+/** Сколько дней объявление на сайте (>= 0). Невалидная/будущая дата → 0. */
+export function daysOnSite(createdAt: string): number {
+  const then = Date.parse(createdAt);
+  if (Number.isNaN(then)) return 0;
+  return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
+}
