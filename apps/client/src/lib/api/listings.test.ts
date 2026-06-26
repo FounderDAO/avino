@@ -110,6 +110,47 @@ describe('mapListing — photos (TASK-197)', () => {
   });
 });
 
+describe('mapListing — thumbnails (массив фото из поиска)', () => {
+  it('thumbnails[3] → 3 фото, url и thumb из массива', () => {
+    const photos = mapListing({
+      ...searchItem,
+      thumbnails: ['a', 'b', 'c'],
+    }).photos;
+    expect(photos).toHaveLength(3);
+    expect(photos[0]).toEqual({ url: 'a', thumb: 'a' });
+    expect(photos[1]).toEqual({ url: 'b', thumb: 'b' });
+    expect(photos[2]).toEqual({ url: 'c', thumb: 'c' });
+  });
+
+  it('thumbnails приоритетнее thumbnail_url — берём массив', () => {
+    const photos = mapListing({
+      ...searchItem,
+      thumbnail_url: 'https://x/old.jpg',
+      thumbnails: ['https://x/new1.jpg', 'https://x/new2.jpg'],
+    }).photos;
+    expect(photos).toHaveLength(2);
+    expect(photos[0].url).toBe('https://x/new1.jpg');
+  });
+
+  it('фолбэк: нет thumbnails, есть thumbnail_url → 1 фото (обратная совместимость)', () => {
+    const photos = mapListing({
+      ...searchItem,
+      thumbnail_url: 'https://x/t.jpg',
+      thumbnails: undefined,
+    }).photos;
+    expect(photos).toEqual([{ url: 'https://x/t.jpg', thumb: 'https://x/t.jpg' }]);
+  });
+
+  it('нет thumbnails, нет thumbnail_url → пустой список', () => {
+    const photos = mapListing({
+      ...searchItem,
+      thumbnail_url: null,
+      thumbnails: undefined,
+    }).photos;
+    expect(photos).toEqual([]);
+  });
+});
+
 describe('prioritizePhotos (TASK-197)', () => {
   const withPhoto = (id: string): Listing =>
     ({ id, photos: [{ url: 'u', thumb: 't' }] }) as unknown as Listing;

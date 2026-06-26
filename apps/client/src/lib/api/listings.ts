@@ -68,6 +68,8 @@ export interface ApiSearchItem {
   language: string;
   title: string;
   thumbnail_url: string | null;
+  /** До 3 свежих presigned URL фото (индекс 0 = обложка). thumbnail_url = thumbnails[0]. */
+  thumbnails?: string[];
   created_at: string;
 }
 
@@ -205,8 +207,13 @@ function toPhotos(l: AnyApiListing): ListingPhoto[] {
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((m) => ({ url: m.url, thumb: m.thumbnail_url ?? m.url }));
   }
-  // Карточка поиска: только обложка-thumbnail.
-  const thumb = (l as ApiSearchItem).thumbnail_url;
+  // Карточка поиска: предпочитаем массив thumbnails (до 3 фото) — слайдер оживает.
+  const item = l as ApiSearchItem;
+  if (item.thumbnails?.length) {
+    return item.thumbnails.map((u) => ({ url: u, thumb: u }));
+  }
+  // Фолбэк на одиночный thumbnail_url (старый бэкенд / graceful degradation).
+  const thumb = item.thumbnail_url;
   if (thumb) return [{ url: thumb, thumb }];
   // Нет фото → пустой список (TASK-197). Брендовый плейсхолдер рисует PhotoImg/
   // Gallery, без внешнего хотлинка placehold.co.
