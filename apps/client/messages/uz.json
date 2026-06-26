@@ -938,5 +938,16 @@
     "home": "Bosh sahifa",
     "sale": "Sotib olish",
     "rent": "Ijara"
+  },
+  "share": {
+    "button": "Ulashish",
+    "title": "Ushbu e'lonni ulashish",
+    "copy": "Havoladan nusxa olish",
+    "copied": "Nusxalandi ✓",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "email": "Email",
+    "close": "Yopish",
+    "shareText": "{title} · {price}"
   }
 }
