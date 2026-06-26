@@ -361,10 +361,16 @@ async function safeSearchPage(path: string, lang: string): Promise<SearchListing
  * Район фильтруется по `district_id` (UUID из GET /geo/districts, ADR-0068);
  * прочие фильтры §9 применяются на бэке.
  */
-function buildSearchParams(filter: ListingFilter, limit: number): URLSearchParams {
+export function buildSearchParams(filter: ListingFilter, limit: number): URLSearchParams {
   const params = new URLSearchParams();
   if (filter.tx) params.set('transaction_type', filter.tx);
-  if (filter.type) params.set('property_type', filter.type);
+  // Приоритет: types (мультивыбор) перекрывает одиночный type.
+  // Если types не задан (или пуст) — fallback на type для обратной совместимости мок-вызовов.
+  if (filter.types && filter.types.length > 0) {
+    for (const tp of filter.types) params.append('property_type', tp);
+  } else if (filter.type) {
+    params.set('property_type', filter.type);
+  }
   if (filter.districtId) params.set('district_id', filter.districtId);
   if (filter.priceMin != null) params.set('price_min', String(filter.priceMin));
   if (filter.priceMax != null) params.set('price_max', String(filter.priceMax));
@@ -372,6 +378,20 @@ function buildSearchParams(filter: ListingFilter, limit: number): URLSearchParam
   if (filter.query) params.set('q', filter.query);
   const sort = toApiSort(filter.sort);
   if (sort) params.set('sort', sort);
+  if (filter.roomsMin != null) params.set('rooms_min', String(filter.roomsMin));
+  if (filter.roomsExact != null) params.set('rooms', String(filter.roomsExact));
+  if (filter.areaMin != null) params.set('area_min', String(filter.areaMin));
+  if (filter.areaMax != null) params.set('area_max', String(filter.areaMax));
+  if (filter.floorMin != null) params.set('floor_min', String(filter.floorMin));
+  if (filter.floorMax != null) params.set('floor_max', String(filter.floorMax));
+  if (filter.notFirstFloor) params.set('not_first_floor', 'true');
+  if (filter.notLastFloor) params.set('not_last_floor', 'true');
+  if (filter.totalFloorsMin != null) params.set('total_floors_min', String(filter.totalFloorsMin));
+  if (filter.totalFloorsMax != null) params.set('total_floors_max', String(filter.totalFloorsMax));
+  if (filter.yearMin != null) params.set('year_min', String(filter.yearMin));
+  if (filter.yearMax != null) params.set('year_max', String(filter.yearMax));
+  if (filter.listingSource) params.set('listing_source', filter.listingSource);
+  if (filter.toursEnabled) params.set('tours_enabled', 'true');
   params.set('limit', String(limit));
   return params;
 }

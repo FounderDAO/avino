@@ -79,9 +79,18 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
   type ChipDef = { key: string; label: string; param: string };
   const chips: ChipDef[] = [];
 
-  if (values.type) {
-    const label = tEnums(`propertyType.${values.type}`);
-    chips.push({ key: 'type', label, param: 'type' });
+  // Тип жилья: при мультивыборе (>1) — чип-счётчик «Тип жилья: N»; при одном
+  // выбранном типе (или legacy single `type`) — имя типа. × в обоих случаях
+  // удаляет параметр `type` целиком (все значения).
+  if (values.types && values.types.length > 1) {
+    const label = t('propertyTypeCount', { count: String(values.types.length) });
+    chips.push({ key: 'types', label, param: '__types' });
+  } else {
+    const single = values.types?.[0] ?? values.type;
+    if (single) {
+      const label = tEnums(`propertyType.${single}`);
+      chips.push({ key: 'type', label, param: 'type' });
+    }
   }
 
   if (values.districtId) {
@@ -97,12 +106,54 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
     chips.push({ key: 'rooms', label, param: 'rooms' });
   }
 
+  if (values.roomsMin != null) {
+    const label = t('roomsCount', { count: `${String(values.roomsMin)}+` });
+    chips.push({ key: 'rooms_min', label, param: 'rooms_min' });
+  }
+
   if (values.priceMin || values.priceMax) {
     const label = t('priceRange', {
       min: values.priceMin || '0',
       max: values.priceMax || '∞',
     });
     chips.push({ key: 'price', label, param: '__price' });
+  }
+
+  if (values.areaMin || values.areaMax) {
+    const label = `${t('areaTitle')}: ${values.areaMin || '0'}–${values.areaMax || '∞'}`;
+    chips.push({ key: 'area', label, param: '__area' });
+  }
+
+  if (values.floorMin || values.floorMax) {
+    const label = `${t('floorTitle')}: ${values.floorMin || '0'}–${values.floorMax || '∞'}`;
+    chips.push({ key: 'floor', label, param: '__floor' });
+  }
+
+  if (values.totalFloorsMin || values.totalFloorsMax) {
+    const label = `${t('totalFloorsTitle')}: ${values.totalFloorsMin || '0'}–${values.totalFloorsMax || '∞'}`;
+    chips.push({ key: 'total_floors', label, param: '__total_floors' });
+  }
+
+  if (values.yearMin || values.yearMax) {
+    const label = `${t('yearTitle')}: ${values.yearMin || '0'}–${values.yearMax || '∞'}`;
+    chips.push({ key: 'year', label, param: '__year' });
+  }
+
+  if (values.notFirstFloor) {
+    chips.push({ key: 'not_first_floor', label: t('notFirstFloor'), param: 'not_first_floor' });
+  }
+
+  if (values.notLastFloor) {
+    chips.push({ key: 'not_last_floor', label: t('notLastFloor'), param: 'not_last_floor' });
+  }
+
+  if (values.listingSource) {
+    const label = values.listingSource === 'OWNER' ? t('sourceOwner') : t('sourceAgency');
+    chips.push({ key: 'listing_source', label, param: 'listing_source' });
+  }
+
+  if (values.toursEnabled) {
+    chips.push({ key: 'tours_enabled', label: t('toursEnabled'), param: 'tours_enabled' });
   }
 
   if (values.query) {
@@ -116,20 +167,44 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
   const handleRemove = (chip: ChipDef) => {
     if (chip.param === '__price') {
       setParams({ priceMin: undefined, priceMax: undefined });
+    } else if (chip.param === '__types') {
+      // Удаляем все повторяющиеся ?type= через прямое URLSearchParams.
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('type');
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    } else if (chip.param === '__area') {
+      setParams({ area_min: undefined, area_max: undefined });
+    } else if (chip.param === '__floor') {
+      setParams({ floor_min: undefined, floor_max: undefined });
+    } else if (chip.param === '__total_floors') {
+      setParams({ total_floors_min: undefined, total_floors_max: undefined });
+    } else if (chip.param === '__year') {
+      setParams({ year_min: undefined, year_max: undefined });
     } else {
       setParams({ [chip.param]: undefined });
     }
   };
 
   const handleResetAll = () => {
-    setParams({
-      type: undefined,
-      district_id: undefined,
-      rooms: undefined,
-      priceMin: undefined,
-      priceMax: undefined,
-      query: undefined,
-    });
+    // Используем прямое URLSearchParams для удаления ?type= (повторяющийся).
+    const params = new URLSearchParams(searchParams.toString());
+    const keysToDelete = [
+      'type', 'district_id', 'rooms', 'rooms_min',
+      'priceMin', 'priceMax',
+      'area_min', 'area_max',
+      'floor_min', 'floor_max',
+      'total_floors_min', 'total_floors_max',
+      'year_min', 'year_max',
+      'not_first_floor', 'not_last_floor',
+      'listing_source', 'tours_enabled',
+      'query',
+    ];
+    for (const key of keysToDelete) {
+      params.delete(key);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
   return (

@@ -66,6 +66,41 @@ export function describeFilters(filters: SavedSearchFilters, t: T): string {
   const rooms = asString(filters.rooms);
   if (rooms) parts.push(t('savedSearch.rooms', { count: rooms }));
 
+  const roomsMin = asString(filters.rooms_min);
+  if (roomsMin) parts.push(`${roomsMin}+`);
+
+  const areaMin = asString(filters.area_min);
+  const areaMax = asString(filters.area_max);
+  if (areaMin && areaMax) parts.push(`${t('search.filters.areaTitle')}: ${areaMin}–${areaMax}`);
+  else if (areaMin) parts.push(`${t('search.filters.areaTitle')}: ${t('search.filters.rangeFrom')} ${areaMin}`);
+  else if (areaMax) parts.push(`${t('search.filters.areaTitle')}: ${t('search.filters.rangeTo')} ${areaMax}`);
+
+  const floorMin = asString(filters.floor_min);
+  const floorMax = asString(filters.floor_max);
+  if (floorMin && floorMax) parts.push(`${t('search.filters.floorTitle')}: ${floorMin}–${floorMax}`);
+  else if (floorMin) parts.push(`${t('search.filters.floorTitle')}: ${t('search.filters.rangeFrom')} ${floorMin}`);
+  else if (floorMax) parts.push(`${t('search.filters.floorTitle')}: ${t('search.filters.rangeTo')} ${floorMax}`);
+
+  if (filters.not_first_floor) parts.push(t('search.filters.notFirstFloor'));
+  if (filters.not_last_floor) parts.push(t('search.filters.notLastFloor'));
+
+  const totalFloorsMin = asString(filters.total_floors_min);
+  const totalFloorsMax = asString(filters.total_floors_max);
+  if (totalFloorsMin && totalFloorsMax) parts.push(`${t('search.filters.totalFloorsTitle')}: ${totalFloorsMin}–${totalFloorsMax}`);
+  else if (totalFloorsMin) parts.push(`${t('search.filters.totalFloorsTitle')}: ${t('search.filters.rangeFrom')} ${totalFloorsMin}`);
+  else if (totalFloorsMax) parts.push(`${t('search.filters.totalFloorsTitle')}: ${t('search.filters.rangeTo')} ${totalFloorsMax}`);
+
+  const yearMin = asString(filters.year_min);
+  const yearMax = asString(filters.year_max);
+  if (yearMin && yearMax) parts.push(`${t('search.filters.yearTitle')}: ${yearMin}–${yearMax}`);
+  else if (yearMin) parts.push(`${t('search.filters.yearTitle')}: ${t('search.filters.rangeFrom')} ${yearMin}`);
+  else if (yearMax) parts.push(`${t('search.filters.yearTitle')}: ${t('search.filters.rangeTo')} ${yearMax}`);
+
+  if (filters.listing_source === 'OWNER') parts.push(t('search.filters.sourceOwner'));
+  else if (filters.listing_source === 'AGENCY') parts.push(t('search.filters.sourceAgency'));
+
+  if (filters.tours_enabled) parts.push(t('search.filters.toursEnabled'));
+
   const q = asString(filters.q);
   if (q) parts.push(`«${q}»`);
 
@@ -92,6 +127,19 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   set('priceMin', asString(filters.price_min));
   set('priceMax', asString(filters.price_max));
   set('rooms', asString(filters.rooms));
+  set('rooms_min', asString(filters.rooms_min));
+  set('area_min', asString(filters.area_min));
+  set('area_max', asString(filters.area_max));
+  set('floor_min', asString(filters.floor_min));
+  set('floor_max', asString(filters.floor_max));
+  set('total_floors_min', asString(filters.total_floors_min));
+  set('total_floors_max', asString(filters.total_floors_max));
+  set('year_min', asString(filters.year_min));
+  set('year_max', asString(filters.year_max));
+  if (filters.not_first_floor) params.set('not_first_floor', 'true');
+  if (filters.not_last_floor) params.set('not_last_floor', 'true');
+  set('listing_source', asString(filters.listing_source));
+  if (filters.tours_enabled) params.set('tours_enabled', 'true');
   set('query', asString(filters.q));
 
   // `points` (нарисованная территория) намеренно НЕ мапим в URL: по клику территорию

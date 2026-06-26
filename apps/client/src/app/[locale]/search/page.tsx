@@ -42,8 +42,15 @@ export async function generateMetadata({
   const sp = await searchParams;
   const t = await getTranslations({ locale, namespace: 'search' });
 
-  // Флаг «длиннохвостой» комбинации фильтров — цена или кол-во комнат задано.
-  const isLongTail = Boolean(sp.priceMin || sp.priceMax || sp.rooms);
+  // Флаг «длиннохвостой» комбинации фильтров — цена, комнаты или расширенные фильтры.
+  const isLongTail = Boolean(
+    sp.priceMin || sp.priceMax || sp.rooms ||
+    sp.rooms_min || sp.area_min || sp.area_max ||
+    sp.floor_min || sp.floor_max ||
+    sp.total_floors_min || sp.total_floors_max ||
+    sp.year_min || sp.year_max ||
+    sp.listing_source || sp.tours_enabled,
+  );
 
   // Canonical: оставляем только семантические параметры (strip sort/view/cursor/price/rooms).
   const canonicalParams = new URLSearchParams();
@@ -128,34 +135,107 @@ export default async function SearchPage({
   const query = first(sp.query) || undefined;
   const view: 'list' | 'map' = first(sp.view) === 'map' ? 'map' : 'list';
 
+  /** Парсит строку в число; undefined если нет или NaN. */
+  function toNum(s: string | undefined): number | undefined {
+    if (!s) return undefined;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : undefined;
+  }
+
   const roomsRaw = Number(first(sp.rooms));
   const rooms = Number.isFinite(roomsRaw) && roomsRaw > 0 ? roomsRaw : undefined;
+
+  const roomsMinParsed = toNum(first(sp.rooms_min));
+  const roomsMin = roomsMinParsed !== undefined && roomsMinParsed > 0 ? roomsMinParsed : undefined;
 
   const priceMinRaw = first(sp.priceMin);
   const priceMaxRaw = first(sp.priceMax);
   const priceMin = priceMinRaw && Number.isFinite(Number(priceMinRaw)) ? Number(priceMinRaw) : undefined;
   const priceMax = priceMaxRaw && Number.isFinite(Number(priceMaxRaw)) ? Number(priceMaxRaw) : undefined;
 
+  // Мультивыбор типов жилья (?type= может повторяться).
+  const rawTypes = Array.isArray(sp.type) ? sp.type : sp.type ? [sp.type] : [];
+  const types = rawTypes.filter((t): t is PropertyType =>
+    PROPERTY_TYPES.includes(t as PropertyType),
+  );
+
+  // Строковые диапазоны (в FilterValues остаются строками, в ListingFilter → числа).
+  const areaMinRaw = first(sp.area_min);
+  const areaMaxRaw = first(sp.area_max);
+  const floorMinRaw = first(sp.floor_min);
+  const floorMaxRaw = first(sp.floor_max);
+  const totalFloorsMinRaw = first(sp.total_floors_min);
+  const totalFloorsMaxRaw = first(sp.total_floors_max);
+  const yearMinRaw = first(sp.year_min);
+  const yearMaxRaw = first(sp.year_max);
+
+  // Булевые флаги.
+  const notFirstFloor = first(sp.not_first_floor) === 'true' ? true : undefined;
+  const notLastFloor = first(sp.not_last_floor) === 'true' ? true : undefined;
+  const toursEnabled = first(sp.tours_enabled) === 'true' ? true : undefined;
+
+  // Источник объявления.
+  const rawSource = first(sp.listing_source);
+  const listingSource: 'OWNER' | 'AGENCY' | undefined =
+    rawSource === 'OWNER' || rawSource === 'AGENCY' ? rawSource : undefined;
+
   // ----- Данные из реального API -----
   // Первая страница (limit=24) + meta (total/next_cursor): курсор прокидываем в
   // клиентскую дозагрузку «Показать ещё» (TASK-199).
-  const filter: ListingFilter = { tx, type, districtId, rooms, priceMin, priceMax, query, sort };
+  const filter: ListingFilter = {
+    tx,
+    type,
+    types: types.length > 0 ? types : undefined,
+    districtId,
+    roomsExact: rooms,
+    roomsMin,
+    priceMin,
+    priceMax,
+    query,
+    sort,
+    areaMin: toNum(areaMinRaw),
+    areaMax: toNum(areaMaxRaw),
+    floorMin: toNum(floorMinRaw),
+    floorMax: toNum(floorMaxRaw),
+    totalFloorsMin: toNum(totalFloorsMinRaw),
+    totalFloorsMax: toNum(totalFloorsMaxRaw),
+    yearMin: toNum(yearMinRaw),
+    yearMax: toNum(yearMaxRaw),
+    notFirstFloor,
+    notLastFloor,
+    toursEnabled,
+    listingSource,
+  };
   const [page, districts] = await Promise.all([
     searchListingsPage(filter, locale),
     getDistricts(locale),
   ]);
 
-  // Значения для FilterBar (цена — строкой, как в инпутах).
+  // Значения для FilterBar (цена и диапазоны — строкой, как в инпутах).
   const filterValues: FilterValues = {
     tx,
     type,
+    types: types.length > 0 ? types : undefined,
     districtId,
     rooms,
+    roomsMin,
     priceMin: priceMinRaw,
     priceMax: priceMaxRaw,
     query,
     sort,
     view,
+    areaMin: areaMinRaw,
+    areaMax: areaMaxRaw,
+    floorMin: floorMinRaw,
+    floorMax: floorMaxRaw,
+    totalFloorsMin: totalFloorsMinRaw,
+    totalFloorsMax: totalFloorsMaxRaw,
+    yearMin: yearMinRaw,
+    yearMax: yearMaxRaw,
+    notFirstFloor,
+    notLastFloor,
+    toursEnabled,
+    listingSource,
   };
 
   // Заголовок выдачи: «Покупка/Аренда жилья · <запрос|Ташкент>».

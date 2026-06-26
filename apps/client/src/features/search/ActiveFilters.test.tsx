@@ -196,4 +196,141 @@ describe('ActiveFilters', () => {
     });
     expect(removeBtn).toBeInTheDocument();
   });
+
+  // ── Новые фильтры (Task 10) ──────────────────────────────────────────────────
+
+  it('показывает чип площади при areaMin', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, areaMin: '40' }}
+        districts={districts}
+      />,
+    );
+    // Чип содержит значение 40 в метке диапазона
+    const chip = screen.getByText(/40/);
+    expect(chip).toBeInTheDocument();
+  });
+
+  it('показывает чип площади при areaMax', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, areaMax: '120' }}
+        districts={districts}
+      />,
+    );
+    expect(screen.getByText(/120/)).toBeInTheDocument();
+  });
+
+  it('показывает чип notFirstFloor при notFirstFloor=true', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, notFirstFloor: true }}
+        districts={districts}
+      />,
+    );
+    // Мок: t('notFirstFloor') → 'search.filters.notFirstFloor'
+    expect(screen.getByText('search.filters.notFirstFloor')).toBeInTheDocument();
+  });
+
+  it('показывает чип notLastFloor при notLastFloor=true', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, notLastFloor: true }}
+        districts={districts}
+      />,
+    );
+    expect(screen.getByText('search.filters.notLastFloor')).toBeInTheDocument();
+  });
+
+  it('показывает чип listingSource=OWNER', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, listingSource: 'OWNER' }}
+        districts={districts}
+      />,
+    );
+    expect(screen.getByText('search.filters.sourceOwner')).toBeInTheDocument();
+  });
+
+  it('показывает чип toursEnabled', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, toursEnabled: true }}
+        districts={districts}
+      />,
+    );
+    expect(screen.getByText('search.filters.toursEnabled')).toBeInTheDocument();
+  });
+
+  it('показывает чип roomsMin', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, roomsMin: 2 }}
+        districts={districts}
+      />,
+    );
+    // t('roomsCount', {count:'2+'}) → 'search.filters.roomsCount'
+    expect(screen.getByText('search.filters.roomsCount')).toBeInTheDocument();
+  });
+
+  it('клик × на чипе areaMin удаляет area_min и area_max из URL', async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, areaMin: '40', areaMax: '200' }}
+        districts={districts}
+      />,
+    );
+    const removeBtn = screen.getByRole('button', {
+      name: 'search.filters.removeFilter',
+    });
+    await user.click(removeBtn);
+    expect(mockReplace).toHaveBeenCalledOnce();
+    const calledUrl: string = mockReplace.mock.calls[0][0] as string;
+    expect(calledUrl).not.toMatch(/area_min=/);
+    expect(calledUrl).not.toMatch(/area_max=/);
+  });
+
+  it('клик × на notFirstFloor удаляет not_first_floor из URL', async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, notFirstFloor: true }}
+        districts={districts}
+      />,
+    );
+    const removeBtn = screen.getByRole('button', {
+      name: 'search.filters.removeFilter',
+    });
+    await user.click(removeBtn);
+    expect(mockReplace).toHaveBeenCalledOnce();
+    const calledUrl: string = mockReplace.mock.calls[0][0] as string;
+    expect(calledUrl).not.toMatch(/not_first_floor=/);
+  });
+
+  it('«Сбросить всё» удаляет новые фильтры, сохраняя tx', async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveFilters
+        values={{
+          ...baseValues,
+          areaMin: '40',
+          notFirstFloor: true,
+          listingSource: 'OWNER',
+          toursEnabled: true,
+        }}
+        districts={districts}
+      />,
+    );
+    const resetBtn = screen.getByText('search.filters.resetAll');
+    await user.click(resetBtn);
+    expect(mockReplace).toHaveBeenCalledOnce();
+    const calledUrl: string = mockReplace.mock.calls[0][0] as string;
+    expect(calledUrl).not.toMatch(/area_min=/);
+    expect(calledUrl).not.toMatch(/not_first_floor=/);
+    expect(calledUrl).not.toMatch(/listing_source=/);
+    expect(calledUrl).not.toMatch(/tours_enabled=/);
+    // tx=SALE сохранён
+    expect(calledUrl).toMatch(/tx=SALE/);
+  });
 });

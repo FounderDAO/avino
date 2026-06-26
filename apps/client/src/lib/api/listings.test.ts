@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import {
+  buildSearchParams,
   getFeaturedListings,
   mapListing,
   prioritizePhotos,
@@ -337,5 +338,34 @@ describe('searchListingsPage — keyset-пагинация (TASK-199)', () => {
     const page = await searchListingsPage({ tx: 'SALE' }, 'ru');
     expect(page).toEqual({ listings: [], total: 0, nextCursor: null });
     errSpy.mockRestore();
+  });
+});
+
+describe('buildSearchParams — Zillow-фильтры (Task 4)', () => {
+  it('мультивыбор типов → повторяющийся property_type', () => {
+    const p = buildSearchParams({ types: ['APARTMENT', 'HOUSE'] }, 24);
+    expect(p.getAll('property_type')).toEqual(['APARTMENT', 'HOUSE']);
+  });
+
+  it('rooms_min, area, floor, year, source, tours', () => {
+    const p = buildSearchParams(
+      {
+        roomsMin: 2,
+        areaMin: 40, areaMax: 90,
+        floorMin: 2, notFirstFloor: true,
+        yearMin: 2010,
+        listingSource: 'OWNER',
+        toursEnabled: true,
+      },
+      24,
+    );
+    expect(p.get('rooms_min')).toBe('2');
+    expect(p.get('area_min')).toBe('40');
+    expect(p.get('area_max')).toBe('90');
+    expect(p.get('floor_min')).toBe('2');
+    expect(p.get('not_first_floor')).toBe('true');
+    expect(p.get('year_min')).toBe('2010');
+    expect(p.get('listing_source')).toBe('OWNER');
+    expect(p.get('tours_enabled')).toBe('true');
   });
 });

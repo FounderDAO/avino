@@ -173,6 +173,25 @@ export interface ListingFilter {
    * Передаётся бэкенду только когда задан хотя бы один ценовой рубеж.
    */
   currency?: Currency;
+  /** Мультивыбор типов жилья (Zillow Home Type). Пусто → все типы. */
+  types?: PropertyType[];
+  /** «N+ комнат» (rooms_min). */
+  roomsMin?: number;
+  /** Точное число комнат (режим «Точное совпадение»). */
+  roomsExact?: number;
+  areaMin?: number;
+  areaMax?: number;
+  floorMin?: number;
+  floorMax?: number;
+  notFirstFloor?: boolean;
+  notLastFloor?: boolean;
+  totalFloorsMin?: number;
+  totalFloorsMax?: number;
+  yearMin?: number;
+  yearMax?: number;
+  /** Источник объявления. */
+  listingSource?: 'OWNER' | 'AGENCY';
+  toursEnabled?: boolean;
 }
 
 /**

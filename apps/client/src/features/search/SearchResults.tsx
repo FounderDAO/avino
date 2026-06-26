@@ -20,6 +20,7 @@ import dynamic from 'next/dynamic';
 import { List as ListIcon, Map as MapIcon, Pencil, Trash2, X } from 'lucide-react';
 import { PropertyCard } from '@/features/search/PropertyCard';
 import { PropertyCardSkeleton } from '@/features/search/PropertyCardSkeleton';
+import { SortControl } from '@/features/search/SortControl';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -242,7 +243,7 @@ export function SearchResults({
           mobView === 'map' && 'hidden lg:block',
         )}
       >
-        {/* Заголовок + счётчик */}
+        {/* Заголовок + счётчик + сортировка (Zillow-стиль, Task 9) */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 px-5 pb-3 pt-[18px]">
           <div>
             <h1 className="text-2xl">{heading}</h1>
@@ -254,6 +255,8 @@ export function SearchResults({
                   : t('results.count', { count: totalCount })}
             </p>
           </div>
+          {/* Сортировка рядом со счётчиком (Zillow-стиль); применяется и под территорией */}
+          <SortControl />
         </div>
 
         {busy ? (
