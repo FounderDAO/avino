@@ -14,7 +14,10 @@
     "next": "Вперёд",
     "badgeVip": "VIP",
     "badgeTop": "TOP",
-    "badgeNew": "Новое"
+    "badgeNew": "Новое",
+    "photoPrev": "Предыдущее фото",
+    "photoNext": "Следующее фото",
+    "goToPhoto": "Фото {n}"
   },
   "nav": {
     "buy": "Купить",

@@ -14,7 +14,10 @@
     "next": "Oldinga",
     "badgeVip": "VIP",
     "badgeTop": "TOP",
-    "badgeNew": "Yangi"
+    "badgeNew": "Yangi",
+    "photoPrev": "Oldingi rasm",
+    "photoNext": "Keyingi rasm",
+    "goToPhoto": "{n}-rasm"
   },
   "nav": {
     "buy": "Sotib olish",

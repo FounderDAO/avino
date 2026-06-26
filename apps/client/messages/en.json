@@ -14,7 +14,10 @@
     "next": "Next",
     "badgeVip": "VIP",
     "badgeTop": "TOP",
-    "badgeNew": "New"
+    "badgeNew": "New",
+    "photoPrev": "Previous photo",
+    "photoNext": "Next photo",
+    "goToPhoto": "Photo {n}"
   },
   "nav": {
     "buy": "Buy",
