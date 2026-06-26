@@ -260,6 +260,7 @@
       "toursEnabled": "Принимает заявки на просмотр",
       "rangeFrom": "от",
       "rangeTo": "до",
+      "any": "Любое",
       "roomsExact": "Комнат ровно: {count}"
     },
     "results": {

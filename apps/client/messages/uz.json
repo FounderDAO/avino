@@ -260,6 +260,7 @@
       "toursEnabled": "Ko'rik uchun so'rovlarni qabul qiladi",
       "rangeFrom": "dan",
       "rangeTo": "gacha",
+      "any": "Istalgan",
       "roomsExact": "Xonalar soni: {count}"
     },
     "results": {

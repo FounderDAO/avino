@@ -260,6 +260,7 @@
       "toursEnabled": "Accepts tour requests",
       "rangeFrom": "from",
       "rangeTo": "to",
+      "any": "Any",
       "roomsExact": "Exactly {count} rooms"
     },
     "results": {
