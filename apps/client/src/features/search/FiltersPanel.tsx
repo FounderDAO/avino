@@ -1,0 +1,242 @@
+/**
+ * FiltersPanel — мега-панель «Фильтры» (Zillow «More»).
+ *
+ * Layout-агностична: не оборачивает в Dropdown/Sheet — это делает Task 8.
+ * Хранит локальный draft-стейт; коммит по «Применить», сброс по «Сбросить всё».
+ */
+'use client';
+
+import * as React from 'react';
+import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils';
+import { RangeFields } from './controls/RangeFields';
+
+// ─── Публичные типы (потребляет Task 8) ──────────────────────────────────────
+
+export interface FiltersPanelValues {
+  areaMin?: string;
+  areaMax?: string;
+  yearMin?: string;
+  yearMax?: string;
+  floorMin?: string;
+  floorMax?: string;
+  notFirstFloor?: boolean;
+  notLastFloor?: boolean;
+  totalFloorsMin?: string;
+  totalFloorsMax?: string;
+  listingSource?: 'OWNER' | 'AGENCY';
+  toursEnabled?: boolean;
+}
+
+export interface FiltersPanelProps {
+  values: FiltersPanelValues;
+  onApply: (next: FiltersPanelValues) => void;
+  onReset: () => void;
+}
+
+// ─── Утилита: пустой draft ────────────────────────────────────────────────────
+
+function emptyDraft(): FiltersPanelValues {
+  return {};
+}
+
+// ─── Компонент ───────────────────────────────────────────────────────────────
+
+export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
+  const t = useTranslations('search.filters');
+
+  // Локальный draft-стейт; ресинкится при изменении внешних values.
+  const [draft, setDraft] = React.useState<FiltersPanelValues>(() => ({ ...values }));
+  React.useEffect(() => {
+    setDraft({ ...values });
+  }, [values]);
+
+  // ── Хелпер точечного обновления draft ──
+  const patch = React.useCallback((delta: Partial<FiltersPanelValues>) => {
+    setDraft((prev) => ({ ...prev, ...delta }));
+  }, []);
+
+  // ── Обработчики single-select listingSource ──
+  const handleSourceOwner = React.useCallback(() => {
+    setDraft((prev) => ({
+      ...prev,
+      listingSource: prev.listingSource === 'OWNER' ? undefined : 'OWNER',
+    }));
+  }, []);
+
+  const handleSourceAgency = React.useCallback(() => {
+    setDraft((prev) => ({
+      ...prev,
+      listingSource: prev.listingSource === 'AGENCY' ? undefined : 'AGENCY',
+    }));
+  }, []);
+
+  // ── Сбросить всё ──
+  const handleReset = React.useCallback(() => {
+    setDraft(emptyDraft());
+    onReset();
+  }, [onReset]);
+
+  return (
+    <div className="flex flex-col gap-5 p-4">
+
+      {/* 1. Площадь, м² */}
+      <Section title={t('areaTitle')}>
+        <RangeFields
+          min={draft.areaMin ?? ''}
+          max={draft.areaMax ?? ''}
+          onMin={(v) => patch({ areaMin: v || undefined })}
+          onMax={(v) => patch({ areaMax: v || undefined })}
+          fromLabel={t('rangeFrom')}
+          toLabel={t('rangeTo')}
+          suffix="м²"
+        />
+      </Section>
+
+      {/* 2. Год постройки */}
+      <Section title={t('yearTitle')}>
+        <RangeFields
+          min={draft.yearMin ?? ''}
+          max={draft.yearMax ?? ''}
+          onMin={(v) => patch({ yearMin: v || undefined })}
+          onMax={(v) => patch({ yearMax: v || undefined })}
+          fromLabel={t('rangeFrom')}
+          toLabel={t('rangeTo')}
+        />
+      </Section>
+
+      {/* 3. Этаж + чекбоксы */}
+      <Section title={t('floorTitle')}>
+        <RangeFields
+          min={draft.floorMin ?? ''}
+          max={draft.floorMax ?? ''}
+          onMin={(v) => patch({ floorMin: v || undefined })}
+          onMax={(v) => patch({ floorMax: v || undefined })}
+          fromLabel={t('rangeFrom')}
+          toLabel={t('rangeTo')}
+        />
+        <div className="mt-2 flex flex-col gap-1.5">
+          <CheckboxRow
+            label={t('notFirstFloor')}
+            checked={draft.notFirstFloor ?? false}
+            onChange={(checked) => patch({ notFirstFloor: checked || undefined })}
+          />
+          <CheckboxRow
+            label={t('notLastFloor')}
+            checked={draft.notLastFloor ?? false}
+            onChange={(checked) => patch({ notLastFloor: checked || undefined })}
+          />
+        </div>
+      </Section>
+
+      {/* 4. Этажность дома */}
+      <Section title={t('totalFloorsTitle')}>
+        <RangeFields
+          min={draft.totalFloorsMin ?? ''}
+          max={draft.totalFloorsMax ?? ''}
+          onMin={(v) => patch({ totalFloorsMin: v || undefined })}
+          onMax={(v) => patch({ totalFloorsMax: v || undefined })}
+          fromLabel={t('rangeFrom')}
+          toLabel={t('rangeTo')}
+        />
+      </Section>
+
+      {/* 5. Тип объявления — single-select toggle */}
+      <Section title={t('listingSourceTitle')}>
+        <div className="flex flex-col gap-1.5">
+          <CheckboxRow
+            label={t('sourceOwner')}
+            checked={draft.listingSource === 'OWNER'}
+            onChange={handleSourceOwner}
+          />
+          <CheckboxRow
+            label={t('sourceAgency')}
+            checked={draft.listingSource === 'AGENCY'}
+            onChange={handleSourceAgency}
+          />
+        </div>
+      </Section>
+
+      {/* 6. Принимает заявки на просмотр */}
+      <Section title="">
+        <CheckboxRow
+          label={t('toursEnabled')}
+          checked={draft.toursEnabled ?? false}
+          onChange={(checked) => patch({ toursEnabled: checked || undefined })}
+        />
+      </Section>
+
+      {/* Кнопки внизу */}
+      <div className="flex gap-2 pt-1">
+        <button
+          type="button"
+          data-testid="filters-reset"
+          onClick={handleReset}
+          className="flex-1 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:border-ink hover:text-ink"
+        >
+          {t('resetAll')}
+        </button>
+        <button
+          type="button"
+          data-testid="filters-apply"
+          onClick={() => onApply(draft)}
+          className="flex-1 rounded-lg bg-teal px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-teal/90"
+        >
+          {t('apply')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Вспомогательные локальные компоненты ────────────────────────────────────
+
+/** Секция с заголовком. Если title пуст — заголовок не рендерится. */
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {title && (
+        <div className="text-[12.5px] font-bold text-muted-foreground">{title}</div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+/** Одна строка чекбокса + лейбл. onChange принимает новое boolean-значение. */
+function CheckboxRow({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const id = React.useId();
+  return (
+    <label
+      htmlFor={id}
+      className={cn(
+        'flex cursor-pointer items-center gap-2 rounded-lg px-1 py-0.5',
+        'text-[14px] font-medium text-ink select-none',
+        'hover:text-teal',
+      )}
+    >
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 cursor-pointer rounded accent-teal"
+      />
+      {label}
+    </label>
+  );
+}
