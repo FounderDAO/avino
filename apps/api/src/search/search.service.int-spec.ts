@@ -709,3 +709,258 @@ describe('SearchService text query q (integration, TASK-208)', () => {
     expect(result.data).toHaveLength(0);
   });
 });
+
+/**
+ * Integration-тесты Zillow-фильтров Phase 1 (TASK-Zillow).
+ * Проверяет: property_type IN-массив, rooms_min, area_min/max, floor+not_first/last,
+ * year_min/max, listing_source OWNER/AGENCY, tours_enabled.
+ *
+ * Изоляция — уникальный CITY_ID_ZILLOW; данные удаляются в afterAll.
+ */
+describe('GET /search — Zillow filters (Phase 1)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY_ID_ZILLOW = '44444444-5555-4444-8777-000000000901';
+
+  // Фиксированные UUIDs — суффикс -0901 исключает коллизию с другими наборами.
+  const ID = {
+    apt:    'aaaaaaaa-0004-4000-8000-000000000901', // APARTMENT, rooms=2, area=75, floor=5/9, year=2010, agencyId=null, tours=false
+    house:  'bbbbbbbb-0004-4000-8000-000000000901', // HOUSE,     rooms=5, area=120,floor=1/1, year=1990, agencyId=null, tours=false
+    land:   'cccccccc-0004-4000-8000-000000000901', // LAND,      rooms=1, area=40, floor=9/9, year=2024, agencyId=<uuid>, tours=false
+    comm:   'dddddddd-0004-4000-8000-000000000901', // COMMERCIAL,rooms=3, area=40, floor=3/9, year=2010, agencyId=<uuid>, tours=true
+  };
+
+  // UUID агентства (не существует в agencies-таблице — просто ненулевой FK)
+  const AGENCY_UUID = 'a0000000-0000-4000-8000-000000000901';
+
+  let ownerId: string;
+
+  interface ZCreateParams {
+    id: string;
+    propertyType: PropertyType;
+    rooms: number;
+    area: string;
+    floor: number;
+    totalFloors: number;
+    yearBuilt: number;
+    agencyId: string | null;
+    toursEnabled: boolean;
+  }
+
+  async function createZListing(params: ZCreateParams): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id: params.id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: params.propertyType,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: '100000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_ZILLOW,
+        promotionType: PromotionType.NORMAL,
+        promotionExpiresAt: null,
+        rooms: params.rooms,
+        area: params.area,
+        floor: params.floor,
+        totalFloors: params.totalFloors,
+        yearBuilt: params.yearBuilt,
+        agencyId: params.agencyId,
+        toursEnabled: params.toursEnabled,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `zillow-${params.id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_ZILLOW } });
+
+    const owner = await prisma.user.create({ data: { phone: '+998900000901' } });
+    ownerId = owner.id;
+
+    await createZListing({ id: ID.apt,  propertyType: PropertyType.APARTMENT,  rooms: 2, area: '75.00',  floor: 5, totalFloors: 9, yearBuilt: 2010, agencyId: null,        toursEnabled: false });
+    await createZListing({ id: ID.house,propertyType: PropertyType.HOUSE,       rooms: 5, area: '120.00', floor: 1, totalFloors: 1, yearBuilt: 1990, agencyId: null,        toursEnabled: false });
+    await createZListing({ id: ID.land, propertyType: PropertyType.LAND,        rooms: 1, area: '40.00',  floor: 9, totalFloors: 9, yearBuilt: 2024, agencyId: AGENCY_UUID, toursEnabled: false });
+    await createZListing({ id: ID.comm, propertyType: PropertyType.COMMERCIAL,  rooms: 3, area: '40.00',  floor: 3, totalFloors: 9, yearBuilt: 2010, agencyId: AGENCY_UUID, toursEnabled: true  });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_ZILLOW } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('property_type мультивыбор → IN', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_ZILLOW,
+      property_type: [PropertyType.APARTMENT, PropertyType.HOUSE],
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.apt);
+    expect(ids).toContain(ID.house);
+    expect(ids.has(ID.land)).toBe(false);
+    expect(ids.has(ID.comm)).toBe(false);
+    expect(ids.size).toBe(2);
+  });
+
+  it('rooms_min = «≥N»', async () => {
+    // rooms: apt=2, house=5, land=1, comm=3; rooms_min=3 → house(5)+comm(3) = 2
+    const result = await service.search({
+      city_id: CITY_ID_ZILLOW,
+      rooms_min: 3,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.house);
+    expect(ids).toContain(ID.comm);
+    expect(ids.has(ID.apt)).toBe(false);
+    expect(ids.has(ID.land)).toBe(false);
+    expect(ids.size).toBe(2);
+  });
+
+  it('area_min/area_max — диапазон м²', async () => {
+    // area: apt=75, house=120, land=40, comm=40; [50,100] → apt(75) = 1
+    const result = await service.search({
+      city_id: CITY_ID_ZILLOW,
+      area_min: 50,
+      area_max: 100,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.apt);
+    expect(ids.has(ID.house)).toBe(false);
+    expect(ids.has(ID.land)).toBe(false);
+    expect(ids.has(ID.comm)).toBe(false);
+    expect(ids.size).toBe(1);
+  });
+
+  it('not_first_floor исключает первый этаж', async () => {
+    // floor: apt=5, house=1, land=9, comm=3; not_first_floor → apt+land+comm = 3
+    const result = await service.search({
+      city_id: CITY_ID_ZILLOW,
+      not_first_floor: true,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.apt);
+    expect(ids).toContain(ID.land);
+    expect(ids).toContain(ID.comm);
+    expect(ids.has(ID.house)).toBe(false); // floor=1
+    expect(ids.size).toBe(3);
+  });
+
+  it('not_last_floor исключает последний этаж (floor < total_floors)', async () => {
+    // (floor,total): apt=(5,9), house=(1,1), land=(9,9), comm=(3,9)
+    // not_last_floor: apt(5<9✓) + comm(3<9✓) = 2; house(1=1✗) + land(9=9✗)
+    const result = await service.search({
+      city_id: CITY_ID_ZILLOW,
+      not_last_floor: true,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.apt);
+    expect(ids).toContain(ID.comm);
+    expect(ids.has(ID.house)).toBe(false);
+    expect(ids.has(ID.land)).toBe(false);
+    expect(ids.size).toBe(2);
+  });
+
+  it('year_min/year_max — диапазон года постройки', async () => {
+    // yearBuilt: apt=2010, house=1990, land=2024, comm=2010; [2000,2020] → apt+comm = 2
+    const result = await service.search({
+      city_id: CITY_ID_ZILLOW,
+      year_min: 2000,
+      year_max: 2020,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.apt);
+    expect(ids).toContain(ID.comm);
+    expect(ids.has(ID.house)).toBe(false); // 1990
+    expect(ids.has(ID.land)).toBe(false);  // 2024
+    expect(ids.size).toBe(2);
+  });
+
+  it('listing_source OWNER → agency_id IS NULL', async () => {
+    // agencyId: apt=null, house=null, land=AGENCY, comm=AGENCY
+    const result = await service.search({
+      city_id: CITY_ID_ZILLOW,
+      listing_source: ['OWNER'],
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.apt);
+    expect(ids).toContain(ID.house);
+    expect(ids.has(ID.land)).toBe(false);
+    expect(ids.has(ID.comm)).toBe(false);
+    expect(ids.size).toBe(2);
+  });
+
+  it('listing_source AGENCY → agency_id IS NOT NULL', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_ZILLOW,
+      listing_source: ['AGENCY'],
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.land);
+    expect(ids).toContain(ID.comm);
+    expect(ids.has(ID.apt)).toBe(false);
+    expect(ids.has(ID.house)).toBe(false);
+    expect(ids.size).toBe(2);
+  });
+
+  it('listing_source [OWNER, AGENCY] → без фильтра по источнику', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_ZILLOW,
+      listing_source: ['OWNER', 'AGENCY'],
+      limit: 100,
+    });
+
+    // Оба значения → фильтр не применяется → все 4 листинга
+    expect(result.data).toHaveLength(4);
+  });
+
+  it('tours_enabled=true', async () => {
+    // toursEnabled: только comm=true
+    const result = await service.search({
+      city_id: CITY_ID_ZILLOW,
+      tours_enabled: true,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.comm);
+    expect(ids.has(ID.apt)).toBe(false);
+    expect(ids.has(ID.house)).toBe(false);
+    expect(ids.has(ID.land)).toBe(false);
+    expect(ids.size).toBe(1);
+  });
+});

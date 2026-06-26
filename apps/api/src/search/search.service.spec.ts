@@ -174,7 +174,7 @@ describe('SearchService', () => {
 
     await service.search({
       transaction_type: TransactionType.RENT,
-      property_type: PropertyType.HOUSE,
+      property_type: [PropertyType.HOUSE],
       price_min: '1000.00',
       price_max: '5000.00',
       currency: Currency.USD,

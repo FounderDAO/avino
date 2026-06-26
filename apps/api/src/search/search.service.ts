@@ -711,12 +711,18 @@ export class SearchService {
 
   /**
    * `WHERE`-фрагмент: обязательный `status = ACTIVE` + базовые фильтры (TASK-080)
-   * + `rooms` (TASK-207) + свободный текст `q` (TASK-208, ADR-0067). Параметры
-   * биндятся через `Prisma.sql` (защита от инъекций). Enum-колонки сравниваются
-   * через `::text` (не зависит от имени PG-типа); диапазон цены — в пределах одной
-   * валюты (`currency`), FX-конвертации нет (API.md §9).
+   * + `rooms` (TASK-207) + свободный текст `q` (TASK-208, ADR-0067)
+   * + Zillow-фильтры Phase 1 (TASK-Zillow): `property_type` (IN-массив),
+   *   `rooms_min`, `area_min/max`, `floor_min/max`, `not_first_floor`,
+   *   `not_last_floor`, `total_floors_min/max`, `year_min/max`,
+   *   `listing_source` (OWNER/AGENCY), `tours_enabled`.
+   *
+   * Параметры биндятся через `Prisma.sql` (защита от инъекций). Enum-колонки
+   * сравниваются через `::text` (не зависит от имени PG-типа); диапазон цены —
+   * в пределах одной валюты (`currency`), FX-конвертации нет (API.md §9).
    *
    * `rooms` (TASK-207): 0..3 — точное совпадение; 4 = «4+» (rooms >= 4).
+   * `rooms_min`: «N и более» (rooms >= N) — для кнопок 1+/2+/…/5+.
    * Применяется во всех эндпоинтах поиска (включая гео-варианты).
    *
    * `q` (TASK-208, ADR-0067): ILIKE-подстрока (pg_trgm GIN, case-insensitive) по
@@ -732,8 +738,10 @@ export class SearchService {
       conds.push(
         Prisma.sql`transaction_type::text = ${query.transaction_type}`,
       );
-    if (query.property_type !== undefined)
-      conds.push(Prisma.sql`property_type::text = ${query.property_type}`);
+    if (query.property_type !== undefined && query.property_type.length > 0)
+      conds.push(
+        Prisma.sql`property_type::text IN (${Prisma.join(query.property_type)})`,
+      );
     if (query.currency !== undefined)
       conds.push(Prisma.sql`currency::text = ${query.currency}`);
     if (query.city_id !== undefined)
@@ -750,6 +758,50 @@ export class SearchService {
           ? Prisma.sql`rooms >= 4`
           : Prisma.sql`rooms = ${query.rooms}`,
       );
+
+    // Zillow Phase 1: «N+ комнат»
+    if (query.rooms_min !== undefined)
+      conds.push(Prisma.sql`rooms >= ${query.rooms_min}`);
+
+    // Zillow Phase 1: диапазон площади (м²)
+    if (query.area_min !== undefined)
+      conds.push(Prisma.sql`area >= ${query.area_min}::numeric`);
+    if (query.area_max !== undefined)
+      conds.push(Prisma.sql`area <= ${query.area_max}::numeric`);
+
+    // Zillow Phase 1: этаж
+    if (query.floor_min !== undefined)
+      conds.push(Prisma.sql`floor >= ${query.floor_min}`);
+    if (query.floor_max !== undefined)
+      conds.push(Prisma.sql`floor <= ${query.floor_max}`);
+    if (query.not_first_floor === true)
+      conds.push(Prisma.sql`floor > 1`);
+    if (query.not_last_floor === true)
+      conds.push(Prisma.sql`floor < total_floors`);
+
+    // Zillow Phase 1: этажность здания
+    if (query.total_floors_min !== undefined)
+      conds.push(Prisma.sql`total_floors >= ${query.total_floors_min}`);
+    if (query.total_floors_max !== undefined)
+      conds.push(Prisma.sql`total_floors <= ${query.total_floors_max}`);
+
+    // Zillow Phase 1: год постройки
+    if (query.year_min !== undefined)
+      conds.push(Prisma.sql`year_built >= ${query.year_min}`);
+    if (query.year_max !== undefined)
+      conds.push(Prisma.sql`year_built <= ${query.year_max}`);
+
+    // Zillow Phase 1: источник (собственник / агентство)
+    if (query.listing_source !== undefined && query.listing_source.length === 1)
+      conds.push(
+        query.listing_source[0] === 'OWNER'
+          ? Prisma.sql`agency_id IS NULL`
+          : Prisma.sql`agency_id IS NOT NULL`,
+      );
+
+    // Zillow Phase 1: только с туром
+    if (query.tours_enabled === true)
+      conds.push(Prisma.sql`tours_enabled = true`);
 
     // TASK-208, ADR-0067: свободный текст q — ILIKE-подстрока (pg_trgm GIN).
     // Экранируем \, %, _ чтобы литеральные символы не работали как wildcards.
