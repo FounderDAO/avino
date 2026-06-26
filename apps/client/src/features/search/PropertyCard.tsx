@@ -11,10 +11,10 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { MapPin } from 'lucide-react';
-import { PhotoImg } from '@/components/ui/photo-img';
-import { PromoBadge, NewBadge } from '@/components/ui/promo-badge';
+import { CardPhotoCarousel } from '@/components/ui/card-photo-carousel';
+import { PromoBadge, DaysBadge } from '@/components/ui/promo-badge';
 import { FavButton } from '@/components/ui/fav-button';
-import { specs, propertyTypeLabel, isFresh } from '@/lib/format';
+import { specs, propertyTypeLabel } from '@/lib/format';
 import type { Listing } from '@/lib/mock/types';
 import { usePriceFormatter } from '@/lib/usePriceFormatter';
 
@@ -30,8 +30,6 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
   const parts = specs(listing, tUnits);
   // Тип жилья — последним элементом строки спеков (как «House for sale» у Zillow).
   const specParts = [...parts, propertyTypeLabel(listing.type, tEnums)];
-  const fresh = isFresh(listing.createdAt);
-
   return (
     <Link
       href={`/listing/${listing.id}`}
@@ -40,19 +38,18 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
         (className ?? '')
       }
     >
-      {/* Фото */}
+      {/* Фото — слайдер */}
       <div className="relative aspect-[3/2] shrink-0 overflow-hidden">
-        <PhotoImg
-          src={listing.photos[0]?.thumb ?? ''}
+        <CardPhotoCarousel
+          photos={listing.photos}
           alt={listing.title}
-          className="transition-transform duration-[400ms] group-hover:scale-105"
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
         />
-        <div className="absolute left-3 top-3 flex gap-1.5">
+        <div className="absolute left-3 top-3 z-10 flex gap-1.5">
           <PromoBadge promo={listing.promo} />
-          {fresh && listing.promo === 'NORMAL' && <NewBadge />}
+          <DaysBadge createdAt={listing.createdAt} />
         </div>
-        <div className="absolute right-2.5 top-2.5">
+        <div className="absolute right-2.5 top-2.5 z-10">
           <FavButton listingId={listing.id} />
         </div>
       </div>
@@ -67,7 +64,12 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
         <div className="mt-1 flex flex-wrap items-center text-[13px] text-muted-foreground">
           {specParts.map((p, i) => (
             <span key={i} className="inline-flex items-center">
-              {i > 0 && <span className="mx-[7px] text-border">·</span>}
+              {i > 0 && (
+                <span
+                  className="mx-2 inline-block h-3 w-px bg-border align-middle"
+                  aria-hidden
+                />
+              )}
               {p}
             </span>
           ))}

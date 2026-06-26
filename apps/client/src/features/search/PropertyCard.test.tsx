@@ -19,12 +19,12 @@ vi.mock('@/i18n/navigation', () => ({
 vi.mock('@/lib/usePriceFormatter', () => ({
   usePriceFormatter: () => ({ price: () => '$108 223' }),
 }));
-vi.mock('@/components/ui/photo-img', () => ({
-  PhotoImg: () => <div data-testid="photo" />,
+vi.mock('@/components/ui/card-photo-carousel', () => ({
+  CardPhotoCarousel: () => <div data-testid="photo" />,
 }));
 vi.mock('@/components/ui/promo-badge', () => ({
   PromoBadge: () => null,
-  NewBadge: () => null,
+  DaysBadge: () => null,
 }));
 vi.mock('@/components/ui/fav-button', () => ({
   FavButton: () => <button aria-label="fav" />,
