@@ -25,6 +25,7 @@ import { Facts } from './Facts';
 import { ContactCard } from './ContactCard';
 import { DetailMap } from './DetailMap';
 import { DetailPrice } from './DetailPrice';
+import { ShareButton } from './ShareButton';
 
 /** Пропы хлебной крошки — передаются из page.tsx (уже имеет переводы). */
 export interface DetailBreadcrumb {
@@ -66,12 +67,15 @@ export async function Detail({ listing, breadcrumb }: DetailProps) {
         {breadcrumbItems ? (
           <Breadcrumb items={breadcrumbItems} />
         ) : null}
-        <Link
-          href={backHref}
-          className="inline-flex items-center gap-1.5 text-[14.5px] font-bold text-teal hover:text-teal-deep"
-        >
-          <ChevronLeft size={18} /> {t('backToSearch')}
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href={backHref}
+            className="inline-flex items-center gap-1.5 text-[14.5px] font-bold text-teal hover:text-teal-deep"
+          >
+            <ChevronLeft size={18} /> {t('backToSearch')}
+          </Link>
+          <ShareButton listing={listing} />
+        </div>
       </div>
 
       {/* Галерея */}

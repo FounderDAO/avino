@@ -938,5 +938,16 @@
     "home": "Home",
     "sale": "Buy",
     "rent": "Rent"
+  },
+  "share": {
+    "button": "Share",
+    "title": "Share this home",
+    "copy": "Copy link",
+    "copied": "Copied ✓",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "email": "Email",
+    "close": "Close",
+    "shareText": "{title} · {price}"
   }
 }

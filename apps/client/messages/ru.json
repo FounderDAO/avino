@@ -938,5 +938,16 @@
     "home": "Главная",
     "sale": "Купить",
     "rent": "Аренда"
+  },
+  "share": {
+    "button": "Поделиться",
+    "title": "Поделиться этим объектом",
+    "copy": "Скопировать ссылку",
+    "copied": "Скопировано ✓",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "email": "Email",
+    "close": "Закрыть",
+    "shareText": "{title} · {price}"
   }
 }
