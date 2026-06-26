@@ -23,13 +23,13 @@ export interface ShareButtonProps {
 
 // ─── ShareModal ────────────────────────────────────────────────────────────────
 
-interface ShareModalProps {
+export interface ShareModalProps {
   listing: Listing;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-function ShareModal({ listing, open, onOpenChange }: ShareModalProps) {
+export function ShareModal({ listing, open, onOpenChange }: ShareModalProps) {
   const t = useTranslations('share');
   const tUnits = useTranslations('units');
   const tEnums = useTranslations('enums');

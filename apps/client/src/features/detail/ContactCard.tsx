@@ -2,7 +2,8 @@
  * ContactCard — карточка контакта автора объявления (sticky-сайдбар detail).
  * Перенос ContactCard из claudeDesign/detail.jsx на токены проекта.
  * Кнопки: «Показать телефон» (раскрывает номер из мока), «Написать» (заглушка),
- * «В избранное» (FavButton), «Поделиться» (заглушка через navigator.share).
+ * «В избранное» (FavButton), «Поделиться» (открывает общий ShareModal —
+ * превью объявления + каналы Copy/Telegram/WhatsApp/Email).
  */
 'use client';
 
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { FavButton } from '@/components/ui/fav-button';
 import { LoginModal } from '@/components/layout/LoginModal';
 import { TourRequestModal } from './TourRequestModal';
+import { ShareModal } from './ShareButton';
 import type { Listing } from '@/lib/mock/types';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
@@ -40,6 +42,8 @@ export function ContactCard({ listing, className }: ContactCardProps) {
   // Тур: модалка + отложенное намерение для гостя.
   const [tourOpen, setTourOpen] = React.useState(false);
   const [pendingTour, setPendingTour] = React.useState(false);
+  // Модалка «Поделиться» — общий ShareModal (как у кнопки-иконки наверху страницы).
+  const [shareOpen, setShareOpen] = React.useState(false);
   const canTour =
     listing.toursEnabled === true &&
     (listing.status ?? 'ACTIVE') === 'ACTIVE' &&
@@ -90,17 +94,6 @@ export function ContactCard({ listing, className }: ContactCardProps) {
   React.useEffect(() => {
     if (isAuthenticated && pendingTour) { setPendingTour(false); setTourOpen(true); }
   }, [isAuthenticated, pendingTour]);
-
-  // Заглушка «Поделиться»: системный шэр, иначе копируем ссылку.
-  const handleShare = React.useCallback(() => {
-    if (typeof window === 'undefined') return;
-    const url = window.location.href;
-    if (navigator.share) {
-      void navigator.share({ title: listing.title, url }).catch(() => {});
-    } else {
-      void navigator.clipboard?.writeText(url).catch(() => {});
-    }
-  }, [listing.title]);
 
   return (
     <div className={'rounded-card border border-border bg-surface p-5 shadow-card ' + (className ?? '')}>
@@ -161,7 +154,7 @@ export function ContactCard({ listing, className }: ContactCardProps) {
         {/* Нижний ряд: избранное + поделиться */}
         <div className="flex items-center gap-2.5">
           <FavButton listingId={listing.id} size={48} className="shrink-0 shadow-none ring-1 ring-border" />
-          <Button variant="outline" size="lg" className="flex-1" onClick={handleShare}>
+          <Button variant="outline" size="lg" className="flex-1" onClick={() => setShareOpen(true)}>
             <Share2 size={17} /> {t('contact.share')}
           </Button>
         </div>
@@ -174,6 +167,10 @@ export function ContactCard({ listing, className }: ContactCardProps) {
         context={t('contact.loginToMessage')}
       />
       <TourRequestModal listing={listing} open={tourOpen} onOpenChange={setTourOpen} />
+      {/* Условный рендер: при закрытой модалке не дёргаем usePriceFormatter/курс. */}
+      {shareOpen && (
+        <ShareModal listing={listing} open={shareOpen} onOpenChange={setShareOpen} />
+      )}
     </div>
   );
 }
