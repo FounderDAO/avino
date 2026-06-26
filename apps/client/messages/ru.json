@@ -915,7 +915,8 @@
     "floor": "{floor} эт",
     "landArea": "{value} м² участок",
     "billion": "млрд",
-    "million": "млн"
+    "million": "млн",
+    "daysOnSite": "{count, plural, one {# день на сайте} few {# дня на сайте} many {# дней на сайте} other {# дней на сайте}}"
   },
   "enums": {
     "tx": {

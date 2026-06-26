@@ -915,7 +915,8 @@
     "floor": "{floor}-qavat",
     "landArea": "{value} m² uchastka",
     "billion": "mlrd",
-    "million": "mln"
+    "million": "mln",
+    "daysOnSite": "{count, plural, other {# kun saytda}}"
   },
   "enums": {
     "tx": {
