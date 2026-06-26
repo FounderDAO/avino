@@ -14,7 +14,10 @@
     "next": "Oldinga",
     "badgeVip": "VIP",
     "badgeTop": "TOP",
-    "badgeNew": "Yangi"
+    "badgeNew": "Yangi",
+    "photoPrev": "Oldingi rasm",
+    "photoNext": "Keyingi rasm",
+    "goToPhoto": "{n}-rasm"
   },
   "nav": {
     "buy": "Sotib olish",
@@ -915,7 +918,8 @@
     "floor": "{floor}-qavat",
     "landArea": "{value} m² uchastka",
     "billion": "mlrd",
-    "million": "mln"
+    "million": "mln",
+    "daysOnSite": "{count, plural, other {# kun saytda}}"
   },
   "enums": {
     "tx": {

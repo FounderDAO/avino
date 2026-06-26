@@ -14,7 +14,10 @@
     "next": "Next",
     "badgeVip": "VIP",
     "badgeTop": "TOP",
-    "badgeNew": "New"
+    "badgeNew": "New",
+    "photoPrev": "Previous photo",
+    "photoNext": "Next photo",
+    "goToPhoto": "Photo {n}"
   },
   "nav": {
     "buy": "Buy",
@@ -915,7 +918,8 @@
     "floor": "{floor} fl",
     "landArea": "{value} m² lot",
     "billion": "bln",
-    "million": "mln"
+    "million": "mln",
+    "daysOnSite": "{count, plural, one {# day on site} other {# days on site}}"
   },
   "enums": {
     "tx": {

@@ -2,9 +2,9 @@
  * Тесты форматирования: плюрализация комнат (ICU) + нормализация площади.
  * Используем createTranslator из next-intl с реальными messages/ru.json.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createTranslator } from 'next-intl';
-import { formatArea, formatRooms, type T } from './format';
+import { formatArea, formatRooms, daysOnSite, type T } from './format';
 
 // Импортируем реальные messages для настоящей ICU-плюрализации.
 import ruMessages from '../../messages/ru.json';
@@ -119,5 +119,28 @@ describe('formatArea — нормализация хвостовых нулей'
 
   it('«78.50» → «78.5 м²»', () => {
     expect(formatArea('78.50', tRu)).toBe('78.5 м²');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// daysOnSite — сколько дней объявление на сайте
+// ---------------------------------------------------------------------------
+describe('daysOnSite', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('считает целые дни с момента публикации', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-26T00:00:00.000Z'));
+    expect(daysOnSite('2026-06-21T00:00:00.000Z')).toBe(5);
+  });
+
+  it('возвращает 0 для будущей даты', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-26T00:00:00.000Z'));
+    expect(daysOnSite('2026-06-27T00:00:00.000Z')).toBe(0);
+  });
+
+  it('возвращает 0 для невалидной даты', () => {
+    expect(daysOnSite('not-a-date')).toBe(0);
   });
 });
