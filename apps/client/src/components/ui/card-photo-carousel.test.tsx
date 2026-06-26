@@ -47,11 +47,13 @@ describe('CardPhotoCarousel', () => {
     expect(screen.queryByLabelText('goToPhoto:{"n":1}')).toBeNull();
   });
 
-  it('клик по стрелке гасит навигацию (preventDefault)', () => {
+  it('клик по стрелке гасит навигацию (preventDefault + stopPropagation)', () => {
     render(<CardPhotoCarousel photos={photos} alt="x" />);
     const btn = screen.getByLabelText('photoNext');
     const ev = createEvent.click(btn);
+    const stop = vi.spyOn(ev, 'stopPropagation');
     fireEvent(btn, ev);
     expect(ev.defaultPrevented).toBe(true);
+    expect(stop).toHaveBeenCalled();
   });
 });
