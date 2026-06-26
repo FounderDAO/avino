@@ -277,6 +277,8 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     // Совместимость: single-select type (старый URL) или первый из types.
     const firstType = values.type ?? values.types?.[0];
     if (firstType) filters.property_type = firstType;
+    // Мультивыбор типов — сериализуем массивом для UI-восстановления.
+    if (values.types && values.types.length > 0) filters.property_types = values.types;
     if (values.districtId) filters.district_id = values.districtId;
     if (values.priceMin) filters.price_min = values.priceMin;
     if (values.priceMax) filters.price_max = values.priceMax;
@@ -284,8 +286,21 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     if (values.roomsMin != null) filters.rooms_min = values.roomsMin;
     if (values.query) filters.q = values.query;
     if (territoryPoints) filters.points = territoryPoints;
-    // Расширенные фильтры — Task 10 может расширить describeFilters;
-    // здесь просто прокидываем доступные поля, не ломая компиляцию.
+    // Расширенные фильтры (Task 10).
+    // ВАЖНО: backend-матчинг по этим полям — follow-up (вне Phase 1).
+    // Сериализуем для восстановления UI при переходе из saved-search → /search.
+    if (values.areaMin) filters.area_min = values.areaMin;
+    if (values.areaMax) filters.area_max = values.areaMax;
+    if (values.floorMin) filters.floor_min = values.floorMin;
+    if (values.floorMax) filters.floor_max = values.floorMax;
+    if (values.totalFloorsMin) filters.total_floors_min = values.totalFloorsMin;
+    if (values.totalFloorsMax) filters.total_floors_max = values.totalFloorsMax;
+    if (values.yearMin) filters.year_min = values.yearMin;
+    if (values.yearMax) filters.year_max = values.yearMax;
+    if (values.notFirstFloor) filters.not_first_floor = true;
+    if (values.notLastFloor) filters.not_last_floor = true;
+    if (values.listingSource) filters.listing_source = values.listingSource;
+    if (values.toursEnabled) filters.tours_enabled = true;
     return filters;
   }, [values, territoryPoints]);
 
