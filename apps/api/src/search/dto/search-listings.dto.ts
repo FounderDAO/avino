@@ -1,5 +1,7 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsArray,
+  IsBoolean,
   IsEnum,
   IsIn,
   IsInt,
@@ -32,6 +34,30 @@ export const SORT_MODES = [
 ] as const;
 export type SortMode = (typeof SORT_MODES)[number];
 
+/** Источник объявления для фильтра «от собственника / агентства». */
+export const LISTING_SOURCES = ['OWNER', 'AGENCY'] as const;
+export type ListingSource = (typeof LISTING_SOURCES)[number];
+
+/** query-строка → массив (single или повторяющийся параметр). */
+const toArray = ({ value }: { value: unknown }) =>
+  value === undefined ? undefined : Array.isArray(value) ? value : [value];
+
+/**
+ * query-строка 'true' → true, 'false' → false; иначе value as-is (→ @IsBoolean
+ * вернёт 400 на мусор, а не молча проглотит как false).
+ *
+ * ВАЖНО про порядок с @Type(() => String): при enableImplicitConversion
+ * class-transformer коэрсит значение по типу поля. Без @Type поле boolean →
+ * Boolean('false') === true (любая непустая строка истинна). @Type(() => String)
+ * фиксирует значение как строку, и @Transform(toBool) применяется уже к ней,
+ * корректно отдавая false.
+ */
+const toBool = ({ value }: { value: unknown }) => {
+  if (value === 'true' || value === true) return true;
+  if (value === 'false' || value === false) return false;
+  return value;
+};
+
 /**
  * Денежные поля — строки-Decimal, никогда float (ADR-002). До 12 цифр целой
  * части и до 2 дробных (`listings.price` — Decimal(14,2)).
@@ -60,8 +86,10 @@ export class SearchListingsQueryDto {
   transaction_type?: TransactionType;
 
   @IsOptional()
-  @IsEnum(PropertyType)
-  property_type?: PropertyType;
+  @Transform(toArray)
+  @IsArray()
+  @IsEnum(PropertyType, { each: true })
+  property_type?: PropertyType[];
 
   /** Нижняя граница цены (включительно), в пределах `currency`, без FX. */
   @IsOptional()
@@ -123,14 +151,41 @@ export class SearchListingsQueryDto {
   @Min(0)
   rooms?: number;
 
-  /** Нижняя граница площади (м²). Пока игнорируется. */
+  /** «N+ комнат» (rooms >= N) — кнопки 1+/2+/…/5+. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  rooms_min?: number;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_min?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_max?: number;
+  @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() not_first_floor?: boolean;
+  @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() not_last_floor?: boolean;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) total_floors_min?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) total_floors_max?: number;
+  @IsOptional() @Type(() => Number) @IsInt() year_min?: number;
+  @IsOptional() @Type(() => Number) @IsInt() year_max?: number;
+
+  /**
+   * Источник: ['OWNER'] → agency_id IS NULL; ['AGENCY'] → IS NOT NULL; оба/пусто → без фильтра.
+   */
+  @IsOptional()
+  @Transform(toArray)
+  @IsArray()
+  @IsIn(LISTING_SOURCES, { each: true })
+  listing_source?: ListingSource[];
+
+  @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() tours_enabled?: boolean;
+
+  /** Нижняя граница площади (м²). */
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   area_min?: number;
 
-  /** Верхняя граница площади (м²). Пока игнорируется. */
+  /** Верхняя граница площади (м²). */
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
