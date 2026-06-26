@@ -146,6 +146,7 @@ describe('SearchService', () => {
       language: Language.RU,
       title: '3-комн в центре',
       thumbnail_url: 'https://cdn/l1_t.webp',
+      thumbnails: ['https://cdn/l1_t.webp'],
       district_name: null,
       created_at: '2026-06-01T12:00:00.000Z',
     });
@@ -299,6 +300,41 @@ describe('SearchService', () => {
       service.search({ cursor: token }),
       ApiErrorCode.VALIDATION_ERROR,
     );
+  });
+
+  it('returns thumbnails[] with up to 3 signed URLs, thumbnail_url === thumbnails[0]', async () => {
+    mockQuery([pageRow()], 1);
+    prisma.listing.findMany.mockResolvedValue([
+      dbRow({
+        media: [
+          { url: 'https://cdn/l1.webp', thumbnailUrl: 'https://cdn/l1_t.webp', storageKey: null },
+          { url: 'https://cdn/l1b.webp', thumbnailUrl: null, storageKey: 'media/l1b.webp' },
+          { url: 'https://cdn/l1c.webp', thumbnailUrl: 'https://cdn/l1c_t.webp', storageKey: null },
+        ],
+      }),
+    ]);
+
+    const result = await service.search({});
+    const item = result.data[0];
+
+    // uploads mock: (null, url) → url; (key, url) → key
+    expect(item.thumbnails).toEqual([
+      'https://cdn/l1_t.webp',
+      'media/l1b.webp',
+      'https://cdn/l1c_t.webp',
+    ]);
+    expect(item.thumbnail_url).toBe(item.thumbnails[0]);
+  });
+
+  it('returns thumbnails: [] and thumbnail_url: null when listing has no media', async () => {
+    mockQuery([pageRow()], 1);
+    prisma.listing.findMany.mockResolvedValue([dbRow({ media: [] })]);
+
+    const result = await service.search({});
+    const item = result.data[0];
+
+    expect(item.thumbnails).toEqual([]);
+    expect(item.thumbnail_url).toBeNull();
   });
 
   describe('searchRadius', () => {

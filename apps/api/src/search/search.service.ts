@@ -53,6 +53,8 @@ export interface SearchListItem {
   language: Language;
   title: string;
   thumbnail_url: string | null;
+  /** До 3 свежих presigned URL фото (индекс 0 = обложка, ADR-0086). */
+  thumbnails: string[];
   created_at: string;
   /**
    * Дистанция от точки запроса в метрах (округлённая). Присутствует только в
@@ -201,7 +203,7 @@ const SEARCH_SELECT = {
   media: {
     select: { url: true, storageKey: true, thumbnailUrl: true },
     orderBy: { sortOrder: Prisma.SortOrder.asc },
-    take: 1,
+    take: 3,
   },
 } as const;
 
@@ -808,14 +810,16 @@ export class SearchService {
     const translation =
       listing.translations.find((t) => t.language === language) ??
       listing.translations[0];
-    const cover = listing.media[0];
-    // Свежий presigned URL обложки (ADR-0086): thumbnail из его url, иначе основное
-    // фото из storage_key (legacy-фолбэк через extractKey внутри resolveMediaUrl).
-    const thumbnailUrl = cover
-      ? cover.thumbnailUrl
-        ? await this.uploads.resolveMediaUrl(null, cover.thumbnailUrl)
-        : await this.uploads.resolveMediaUrl(cover.storageKey, cover.url)
-      : null;
+    // Свежие presigned URL для до 3 фото (ADR-0086, TASK-thumbnails).
+    // thumbnail → resolveMediaUrl(null, thumbnailUrl), иначе storageKey/url.
+    const thumbnails = await Promise.all(
+      listing.media.map((m) =>
+        m.thumbnailUrl
+          ? this.uploads.resolveMediaUrl(null, m.thumbnailUrl)
+          : this.uploads.resolveMediaUrl(m.storageKey, m.url),
+      ),
+    );
+    const thumbnailUrl = thumbnails[0] ?? null;
 
     return {
       id: listing.id,
@@ -839,6 +843,7 @@ export class SearchService {
       language,
       title: translation?.title ?? '',
       thumbnail_url: thumbnailUrl,
+      thumbnails,
       district_name: this.districts.pickName(
         listing.districtId
           ? districtNames.get(listing.districtId)
