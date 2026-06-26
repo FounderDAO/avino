@@ -225,6 +225,7 @@
       "rooms": "Xonalar",
       "roomsCount": "Xonalar: {count}",
       "propertyType": "Uy-joy turi",
+      "propertyTypeCount": "Uy-joy turi: {count}",
       "anyType": "Istalgan tur",
       "district": "Tuman",
       "allDistricts": "Barcha tumanlar",

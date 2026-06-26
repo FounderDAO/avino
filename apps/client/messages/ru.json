@@ -225,6 +225,7 @@
       "rooms": "Комнаты",
       "roomsCount": "Комнат: {count}",
       "propertyType": "Тип жилья",
+      "propertyTypeCount": "Тип жилья: {count}",
       "anyType": "Любой тип",
       "district": "Район",
       "allDistricts": "Все районы",

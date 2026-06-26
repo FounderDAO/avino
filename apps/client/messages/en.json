@@ -225,6 +225,7 @@
       "rooms": "Rooms",
       "roomsCount": "Rooms: {count}",
       "propertyType": "Property type",
+      "propertyTypeCount": "Property type: {count}",
       "anyType": "Any type",
       "district": "District",
       "allDistricts": "All districts",
