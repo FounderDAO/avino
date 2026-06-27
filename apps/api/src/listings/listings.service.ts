@@ -52,6 +52,7 @@ interface ListingScalarInput {
   price?: string;
   currency?: Currency;
   area?: string;
+  lot_area?: string;
   rooms?: number;
   bathrooms?: number;
   parking_type?: ParkingType;
@@ -87,6 +88,7 @@ interface ListingScalarData {
   price?: string;
   currency?: Currency;
   area?: string;
+  lotArea?: string;
   rooms?: number;
   bathrooms?: number;
   parkingType?: ParkingType;
@@ -178,6 +180,7 @@ export interface ListingDetailResponse {
   price: string;
   currency: Currency;
   area: string | null;
+  lot_area: string | null;
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
@@ -237,6 +240,7 @@ const LISTING_DETAIL_SELECT = {
   price: true,
   currency: true,
   area: true,
+  lotArea: true,
   rooms: true,
   bathrooms: true,
   parkingType: true,
@@ -295,6 +299,7 @@ export interface ListingListItem {
   price: string;
   currency: Currency;
   area: string | null;
+  lot_area: string | null;
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
@@ -327,6 +332,7 @@ const LISTING_LIST_SELECT = {
   price: true,
   currency: true,
   area: true,
+  lotArea: true,
   rooms: true,
   bathrooms: true,
   parkingType: true,
@@ -752,6 +758,7 @@ export class ListingsService {
     if (dto.price !== undefined) data.price = dto.price;
     if (dto.currency !== undefined) data.currency = dto.currency;
     if (dto.area !== undefined) data.area = dto.area;
+    if (dto.lot_area !== undefined) data.lotArea = dto.lot_area;
     if (dto.rooms !== undefined) data.rooms = dto.rooms;
     if (dto.bathrooms !== undefined) data.bathrooms = dto.bathrooms;
     if (dto.parking_type !== undefined) data.parkingType = dto.parking_type;
@@ -836,6 +843,7 @@ export class ListingsService {
       price: listing.price.toFixed(2),
       currency: listing.currency,
       area: listing.area?.toFixed(2) ?? null,
+      lot_area: listing.lotArea?.toFixed(2) ?? null,
       rooms: listing.rooms,
       bathrooms: listing.bathrooms,
       parking_type: listing.parkingType,
@@ -908,6 +916,7 @@ export class ListingsService {
       price: listing.price.toFixed(2),
       currency: listing.currency,
       area: listing.area?.toFixed(2) ?? null,
+      lot_area: listing.lotArea?.toFixed(2) ?? null,
       rooms: listing.rooms,
       bathrooms: listing.bathrooms,
       parking_type: listing.parkingType,
