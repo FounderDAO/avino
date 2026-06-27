@@ -29,6 +29,11 @@ export const PROPERTY_TYPES: PropertyType[] = [
   'COMMERCIAL',
 ];
 
+export type ParkingType = 'YARD' | 'COVERED' | 'GARAGE' | 'UNDERGROUND';
+
+/** Все типы парковки (порядок — как в выпадающих списках UI). */
+export const PARKING_TYPES: ParkingType[] = ['YARD', 'COVERED', 'GARAGE', 'UNDERGROUND'];
+
 export type ListingStatus =
   | 'NEW'
   | 'ACTIVE'
@@ -92,6 +97,8 @@ export interface Listing {
   rooms?: number;
   /** Кол-во санузлов (нет у участка/коммерции). */
   bathrooms?: number;
+  /** Тип парковки/гаража. */
+  parkingType?: ParkingType;
   /** Этаж объекта. */
   floor?: number;
   /** Этажность здания. */
@@ -177,6 +184,8 @@ export interface ListingFilter {
   currency?: Currency;
   /** Мультивыбор типов жилья (Zillow Home Type). Пусто → все типы. */
   types?: PropertyType[];
+  /** Мультивыбор типов парковки (parking_type IN). */
+  parkingTypes?: ParkingType[];
   /** «N+ комнат» (rooms_min). */
   roomsMin?: number;
   /** «N+ санузлов» (bathrooms_min). */

@@ -18,10 +18,12 @@ import { getDistricts } from '@/lib/api/geo';
 import { searchListingsPage } from '@/lib/api/listings';
 import type {
   ListingFilter,
+  ParkingType,
   PropertyType,
   SortOption,
   TransactionType,
 } from '@/lib/mock/types';
+import { PARKING_TYPES } from '@/lib/mock/types';
 import { FilterBar, type FilterValues } from '@/features/search/FilterBar';
 import { SearchResults } from '@/features/search/SearchResults';
 import { alternatesFor } from '@/lib/seo/alternates';
@@ -49,7 +51,7 @@ export async function generateMetadata({
     sp.floor_min || sp.floor_max ||
     sp.total_floors_min || sp.total_floors_max ||
     sp.year_min || sp.year_max ||
-    sp.listing_source || sp.tours_enabled,
+    sp.listing_source || sp.tours_enabled || sp.parking_type,
   );
 
   // Canonical: оставляем только семантические параметры (strip sort/view/cursor/price/rooms).
@@ -162,6 +164,13 @@ export default async function SearchPage({
     PROPERTY_TYPES.includes(t as PropertyType),
   );
 
+  const rawParking = Array.isArray(sp.parking_type)
+    ? sp.parking_type
+    : sp.parking_type ? [sp.parking_type] : [];
+  const parkingTypes = rawParking.filter((p): p is ParkingType =>
+    PARKING_TYPES.includes(p as ParkingType),
+  );
+
   // Строковые диапазоны (в FilterValues остаются строками, в ListingFilter → числа).
   const areaMinRaw = first(sp.area_min);
   const areaMaxRaw = first(sp.area_max);
@@ -209,6 +218,7 @@ export default async function SearchPage({
     notLastFloor,
     toursEnabled,
     listingSource,
+    parkingTypes: parkingTypes.length > 0 ? parkingTypes : undefined,
   };
   const [page, districts] = await Promise.all([
     searchListingsPage(filter, locale),
@@ -241,6 +251,7 @@ export default async function SearchPage({
     notLastFloor,
     toursEnabled,
     listingSource,
+    parkingTypes: parkingTypes.length > 0 ? parkingTypes : undefined,
   };
 
   // Заголовок выдачи: «Покупка/Аренда жилья · <запрос|Ташкент>».

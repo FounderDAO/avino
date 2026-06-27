@@ -11,6 +11,7 @@
  * FormData как есть, браузер сам проставит boundary.
  */
 import { baseApi } from './baseApi';
+import type { ParkingType } from '@/lib/mock/types';
 
 /** Вложенный перевод объявления (язык оригинала). title обязателен. */
 export interface CreateListingTranslation {
@@ -45,6 +46,7 @@ export interface CreateListingBody {
   longitude?: string;
   tours_enabled?: boolean;
   tour_windows?: { start: string; end: string }[];
+  parking_type?: ParkingType;
 }
 
 /** Ответ 201 POST /listings. */

@@ -262,6 +262,8 @@
       "sourceOwner": "Owner",
       "sourceAgency": "Agency",
       "toursEnabled": "Accepts tour requests",
+      "parkingTypesTitle": "Parking",
+      "parkingCount": "Parking: {count}",
       "rangeFrom": "from",
       "rangeTo": "to",
       "any": "Any",
@@ -340,7 +342,8 @@
       "area": "Area",
       "floor": "Floor",
       "floorOf": "{floor} of {total}",
-      "year": "Year built"
+      "year": "Year built",
+      "parking": "Parking"
     },
     "contact": {
       "greeting": "Hello! Is this listing still available?",
@@ -517,6 +520,10 @@
       },
       "bathrooms": {
         "label": "Bathrooms"
+      },
+      "parking": {
+        "label": "Parking/garage",
+        "none": "None"
       },
       "area": {
         "label": "Area, m²",
@@ -961,6 +968,12 @@
       "NEW_BUILDING": "New building",
       "LAND": "Land",
       "COMMERCIAL": "Commercial"
+    },
+    "parking": {
+      "YARD": "Yard",
+      "COVERED": "Covered",
+      "GARAGE": "Garage",
+      "UNDERGROUND": "Underground"
     }
   },
   "breadcrumb": {

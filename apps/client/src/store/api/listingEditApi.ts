@@ -15,6 +15,7 @@
  * входят в тело PATCH.
  */
 import { baseApi } from './baseApi';
+import type { ParkingType } from '@/lib/mock/types';
 
 /** Медиа объявления (как в ListingMediaResponse / detail.media). */
 export interface EditListingMedia {
@@ -36,6 +37,7 @@ export interface EditListingDetail {
   area: string | null;
   rooms: number | null;
   bathrooms: number | null;
+  parking_type: ParkingType | null;
   floor: number | null;
   total_floors: number | null;
   year_built: number | null;
@@ -76,6 +78,7 @@ export interface UpdateListingPatch {
   };
   tours_enabled?: boolean;
   tour_windows?: { start: string; end: string }[];
+  parking_type?: ParkingType;
 }
 
 export const listingEditApi = baseApi.injectEndpoints({
