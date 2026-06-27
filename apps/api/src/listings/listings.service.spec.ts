@@ -8,6 +8,7 @@ import {
   Language,
   ListingStatus,
   MediaType,
+  ParkingType,
   Prisma,
   PromotionType,
   PropertyType,
@@ -159,6 +160,18 @@ describe('ListingsService', () => {
       expect(prisma.userRole.upsert).not.toHaveBeenCalled();
     });
 
+    it('passes parking_type through to Prisma on create', async () => {
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        parking_type: ParkingType.GARAGE,
+      } as any);
+
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.parkingType).toBe(ParkingType.GARAGE);
+    });
+
     it('auto-grants the OWNER role when the author has no seller role (first listing)', async () => {
       prisma.userRole.count.mockResolvedValue(0); // ни одной продавцовской роли
       prisma.role.findUnique.mockResolvedValue({ id: 'role-owner' });
@@ -267,6 +280,20 @@ describe('ListingsService', () => {
 
       const data = prisma.listing.update.mock.calls[0][0].data;
       expect(data.bathrooms).toBe(3);
+    });
+
+    it('passes parking_type through to Prisma on update', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, { parking_type: ParkingType.YARD } as any);
+
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.parkingType).toBe(ParkingType.YARD);
     });
 
     it('throws 403 FORBIDDEN when the listing belongs to another user', async () => {
