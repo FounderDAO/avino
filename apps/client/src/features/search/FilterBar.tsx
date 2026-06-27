@@ -17,7 +17,6 @@ import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useRouter, usePathname } from '@/i18n/navigation';
 import { Bell, List, Map as MapIcon, Settings2 } from 'lucide-react';
-import { Field } from '@/components/ui/field';
 import {
   Dropdown,
   DropdownTrigger,
@@ -35,10 +34,12 @@ import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
 import { SearchAutocomplete } from './SearchAutocomplete';
 import { useGeoSuggest, type Suggestion } from './useGeoSuggest';
 import { suggestionToLocation } from './locationParams';
+import { TriggerButton } from './TriggerButton';
 import { ActiveFilters } from './ActiveFilters';
 import { BedroomsControl } from './controls/BedroomsControl';
 import { HomeTypeMultiSelect } from './controls/HomeTypeMultiSelect';
 import { FiltersPanel, type FiltersPanelValues } from './FiltersPanel';
+import { PriceFilter } from './PriceFilter';
 import {
   type Amenity,
   type District,
@@ -139,6 +140,18 @@ export function FilterBar({ values, districts }: FilterBarProps) {
   const locale = useLocale();
   const displayCurrency = useCurrencyPreference();
   const currencySymbol = displayCurrency === 'USD' ? tSearch('filters.currencySymbolUsd') : tSearch('filters.currencySymbolUzs');
+
+  // Цена задаётся в конкретной валюте; при смене сум/$ старый ценовой рубеж
+  // становится бессмысленным (другой масштаб) — чистим priceMin/Max/currency.
+  const prevCurrencyRef = React.useRef(displayCurrency);
+  React.useEffect(() => {
+    if (prevCurrencyRef.current === displayCurrency) return;
+    prevCurrencyRef.current = displayCurrency;
+    if (values.priceMin || values.priceMax) {
+      setParams({ priceMin: undefined, priceMax: undefined, currency: undefined });
+    }
+  }, [displayCurrency, values.priceMin, values.priceMax, setParams]);
+
   const [suggestActive, setSuggestActive] = React.useState(false);
   const { items, loading } = useGeoSuggest(queryDraft, {
     enabled: suggestActive,
@@ -415,37 +428,23 @@ export function FilterBar({ values, districts }: FilterBarProps) {
             </DropdownContent>
           </Dropdown>
 
-          {/* Цена */}
-          <Dropdown>
-            <DropdownTrigger asChild>
-              <TriggerButton
-                label={priceLabel}
-                active={priceActive}
-                data-testid="filter-price"
-              />
-            </DropdownTrigger>
-            <DropdownContent align="start" className="w-[260px] p-4">
-              <div className="mb-2 text-[12.5px] font-bold text-muted-foreground">
-                {tSearch('filters.priceTitle')}{' '}{currencySymbol}
-              </div>
-              <div className="flex gap-2">
-                <Field
-                  inputMode="numeric"
-                  placeholder={`${tSearch('filters.priceFrom')} ${currencySymbol}`}
-                  defaultValue={values.priceMin ?? ''}
-                  onBlur={(e) => setParams({ priceMin: e.target.value.trim() })}
-                  className="py-2.5"
-                />
-                <Field
-                  inputMode="numeric"
-                  placeholder={`${tSearch('filters.priceTo')} ${currencySymbol}`}
-                  defaultValue={values.priceMax ?? ''}
-                  onBlur={(e) => setParams({ priceMax: e.target.value.trim() })}
-                  className="py-2.5"
-                />
-              </div>
-            </DropdownContent>
-          </Dropdown>
+          {/* Цена — Zillow-вид (Popover + гистограмма + слайдер) */}
+          <PriceFilter
+            value={{ priceMin: values.priceMin, priceMax: values.priceMax }}
+            tx={values.tx}
+            displayCurrency={displayCurrency}
+            currencySymbol={currencySymbol}
+            triggerLabel={priceLabel}
+            active={priceActive}
+            onApply={(min, max, currency) =>
+              setParams({
+                priceMin: min,
+                priceMax: max,
+                currency: min != null || max != null ? currency : undefined,
+              })
+            }
+            onReset={() => setParams({ priceMin: undefined, priceMax: undefined, currency: undefined })}
+          />
 
           {/* Комнаты — BedroomsControl */}
           <Dropdown>
@@ -604,30 +603,6 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     </div>
   );
 }
-
-/** Кнопка-триггер дропдауна (pill в стиле прототипа). */
-const TriggerButton = React.forwardRef<
-  HTMLButtonElement,
-  { label: string; active?: boolean; icon?: React.ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ label, active, icon, ...props }, ref) => (
-  <button
-    ref={ref}
-    type="button"
-    className={cn(
-      'inline-flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-pill border-[1.5px] px-4 py-[9px] text-sm font-semibold text-ink transition-colors',
-      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
-      active ? 'border-teal bg-mint' : 'border-border bg-surface hover:border-ink',
-    )}
-    {...props}
-  >
-    {icon}
-    {label}
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  </button>
-));
-TriggerButton.displayName = 'TriggerButton';
 
 /** Кнопка переключателя вида (список/карта). */
 function ViewToggleButton({

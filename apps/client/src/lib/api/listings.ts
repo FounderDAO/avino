@@ -388,6 +388,11 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   if (filter.districtId) params.set('district_id', filter.districtId);
   if (filter.priceMin != null) params.set('price_min', String(filter.priceMin));
   if (filter.priceMax != null) params.set('price_max', String(filter.priceMax));
+  // Валюта ценового диапазона — только когда задан хотя бы один рубеж (зеркало
+  // searchApi.filterParams; без рубежа валюта исключила бы объявления зря).
+  if (filter.currency && (filter.priceMin != null || filter.priceMax != null)) {
+    params.set('currency', filter.currency);
+  }
   if (filter.rooms != null) params.set('rooms', String(filter.rooms));
   if (filter.query) params.set('q', filter.query);
   const sort = toApiSort(filter.sort);

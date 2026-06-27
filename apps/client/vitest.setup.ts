@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
+// Radix UI Slider использует ResizeObserver внутри react-use-size; jsdom его не предоставляет.
+globalThis.ResizeObserver ||= class { observe(){} unobserve(){} disconnect(){} };
+
 // RTL's waitFor checks `typeof jest !== 'undefined'` and calls `jest.advanceTimersByTime`.
 // Vitest doesn't expose a global `jest` in the module scope of node_modules, so we
 // inject it here so RTL takes the fake-timers branch when vi.useFakeTimers() is active.
