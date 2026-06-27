@@ -416,6 +416,7 @@ model Listing {
   price              Decimal                                @db.Decimal(14, 2)
   currency           Currency
   area               Decimal?                               @db.Decimal(10, 2)
+  lotArea            Decimal?                               @map("lot_area") @db.Decimal(10, 2)
   rooms              Int?                                   @db.SmallInt
   bathrooms          Int?                                   @db.SmallInt
   parkingType        ParkingType?                           @map("parking_type")
