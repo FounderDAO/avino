@@ -33,6 +33,7 @@ export interface CreateListingBody {
   // Опциональные:
   area?: string;
   rooms?: number;
+  bathrooms?: number;
   floor?: number;
   total_floors?: number;
   year_built?: number;

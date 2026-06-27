@@ -23,6 +23,7 @@ const searchItem: ApiSearchItem = {
   price: '500000000',
   currency: 'UZS',
   rooms: 2,
+  bathrooms: null,
   city_id: 'c1',
   district_id: 'uuid-district',
   district_name: 'Юнусабадский',
