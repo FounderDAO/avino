@@ -16,6 +16,7 @@ import type {
   Currency,
   Listing,
   ListingStatus,
+  ParkingType,
   PromotionType,
   PropertyType,
   TransactionType,
@@ -31,6 +32,7 @@ interface FavoriteSearchItem {
   currency: Currency;
   rooms: number | null;
   bathrooms: number | null;
+  parking_type: ParkingType | null;
   city_id: string | null;
   district_id: string | null;
   district_name: string | null;
