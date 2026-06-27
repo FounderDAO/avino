@@ -159,6 +159,9 @@ export default async function SearchPage({
   const priceMaxRaw = first(sp.priceMax);
   const priceMin = priceMinRaw && Number.isFinite(Number(priceMinRaw)) ? Number(priceMinRaw) : undefined;
   const priceMax = priceMaxRaw && Number.isFinite(Number(priceMaxRaw)) ? Number(priceMaxRaw) : undefined;
+  const currencyRaw = first(sp.currency);
+  const currency: 'UZS' | 'USD' | undefined =
+    currencyRaw === 'USD' || currencyRaw === 'UZS' ? currencyRaw : undefined;
 
   // Мультивыбор типов жилья (?type= может повторяться).
   const rawTypes = Array.isArray(sp.type) ? sp.type : sp.type ? [sp.type] : [];
@@ -215,6 +218,7 @@ export default async function SearchPage({
     bathroomsMin,
     priceMin,
     priceMax,
+    currency,
     query,
     sort,
     areaMin: toNum(areaMinRaw),
