@@ -4796,3 +4796,46 @@ Related ADR:
 Related spec/plan:
 - docs/superpowers/specs/2026-06-27-zillow-filters-phase2-parking-design.md
 - docs/superpowers/plans/2026-06-27-zillow-filters-phase2-parking.md
+
+## 2026-06-27
+
+### Zillow-фильтры Фаза 2 — Площадь участка (API)
+
+Status: DONE
+Branch: feat/listing-lot-area-api
+PR: #247
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260627100000_add_listing_lot_area/migration.sql
+- apps/api/src/listings/dto/create-listing.dto.ts
+- apps/api/src/listings/dto/update-listing.dto.ts
+- apps/api/src/listings/listings.service.ts (+ .spec.ts)
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/search/search.service.ts (+ .int-spec.ts)
+- apps/api/openapi.public.json, apps/api/openapi.internal.json
+
+Summary:
+- Новая колонка `listings.lot_area DECIMAL(10,2)` (соток, nullable, без бэкфилла) —
+  третий 🔴-фильтр из §D Фазы 1. Аддитивно: существующий `area`/landArea не тронут.
+- Create/Update DTO принимают `lot_area` (строка-Decimal); detail/list-ответы и поиск отдают.
+- Фильтр-диапазон `lot_area_min`/`lot_area_max` (`lot_area >= / <= ::numeric`), зеркало
+  `area_min/max`; в `SearchListingsQueryDto`, наследуется всеми гео-DTO.
+- Единицы — соток; визард — HOUSE+LAND, опционально (ADR-0110). Фильтр UI = RangeFields.
+- optional/non-breaking; openapi регенерирован.
+
+Прод-TODO (после мёржа):
+- `migrate deploy` миграции 20260627100000 на staging/CI ДО выкладки кода.
+
+Commit messages:
+- feat(listings): add lot_area column + migration
+- feat(listings): accept and return lot_area
+- feat(search): add lot_area_min/max filter
+- docs(api): regen openapi for lot_area
+
+Related ADR:
+- docs/adr/ADR-0110-listing-lot-area.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-06-27-zillow-filters-phase2-lot-area-design.md
+- docs/superpowers/plans/2026-06-27-zillow-filters-phase2-lot-area.md

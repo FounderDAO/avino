@@ -46,6 +46,7 @@ export interface SearchListItem {
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
+  lot_area: string | null;
   city_id: string | null;
   district_id: string | null;
   latitude: string | null;
@@ -194,6 +195,7 @@ const SEARCH_SELECT = {
   rooms: true,
   bathrooms: true,
   parkingType: true,
+  lotArea: true,
   cityId: true,
   districtId: true,
   latitude: true,
@@ -784,6 +786,12 @@ export class SearchService {
     if (query.area_max !== undefined)
       conds.push(Prisma.sql`area <= ${query.area_max}::numeric`);
 
+    // Zillow Phase 2: диапазон площади участка (соток)
+    if (query.lot_area_min !== undefined)
+      conds.push(Prisma.sql`lot_area >= ${query.lot_area_min}::numeric`);
+    if (query.lot_area_max !== undefined)
+      conds.push(Prisma.sql`lot_area <= ${query.lot_area_max}::numeric`);
+
     // Zillow Phase 1: этаж
     if (query.floor_min !== undefined)
       conds.push(Prisma.sql`floor >= ${query.floor_min}`);
@@ -899,6 +907,7 @@ export class SearchService {
       rooms: listing.rooms,
       bathrooms: listing.bathrooms,
       parking_type: listing.parkingType,
+      lot_area: listing.lotArea?.toFixed(2) ?? null,
       city_id: listing.cityId,
       district_id: listing.districtId,
       latitude: listing.latitude?.toFixed(6) ?? null,

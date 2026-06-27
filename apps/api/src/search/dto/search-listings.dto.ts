@@ -207,6 +207,10 @@ export class SearchListingsQueryDto {
   @Min(0)
   area_max?: number;
 
+  /** Площадь участка, соток (Zillow Phase 2). */
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) lot_area_min?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) lot_area_max?: number;
+
   /** Фильтр по типу промо. Пока игнорируется. */
   @IsOptional()
   @IsEnum(PromotionType)

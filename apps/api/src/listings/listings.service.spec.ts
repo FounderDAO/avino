@@ -172,6 +172,18 @@ describe('ListingsService', () => {
       expect(data.parkingType).toBe(ParkingType.GARAGE);
     });
 
+    it('passes lot_area through to Prisma on create', async () => {
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        lot_area: '5.50',
+      } as any);
+
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.lotArea).toBe('5.50');
+    });
+
     it('auto-grants the OWNER role when the author has no seller role (first listing)', async () => {
       prisma.userRole.count.mockResolvedValue(0); // ни одной продавцовской роли
       prisma.role.findUnique.mockResolvedValue({ id: 'role-owner' });
@@ -294,6 +306,20 @@ describe('ListingsService', () => {
 
       const data = prisma.listing.update.mock.calls[0][0].data;
       expect(data.parkingType).toBe(ParkingType.YARD);
+    });
+
+    it('passes lot_area through to Prisma on update', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, { lot_area: '7.00' } as any);
+
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.lotArea).toBe('7.00');
     });
 
     it('throws 403 FORBIDDEN when the listing belongs to another user', async () => {
@@ -634,6 +660,7 @@ describe('ListingsService', () => {
         price: '4500000.00',
         currency: Currency.UZS,
         area: '62.50',
+        lot_area: null,
         rooms: 2,
         city_id: 'c1',
         district_id: 'd1',

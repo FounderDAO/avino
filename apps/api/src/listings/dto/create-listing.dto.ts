@@ -103,6 +103,10 @@ export class CreateListingDto {
   area?: string;
 
   @IsOptional()
+  @Matches(DECIMAL_2, { message: 'lot_area must be a decimal string with up to 2 fraction digits' })
+  lot_area?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(0)
   @Max(SMALLINT_MAX)
