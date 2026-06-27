@@ -4,7 +4,7 @@
  */
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { Bed, Bath, Ruler, Layers, CalendarDays, SquareParking, type LucideIcon } from 'lucide-react';
+import { Bed, Bath, Ruler, Layers, CalendarDays, SquareParking, Trees, type LucideIcon } from 'lucide-react';
 import { formatArea } from '@/lib/format';
 import type { Listing } from '@/lib/mock/types';
 
@@ -58,6 +58,9 @@ export function Facts({ listing, className }: FactsProps) {
   }
   if (listing.parkingType) {
     items.push(<Fact key="parking" icon={SquareParking} label={t('facts.parking')} value={tEnums(`parking.${listing.parkingType}`)} />);
+  }
+  if (listing.lotArea) {
+    items.push(<Fact key="lotArea" icon={Trees} label={t('facts.lotArea')} value={tUnits('lotArea', { value: listing.lotArea })} />);
   }
 
   if (items.length === 0) return null;
