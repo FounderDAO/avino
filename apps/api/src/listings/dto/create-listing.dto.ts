@@ -111,6 +111,12 @@ export class CreateListingDto {
   @IsInt()
   @Min(0)
   @Max(SMALLINT_MAX)
+  bathrooms?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(SMALLINT_MAX)
   floor?: number;
 
   @IsOptional()

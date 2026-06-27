@@ -470,6 +470,95 @@ describe('SearchService sort + rooms (integration, TASK-207)', () => {
 });
 
 /**
+ * Integration-тесты bathrooms_min фильтра SearchService (Zillow Phase 2).
+ * Проверяет: bathrooms >= N фильтрует корректно, NULL bathrooms исключается.
+ *
+ * Изоляция — уникальный `CITY_ID_BATHS`; данные удаляются в afterAll.
+ */
+describe('SearchService bathrooms_min filter (integration, Zillow Phase 2)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY_ID_BATHS = '44444444-5555-4444-8777-000000000BAT';
+
+  // Фиксированные UUIDs для детерминированных проверок.
+  const ID = {
+    baths1: 'aaaaaaaa-0001-4000-8000-0000000BAT01', // bathrooms=1
+    baths2: 'bbbbbbbb-0001-4000-8000-0000000BAT02', // bathrooms=2
+    baths3: 'cccccccc-0001-4000-8000-0000000BAT03', // bathrooms=3
+    bathsNull: 'dddddddd-0001-4000-8000-0000000BAT04', // bathrooms=null
+  };
+
+  let ownerId: string;
+
+  async function createListing(params: {
+    id: string;
+    bathrooms: number | null;
+  }): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id: params.id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: '100000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_BATHS,
+        bathrooms: params.bathrooms,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `baths-${params.id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_BATHS } });
+
+    const owner = await prisma.user.create({
+      data: { phone: '+998900000BAT' },
+    });
+    ownerId = owner.id;
+
+    await createListing({ id: ID.baths1, bathrooms: 1 });
+    await createListing({ id: ID.baths2, bathrooms: 2 });
+    await createListing({ id: ID.baths3, bathrooms: 3 });
+    await createListing({ id: ID.bathsNull, bathrooms: null });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_BATHS } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('bathrooms_min фильтрует bathrooms >= N, NULL исключает', async () => {
+    const res = await service.search({ city_id: CITY_ID_BATHS, bathrooms_min: 2, limit: 100 } as any);
+    const ids = res.data.map((l) => l.id);
+    expect(ids).toContain(ID.baths2);
+    expect(ids).toContain(ID.baths3);
+    expect(ids).not.toContain(ID.baths1);
+    expect(ids).not.toContain(ID.bathsNull);
+  });
+});
+
+/**
  * Integration-тесты свободнотекстового поиска `q` (TASK-208, ADR-0067).
  * Проверяет ILIKE-подстрочный поиск (pg_trgm) по title/description/address,
  * любой язык, case-insensitive, LIKE-экранирование `%`, пересечение с другими

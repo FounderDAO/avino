@@ -733,6 +733,15 @@
             }
           },
           {
+            "name": "bathrooms_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
             "name": "floor_min",
             "required": false,
             "in": "query",
@@ -952,6 +961,15 @@
           },
           {
             "name": "rooms_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "bathrooms_min",
             "required": false,
             "in": "query",
             "schema": {
@@ -1209,6 +1227,15 @@
           },
           {
             "name": "rooms_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "bathrooms_min",
             "required": false,
             "in": "query",
             "schema": {
@@ -1484,6 +1511,15 @@
             }
           },
           {
+            "name": "bathrooms_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
             "name": "floor_min",
             "required": false,
             "in": "query",
@@ -1723,6 +1759,15 @@
           },
           {
             "name": "rooms_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "bathrooms_min",
             "required": false,
             "in": "query",
             "schema": {
@@ -2669,6 +2714,11 @@
             "minimum": 0,
             "maximum": 32767
           },
+          "bathrooms": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 32767
+          },
           "floor": {
             "type": "number",
             "minimum": 0,
@@ -2764,6 +2814,11 @@
             "pattern": "DECIMAL_2"
           },
           "rooms": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 32767
+          },
+          "bathrooms": {
             "type": "number",
             "minimum": 0,
             "maximum": 32767

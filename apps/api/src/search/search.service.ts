@@ -43,6 +43,7 @@ export interface SearchListItem {
   price: string;
   currency: Currency;
   rooms: number | null;
+  bathrooms: number | null;
   city_id: string | null;
   district_id: string | null;
   latitude: string | null;
@@ -189,6 +190,7 @@ const SEARCH_SELECT = {
   price: true,
   currency: true,
   rooms: true,
+  bathrooms: true,
   cityId: true,
   districtId: true,
   latitude: true,
@@ -763,6 +765,10 @@ export class SearchService {
     if (query.rooms_min !== undefined)
       conds.push(Prisma.sql`rooms >= ${query.rooms_min}`);
 
+    // Zillow Phase 2: «N+ санузлов»
+    if (query.bathrooms_min !== undefined)
+      conds.push(Prisma.sql`bathrooms >= ${query.bathrooms_min}`);
+
     // Zillow Phase 1: диапазон площади (м²)
     if (query.area_min !== undefined)
       conds.push(Prisma.sql`area >= ${query.area_min}::numeric`);
@@ -882,6 +888,7 @@ export class SearchService {
       price: listing.price.toFixed(2),
       currency: listing.currency,
       rooms: listing.rooms,
+      bathrooms: listing.bathrooms,
       city_id: listing.cityId,
       district_id: listing.districtId,
       latitude: listing.latitude?.toFixed(6) ?? null,

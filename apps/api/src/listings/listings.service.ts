@@ -52,6 +52,7 @@ interface ListingScalarInput {
   currency?: Currency;
   area?: string;
   rooms?: number;
+  bathrooms?: number;
   floor?: number;
   total_floors?: number;
   year_built?: number;
@@ -85,6 +86,7 @@ interface ListingScalarData {
   currency?: Currency;
   area?: string;
   rooms?: number;
+  bathrooms?: number;
   floor?: number;
   totalFloors?: number;
   yearBuilt?: number;
@@ -174,6 +176,7 @@ export interface ListingDetailResponse {
   currency: Currency;
   area: string | null;
   rooms: number | null;
+  bathrooms: number | null;
   floor: number | null;
   total_floors: number | null;
   year_built: number | null;
@@ -231,6 +234,7 @@ const LISTING_DETAIL_SELECT = {
   currency: true,
   area: true,
   rooms: true,
+  bathrooms: true,
   floor: true,
   totalFloors: true,
   yearBuilt: true,
@@ -287,6 +291,7 @@ export interface ListingListItem {
   currency: Currency;
   area: string | null;
   rooms: number | null;
+  bathrooms: number | null;
   city_id: string | null;
   district_id: string | null;
   promotion_type: PromotionType;
@@ -317,6 +322,7 @@ const LISTING_LIST_SELECT = {
   currency: true,
   area: true,
   rooms: true,
+  bathrooms: true,
   cityId: true,
   districtId: true,
   promotionType: true,
@@ -740,6 +746,7 @@ export class ListingsService {
     if (dto.currency !== undefined) data.currency = dto.currency;
     if (dto.area !== undefined) data.area = dto.area;
     if (dto.rooms !== undefined) data.rooms = dto.rooms;
+    if (dto.bathrooms !== undefined) data.bathrooms = dto.bathrooms;
     if (dto.floor !== undefined) data.floor = dto.floor;
     if (dto.total_floors !== undefined) data.totalFloors = dto.total_floors;
     if (dto.year_built !== undefined) data.yearBuilt = dto.year_built;
@@ -822,6 +829,7 @@ export class ListingsService {
       currency: listing.currency,
       area: listing.area?.toFixed(2) ?? null,
       rooms: listing.rooms,
+      bathrooms: listing.bathrooms,
       city_id: listing.cityId,
       district_id: listing.districtId,
       promotion_type: listing.promotionType,
@@ -892,6 +900,7 @@ export class ListingsService {
       currency: listing.currency,
       area: listing.area?.toFixed(2) ?? null,
       rooms: listing.rooms,
+      bathrooms: listing.bathrooms,
       floor: listing.floor,
       total_floors: listing.totalFloors,
       year_built: listing.yearBuilt,

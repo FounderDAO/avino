@@ -158,6 +158,13 @@ export class SearchListingsQueryDto {
   @Min(0)
   rooms_min?: number;
 
+  /** «N+ санузлов» (bathrooms >= N) — кнопки 1+/2+/3+/4+. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  bathrooms_min?: number;
+
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_min?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_max?: number;
   @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() not_first_floor?: boolean;
