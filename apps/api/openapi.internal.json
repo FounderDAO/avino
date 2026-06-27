@@ -880,6 +880,24 @@
             }
           },
           {
+            "name": "lot_area_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lot_area_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
             "name": "cursor",
             "required": false,
             "in": "query",
@@ -1108,6 +1126,24 @@
           },
           {
             "name": "area_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lot_area_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lot_area_max",
             "required": false,
             "in": "query",
             "schema": {
@@ -1374,6 +1410,24 @@
           },
           {
             "name": "area_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lot_area_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lot_area_max",
             "required": false,
             "in": "query",
             "schema": {
@@ -1658,6 +1712,24 @@
             }
           },
           {
+            "name": "lot_area_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lot_area_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
             "name": "cursor",
             "required": false,
             "in": "query",
@@ -1906,6 +1978,24 @@
           },
           {
             "name": "area_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lot_area_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lot_area_max",
             "required": false,
             "in": "query",
             "schema": {
@@ -4186,6 +4276,10 @@
             "type": "string",
             "pattern": "DECIMAL_2"
           },
+          "lot_area": {
+            "type": "string",
+            "pattern": "DECIMAL_2"
+          },
           "rooms": {
             "type": "number",
             "minimum": 0,
@@ -4290,6 +4384,10 @@
             "type": "object"
           },
           "area": {
+            "type": "string",
+            "pattern": "DECIMAL_2"
+          },
+          "lot_area": {
             "type": "string",
             "pattern": "DECIMAL_2"
           },
