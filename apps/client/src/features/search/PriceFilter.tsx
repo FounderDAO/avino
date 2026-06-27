@@ -154,7 +154,7 @@ function PriceFilterBody({
             <button
               type="button"
               onClick={apply}
-              className="flex-1 rounded-pill bg-teal px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-teal/90"
+              className="flex-1 rounded-pill bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary/90"
             >
               {t('apply')}
             </button>

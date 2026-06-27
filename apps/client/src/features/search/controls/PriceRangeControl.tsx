@@ -39,7 +39,8 @@ export function PriceRangeControl({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Гистограмма: столбик внутри выбранного диапазона — бренд-красный, вне — приглушённый */}
+      {/* Гистограмма + слайдер поверх основания столбиков (Zillow-overlay) */}
+      <div className="relative mb-3">
       <div className="flex h-16 items-end gap-px" aria-hidden>
         {buckets.length === 0 ? (
           <div className="h-px w-full self-end bg-border" />
@@ -58,9 +59,9 @@ export function PriceRangeControl({
         )}
       </div>
 
-      {/* Слайдер с двумя ручками поверх базовой линии гистограммы */}
+      {/* Слайдер поверх основания столбиков */}
       <RadixSlider.Root
-        className="relative flex h-5 w-full touch-none select-none items-center"
+        className="absolute inset-x-0 bottom-0 flex h-5 translate-y-1/2 touch-none select-none items-center"
         min={domain.min}
         max={domain.max}
         step={step}
@@ -85,6 +86,7 @@ export function PriceRangeControl({
           className="block h-5 w-5 rounded-full border-2 border-primary bg-surface shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </RadixSlider.Root>
+      </div>
 
       {/* Подписи краёв домена ($0 — $1M+) */}
       <div className="flex justify-between text-[13px] font-semibold text-ink">
