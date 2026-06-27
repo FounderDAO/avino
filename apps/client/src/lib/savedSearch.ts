@@ -12,7 +12,7 @@
  *    неймспейса, ключи `savedSearch.*` и `enums.propertyType.*`),
  *  - filtersToSearchHref → ссылка `/search?...` для перехода в выдачу.
  */
-import { PROPERTY_TYPES, type PropertyType } from '@/lib/mock/types';
+import { PARKING_TYPES, PROPERTY_TYPES, type ParkingType, type PropertyType } from '@/lib/mock/types';
 import type { T } from '@/lib/format';
 
 /** Внутренний объект фильтров (произвольные ключи API.md §12). */
@@ -104,6 +104,9 @@ export function describeFilters(filters: SavedSearchFilters, t: T): string {
 
   if (filters.tours_enabled) parts.push(t('search.filters.toursEnabled'));
 
+  const parking = Array.isArray(filters.parking_types) ? (filters.parking_types as string[]) : [];
+  if (parking.length) parts.push(t('search.filters.parkingTypesTitle'));
+
   const q = asString(filters.q);
   if (q) parts.push(`«${q}»`);
 
@@ -144,6 +147,11 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   if (filters.not_last_floor) params.set('not_last_floor', 'true');
   set('listing_source', asString(filters.listing_source));
   if (filters.tours_enabled) params.set('tours_enabled', 'true');
+  if (Array.isArray(filters.parking_types)) {
+    for (const p of filters.parking_types as string[]) {
+      if (PARKING_TYPES.includes(p as ParkingType)) params.append('parking_type', p);
+    }
+  }
   set('query', asString(filters.q));
 
   // `points` (нарисованная территория) намеренно НЕ мапим в URL: по клику территорию
