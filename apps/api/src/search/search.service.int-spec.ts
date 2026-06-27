@@ -1161,3 +1161,101 @@ describe('SearchService parking_type filter (integration, Zillow Phase 2)', () =
     expect(nullCard!.parking_type).toBeNull();
   });
 });
+
+/**
+ * Integration-тесты lot_area_min/lot_area_max фильтра SearchService (Zillow Phase 2).
+ * Проверяет: lot_area >= / <= диапазон фильтрует корректно, NULL исключается.
+ *
+ * Изоляция — уникальный `CITY_ID_LOT`; данные удаляются в afterAll.
+ */
+describe('SearchService lot_area_min/max filter (integration, Zillow Phase 2)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY_ID_LOT = '66666666-7777-4666-8999-00000000L001';
+
+  const ID = {
+    lot3: 'aaaaaaaa-0001-4000-8000-00000000L301',   // lotArea=3.00
+    lot6: 'bbbbbbbb-0001-4000-8000-00000000L601',   // lotArea=6.00
+    lot12: 'cccccccc-0001-4000-8000-00000000L121',  // lotArea=12.00
+    lotNull: 'dddddddd-0001-4000-8000-00000000LN01', // lotArea=null
+  };
+
+  let ownerId: string;
+
+  async function createListing(params: {
+    id: string;
+    lotArea: string | null;
+  }): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id: params.id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.LAND,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: '100000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_LOT,
+        lotArea: params.lotArea,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `lot-${params.id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_LOT } });
+
+    const owner = await prisma.user.create({
+      data: { phone: '+998900000L01' },
+    });
+    ownerId = owner.id;
+
+    await createListing({ id: ID.lot3, lotArea: '3.00' });
+    await createListing({ id: ID.lot6, lotArea: '6.00' });
+    await createListing({ id: ID.lot12, lotArea: '12.00' });
+    await createListing({ id: ID.lotNull, lotArea: null });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_LOT } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('lot_area_min/max фильтрует диапазон, NULL исключает', async () => {
+    const res = await service.search({ city_id: CITY_ID_LOT, lot_area_min: 5, lot_area_max: 10, limit: 100 } as any);
+    const ids = res.data.map((l) => l.id);
+    expect(ids).toContain(ID.lot6);
+    expect(ids).not.toContain(ID.lot3);
+    expect(ids).not.toContain(ID.lot12);
+    expect(ids).not.toContain(ID.lotNull);
+  });
+
+  it('результат содержит поле lot_area', async () => {
+    const res = await service.search({ city_id: CITY_ID_LOT, limit: 100 } as any);
+    const card6 = res.data.find((l) => l.id === ID.lot6);
+    expect(card6).toBeDefined();
+    expect(card6!.lot_area).toBe('6.00');
+    const cardNull = res.data.find((l) => l.id === ID.lotNull);
+    expect(cardNull).toBeDefined();
+    expect(cardNull!.lot_area).toBeNull();
+  });
+});
