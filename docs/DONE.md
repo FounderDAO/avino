@@ -4709,3 +4709,46 @@ Related spec/plan:
 
 Related ADR:
 - docs/adr/ADR-0103-admin-broadcast.md
+
+## 2026-06-27
+
+### Zillow-фильтры Фаза 2 — Санузлы (API)
+
+Status: DONE
+Branch: feat/listing-bathrooms-api
+PR: #241
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260627000000_add_listing_bathrooms/migration.sql
+- apps/api/src/listings/dto/create-listing.dto.ts
+- apps/api/src/listings/dto/update-listing.dto.ts
+- apps/api/src/listings/listings.service.ts (+ .spec.ts)
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/search/search.service.ts (+ .int-spec.ts)
+- apps/api/openapi.public.json, apps/api/openapi.internal.json
+
+Summary:
+- Новая колонка `listings.bathrooms SmallInt` (nullable, без бэкфилла) — первый 🔴-фильтр
+  из дорожной карты Фазы 1. Поле зеркалит `rooms` на всех слоях.
+- Create/Update DTO принимают `bathrooms`; detail/list-ответы и поиск его отдают.
+- Фильтр `bathrooms_min` (`bathrooms >= N`, только «N+») в `SearchListingsQueryDto` —
+  наследуется всеми гео-DTO, покрыт `/search` и `/map`.
+- Модель — целочисленный count (Zillow), не enum типа санузла (ADR-0108).
+- optional/non-breaking; openapi регенерирован в том же PR.
+
+Прод-TODO (после мёржа):
+- `migrate deploy` миграции 20260627000000 на staging/CI.
+
+Commit messages:
+- feat(listings): add bathrooms column + migration
+- feat(listings): accept and return bathrooms
+- feat(search): add bathrooms_min filter
+- docs(api): regen openapi for bathrooms_min
+
+Related ADR:
+- docs/adr/ADR-0108-listing-bathrooms-count.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-06-27-zillow-filters-phase2-bathrooms-design.md
+- docs/superpowers/plans/2026-06-27-zillow-filters-phase2-bathrooms.md
