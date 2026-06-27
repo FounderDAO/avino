@@ -1,4 +1,5 @@
 import { Controller, Get, Headers, Query } from '@nestjs/common';
+import { ApiOkResponse } from '@nestjs/swagger';
 import {
   BoundsSearchQueryDto,
   NearMeSearchQueryDto,
@@ -6,6 +7,10 @@ import {
   RadiusSearchQueryDto,
 } from './dto/geo-search.dto';
 import { SearchListingsQueryDto } from './dto/search-listings.dto';
+import {
+  PriceDistributionQueryDto,
+  PriceDistributionResponseDto,
+} from './dto/price-distribution.dto';
 import {
   CursorPaginatedResponse,
   SearchListItem,
@@ -73,6 +78,19 @@ export class SearchController {
     @Headers('accept-language') acceptLanguage?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     return this.searchService.searchNearMe(query, lang, acceptLanguage);
+  }
+
+  /**
+   * `GET /api/v1/search/price-distribution` — гистограмма распределения цены
+   * для слайдера фильтра (Zillow-вид). Глобально по (currency, transaction_type),
+   * только видимые ACTIVE-объявления. Auth: public.
+   */
+  @Get('price-distribution')
+  @ApiOkResponse({ type: PriceDistributionResponseDto })
+  priceDistribution(
+    @Query() query: PriceDistributionQueryDto,
+  ): Promise<PriceDistributionResponseDto> {
+    return this.searchService.priceDistribution(query);
   }
 
   /**

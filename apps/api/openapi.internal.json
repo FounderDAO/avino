@@ -1791,6 +1791,49 @@
         }
       }
     },
+    "/api/v1/search/price-distribution": {
+      "get": {
+        "operationId": "SearchController_priceDistribution",
+        "parameters": [
+          {
+            "name": "currency",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "UZS",
+                "USD"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "transaction_type",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "SALE",
+                "RENT"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceDistributionResponseDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/search/polygon": {
       "get": {
         "operationId": "SearchController_searchPolygon",
@@ -4493,6 +4536,73 @@
         },
         "required": [
           "order"
+        ]
+      },
+      "PriceBucketDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "number",
+            "description": "Нижняя граница бакета (включительно)"
+          },
+          "to": {
+            "type": "number",
+            "description": "Верхняя граница бакета (исключительно)"
+          },
+          "count": {
+            "type": "number",
+            "description": "Число объявлений в бакете"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "count"
+        ]
+      },
+      "PriceDistributionResponseDto": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "enum": [
+              "UZS",
+              "USD"
+            ]
+          },
+          "transaction_type": {
+            "type": "string",
+            "enum": [
+              "SALE",
+              "RENT"
+            ]
+          },
+          "min": {
+            "type": "number",
+            "description": "Нижняя граница домена (всегда 0)"
+          },
+          "max": {
+            "type": "number",
+            "description": "Верхняя граница домена (округлённый p99-потолок)"
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceBucketDto"
+            }
+          },
+          "overflow_count": {
+            "type": "number",
+            "description": "Число объявлений строго дороже max"
+          }
+        },
+        "required": [
+          "currency",
+          "transaction_type",
+          "min",
+          "max",
+          "buckets",
+          "overflow_count"
         ]
       },
       "PublicSettingsView": {
