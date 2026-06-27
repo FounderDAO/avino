@@ -16,6 +16,7 @@ import {
 } from 'class-validator';
 import {
   Currency,
+  ParkingType,
   PromotionType,
   PropertyType,
   TransactionType,
@@ -164,6 +165,13 @@ export class SearchListingsQueryDto {
   @IsInt()
   @Min(0)
   bathrooms_min?: number;
+
+  /** Тип парковки — мультивыбор (IN), Zillow Phase 2. NULL-листинги исключаются. */
+  @IsOptional()
+  @Transform(toArray)
+  @IsArray()
+  @IsEnum(ParkingType, { each: true })
+  parking_type?: ParkingType[];
 
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_min?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_max?: number;

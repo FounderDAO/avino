@@ -2719,6 +2719,9 @@
             "minimum": 0,
             "maximum": 32767
           },
+          "parking_type": {
+            "type": "object"
+          },
           "floor": {
             "type": "number",
             "minimum": 0,
@@ -2822,6 +2825,9 @@
             "type": "number",
             "minimum": 0,
             "maximum": 32767
+          },
+          "parking_type": {
+            "type": "object"
           },
           "floor": {
             "type": "number",

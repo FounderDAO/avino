@@ -20,6 +20,7 @@ import {
 import {
   Currency,
   Language,
+  ParkingType,
   PropertyType,
   TransactionType,
 } from '@prisma/client';
@@ -112,6 +113,10 @@ export class CreateListingDto {
   @Min(0)
   @Max(SMALLINT_MAX)
   bathrooms?: number;
+
+  @IsOptional()
+  @IsEnum(ParkingType)
+  parking_type?: ParkingType;
 
   @IsOptional()
   @IsInt()

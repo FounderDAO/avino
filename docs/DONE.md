@@ -4752,3 +4752,47 @@ Related ADR:
 Related spec/plan:
 - docs/superpowers/specs/2026-06-27-zillow-filters-phase2-bathrooms-design.md
 - docs/superpowers/plans/2026-06-27-zillow-filters-phase2-bathrooms.md
+
+## 2026-06-27
+
+### Zillow-фильтры Фаза 2 — Парковка/гараж (API)
+
+Status: DONE
+Branch: feat/listing-parking-api
+PR: #244
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260627090000_add_listing_parking_type/migration.sql
+- apps/api/src/listings/dto/create-listing.dto.ts
+- apps/api/src/listings/dto/update-listing.dto.ts
+- apps/api/src/listings/listings.service.ts (+ .spec.ts)
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/search/search.service.ts (+ .int-spec.ts)
+- apps/api/openapi.public.json, apps/api/openapi.internal.json
+
+Summary:
+- Enum `ParkingType { YARD, COVERED, GARAGE, UNDERGROUND }` + колонка
+  `listings.parking_type` (nullable, без бэкфилла) — второй 🔴-фильтр из §D Фазы 1.
+- Create/Update DTO принимают `parking_type`; detail/list-ответы и поиск его отдают.
+- Фильтр `parking_type` — мультивыбор (`parking_type::text IN (...)`), зеркало
+  `property_type`; в `SearchListingsQueryDto`, наследуется всеми гео-DTO.
+- Модель — enum (не boolean), без NONE, nullable, «Нет» = null (ADR-0109).
+- optional/non-breaking; openapi регенерирован.
+
+Прод-TODO (после мёржа):
+- `migrate deploy` миграции 20260627090000 на staging/CI ДО выкладки кода
+  (код селектит parking_type).
+
+Commit messages:
+- feat(listings): add parking_type enum + column + migration
+- feat(listings): accept and return parking_type
+- feat(search): add parking_type multi-select filter
+- docs(api): regen openapi for parking_type
+
+Related ADR:
+- docs/adr/ADR-0109-listing-parking-type.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-06-27-zillow-filters-phase2-parking-design.md
+- docs/superpowers/plans/2026-06-27-zillow-filters-phase2-parking.md
