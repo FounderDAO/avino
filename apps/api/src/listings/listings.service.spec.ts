@@ -53,6 +53,7 @@ describe('ListingsService', () => {
     currency: Currency.UZS,
     area: '62.50',
     rooms: 2,
+    bathrooms: 2,
     translation: { title: '2-комн квартира', description: 'Светлая' },
   };
 
@@ -131,6 +132,7 @@ describe('ListingsService', () => {
             currency: Currency.UZS,
             area: '62.50',
             rooms: 2,
+            bathrooms: 2,
             translations: {
               create: expect.objectContaining({
                 language: Language.RU,
@@ -251,6 +253,20 @@ describe('ListingsService', () => {
       const data = prisma.listing.update.mock.calls[0][0].data;
       expect(data.translations).toBeUndefined();
       expect(data.rooms).toBe(3);
+    });
+
+    it('passes bathrooms through to Prisma on update', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, { bathrooms: 3 } as any);
+
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.bathrooms).toBe(3);
     });
 
     it('throws 403 FORBIDDEN when the listing belongs to another user', async () => {
