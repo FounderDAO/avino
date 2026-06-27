@@ -48,6 +48,20 @@ enum ParkingType {
   UNDERGROUND
 }
 
+/// Удобства объявления (ADR-0111, Zillow Phase 2). Мультизначный enum-массив на
+/// listings.amenities. Фиксированный UI-словарь (лейблы i18n на клиенте), как
+/// PropertyType/ParkingType. Добавление значения — non-breaking (ADR-0008).
+enum Amenity {
+  AIR_CONDITIONING
+  FURNITURE
+  APPLIANCES
+  INTERNET
+  ELEVATOR
+  BALCONY
+  HEATING
+  SECURITY
+}
+
 /// Тип сделки по объявлению (DB_SCHEMA.md §3). Создаётся как Postgres enum
 /// этой миграцией — listings первой ссылается на него (TASK-035).
 enum TransactionType {
@@ -420,6 +434,7 @@ model Listing {
   rooms              Int?                                   @db.SmallInt
   bathrooms          Int?                                   @db.SmallInt
   parkingType        ParkingType?                           @map("parking_type")
+  amenities          Amenity[]
   floor              Int?                                   @db.SmallInt
   totalFloors        Int?                                   @map("total_floors") @db.SmallInt
   yearBuilt          Int?                                   @map("year_built") @db.SmallInt
@@ -464,6 +479,8 @@ model Listing {
   @@index([agencyId])
   @@index([promotionType])
   @@index([promotionExpiresAt])
+  // GIN-индекс для amenities @>-containment (ADR-0111, Zillow Phase 2).
+  @@index([amenities], type: Gin)
   // Композитный индекс дефолтной выдачи поиска (DB_SCHEMA §6):
   // status → promotion_type → created_at desc → id desc.
   @@index([status, promotionType, createdAt(sort: Desc), id(sort: Desc)])

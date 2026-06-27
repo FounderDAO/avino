@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  Amenity,
   Currency,
   Language,
   ListingStatus,
@@ -56,6 +57,7 @@ interface ListingScalarInput {
   rooms?: number;
   bathrooms?: number;
   parking_type?: ParkingType;
+  amenities?: Amenity[];
   floor?: number;
   total_floors?: number;
   year_built?: number;
@@ -92,6 +94,7 @@ interface ListingScalarData {
   rooms?: number;
   bathrooms?: number;
   parkingType?: ParkingType;
+  amenities?: Amenity[];
   floor?: number;
   totalFloors?: number;
   yearBuilt?: number;
@@ -156,8 +159,8 @@ export interface ListingMediaResponse {
  * Полная карточка листинга — ответ `GET /api/v1/listings/:id` (TASK-051,
  * API.md §7). В отличие от {@link ListingResponse} (краткий ответ create/update),
  * включает все scalar-поля, разрешённый по языку перевод (плоско в корне) и медиа.
- * Структурированный список удобств (`features`) появится отдельной задачей M5 —
- * модели в БД ещё нет; свободный текст удобств отдаётся в `features_text`.
+ * Структурированный список удобств — enum-массив `amenities` (ADR-0111); свободный
+ * текст дополнительных пометок по-прежнему в `features_text`.
  * Decimal/даты сериализуются строками (контрактный формат).
  */
 /**
@@ -184,6 +187,7 @@ export interface ListingDetailResponse {
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
+  amenities: Amenity[];
   floor: number | null;
   total_floors: number | null;
   year_built: number | null;
@@ -244,6 +248,7 @@ const LISTING_DETAIL_SELECT = {
   rooms: true,
   bathrooms: true,
   parkingType: true,
+  amenities: true,
   floor: true,
   totalFloors: true,
   yearBuilt: true,
@@ -762,6 +767,7 @@ export class ListingsService {
     if (dto.rooms !== undefined) data.rooms = dto.rooms;
     if (dto.bathrooms !== undefined) data.bathrooms = dto.bathrooms;
     if (dto.parking_type !== undefined) data.parkingType = dto.parking_type;
+    if (dto.amenities !== undefined) data.amenities = dto.amenities;
     if (dto.floor !== undefined) data.floor = dto.floor;
     if (dto.total_floors !== undefined) data.totalFloors = dto.total_floors;
     if (dto.year_built !== undefined) data.yearBuilt = dto.year_built;
@@ -920,6 +926,7 @@ export class ListingsService {
       rooms: listing.rooms,
       bathrooms: listing.bathrooms,
       parking_type: listing.parkingType,
+      amenities: listing.amenities,
       floor: listing.floor,
       total_floors: listing.totalFloors,
       year_built: listing.yearBuilt,

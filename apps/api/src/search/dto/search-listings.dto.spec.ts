@@ -48,4 +48,21 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(dto({ listing_source: ['OWNER', 'AGENCY'] }).errors).toHaveLength(0);
     expect(dto({ listing_source: ['BANK'] }).errors.length).toBeGreaterThan(0);
   });
+
+  it('принимает валидный массив amenities', () => {
+    const { inst, errors } = dto({ amenities: ['ELEVATOR', 'HEATING'] });
+    expect(errors).toHaveLength(0);
+    expect(inst.amenities).toEqual(['ELEVATOR', 'HEATING']);
+  });
+
+  it('отклоняет невалидное значение amenities', () => {
+    const { errors } = dto({ amenities: ['NOPE'] });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('нормализует одиночный amenities в массив (toArray)', () => {
+    const { inst, errors } = dto({ amenities: 'ELEVATOR' });
+    expect(errors).toHaveLength(0);
+    expect(inst.amenities).toEqual(['ELEVATOR']);
+  });
 });

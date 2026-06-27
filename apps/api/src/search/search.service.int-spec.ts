@@ -1259,3 +1259,116 @@ describe('SearchService lot_area_min/max filter (integration, Zillow Phase 2)', 
     expect(cardNull!.lot_area).toBeNull();
   });
 });
+
+/**
+ * Integration-тесты amenities AND-containment фильтра SearchService (Zillow Phase 2).
+ * Проверяет: amenities @>-AND фильтрует корректно (есть ВСЕ выбранные),
+ * пустой массив не фильтрует.
+ *
+ * Изоляция — уникальный `CITY_ID_AMENITIES`; данные удаляются в afterAll.
+ */
+describe('SearchService amenities filter (integration, Zillow Phase 2)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY_ID_AMENITIES = '77777777-8888-4777-9000-00000000A001';
+
+  const ID = {
+    both: 'aaaaaaaa-0002-4000-8000-00000000A101',  // amenities=[ELEVATOR, AIR_CONDITIONING]
+    elevatorOnly: 'bbbbbbbb-0002-4000-8000-00000000A102', // amenities=[ELEVATOR]
+    empty: 'cccccccc-0002-4000-8000-00000000A103',  // amenities=[]
+  };
+
+  let ownerId: string;
+
+  async function createListing(params: {
+    id: string;
+    amenities: string[];
+  }): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id: params.id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: '100000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_AMENITIES,
+        amenities: params.amenities as any,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `amenity-${params.id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_AMENITIES } });
+
+    const owner = await prisma.user.create({
+      data: { phone: '+998900000AM1' },
+    });
+    ownerId = owner.id;
+
+    await createListing({ id: ID.both, amenities: ['ELEVATOR', 'AIR_CONDITIONING'] });
+    await createListing({ id: ID.elevatorOnly, amenities: ['ELEVATOR'] });
+    await createListing({ id: ID.empty, amenities: [] });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_AMENITIES } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('amenities AND — один параметр включает все, у кого он есть', async () => {
+    const res = await service.search({
+      city_id: CITY_ID_AMENITIES,
+      amenities: ['ELEVATOR'],
+      limit: 100,
+    } as any);
+    const ids = res.data.map((l) => l.id);
+    expect(ids).toContain(ID.both);
+    expect(ids).toContain(ID.elevatorOnly);
+    expect(ids).not.toContain(ID.empty);
+  });
+
+  it('amenities AND — два параметра возвращает только те, где есть оба', async () => {
+    const res = await service.search({
+      city_id: CITY_ID_AMENITIES,
+      amenities: ['ELEVATOR', 'AIR_CONDITIONING'],
+      limit: 100,
+    } as any);
+    const ids = res.data.map((l) => l.id);
+    expect(ids).toContain(ID.both);
+    expect(ids).not.toContain(ID.elevatorOnly);
+    expect(ids).not.toContain(ID.empty);
+  });
+
+  it('без параметра amenities возвращает все', async () => {
+    const res = await service.search({
+      city_id: CITY_ID_AMENITIES,
+      limit: 100,
+    } as any);
+    const ids = res.data.map((l) => l.id);
+    expect(ids).toContain(ID.both);
+    expect(ids).toContain(ID.elevatorOnly);
+    expect(ids).toContain(ID.empty);
+  });
+});

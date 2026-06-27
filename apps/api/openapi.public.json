@@ -2816,6 +2816,12 @@
           "parking_type": {
             "type": "object"
           },
+          "amenities": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
           "floor": {
             "type": "number",
             "minimum": 0,
@@ -2926,6 +2932,12 @@
           },
           "parking_type": {
             "type": "object"
+          },
+          "amenities": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
           },
           "floor": {
             "type": "number",

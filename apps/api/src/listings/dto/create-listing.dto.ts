@@ -18,6 +18,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {
+  Amenity,
   Currency,
   Language,
   ParkingType,
@@ -74,9 +75,9 @@ export class TourWindowDto {
  * Тело запроса `POST /api/v1/listings` (TASK-050, API.md §7).
  *
  * Объявление создаётся на одном языке (`original_language`) со статусом `NEW`
- * и проходит moderation queue (CLAUDE.md §9). `feature_ids` и медиа — отдельные
- * задачи M5, здесь не принимаются (`forbidNonWhitelisted` отклонит лишние поля).
- * Имена свойств — snake_case ключи контракта (как в остальных DTO).
+ * и проходит moderation queue (CLAUDE.md §9). Медиа — отдельная задача; удобства
+ * принимаются как `amenities` (ADR-0111). Имена свойств — snake_case ключи контракта
+ * (как в остальных DTO).
  */
 export class CreateListingDto {
   @IsEnum(TransactionType)
@@ -121,6 +122,11 @@ export class CreateListingDto {
   @IsOptional()
   @IsEnum(ParkingType)
   parking_type?: ParkingType;
+
+  @IsOptional()
+  @IsArray()
+  @IsEnum(Amenity, { each: true })
+  amenities?: Amenity[];
 
   @IsOptional()
   @IsInt()
