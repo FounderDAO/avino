@@ -3,6 +3,7 @@ import {
   Currency,
   Language,
   ListingStatus,
+  ParkingType,
   Prisma,
   PromotionType,
   PropertyType,
@@ -44,6 +45,7 @@ export interface SearchListItem {
   currency: Currency;
   rooms: number | null;
   bathrooms: number | null;
+  parking_type: ParkingType | null;
   city_id: string | null;
   district_id: string | null;
   latitude: string | null;
@@ -191,6 +193,7 @@ const SEARCH_SELECT = {
   currency: true,
   rooms: true,
   bathrooms: true,
+  parkingType: true,
   cityId: true,
   districtId: true,
   latitude: true,
@@ -769,6 +772,12 @@ export class SearchService {
     if (query.bathrooms_min !== undefined)
       conds.push(Prisma.sql`bathrooms >= ${query.bathrooms_min}`);
 
+    // Zillow Phase 2: тип парковки (IN-мультивыбор; NULL исключается)
+    if (query.parking_type !== undefined && query.parking_type.length > 0)
+      conds.push(
+        Prisma.sql`parking_type::text IN (${Prisma.join(query.parking_type)})`,
+      );
+
     // Zillow Phase 1: диапазон площади (м²)
     if (query.area_min !== undefined)
       conds.push(Prisma.sql`area >= ${query.area_min}::numeric`);
@@ -889,6 +898,7 @@ export class SearchService {
       currency: listing.currency,
       rooms: listing.rooms,
       bathrooms: listing.bathrooms,
+      parking_type: listing.parkingType,
       city_id: listing.cityId,
       district_id: listing.districtId,
       latitude: listing.latitude?.toFixed(6) ?? null,

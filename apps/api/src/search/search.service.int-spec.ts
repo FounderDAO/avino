@@ -2,6 +2,7 @@ import {
   Currency,
   Language,
   ListingStatus,
+  ParkingType,
   PromotionType,
   PropertyType,
   TransactionType,
@@ -1051,5 +1052,112 @@ describe('GET /search — Zillow filters (Phase 1)', () => {
     expect(ids.has(ID.house)).toBe(false);
     expect(ids.has(ID.land)).toBe(false);
     expect(ids.size).toBe(1);
+  });
+});
+
+/**
+ * Integration-тесты parking_type фильтра SearchService (Zillow Phase 2).
+ * Проверяет: parking_type IN фильтрует корректно, NULL исключается.
+ *
+ * Изоляция — уникальный `CITY_ID_PARKING`; данные удаляются в afterAll.
+ */
+describe('SearchService parking_type filter (integration, Zillow Phase 2)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY_ID_PARKING = '55555555-6666-4555-8888-00000000a111';
+
+  const ID = {
+    garage: 'aaaaaaaa-0001-4000-8000-00000000a101',  // parkingType=GARAGE
+    yard: 'bbbbbbbb-0001-4000-8000-00000000a102',    // parkingType=YARD
+    nullParking: 'cccccccc-0001-4000-8000-00000000a103', // parkingType=null
+  };
+
+  let ownerId: string;
+
+  async function createListing(params: {
+    id: string;
+    parkingType: ParkingType | null;
+  }): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id: params.id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: '100000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_PARKING,
+        parkingType: params.parkingType,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `parking-${params.id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_PARKING } });
+
+    const owner = await prisma.user.create({
+      data: { phone: '+998900000A01' },
+    });
+    ownerId = owner.id;
+
+    await createListing({ id: ID.garage, parkingType: ParkingType.GARAGE });
+    await createListing({ id: ID.yard, parkingType: ParkingType.YARD });
+    await createListing({ id: ID.nullParking, parkingType: null });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_PARKING } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('parking_type фильтрует IN, NULL исключает', async () => {
+    const res = await service.search({ city_id: CITY_ID_PARKING, parking_type: [ParkingType.GARAGE], limit: 100 } as any);
+    const ids = res.data.map((l) => l.id);
+    expect(ids).toContain(ID.garage);
+    expect(ids).not.toContain(ID.yard);
+    expect(ids).not.toContain(ID.nullParking);
+  });
+
+  it('parking_type мультивыбор — IN([GARAGE, YARD]) возвращает оба', async () => {
+    const res = await service.search({
+      city_id: CITY_ID_PARKING,
+      parking_type: [ParkingType.GARAGE, ParkingType.YARD],
+      limit: 100,
+    } as any);
+    const ids = res.data.map((l) => l.id);
+    expect(ids).toContain(ID.garage);
+    expect(ids).toContain(ID.yard);
+    expect(ids).not.toContain(ID.nullParking);
+  });
+
+  it('результат содержит поле parking_type', async () => {
+    const res = await service.search({ city_id: CITY_ID_PARKING, limit: 100 } as any);
+    const garageCard = res.data.find((l) => l.id === ID.garage);
+    expect(garageCard).toBeDefined();
+    expect(garageCard!.parking_type).toBe(ParkingType.GARAGE);
+    const nullCard = res.data.find((l) => l.id === ID.nullParking);
+    expect(nullCard).toBeDefined();
+    expect(nullCard!.parking_type).toBeNull();
   });
 });
