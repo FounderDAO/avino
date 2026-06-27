@@ -4803,7 +4803,7 @@ Related spec/plan:
 
 Status: DONE
 Branch: feat/listing-lot-area-api
-PR: pending
+PR: #247
 
 Files changed:
 - apps/api/prisma/schema.prisma
