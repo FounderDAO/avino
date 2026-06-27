@@ -66,6 +66,9 @@ const TOTAL = STEPS.length;
 /** Варианты «количество комнат» ('studio' — код студии в стейте). */
 const ROOM_OPTIONS = ['studio', '1', '2', '3', '4', '5+'] as const;
 
+/** Варианты «количество санузлов» (пусто = не выбрано, опционально). */
+const BATHROOM_OPTIONS = ['1', '2', '3', '4+'] as const;
+
 /** Язык оригинала объявления. */
 type Lang = 'RU' | 'UZ' | 'EN';
 
@@ -76,6 +79,7 @@ interface FormState {
   address: string;
   coords: Coords | null;
   rooms: string;
+  bathrooms: string;
   area: string;
   floor: string;
   totalFloors: string;
@@ -96,6 +100,7 @@ const INITIAL: FormState = {
   address: '',
   coords: null,
   rooms: '2',
+  bathrooms: '',
   area: '',
   floor: '',
   totalFloors: '',
@@ -219,6 +224,10 @@ export function ListingNew() {
         const n =
           f.rooms === 'studio' ? 0 : Number.parseInt(f.rooms, 10);
         if (Number.isFinite(n)) body.rooms = n;
+      }
+      if (f.bathrooms) {
+        const b = f.bathrooms === '4+' ? 4 : Number.parseInt(f.bathrooms, 10);
+        if (Number.isFinite(b)) body.bathrooms = b;
       }
       if (f.floor) body.floor = Number.parseInt(f.floor, 10);
       if (f.totalFloors) body.total_floors = Number.parseInt(f.totalFloors, 10);
@@ -438,6 +447,21 @@ export function ListingNew() {
                 </div>
               </FormField>
             )}
+            {!noRooms && (
+              <FormField label={t('fields.bathrooms.label')}>
+                <div className="flex flex-wrap gap-2">
+                  {BATHROOM_OPTIONS.map((b) => (
+                    <Chip
+                      key={b}
+                      active={f.bathrooms === b}
+                      onClick={() => set('bathrooms', f.bathrooms === b ? '' : b)}
+                    >
+                      {b}
+                    </Chip>
+                  ))}
+                </div>
+              </FormField>
+            )}
             <FormField label={t('fields.area.label')}>
               <Field
                 placeholder={t('fields.area.placeholder')}
@@ -586,6 +610,9 @@ export function ListingNew() {
                   label={t('preview.rows.rooms')}
                   value={f.rooms === 'studio' ? t('fields.rooms.studio') : f.rooms}
                 />
+              )}
+              {!noRooms && f.bathrooms && (
+                <Row label={t('fields.bathrooms.label')} value={f.bathrooms} />
               )}
               <Row
                 label={t('preview.rows.area')}

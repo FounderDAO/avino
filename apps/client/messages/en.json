@@ -224,6 +224,9 @@
       "priceTo": "to",
       "rooms": "Rooms",
       "roomsCount": "Rooms: {count}",
+      "bathrooms": "Bathrooms",
+      "roomsAndBathrooms": "Rooms and bathrooms",
+      "bathroomsCount": "Bathrooms: {count}",
       "propertyType": "Property type",
       "propertyTypeCount": "Property type: {count}",
       "anyType": "Any type",
@@ -511,6 +514,9 @@
       "rooms": {
         "label": "Number of rooms",
         "studio": "Studio"
+      },
+      "bathrooms": {
+        "label": "Bathrooms"
       },
       "area": {
         "label": "Area, m²",
@@ -924,11 +930,14 @@
     "upTo": "up to {value}",
     "from": "from {value}",
     "rooms": "{count} rm",
+    "bathrooms": "{count} ba",
     "territory": "territory"
   },
   "units": {
     "approx": "≈",
     "roomsLabel": "{count, plural, one {room} other {rooms}}",
+    "bathroomsLabel": "{count, plural, one {bathroom} other {bathrooms}}",
+    "bathroomsShort": "{count, plural, one {# ba} other {# ba}}",
     "sum": "UZS",
     "perMonth": "/mo",
     "area": "{value} m²",

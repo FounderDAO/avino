@@ -56,6 +56,7 @@ export interface ApiSearchItem {
   price: string;
   currency: Currency;
   rooms: number | null;
+  bathrooms: number | null;
   city_id: string | null;
   district_id: string | null;
   /** Имя района на языке ответа (TASK-209); null если район не найден. */
@@ -91,6 +92,7 @@ interface ApiListingDetail {
   currency: Currency;
   area: string | null;
   rooms: number | null;
+  bathrooms: number | null;
   floor: number | null;
   total_floors: number | null;
   year_built: number | null;
@@ -267,6 +269,7 @@ export function mapListing(api: AnyApiListing): Listing {
 
     area: detail?.area ?? undefined,
     rooms: api.rooms ?? undefined,
+    bathrooms: (api as ApiSearchItem | ApiListingDetail).bathrooms ?? undefined,
     floor: detail?.floor ?? undefined,
     totalFloors: detail?.total_floors ?? undefined,
     year: detail?.year_built ?? undefined,
@@ -379,6 +382,7 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   const sort = toApiSort(filter.sort);
   if (sort) params.set('sort', sort);
   if (filter.roomsMin != null) params.set('rooms_min', String(filter.roomsMin));
+  if (filter.bathroomsMin != null) params.set('bathrooms_min', String(filter.bathroomsMin));
   if (filter.roomsExact != null) params.set('rooms', String(filter.roomsExact));
   if (filter.areaMin != null) params.set('area_min', String(filter.areaMin));
   if (filter.areaMax != null) params.set('area_max', String(filter.areaMax));

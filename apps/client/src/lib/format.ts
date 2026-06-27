@@ -132,11 +132,12 @@ export function formatFloor(
  * Возвращает массив частей (UI сам расставляет разделители).
  */
 export function specs(
-  l: Pick<Listing, 'rooms' | 'area' | 'floor' | 'totalFloors' | 'type'>,
+  l: Pick<Listing, 'rooms' | 'bathrooms' | 'area' | 'floor' | 'totalFloors' | 'type'>,
   t: T,
 ): string[] {
   const parts: string[] = [];
   if (l.rooms) parts.push(t('roomsShort', { count: l.rooms }));
+  if (l.bathrooms) parts.push(t('bathroomsShort', { count: l.bathrooms }));
   const areaNorm = normalizeArea(l.area);
   if (areaNorm) parts.push(t('area', { value: areaNorm }));
   if (l.floor && l.totalFloors) parts.push(t('floorOf', { floor: l.floor, total: l.totalFloors }));
