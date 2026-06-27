@@ -168,3 +168,19 @@ export function daysOnSite(createdAt: string): number {
   if (Number.isNaN(then)) return 0;
   return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
 }
+
+/**
+ * Компактная цена для осей гистограммы/слайдера: «$98K», «$1,5M», «1,5 billion».
+ * Без конвертации валют — value уже в нужной валюте.
+ */
+export function compactPrice(value: number, currency: Currency, t: T): string {
+  if (currency === 'USD') {
+    if (value >= 1e6) return '$' + trim(value / 1e6) + 'M';
+    if (value >= 1e3) return '$' + trim(value / 1e3) + 'K';
+    return '$' + Math.round(value);
+  }
+  if (value >= 1e9) return trim(value / 1e9) + ' ' + t('billion');
+  if (value >= 1e6) return trim(value / 1e6) + ' ' + t('million');
+  if (value >= 1e3) return trim(value / 1e3) + 'K';
+  return Math.round(value) + ' ' + t('sum');
+}
