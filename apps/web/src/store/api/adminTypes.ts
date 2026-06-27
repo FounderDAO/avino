@@ -167,6 +167,7 @@ export interface ListingDetail {
   currency: Currency;
   area: string | null;
   rooms: number | null;
+  bathrooms: number | null;
   floor: number | null;
   total_floors: number | null;
   year_built: number | null;
