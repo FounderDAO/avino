@@ -35,6 +35,7 @@ export interface EditListingDetail {
   currency: 'USD' | 'UZS';
   area: string | null;
   rooms: number | null;
+  bathrooms: number | null;
   floor: number | null;
   total_floors: number | null;
   year_built: number | null;
@@ -61,6 +62,7 @@ export interface UpdateListingPatch {
   currency?: string;
   area?: string;
   rooms?: number;
+  bathrooms?: number;
   floor?: number;
   total_floors?: number;
   year_built?: number;

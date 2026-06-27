@@ -90,6 +90,8 @@ export interface Listing {
   area?: string;
   /** Кол-во комнат (нет у участка/коммерции). */
   rooms?: number;
+  /** Кол-во санузлов (нет у участка/коммерции). */
+  bathrooms?: number;
   /** Этаж объекта. */
   floor?: number;
   /** Этажность здания. */
@@ -177,6 +179,8 @@ export interface ListingFilter {
   types?: PropertyType[];
   /** «N+ комнат» (rooms_min). */
   roomsMin?: number;
+  /** «N+ санузлов» (bathrooms_min). */
+  bathroomsMin?: number;
   /** Точное число комнат (режим «Точное совпадение»). */
   roomsExact?: number;
   areaMin?: number;

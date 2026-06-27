@@ -4,7 +4,7 @@
  */
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { Bed, Ruler, Layers, CalendarDays, type LucideIcon } from 'lucide-react';
+import { Bed, Bath, Ruler, Layers, CalendarDays, type LucideIcon } from 'lucide-react';
 import { formatArea } from '@/lib/format';
 import type { Listing } from '@/lib/mock/types';
 
@@ -35,6 +35,9 @@ export function Facts({ listing, className }: FactsProps) {
   const items: React.ReactNode[] = [];
   if (listing.rooms) {
     items.push(<Fact key="rooms" icon={Bed} label={tUnits('roomsLabel', { count: listing.rooms })} value={listing.rooms} />);
+  }
+  if (listing.bathrooms) {
+    items.push(<Fact key="bathrooms" icon={Bath} label={tUnits('bathroomsLabel', { count: listing.bathrooms })} value={listing.bathrooms} />);
   }
   if (listing.area) {
     items.push(<Fact key="area" icon={Ruler} label={t('facts.area')} value={formatArea(listing.area, tUnits)} />);

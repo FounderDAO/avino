@@ -59,6 +59,8 @@ export interface FilterValues {
   rooms?: number;
   /** «N+» режим комнат. */
   roomsMin?: number;
+  /** «N+» режим санузлов. */
+  bathroomsMin?: number;
   priceMin?: string;
   priceMax?: string;
   query?: string;
@@ -208,12 +210,15 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     values.floorMin || values.floorMax ||
     values.totalFloorsMin || values.totalFloorsMax ||
     values.notFirstFloor || values.notLastFloor ||
-    values.toursEnabled || values.listingSource,
+    values.toursEnabled || values.listingSource ||
+    values.bathroomsMin,
   );
 
   // ── FiltersPanel values ───────────────────────────────────────────────────────
 
   const panelValues: FiltersPanelValues = {
+    roomsMin: values.roomsMin,
+    bathroomsMin: values.bathroomsMin,
     areaMin: values.areaMin,
     areaMax: values.areaMax,
     yearMin: values.yearMin,
@@ -231,6 +236,9 @@ export function FilterBar({ values, districts }: FilterBarProps) {
   const handlePanelApply = React.useCallback(
     (next: FiltersPanelValues) => {
       setParams({
+        rooms_min: next.roomsMin,
+        ...(next.roomsMin != null ? { rooms: undefined } : {}),
+        bathrooms_min: next.bathroomsMin,
         area_min: next.areaMin,
         area_max: next.areaMax,
         year_min: next.yearMin,
@@ -250,6 +258,9 @@ export function FilterBar({ values, districts }: FilterBarProps) {
 
   const handlePanelReset = React.useCallback(() => {
     setParams({
+      rooms: undefined,
+      rooms_min: undefined,
+      bathrooms_min: undefined,
       area_min: undefined,
       area_max: undefined,
       year_min: undefined,
@@ -284,6 +295,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     if (values.priceMax) filters.price_max = values.priceMax;
     if (values.rooms != null) filters.rooms = values.rooms;
     if (values.roomsMin != null) filters.rooms_min = values.roomsMin;
+    if (values.bathroomsMin != null) filters.bathrooms_min = values.bathroomsMin;
     if (values.query) filters.q = values.query;
     if (territoryPoints) filters.points = territoryPoints;
     // Расширенные фильтры (Task 10).

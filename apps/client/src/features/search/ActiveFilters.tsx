@@ -111,6 +111,11 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
     chips.push({ key: 'rooms_min', label, param: 'rooms_min' });
   }
 
+  if (values.bathroomsMin != null) {
+    const label = t('bathroomsCount', { count: `${String(values.bathroomsMin)}+` });
+    chips.push({ key: 'bathrooms_min', label, param: 'bathrooms_min' });
+  }
+
   if (values.priceMin || values.priceMax) {
     const label = t('priceRange', {
       min: values.priceMin || '0',
@@ -190,7 +195,7 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
     // Используем прямое URLSearchParams для удаления ?type= (повторяющийся).
     const params = new URLSearchParams(searchParams.toString());
     const keysToDelete = [
-      'type', 'district_id', 'rooms', 'rooms_min',
+      'type', 'district_id', 'rooms', 'rooms_min', 'bathrooms_min',
       'priceMin', 'priceMax',
       'area_min', 'area_max',
       'floor_min', 'floor_max',

@@ -69,6 +69,9 @@ export function describeFilters(filters: SavedSearchFilters, t: T): string {
   const roomsMin = asString(filters.rooms_min);
   if (roomsMin) parts.push(`${roomsMin}+`);
 
+  const bathroomsMin = asString(filters.bathrooms_min);
+  if (bathroomsMin) parts.push(t('savedSearch.bathrooms', { count: bathroomsMin }));
+
   const areaMin = asString(filters.area_min);
   const areaMax = asString(filters.area_max);
   if (areaMin && areaMax) parts.push(`${t('search.filters.areaTitle')}: ${areaMin}–${areaMax}`);
@@ -128,6 +131,7 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   set('priceMax', asString(filters.price_max));
   set('rooms', asString(filters.rooms));
   set('rooms_min', asString(filters.rooms_min));
+  set('bathrooms_min', asString(filters.bathrooms_min));
   set('area_min', asString(filters.area_min));
   set('area_max', asString(filters.area_max));
   set('floor_min', asString(filters.floor_min));

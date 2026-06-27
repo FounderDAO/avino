@@ -1,0 +1,42 @@
+/**
+ * BathroomsControl — выбор «N+ санузлов» в стиле Zillow (без exact-match).
+ * Кнопки «Любое / 1+ / 2+ / 3+ / 4+». Клик по выбранной снимает выбор.
+ */
+'use client';
+
+import * as React from 'react';
+import { useTranslations } from 'next-intl';
+import { Pill } from '@/components/ui/pill';
+
+export interface BathroomsControlProps {
+  /** Текущий выбор «N+» (undefined = Любое). */
+  value?: number;
+  onChange: (next?: number) => void;
+}
+
+const BATHROOM_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: '1+' },
+  { value: 2, label: '2+' },
+  { value: 3, label: '3+' },
+  { value: 4, label: '4+' },
+];
+
+export function BathroomsControl({ value, onChange }: BathroomsControlProps) {
+  const t = useTranslations('search.filters');
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Pill active={value === undefined} onClick={() => onChange(undefined)}>
+        {t('any')}
+      </Pill>
+      {BATHROOM_OPTIONS.map((opt) => (
+        <Pill
+          key={opt.value}
+          active={value === opt.value}
+          onClick={() => onChange(value === opt.value ? undefined : opt.value)}
+        >
+          {opt.label}
+        </Pill>
+      ))}
+    </div>
+  );
+}

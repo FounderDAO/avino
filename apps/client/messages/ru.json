@@ -224,6 +224,9 @@
       "priceTo": "до",
       "rooms": "Комнаты",
       "roomsCount": "Комнат: {count}",
+      "bathrooms": "Санузлы",
+      "roomsAndBathrooms": "Комнаты и санузлы",
+      "bathroomsCount": "Санузлов: {count}",
       "propertyType": "Тип жилья",
       "propertyTypeCount": "Тип жилья: {count}",
       "anyType": "Любой тип",
@@ -511,6 +514,9 @@
       "rooms": {
         "label": "Количество комнат",
         "studio": "Студия"
+      },
+      "bathrooms": {
+        "label": "Санузлы"
       },
       "area": {
         "label": "Площадь, м²",
@@ -924,11 +930,14 @@
     "upTo": "до {value}",
     "from": "от {value}",
     "rooms": "{count} комн",
+    "bathrooms": "{count} с/у",
     "territory": "территория"
   },
   "units": {
     "approx": "≈",
     "roomsLabel": "{count, plural, one {комната} few {комнаты} many {комнат} other {комнаты}}",
+    "bathroomsLabel": "{count, plural, one {санузел} few {санузла} many {санузлов} other {санузла}}",
+    "bathroomsShort": "{count, plural, one {# с/у} few {# с/у} many {# с/у} other {# с/у}}",
     "sum": "сум",
     "perMonth": "/мес",
     "area": "{value} м²",

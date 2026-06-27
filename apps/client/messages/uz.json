@@ -224,6 +224,9 @@
       "priceTo": "gacha",
       "rooms": "Xonalar",
       "roomsCount": "Xonalar: {count}",
+      "bathrooms": "Sanuzellar",
+      "roomsAndBathrooms": "Xonalar va sanuzellar",
+      "bathroomsCount": "Sanuzel: {count}",
       "propertyType": "Uy-joy turi",
       "propertyTypeCount": "Uy-joy turi: {count}",
       "anyType": "Istalgan tur",
@@ -511,6 +514,9 @@
       "rooms": {
         "label": "Xonalar soni",
         "studio": "Studiya"
+      },
+      "bathrooms": {
+        "label": "Sanuzellar"
       },
       "area": {
         "label": "Maydon, m²",
@@ -924,11 +930,14 @@
     "upTo": "{value} gacha",
     "from": "{value} dan",
     "rooms": "{count} xona",
+    "bathrooms": "{count} s/u",
     "territory": "hudud"
   },
   "units": {
     "approx": "≈",
     "roomsLabel": "{count, plural, other {xona}}",
+    "bathroomsLabel": "{count} sanuzel",
+    "bathroomsShort": "{count} s/u",
     "sum": "so'm",
     "perMonth": "/oy",
     "area": "{value} m²",
