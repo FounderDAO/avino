@@ -57,6 +57,7 @@ import { ToursSection } from '@/features/listing-shared/ToursSection';
 import type { TourWindow } from '@/lib/mock/types';
 
 const ROOM_OPTIONS = ['studio', '1', '2', '3', '4', '5+'] as const;
+const BATHROOM_OPTIONS = ['1', '2', '3', '4+'] as const;
 
 const TYPE_ICONS: Record<PropertyType, typeof HomeIcon> = {
   APARTMENT: Building,
@@ -74,6 +75,7 @@ interface EditForm {
   address: string;
   coords: Coords | null;
   rooms: string;
+  bathrooms: string;
   area: string;
   floor: string;
   totalFloors: string;
@@ -100,12 +102,14 @@ function detailToForm(d: EditListingDetail): EditForm {
       ? [Number(d.latitude), Number(d.longitude)]
       : null;
   const rooms = d.rooms == null ? '' : d.rooms === 0 ? 'studio' : String(d.rooms);
+  const bathrooms = d.bathrooms != null ? (d.bathrooms >= 4 ? '4+' : String(d.bathrooms)) : '';
   return {
     tx: d.transaction_type,
     type: d.property_type as PropertyType,
     address: d.address ?? d.address_note ?? '',
     coords,
     rooms,
+    bathrooms,
     area: d.area != null && d.area !== '' ? String(Number(d.area)) : '',
     floor: d.floor != null ? String(d.floor) : '',
     totalFloors: d.total_floors != null ? String(d.total_floors) : '',
@@ -245,6 +249,10 @@ export function ListingEdit({ id }: { id: string }) {
         const n = f.rooms === 'studio' ? 0 : Number.parseInt(f.rooms, 10);
         if (Number.isFinite(n)) patch.rooms = n;
       }
+      if (f.bathrooms) {
+        const b = f.bathrooms === '4+' ? 4 : Number.parseInt(f.bathrooms, 10);
+        if (Number.isFinite(b)) patch.bathrooms = b;
+      }
       if (f.floor) patch.floor = Number.parseInt(f.floor, 10);
       if (f.totalFloors) patch.total_floors = Number.parseInt(f.totalFloors, 10);
     }
@@ -382,6 +390,21 @@ export function ListingEdit({ id }: { id: string }) {
                 {ROOM_OPTIONS.map((r) => (
                   <Chip key={r} active={f.rooms === r} onClick={() => set('rooms', r)}>
                     {r === 'studio' ? tNew('fields.rooms.studio') : r}
+                  </Chip>
+                ))}
+              </div>
+            </FormField>
+          )}
+          {!noRooms && (
+            <FormField label={tNew('fields.bathrooms.label')}>
+              <div className="flex flex-wrap gap-2">
+                {BATHROOM_OPTIONS.map((b) => (
+                  <Chip
+                    key={b}
+                    active={f.bathrooms === b}
+                    onClick={() => set('bathrooms', f.bathrooms === b ? '' : b)}
+                  >
+                    {b}
                   </Chip>
                 ))}
               </div>
