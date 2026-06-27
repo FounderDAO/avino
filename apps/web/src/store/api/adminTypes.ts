@@ -170,6 +170,7 @@ export interface ListingDetail {
   rooms: number | null;
   bathrooms: number | null;
   parking_type: 'YARD' | 'COVERED' | 'GARAGE' | 'UNDERGROUND' | null;
+  amenities: string[];
   floor: number | null;
   total_floors: number | null;
   year_built: number | null;

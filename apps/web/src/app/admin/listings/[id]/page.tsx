@@ -45,6 +45,17 @@ const ACTION_LABEL: Record<ModerationAction, string> = {
   DELETE: 'Удалено',
 };
 
+const AMENITY_LABELS: Record<string, string> = {
+  AIR_CONDITIONING: 'Кондиционер',
+  FURNITURE: 'Мебель',
+  APPLIANCES: 'Бытовая техника',
+  INTERNET: 'Интернет',
+  ELEVATOR: 'Лифт',
+  BALCONY: 'Балкон',
+  HEATING: 'Отопление',
+  SECURITY: 'Видеонаблюдение',
+};
+
 const logDateFmt = new Intl.DateTimeFormat('ru-RU', {
   day: '2-digit',
   month: '2-digit',
@@ -161,6 +172,18 @@ export default function ListingDetailPage() {
             <div className="row wrap gap-8" style={{ marginTop: 14 }}>
               {src.features.map((f) => <span key={f} className="a-pill" style={{ background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--border)' }}>{f}</span>)}
             </div>
+            {!!data?.amenities?.length && (
+              <div style={{ marginTop: 14 }}>
+                <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Удобства</div>
+                <div className="row wrap gap-8">
+                  {data.amenities.map((a) => (
+                    <span key={a} className="a-pill" style={{ background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--border)' }}>
+                      {AMENITY_LABELS[a] ?? a}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="a-card" style={{ padding: 22 }}>
             <h3 style={{ fontSize: 16, marginBottom: 12 }}>Параметры</h3>
