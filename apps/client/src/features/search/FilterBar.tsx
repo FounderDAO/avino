@@ -70,6 +70,8 @@ export interface FilterValues {
   // ── Расширенные фильтры (FiltersPanel) ──────────────────────────────────────
   areaMin?: string;
   areaMax?: string;
+  lotAreaMin?: string;
+  lotAreaMax?: string;
   yearMin?: string;
   yearMax?: string;
   floorMin?: string;
@@ -208,6 +210,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
   // ⚙ Фильтры — активен, если хоть одно поле задано.
   const extraActive = Boolean(
     values.areaMin || values.areaMax ||
+    values.lotAreaMin || values.lotAreaMax ||
     values.yearMin || values.yearMax ||
     values.floorMin || values.floorMax ||
     values.totalFloorsMin || values.totalFloorsMax ||
@@ -224,6 +227,8 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     bathroomsMin: values.bathroomsMin,
     areaMin: values.areaMin,
     areaMax: values.areaMax,
+    lotAreaMin: values.lotAreaMin,
+    lotAreaMax: values.lotAreaMax,
     yearMin: values.yearMin,
     yearMax: values.yearMax,
     floorMin: values.floorMin,
@@ -251,6 +256,8 @@ export function FilterBar({ values, districts }: FilterBarProps) {
       setOne('bathrooms_min', next.bathroomsMin);
       setOne('area_min', next.areaMin);
       setOne('area_max', next.areaMax);
+      setOne('lot_area_min', next.lotAreaMin);
+      setOne('lot_area_max', next.lotAreaMax);
       setOne('year_min', next.yearMin);
       setOne('year_max', next.yearMax);
       setOne('floor_min', next.floorMin);
@@ -276,6 +283,8 @@ export function FilterBar({ values, districts }: FilterBarProps) {
       bathrooms_min: undefined,
       area_min: undefined,
       area_max: undefined,
+      lot_area_min: undefined,
+      lot_area_max: undefined,
       year_min: undefined,
       year_max: undefined,
       floor_min: undefined,
@@ -317,6 +326,8 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     // Сериализуем для восстановления UI при переходе из saved-search → /search.
     if (values.areaMin) filters.area_min = values.areaMin;
     if (values.areaMax) filters.area_max = values.areaMax;
+    if (values.lotAreaMin) filters.lot_area_min = values.lotAreaMin;
+    if (values.lotAreaMax) filters.lot_area_max = values.lotAreaMax;
     if (values.floorMin) filters.floor_min = values.floorMin;
     if (values.floorMax) filters.floor_max = values.floorMax;
     if (values.totalFloorsMin) filters.total_floors_min = values.totalFloorsMin;

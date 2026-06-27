@@ -32,6 +32,7 @@ interface FavoriteSearchItem {
   currency: Currency;
   rooms: number | null;
   bathrooms: number | null;
+  lot_area: string | null;
   parking_type: ParkingType | null;
   city_id: string | null;
   district_id: string | null;

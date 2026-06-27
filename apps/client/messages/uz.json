@@ -267,7 +267,8 @@
       "rangeFrom": "dan",
       "rangeTo": "gacha",
       "any": "Istalgan",
-      "roomsExact": "Xonalar soni: {count}"
+      "roomsExact": "Xonalar soni: {count}",
+      "lotAreaTitle": "Yer uchastkasi"
     },
     "results": {
       "count": "{count, plural, other {# ta e'lon}}",
@@ -343,7 +344,8 @@
       "floor": "Qavat",
       "floorOf": "{floor} / {total}",
       "year": "Qurilgan yili",
-      "parking": "Avtoturargoh"
+      "parking": "Avtoturargoh",
+      "lotArea": "Uchastka"
     },
     "contact": {
       "greeting": "Assalomu alaykum! E'lon hali dolzarbmi?",
@@ -528,6 +530,10 @@
       "area": {
         "label": "Maydon, m²",
         "placeholder": "masalan, 78"
+      },
+      "lotArea": {
+        "label": "Yer maydoni, sotix",
+        "placeholder": "masalan, 6"
       },
       "floor": "Qavat",
       "totalFloors": "Qavatlar soni",
@@ -953,6 +959,7 @@
     "floorOf": "{floor}/{total}-qavat",
     "floor": "{floor}-qavat",
     "landArea": "{value} m² uchastka",
+    "lotArea": "{value} sotix",
     "billion": "mlrd",
     "million": "mln",
     "daysOnSite": "{count, plural, other {# kun saytda}}"

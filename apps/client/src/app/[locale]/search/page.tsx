@@ -51,6 +51,7 @@ export async function generateMetadata({
     sp.floor_min || sp.floor_max ||
     sp.total_floors_min || sp.total_floors_max ||
     sp.year_min || sp.year_max ||
+    sp.lot_area_min || sp.lot_area_max ||
     sp.listing_source || sp.tours_enabled || sp.parking_type,
   );
 
@@ -174,6 +175,8 @@ export default async function SearchPage({
   // Строковые диапазоны (в FilterValues остаются строками, в ListingFilter → числа).
   const areaMinRaw = first(sp.area_min);
   const areaMaxRaw = first(sp.area_max);
+  const lotAreaMinRaw = first(sp.lot_area_min);
+  const lotAreaMaxRaw = first(sp.lot_area_max);
   const floorMinRaw = first(sp.floor_min);
   const floorMaxRaw = first(sp.floor_max);
   const totalFloorsMinRaw = first(sp.total_floors_min);
@@ -208,6 +211,8 @@ export default async function SearchPage({
     sort,
     areaMin: toNum(areaMinRaw),
     areaMax: toNum(areaMaxRaw),
+    lotAreaMin: toNum(lotAreaMinRaw),
+    lotAreaMax: toNum(lotAreaMaxRaw),
     floorMin: toNum(floorMinRaw),
     floorMax: toNum(floorMaxRaw),
     totalFloorsMin: toNum(totalFloorsMinRaw),
@@ -241,6 +246,8 @@ export default async function SearchPage({
     view,
     areaMin: areaMinRaw,
     areaMax: areaMaxRaw,
+    lotAreaMin: lotAreaMinRaw,
+    lotAreaMax: lotAreaMaxRaw,
     floorMin: floorMinRaw,
     floorMax: floorMaxRaw,
     totalFloorsMin: totalFloorsMinRaw,

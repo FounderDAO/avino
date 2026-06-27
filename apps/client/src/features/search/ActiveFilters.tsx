@@ -129,6 +129,11 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
     chips.push({ key: 'area', label, param: '__area' });
   }
 
+  if (values.lotAreaMin || values.lotAreaMax) {
+    const label = `${t('lotAreaTitle')}: ${values.lotAreaMin || '0'}–${values.lotAreaMax || '∞'}`;
+    chips.push({ key: 'lot_area', label, param: '__lot_area' });
+  }
+
   if (values.floorMin || values.floorMax) {
     const label = `${t('floorTitle')}: ${values.floorMin || '0'}–${values.floorMax || '∞'}`;
     chips.push({ key: 'floor', label, param: '__floor' });
@@ -187,6 +192,8 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     } else if (chip.param === '__area') {
       setParams({ area_min: undefined, area_max: undefined });
+    } else if (chip.param === '__lot_area') {
+      setParams({ lot_area_min: undefined, lot_area_max: undefined });
     } else if (chip.param === '__floor') {
       setParams({ floor_min: undefined, floor_max: undefined });
     } else if (chip.param === '__total_floors') {
@@ -210,6 +217,7 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
       'type', 'district_id', 'rooms', 'rooms_min', 'bathrooms_min',
       'priceMin', 'priceMax',
       'area_min', 'area_max',
+      'lot_area_min', 'lot_area_max',
       'floor_min', 'floor_max',
       'total_floors_min', 'total_floors_max',
       'year_min', 'year_max',

@@ -22,6 +22,8 @@ export interface FiltersPanelValues {
   bathroomsMin?: number;
   areaMin?: string;
   areaMax?: string;
+  lotAreaMin?: string;
+  lotAreaMax?: string;
   yearMin?: string;
   yearMax?: string;
   floorMin?: string;
@@ -112,6 +114,19 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
           fromLabel={t('rangeFrom')}
           toLabel={t('rangeTo')}
           suffix="м²"
+        />
+      </Section>
+
+      {/* 1b. Площадь участка, соток */}
+      <Section title={t('lotAreaTitle')}>
+        <RangeFields
+          min={draft.lotAreaMin ?? ''}
+          max={draft.lotAreaMax ?? ''}
+          onMin={(v) => patch({ lotAreaMin: v || undefined })}
+          onMax={(v) => patch({ lotAreaMax: v || undefined })}
+          fromLabel={t('rangeFrom')}
+          toLabel={t('rangeTo')}
+          suffix="соток"
         />
       </Section>
 

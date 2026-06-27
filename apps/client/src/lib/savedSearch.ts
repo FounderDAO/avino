@@ -78,6 +78,10 @@ export function describeFilters(filters: SavedSearchFilters, t: T): string {
   else if (areaMin) parts.push(`${t('search.filters.areaTitle')}: ${t('search.filters.rangeFrom')} ${areaMin}`);
   else if (areaMax) parts.push(`${t('search.filters.areaTitle')}: ${t('search.filters.rangeTo')} ${areaMax}`);
 
+  const lotMin = asString(filters.lot_area_min);
+  const lotMax = asString(filters.lot_area_max);
+  if (lotMin || lotMax) parts.push(`${t('search.filters.lotAreaTitle')}: ${lotMin || '0'}–${lotMax || '∞'}`);
+
   const floorMin = asString(filters.floor_min);
   const floorMax = asString(filters.floor_max);
   if (floorMin && floorMax) parts.push(`${t('search.filters.floorTitle')}: ${floorMin}–${floorMax}`);
@@ -137,6 +141,8 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   set('bathrooms_min', asString(filters.bathrooms_min));
   set('area_min', asString(filters.area_min));
   set('area_max', asString(filters.area_max));
+  set('lot_area_min', asString(filters.lot_area_min));
+  set('lot_area_max', asString(filters.lot_area_max));
   set('floor_min', asString(filters.floor_min));
   set('floor_max', asString(filters.floor_max));
   set('total_floors_min', asString(filters.total_floors_min));
