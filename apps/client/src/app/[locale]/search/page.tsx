@@ -45,7 +45,7 @@ export async function generateMetadata({
   // Флаг «длиннохвостой» комбинации фильтров — цена, комнаты или расширенные фильтры.
   const isLongTail = Boolean(
     sp.priceMin || sp.priceMax || sp.rooms ||
-    sp.rooms_min || sp.area_min || sp.area_max ||
+    sp.rooms_min || sp.bathrooms_min || sp.area_min || sp.area_max ||
     sp.floor_min || sp.floor_max ||
     sp.total_floors_min || sp.total_floors_max ||
     sp.year_min || sp.year_max ||
@@ -148,6 +148,9 @@ export default async function SearchPage({
   const roomsMinParsed = toNum(first(sp.rooms_min));
   const roomsMin = roomsMinParsed !== undefined && roomsMinParsed > 0 ? roomsMinParsed : undefined;
 
+  const bathroomsMinParsed = toNum(first(sp.bathrooms_min));
+  const bathroomsMin = bathroomsMinParsed !== undefined && bathroomsMinParsed > 0 ? bathroomsMinParsed : undefined;
+
   const priceMinRaw = first(sp.priceMin);
   const priceMaxRaw = first(sp.priceMax);
   const priceMin = priceMinRaw && Number.isFinite(Number(priceMinRaw)) ? Number(priceMinRaw) : undefined;
@@ -189,6 +192,7 @@ export default async function SearchPage({
     districtId,
     roomsExact: rooms,
     roomsMin,
+    bathroomsMin,
     priceMin,
     priceMax,
     query,
@@ -219,6 +223,7 @@ export default async function SearchPage({
     districtId,
     rooms,
     roomsMin,
+    bathroomsMin,
     priceMin: priceMinRaw,
     priceMax: priceMaxRaw,
     query,

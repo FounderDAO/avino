@@ -21,6 +21,8 @@ export interface BedroomsControlProps {
   value?: number;
   /** Режим точного совпадения. */
   exact: boolean;
+  /** Показывать ли чекбокс «Точное совпадение» (default true). */
+  showExact?: boolean;
   /** Вызывается при любом изменении (выбор числа или переключении exact). */
   onChange: (next: BedroomsControlValue) => void;
 }
@@ -33,7 +35,7 @@ const BEDROOM_OPTIONS: { value: number; label: string }[] = [
   { value: 5, label: '5+' },
 ];
 
-export function BedroomsControl({ value, exact, onChange }: BedroomsControlProps) {
+export function BedroomsControl({ value, exact, showExact = true, onChange }: BedroomsControlProps) {
   const t = useTranslations('search.filters');
 
   const handlePill = (num: number) => {
@@ -68,16 +70,18 @@ export function BedroomsControl({ value, exact, onChange }: BedroomsControlProps
         ))}
       </div>
 
-      {/* Чекбокс «Точное совпадение» */}
-      <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-ink">
-        <input
-          type="checkbox"
-          checked={exact}
-          onChange={handleExact}
-          className="h-4 w-4 rounded border-border accent-ink"
-        />
-        {t('exactMatch')}
-      </label>
+      {/* Чекбокс «Точное совпадение» (скрывается когда showExact=false) */}
+      {showExact !== false && (
+        <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-ink">
+          <input
+            type="checkbox"
+            checked={exact}
+            onChange={handleExact}
+            className="h-4 w-4 rounded border-border accent-ink"
+          />
+          {t('exactMatch')}
+        </label>
+      )}
     </div>
   );
 }

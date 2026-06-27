@@ -10,10 +10,14 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { RangeFields } from './controls/RangeFields';
+import { BedroomsControl } from './controls/BedroomsControl';
+import { BathroomsControl } from './controls/BathroomsControl';
 
 // ─── Публичные типы (потребляет Task 8) ──────────────────────────────────────
 
 export interface FiltersPanelValues {
+  roomsMin?: number;
+  bathroomsMin?: number;
   areaMin?: string;
   areaMax?: string;
   yearMin?: string;
@@ -79,6 +83,21 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
 
   return (
     <div className="flex flex-col gap-5 p-4">
+
+      {/* 0. Комнаты и санузлы */}
+      <Section title={t('roomsAndBathrooms')}>
+        <BedroomsControl
+          value={draft.roomsMin}
+          exact={false}
+          showExact={false}
+          onChange={({ value }) => patch({ roomsMin: value })}
+        />
+        <div className="mt-2 text-[12.5px] font-bold text-muted-foreground">{t('bathrooms')}</div>
+        <BathroomsControl
+          value={draft.bathroomsMin}
+          onChange={(value) => patch({ bathroomsMin: value })}
+        />
+      </Section>
 
       {/* 1. Площадь, м² */}
       <Section title={t('areaTitle')}>
