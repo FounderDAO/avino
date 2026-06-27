@@ -35,6 +35,7 @@ export interface EditListingDetail {
   price: string;
   currency: 'USD' | 'UZS';
   area: string | null;
+  lot_area: string | null;
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
@@ -63,6 +64,7 @@ export interface UpdateListingPatch {
   price?: string;
   currency?: string;
   area?: string;
+  lot_area?: string;
   rooms?: number;
   bathrooms?: number;
   floor?: number;

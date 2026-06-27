@@ -93,6 +93,8 @@ export interface Listing {
 
   /** Площадь, м² (строка для совместимости с API Decimal). */
   area?: string;
+  /** Площадь участка, соток (только HOUSE+LAND). */
+  lotArea?: string;
   /** Кол-во комнат (нет у участка/коммерции). */
   rooms?: number;
   /** Кол-во санузлов (нет у участка/коммерции). */
@@ -194,6 +196,8 @@ export interface ListingFilter {
   roomsExact?: number;
   areaMin?: number;
   areaMax?: number;
+  lotAreaMin?: number;
+  lotAreaMax?: number;
   floorMin?: number;
   floorMax?: number;
   notFirstFloor?: boolean;

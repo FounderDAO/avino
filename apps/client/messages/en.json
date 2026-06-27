@@ -267,7 +267,8 @@
       "rangeFrom": "from",
       "rangeTo": "to",
       "any": "Any",
-      "roomsExact": "Exactly {count} rooms"
+      "roomsExact": "Exactly {count} rooms",
+      "lotAreaTitle": "Lot size"
     },
     "results": {
       "count": "{count, plural, one {# listing} other {# listings}}",
@@ -343,7 +344,8 @@
       "floor": "Floor",
       "floorOf": "{floor} of {total}",
       "year": "Year built",
-      "parking": "Parking"
+      "parking": "Parking",
+      "lotArea": "Lot"
     },
     "contact": {
       "greeting": "Hello! Is this listing still available?",
@@ -528,6 +530,10 @@
       "area": {
         "label": "Area, m²",
         "placeholder": "e.g. 78"
+      },
+      "lotArea": {
+        "label": "Lot size, sotka",
+        "placeholder": "e.g. 6"
       },
       "floor": "Floor",
       "totalFloors": "Total floors",
@@ -953,6 +959,7 @@
     "floorOf": "{floor}/{total} fl",
     "floor": "{floor} fl",
     "landArea": "{value} m² lot",
+    "lotArea": "{value} sotka",
     "billion": "bln",
     "million": "mln",
     "daysOnSite": "{count, plural, one {# day on site} other {# days on site}}"

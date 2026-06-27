@@ -84,6 +84,7 @@ interface FormState {
   bathrooms: string;
   parking: string;  // '' = Нет
   area: string;
+  lotArea: string;
   floor: string;
   totalFloors: string;
   year: string;
@@ -106,6 +107,7 @@ const INITIAL: FormState = {
   bathrooms: '',
   parking: '',
   area: '',
+  lotArea: '',
   floor: '',
   totalFloors: '',
   year: '',
@@ -222,6 +224,7 @@ export function ListingNew() {
     };
 
     if (f.area) body.area = f.area;
+    if (f.lotArea) body.lot_area = f.lotArea;
     if (!noRooms) {
       if (f.rooms) {
         // rooms — int; "Студия"/"5+" нормализуем (студия → 0, 5+ → 5).
@@ -487,6 +490,16 @@ export function ListingNew() {
                 onChange={(e) => set('area', e.target.value.replace(/\D/g, ''))}
               />
             </FormField>
+            {(f.type === 'HOUSE' || f.type === 'LAND') && (
+              <FormField label={t('fields.lotArea.label')}>
+                <Field
+                  placeholder={t('fields.lotArea.placeholder')}
+                  inputMode="decimal"
+                  value={f.lotArea}
+                  onChange={(e) => set('lotArea', e.target.value.replace(/[^\d.]/g, ''))}
+                />
+              </FormField>
+            )}
             {!noRooms && (
               <div className="grid grid-cols-3 gap-3">
                 <FormField label={t('fields.floor')}>

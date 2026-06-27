@@ -80,6 +80,7 @@ interface EditForm {
   bathrooms: string;
   parking: string;  // '' = Нет
   area: string;
+  lotArea: string;
   floor: string;
   totalFloors: string;
   year: string;
@@ -115,6 +116,7 @@ function detailToForm(d: EditListingDetail): EditForm {
     bathrooms,
     parking: d.parking_type ?? '',
     area: d.area != null && d.area !== '' ? String(Number(d.area)) : '',
+    lotArea: d.lot_area != null && d.lot_area !== '' ? String(Number(d.lot_area)) : '',
     floor: d.floor != null ? String(d.floor) : '',
     totalFloors: d.total_floors != null ? String(d.total_floors) : '',
     year: d.year_built != null ? String(d.year_built) : '',
@@ -248,6 +250,7 @@ export function ListingEdit({ id }: { id: string }) {
       },
     };
     if (f.area) patch.area = toDecimal2(f.area);
+    if (f.lotArea) patch.lot_area = toDecimal2(f.lotArea);
     if (!noRooms) {
       if (f.rooms) {
         const n = f.rooms === 'studio' ? 0 : Number.parseInt(f.rooms, 10);
@@ -435,6 +438,16 @@ export function ListingEdit({ id }: { id: string }) {
               onChange={(e) => set('area', e.target.value.replace(/[^\d.]/g, ''))}
             />
           </FormField>
+          {(f.type === 'HOUSE' || f.type === 'LAND') && (
+            <FormField label={tNew('fields.lotArea.label')}>
+              <Field
+                placeholder={tNew('fields.lotArea.placeholder')}
+                inputMode="decimal"
+                value={f.lotArea}
+                onChange={(e) => set('lotArea', e.target.value.replace(/[^\d.]/g, ''))}
+              />
+            </FormField>
+          )}
           {!noRooms && (
             <div className="grid grid-cols-3 gap-3">
               <FormField label={tNew('fields.floor')}>

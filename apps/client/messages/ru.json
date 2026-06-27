@@ -267,7 +267,8 @@
       "rangeFrom": "от",
       "rangeTo": "до",
       "any": "Любое",
-      "roomsExact": "Комнат ровно: {count}"
+      "roomsExact": "Комнат ровно: {count}",
+      "lotAreaTitle": "Площадь участка"
     },
     "results": {
       "count": "{count, plural, one {# объявление} few {# объявления} many {# объявлений} other {# объявления}}",
@@ -343,7 +344,8 @@
       "floor": "Этаж",
       "floorOf": "{floor} из {total}",
       "year": "Год постройки",
-      "parking": "Парковка"
+      "parking": "Парковка",
+      "lotArea": "Участок"
     },
     "contact": {
       "greeting": "Здравствуйте! Объявление ещё актуально?",
@@ -528,6 +530,10 @@
       "area": {
         "label": "Площадь, м²",
         "placeholder": "например, 78"
+      },
+      "lotArea": {
+        "label": "Площадь участка, соток",
+        "placeholder": "например, 6"
       },
       "floor": "Этаж",
       "totalFloors": "Этажность",
@@ -953,6 +959,7 @@
     "floorOf": "{floor}/{total} эт",
     "floor": "{floor} эт",
     "landArea": "{value} м² участок",
+    "lotArea": "{value} соток",
     "billion": "млрд",
     "million": "млн",
     "daysOnSite": "{count, plural, one {# день на сайте} few {# дня на сайте} many {# дней на сайте} other {# дней на сайте}}"
