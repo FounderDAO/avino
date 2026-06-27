@@ -155,7 +155,7 @@ export default function ListingDetailPage() {
             <h2 style={{ fontSize: 24, lineHeight: 1.2 }}>{listing.title}</h2>
             <div style={{ fontSize: 26, fontWeight: 800, marginTop: 10 }}>{listing.price}</div>
             <div className="row gap-12 muted" style={{ fontSize: 14, marginTop: 8, flexWrap: 'wrap' }}>
-              <span>{listing.type}</span><span>·</span><span>{listing.rooms} комн</span><span>·</span><span>{src.area ?? '—'} м²</span><span>·</span><span>{listing.district}</span>
+              <span>{listing.type}</span><span>·</span><span>{listing.rooms} комн</span><span>·</span><span>{data?.bathrooms ?? '—'} с/у</span><span>·</span><span>{src.area ?? '—'} м²</span><span>·</span><span>{listing.district}</span>
             </div>
             {src.desc && <p style={{ fontSize: 14.5, lineHeight: 1.6, marginTop: 14, color: 'var(--ink-soft)' }}>{src.desc}</p>}
             <div className="row wrap gap-8" style={{ marginTop: 14 }}>
