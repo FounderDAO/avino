@@ -58,6 +58,7 @@ export interface ApiSearchItem {
   currency: Currency;
   rooms: number | null;
   bathrooms: number | null;
+  lot_area: string | null;
   parking_type: ParkingType | null;
   city_id: string | null;
   district_id: string | null;
@@ -93,6 +94,7 @@ interface ApiListingDetail {
   price: string;
   currency: Currency;
   area: string | null;
+  lot_area: string | null;
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
@@ -271,6 +273,7 @@ export function mapListing(api: AnyApiListing): Listing {
     currency: api.currency,
 
     area: detail?.area ?? undefined,
+    lotArea: (api as ApiSearchItem | ApiListingDetail).lot_area ?? undefined,
     rooms: api.rooms ?? undefined,
     bathrooms: (api as ApiSearchItem | ApiListingDetail).bathrooms ?? undefined,
     parkingType: (api as ApiSearchItem | ApiListingDetail).parking_type ?? undefined,
@@ -390,6 +393,8 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   if (filter.roomsExact != null) params.set('rooms', String(filter.roomsExact));
   if (filter.areaMin != null) params.set('area_min', String(filter.areaMin));
   if (filter.areaMax != null) params.set('area_max', String(filter.areaMax));
+  if (filter.lotAreaMin != null) params.set('lot_area_min', String(filter.lotAreaMin));
+  if (filter.lotAreaMax != null) params.set('lot_area_max', String(filter.lotAreaMax));
   if (filter.floorMin != null) params.set('floor_min', String(filter.floorMin));
   if (filter.floorMax != null) params.set('floor_max', String(filter.floorMax));
   if (filter.notFirstFloor) params.set('not_first_floor', 'true');
