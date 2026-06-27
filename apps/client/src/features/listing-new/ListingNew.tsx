@@ -38,8 +38,10 @@ import { cn } from '@/lib/utils';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatMoney, propertyTypeLabel } from '@/lib/format';
 import {
+  AMENITIES,
   PARKING_TYPES,
   PROPERTY_TYPES,
+  type Amenity,
   type Currency,
   type ParkingType,
   type PropertyType,
@@ -96,6 +98,7 @@ interface FormState {
   desc: string;
   toursEnabled: boolean;
   tourWindows: TourWindow[];
+  amenities: Amenity[];
 }
 
 const INITIAL: FormState = {
@@ -119,6 +122,7 @@ const INITIAL: FormState = {
   desc: '',
   toursEnabled: false,
   tourWindows: [],
+  amenities: [],
 };
 
 /** Действие редьюсера: установить поле либо заменить целиком (для photos). */
@@ -250,6 +254,7 @@ export function ListingNew() {
       body.tour_windows = f.tourWindows;
     }
     if (f.parking) body.parking_type = f.parking as ParkingType;
+    if (f.amenities.length > 0) body.amenities = f.amenities;
     return body;
   };
 
@@ -478,6 +483,26 @@ export function ListingNew() {
                 {PARKING_TYPES.map((p) => (
                   <Chip key={p} active={f.parking === p} onClick={() => set('parking', p)}>
                     {tEnums(`parking.${p}`)}
+                  </Chip>
+                ))}
+              </div>
+            </FormField>
+            <FormField label={t('fields.amenities.label')}>
+              <div className="flex flex-wrap gap-2">
+                {AMENITIES.map((a) => (
+                  <Chip
+                    key={a}
+                    active={f.amenities.includes(a)}
+                    onClick={() =>
+                      set(
+                        'amenities',
+                        f.amenities.includes(a)
+                          ? f.amenities.filter((v) => v !== a)
+                          : ([...f.amenities, a] as Amenity[]),
+                      )
+                    }
+                  >
+                    {tEnums(`amenities.${a}`)}
                   </Chip>
                 ))}
               </div>

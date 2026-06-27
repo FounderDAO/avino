@@ -19,6 +19,7 @@
  *    + sort/q (TASK-207/208).
  */
 import type {
+  Amenity,
   Currency,
   Listing,
   ListingAgent,
@@ -125,6 +126,8 @@ interface ApiListingDetail {
    * свободным текстом в `features_text`. Объявляем опционально на будущее.
    */
   features?: { id: string; code: string; name: string }[];
+  /** Структурированные удобства (ADR-0111, Zillow Phase 2). Всегда массив. */
+  amenities: Amenity[];
   media: ApiMedia[];
   published_at: string | null;
   created_at: string;
@@ -284,6 +287,7 @@ export function mapListing(api: AnyApiListing): Listing {
     title: api.title,
     desc: detail?.description ?? undefined,
     features: detail ? toFeatures(detail) : undefined,
+    amenities: detail?.amenities ?? [],
 
     // Имя района на языке ответа (TASK-209, ADR-0068); null → '' (без uuid в UI).
     district: api.district_name ?? '',
@@ -407,6 +411,9 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   if (filter.toursEnabled) params.set('tours_enabled', 'true');
   if (filter.parkingTypes && filter.parkingTypes.length > 0) {
     for (const pt of filter.parkingTypes) params.append('parking_type', pt);
+  }
+  if (filter.amenities && filter.amenities.length > 0) {
+    for (const a of filter.amenities) params.append('amenities', a);
   }
   params.set('limit', String(limit));
   return params;

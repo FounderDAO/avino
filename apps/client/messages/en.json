@@ -268,7 +268,8 @@
       "rangeTo": "to",
       "any": "Any",
       "roomsExact": "Exactly {count} rooms",
-      "lotAreaTitle": "Lot size"
+      "lotAreaTitle": "Lot size",
+      "amenitiesTitle": "Amenities"
     },
     "results": {
       "count": "{count, plural, one {# listing} other {# listings}}",
@@ -358,6 +359,9 @@
       "loginToMessage": "Sign in to message the seller",
       "requestTour": "Request a tour",
       "loginToTour": "Sign in to request a tour"
+    },
+    "amenities": {
+      "title": "Amenities"
     }
   },
   "tourRequest": {
@@ -558,6 +562,9 @@
       "desc": {
         "label": "Description",
         "placeholder": "Tell us about the property: renovation, infrastructure, what's nearby…"
+      },
+      "amenities": {
+        "label": "Amenities"
       }
     },
     "photoUploader": {
@@ -981,6 +988,16 @@
       "COVERED": "Covered",
       "GARAGE": "Garage",
       "UNDERGROUND": "Underground"
+    },
+    "amenities": {
+      "AIR_CONDITIONING": "Air conditioning",
+      "FURNITURE": "Furniture",
+      "APPLIANCES": "Appliances",
+      "INTERNET": "Internet",
+      "ELEVATOR": "Elevator",
+      "BALCONY": "Balcony",
+      "HEATING": "Heating",
+      "SECURITY": "Security"
     }
   },
   "breadcrumb": {

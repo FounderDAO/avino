@@ -40,6 +40,7 @@ import { BedroomsControl } from './controls/BedroomsControl';
 import { HomeTypeMultiSelect } from './controls/HomeTypeMultiSelect';
 import { FiltersPanel, type FiltersPanelValues } from './FiltersPanel';
 import {
+  type Amenity,
   type District,
   type ParkingType,
   type PropertyType,
@@ -83,6 +84,7 @@ export interface FilterValues {
   toursEnabled?: boolean;
   listingSource?: 'OWNER' | 'AGENCY';
   parkingTypes?: ParkingType[];
+  amenities?: Amenity[];
 }
 
 export interface FilterBarProps {
@@ -217,7 +219,8 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     values.notFirstFloor || values.notLastFloor ||
     values.toursEnabled || values.listingSource ||
     values.bathroomsMin ||
-    (values.parkingTypes?.length ?? 0) > 0,
+    (values.parkingTypes?.length ?? 0) > 0 ||
+    (values.amenities?.length ?? 0) > 0,
   );
 
   // ── FiltersPanel values ───────────────────────────────────────────────────────
@@ -240,6 +243,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     listingSource: values.listingSource,
     toursEnabled: values.toursEnabled,
     parkingTypes: values.parkingTypes,
+    amenities: values.amenities,
   };
 
   const handlePanelApply = React.useCallback(
@@ -270,6 +274,8 @@ export function FilterBar({ values, districts }: FilterBarProps) {
       setOne('tours_enabled', next.toursEnabled ? 'true' : undefined);
       params.delete('parking_type');
       for (const pt of next.parkingTypes ?? []) params.append('parking_type', pt);
+      params.delete('amenities');
+      for (const a of next.amenities ?? []) params.append('amenities', a);
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
@@ -296,6 +302,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
       listing_source: undefined,
       tours_enabled: undefined,
       parking_type: undefined,
+      amenities: undefined,
     });
   }, [setParams]);
 
@@ -339,6 +346,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     if (values.listingSource) filters.listing_source = values.listingSource;
     if (values.toursEnabled) filters.tours_enabled = true;
     if (values.parkingTypes && values.parkingTypes.length > 0) filters.parking_types = values.parkingTypes;
+    if (values.amenities && values.amenities.length > 0) filters.amenities = values.amenities;
     return filters;
   }, [values, territoryPoints]);
 

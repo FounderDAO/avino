@@ -268,7 +268,8 @@
       "rangeTo": "gacha",
       "any": "Istalgan",
       "roomsExact": "Xonalar soni: {count}",
-      "lotAreaTitle": "Yer uchastkasi"
+      "lotAreaTitle": "Yer uchastkasi",
+      "amenitiesTitle": "Qulayliklar"
     },
     "results": {
       "count": "{count, plural, other {# ta e'lon}}",
@@ -358,6 +359,9 @@
       "loginToMessage": "Sotuvchiga yozish uchun tizimga kiring",
       "requestTour": "Tur so'rash",
       "loginToTour": "Tur so'rash uchun tizimga kiring"
+    },
+    "amenities": {
+      "title": "Qulayliklar"
     }
   },
   "tourRequest": {
@@ -558,6 +562,9 @@
       "desc": {
         "label": "Tavsif",
         "placeholder": "Kvartira haqida gapirib bering: ta'mir, infratuzilma, atrofda nimalar bor…"
+      },
+      "amenities": {
+        "label": "Qulayliklar"
       }
     },
     "photoUploader": {
@@ -981,6 +988,16 @@
       "COVERED": "Yopiq",
       "GARAGE": "Garaj",
       "UNDERGROUND": "Yer osti"
+    },
+    "amenities": {
+      "AIR_CONDITIONING": "Konditsioner",
+      "FURNITURE": "Mebel",
+      "APPLIANCES": "Maishiy texnika",
+      "INTERNET": "Internet",
+      "ELEVATOR": "Lift",
+      "BALCONY": "Balkon",
+      "HEATING": "Isitish",
+      "SECURITY": "Videokuzatuv"
     }
   },
   "breadcrumb": {

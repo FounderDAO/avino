@@ -17,13 +17,14 @@ import { getTranslations } from 'next-intl/server';
 import { getDistricts } from '@/lib/api/geo';
 import { searchListingsPage } from '@/lib/api/listings';
 import type {
+  Amenity,
   ListingFilter,
   ParkingType,
   PropertyType,
   SortOption,
   TransactionType,
 } from '@/lib/mock/types';
-import { PARKING_TYPES } from '@/lib/mock/types';
+import { AMENITIES, PARKING_TYPES } from '@/lib/mock/types';
 import { FilterBar, type FilterValues } from '@/features/search/FilterBar';
 import { SearchResults } from '@/features/search/SearchResults';
 import { alternatesFor } from '@/lib/seo/alternates';
@@ -52,7 +53,7 @@ export async function generateMetadata({
     sp.total_floors_min || sp.total_floors_max ||
     sp.year_min || sp.year_max ||
     sp.lot_area_min || sp.lot_area_max ||
-    sp.listing_source || sp.tours_enabled || sp.parking_type,
+    sp.listing_source || sp.tours_enabled || sp.parking_type || sp.amenities,
   );
 
   // Canonical: оставляем только семантические параметры (strip sort/view/cursor/price/rooms).
@@ -172,6 +173,13 @@ export default async function SearchPage({
     PARKING_TYPES.includes(p as ParkingType),
   );
 
+  const rawAmenities = Array.isArray(sp.amenities)
+    ? sp.amenities
+    : sp.amenities ? [sp.amenities] : [];
+  const amenities = rawAmenities.filter((a): a is Amenity =>
+    AMENITIES.includes(a as Amenity),
+  );
+
   // Строковые диапазоны (в FilterValues остаются строками, в ListingFilter → числа).
   const areaMinRaw = first(sp.area_min);
   const areaMaxRaw = first(sp.area_max);
@@ -224,6 +232,7 @@ export default async function SearchPage({
     toursEnabled,
     listingSource,
     parkingTypes: parkingTypes.length > 0 ? parkingTypes : undefined,
+    amenities: amenities.length > 0 ? amenities : undefined,
   };
   const [page, districts] = await Promise.all([
     searchListingsPage(filter, locale),
@@ -259,6 +268,7 @@ export default async function SearchPage({
     toursEnabled,
     listingSource,
     parkingTypes: parkingTypes.length > 0 ? parkingTypes : undefined,
+    amenities: amenities.length > 0 ? amenities : undefined,
   };
 
   // Заголовок выдачи: «Покупка/Аренда жилья · <запрос|Ташкент>».
