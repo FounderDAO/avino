@@ -166,6 +166,7 @@ export interface ListingDetail {
   price: string;
   currency: Currency;
   area: string | null;
+  lot_area: string | null;
   rooms: number | null;
   bathrooms: number | null;
   parking_type: 'YARD' | 'COVERED' | 'GARAGE' | 'UNDERGROUND' | null;
