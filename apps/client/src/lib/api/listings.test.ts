@@ -70,6 +70,7 @@ const detail = {
   description: 'Описание',
   address_note: null,
   features_text: 'Парковка, Wi-Fi',
+  amenities: ['ELEVATOR', 'INTERNET'] as const,
   media: [{ id: 'm1', url: 'https://x/p.jpg', thumbnail_url: 'https://x/p_t.jpg', sort_order: 0, type: 'IMAGE' }],
   published_at: null,
   created_at: '2026-06-09T00:00:00.000Z',
@@ -345,10 +346,37 @@ describe('searchListingsPage — keyset-пагинация (TASK-199)', () => {
   });
 });
 
+describe('mapListing — amenities (ADR-0111)', () => {
+  it('detail содержит amenities из API', () => {
+    const listing = mapListing(asListing(detail));
+    expect(listing.amenities).toEqual(['ELEVATOR', 'INTERNET']);
+  });
+
+  it('detail без amenities → пустой массив', () => {
+    const listing = mapListing(asListing({ ...detail, amenities: undefined }));
+    expect(listing.amenities).toEqual([]);
+  });
+
+  it('карточка поиска (searchItem) — amenities отсутствует (не в карточке)', () => {
+    const listing = mapListing(searchItem);
+    expect(listing.amenities).toEqual([]);
+  });
+});
+
 describe('buildSearchParams — Zillow-фильтры (Task 4)', () => {
   it('мультивыбор типов → повторяющийся property_type', () => {
     const p = buildSearchParams({ types: ['APARTMENT', 'HOUSE'] }, 24);
     expect(p.getAll('property_type')).toEqual(['APARTMENT', 'HOUSE']);
+  });
+
+  it('amenities → повторяющийся параметр amenities (AND)', () => {
+    const p = buildSearchParams({ amenities: ['ELEVATOR', 'INTERNET'] }, 24);
+    expect(p.getAll('amenities')).toEqual(['ELEVATOR', 'INTERNET']);
+  });
+
+  it('amenities пустой → параметр не отправляется', () => {
+    const p = buildSearchParams({ amenities: [] }, 24);
+    expect(p.getAll('amenities')).toEqual([]);
   });
 
   it('rooms_min, area, floor, year, source, tours', () => {

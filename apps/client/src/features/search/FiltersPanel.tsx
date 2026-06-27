@@ -13,7 +13,8 @@ import { RangeFields } from './controls/RangeFields';
 import { BedroomsControl } from './controls/BedroomsControl';
 import { BathroomsControl } from './controls/BathroomsControl';
 import { ParkingMultiSelect } from './controls/ParkingMultiSelect';
-import type { ParkingType } from '@/lib/mock/types';
+import { AmenitiesMultiSelect } from './controls/AmenitiesMultiSelect';
+import type { Amenity, ParkingType } from '@/lib/mock/types';
 
 // ─── Публичные типы (потребляет Task 8) ──────────────────────────────────────
 
@@ -35,6 +36,7 @@ export interface FiltersPanelValues {
   listingSource?: 'OWNER' | 'AGENCY';
   toursEnabled?: boolean;
   parkingTypes?: ParkingType[];
+  amenities?: Amenity[];
 }
 
 export interface FiltersPanelProps {
@@ -199,6 +201,14 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
         <ParkingMultiSelect
           value={draft.parkingTypes ?? []}
           onChange={(next) => patch({ parkingTypes: next.length ? next : undefined })}
+        />
+      </Section>
+
+      {/* 6b. Удобства */}
+      <Section title={t('amenitiesTitle')}>
+        <AmenitiesMultiSelect
+          value={draft.amenities ?? []}
+          onChange={(next) => patch({ amenities: next.length ? next : undefined })}
         />
       </Section>
 

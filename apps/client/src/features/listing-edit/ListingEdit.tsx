@@ -32,8 +32,10 @@ import { Chip } from '@/components/ui/pill';
 import { cn } from '@/lib/utils';
 import { propertyTypeLabel } from '@/lib/format';
 import {
+  AMENITIES,
   PARKING_TYPES,
   PROPERTY_TYPES,
+  type Amenity,
   type Currency,
   type ParkingType,
   type PropertyType,
@@ -91,6 +93,7 @@ interface EditForm {
   desc: string;
   toursEnabled: boolean;
   tourWindows: TourWindow[];
+  amenities: Amenity[];
 }
 
 /** Decimal-строка с ≤2 дробными (под DECIMAL_2 бэкенда). */
@@ -127,6 +130,7 @@ function detailToForm(d: EditListingDetail): EditForm {
     desc: d.description ?? '',
     toursEnabled: d.tours_enabled ?? false,
     tourWindows: d.tour_windows ?? [],
+    amenities: d.amenities ?? [],
   };
 }
 
@@ -272,6 +276,9 @@ export function ListingEdit({ id }: { id: string }) {
     patch.tours_enabled = f.toursEnabled;
     patch.tour_windows = f.tourWindows;
     if (f.parking) patch.parking_type = f.parking as ParkingType;
+    // Всегда шлём массив (как tour_windows) — чтобы «снять все удобства → сохранить»
+    // реально очищал их (omit-empty не дал бы отправить пустой массив на бэк).
+    patch.amenities = f.amenities;
     return patch;
   };
 
@@ -426,6 +433,26 @@ export function ListingEdit({ id }: { id: string }) {
               {PARKING_TYPES.map((p) => (
                 <Chip key={p} active={f.parking === p} onClick={() => set('parking', p)}>
                   {tEnums(`parking.${p}`)}
+                </Chip>
+              ))}
+            </div>
+          </FormField>
+          <FormField label={tNew('fields.amenities.label')}>
+            <div className="flex flex-wrap gap-2">
+              {AMENITIES.map((a) => (
+                <Chip
+                  key={a}
+                  active={f.amenities.includes(a)}
+                  onClick={() =>
+                    set(
+                      'amenities',
+                      f.amenities.includes(a)
+                        ? f.amenities.filter((v) => v !== a)
+                        : ([...f.amenities, a] as Amenity[]),
+                    )
+                  }
+                >
+                  {tEnums(`amenities.${a}`)}
                 </Chip>
               ))}
             </div>
