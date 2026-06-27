@@ -4759,7 +4759,7 @@ Related spec/plan:
 
 Status: DONE
 Branch: feat/listing-parking-api
-PR: pending
+PR: #244
 
 Files changed:
 - apps/api/prisma/schema.prisma
