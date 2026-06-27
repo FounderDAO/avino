@@ -34,6 +34,29 @@ export type ParkingType = 'YARD' | 'COVERED' | 'GARAGE' | 'UNDERGROUND';
 /** Все типы парковки (порядок — как в выпадающих списках UI). */
 export const PARKING_TYPES: ParkingType[] = ['YARD', 'COVERED', 'GARAGE', 'UNDERGROUND'];
 
+/** Удобства объявления (ADR-0111, Zillow Phase 2). */
+export type Amenity =
+  | 'AIR_CONDITIONING'
+  | 'FURNITURE'
+  | 'APPLIANCES'
+  | 'INTERNET'
+  | 'ELEVATOR'
+  | 'BALCONY'
+  | 'HEATING'
+  | 'SECURITY';
+
+/** Все удобства (порядок — как в UI). */
+export const AMENITIES: Amenity[] = [
+  'AIR_CONDITIONING',
+  'FURNITURE',
+  'APPLIANCES',
+  'INTERNET',
+  'ELEVATOR',
+  'BALCONY',
+  'HEATING',
+  'SECURITY',
+];
+
 export type ListingStatus =
   | 'NEW'
   | 'ACTIVE'
@@ -101,6 +124,8 @@ export interface Listing {
   bathrooms?: number;
   /** Тип парковки/гаража. */
   parkingType?: ParkingType;
+  /** Удобства (структурированный список, ADR-0111). */
+  amenities?: Amenity[];
   /** Этаж объекта. */
   floor?: number;
   /** Этажность здания. */
@@ -188,6 +213,8 @@ export interface ListingFilter {
   types?: PropertyType[];
   /** Мультивыбор типов парковки (parking_type IN). */
   parkingTypes?: ParkingType[];
+  /** Мультивыбор удобств (AND-containment, ADR-0111). */
+  amenities?: Amenity[];
   /** «N+ комнат» (rooms_min). */
   roomsMin?: number;
   /** «N+ санузлов» (bathrooms_min). */

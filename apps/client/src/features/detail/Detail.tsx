@@ -11,7 +11,21 @@
  */
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { ChevronLeft, MapPin, Check } from 'lucide-react';
+import {
+  ArrowUpDown,
+  Building2,
+  Check,
+  ChevronLeft,
+  Flame,
+  MapPin,
+  ShieldCheck,
+  Snowflake,
+  Sofa,
+  WashingMachine,
+  Wifi,
+  type LucideIcon,
+} from 'lucide-react';
+import type { Amenity } from '@/lib/mock/types';
 import { Gallery } from '@/components/ui/gallery';
 import { PromoBadge } from '@/components/ui/promo-badge';
 import { SectionTitle } from '@/components/ui/section-title';
@@ -26,6 +40,18 @@ import { ContactCard } from './ContactCard';
 import { DetailMap } from './DetailMap';
 import { DetailPrice } from './DetailPrice';
 import { ShareButton } from './ShareButton';
+
+/** Иконки удобств (ADR-0111, Zillow Phase 2). */
+const AMENITY_ICON: Record<Amenity, LucideIcon> = {
+  AIR_CONDITIONING: Snowflake,
+  FURNITURE: Sofa,
+  APPLIANCES: WashingMachine,
+  INTERNET: Wifi,
+  ELEVATOR: ArrowUpDown,
+  BALCONY: Building2,
+  HEATING: Flame,
+  SECURITY: ShieldCheck,
+};
 
 /** Пропы хлебной крошки — передаются из page.tsx (уже имеет переводы). */
 export interface DetailBreadcrumb {
@@ -148,6 +174,27 @@ export async function Detail({ listing, breadcrumb }: DetailProps) {
                     <Check size={15} strokeWidth={2.4} className="text-green" /> {ft}
                   </span>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Удобства (ADR-0111) */}
+          {listing.amenities && listing.amenities.length > 0 && (
+            <div className="mt-7">
+              <h2 className="text-[22px]">{t('amenities.title')}</h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {listing.amenities.map((a) => {
+                  const Icon = AMENITY_ICON[a];
+                  return (
+                    <span
+                      key={a}
+                      className="inline-flex items-center gap-1.5 rounded-pill border border-border bg-surface px-3.5 py-2 text-sm font-semibold"
+                    >
+                      <Icon size={15} strokeWidth={2} className="text-teal" />
+                      {tEnums(`amenities.${a}`)}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}

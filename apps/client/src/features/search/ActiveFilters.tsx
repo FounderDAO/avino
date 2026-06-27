@@ -173,6 +173,13 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
     chips.push({ key: 'parking', label, param: '__parking' });
   }
 
+  if (values.amenities && values.amenities.length > 0) {
+    const label = values.amenities.length > 1
+      ? `${t('amenitiesTitle')}: ${String(values.amenities.length)}`
+      : tEnums(`amenities.${values.amenities[0]}`);
+    chips.push({ key: 'amenities', label, param: '__amenities' });
+  }
+
   if (values.query) {
     const label = t('queryChip', { query: values.query });
     chips.push({ key: 'query', label, param: 'query' });
@@ -205,6 +212,11 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
       params.delete('parking_type');
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    } else if (chip.param === '__amenities') {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('amenities');
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     } else {
       setParams({ [chip.param]: undefined });
     }
@@ -224,6 +236,7 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
       'not_first_floor', 'not_last_floor',
       'listing_source', 'tours_enabled',
       'parking_type',
+      'amenities',
       'query',
     ];
     for (const key of keysToDelete) {

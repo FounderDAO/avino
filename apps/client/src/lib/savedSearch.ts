@@ -12,7 +12,7 @@
  *    неймспейса, ключи `savedSearch.*` и `enums.propertyType.*`),
  *  - filtersToSearchHref → ссылка `/search?...` для перехода в выдачу.
  */
-import { PARKING_TYPES, PROPERTY_TYPES, type ParkingType, type PropertyType } from '@/lib/mock/types';
+import { AMENITIES, PARKING_TYPES, PROPERTY_TYPES, type Amenity, type ParkingType, type PropertyType } from '@/lib/mock/types';
 import type { T } from '@/lib/format';
 
 /** Внутренний объект фильтров (произвольные ключи API.md §12). */
@@ -111,6 +111,9 @@ export function describeFilters(filters: SavedSearchFilters, t: T): string {
   const parking = Array.isArray(filters.parking_types) ? (filters.parking_types as string[]) : [];
   if (parking.length) parts.push(t('search.filters.parkingTypesTitle'));
 
+  const amenitiesArr = Array.isArray(filters.amenities) ? (filters.amenities as string[]) : [];
+  if (amenitiesArr.length) parts.push(t('search.filters.amenitiesTitle'));
+
   const q = asString(filters.q);
   if (q) parts.push(`«${q}»`);
 
@@ -156,6 +159,11 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   if (Array.isArray(filters.parking_types)) {
     for (const p of filters.parking_types as string[]) {
       if (PARKING_TYPES.includes(p as ParkingType)) params.append('parking_type', p);
+    }
+  }
+  if (Array.isArray(filters.amenities)) {
+    for (const a of filters.amenities as string[]) {
+      if (AMENITIES.includes(a as Amenity)) params.append('amenities', a);
     }
   }
   set('query', asString(filters.q));

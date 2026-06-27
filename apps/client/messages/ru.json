@@ -268,7 +268,8 @@
       "rangeTo": "до",
       "any": "Любое",
       "roomsExact": "Комнат ровно: {count}",
-      "lotAreaTitle": "Площадь участка"
+      "lotAreaTitle": "Площадь участка",
+      "amenitiesTitle": "Удобства"
     },
     "results": {
       "count": "{count, plural, one {# объявление} few {# объявления} many {# объявлений} other {# объявления}}",
@@ -358,6 +359,9 @@
       "loginToMessage": "Войдите, чтобы написать продавцу",
       "requestTour": "Запросить тур",
       "loginToTour": "Войдите, чтобы запросить тур"
+    },
+    "amenities": {
+      "title": "Удобства"
     }
   },
   "tourRequest": {
@@ -558,6 +562,9 @@
       "desc": {
         "label": "Описание",
         "placeholder": "Расскажите о квартире: ремонт, инфраструктура, что рядом…"
+      },
+      "amenities": {
+        "label": "Удобства"
       }
     },
     "photoUploader": {
@@ -981,6 +988,16 @@
       "COVERED": "Крытая",
       "GARAGE": "Гараж",
       "UNDERGROUND": "Подземная"
+    },
+    "amenities": {
+      "AIR_CONDITIONING": "Кондиционер",
+      "FURNITURE": "Мебель",
+      "APPLIANCES": "Бытовая техника",
+      "INTERNET": "Интернет",
+      "ELEVATOR": "Лифт",
+      "BALCONY": "Балкон",
+      "HEATING": "Отопление",
+      "SECURITY": "Видеонаблюдение"
     }
   },
   "breadcrumb": {
