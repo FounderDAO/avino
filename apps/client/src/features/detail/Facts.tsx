@@ -4,7 +4,7 @@
  */
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { Bed, Bath, Ruler, Layers, CalendarDays, type LucideIcon } from 'lucide-react';
+import { Bed, Bath, Ruler, Layers, CalendarDays, SquareParking, type LucideIcon } from 'lucide-react';
 import { formatArea } from '@/lib/format';
 import type { Listing } from '@/lib/mock/types';
 
@@ -31,6 +31,7 @@ export interface FactsProps {
 export function Facts({ listing, className }: FactsProps) {
   const t = useTranslations('listing');
   const tUnits = useTranslations('units');
+  const tEnums = useTranslations('enums');
   // Собираем только заполненные характеристики (у участка/коммерции часть пуста).
   const items: React.ReactNode[] = [];
   if (listing.rooms) {
@@ -54,6 +55,9 @@ export function Facts({ listing, className }: FactsProps) {
   }
   if (listing.year) {
     items.push(<Fact key="year" icon={CalendarDays} label={t('facts.year')} value={listing.year} />);
+  }
+  if (listing.parkingType) {
+    items.push(<Fact key="parking" icon={SquareParking} label={t('facts.parking')} value={tEnums(`parking.${listing.parkingType}`)} />);
   }
 
   if (items.length === 0) return null;

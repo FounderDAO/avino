@@ -41,6 +41,7 @@ import { HomeTypeMultiSelect } from './controls/HomeTypeMultiSelect';
 import { FiltersPanel, type FiltersPanelValues } from './FiltersPanel';
 import {
   type District,
+  type ParkingType,
   type PropertyType,
   type SortOption,
   type TransactionType,
@@ -79,6 +80,7 @@ export interface FilterValues {
   notLastFloor?: boolean;
   toursEnabled?: boolean;
   listingSource?: 'OWNER' | 'AGENCY';
+  parkingTypes?: ParkingType[];
 }
 
 export interface FilterBarProps {
@@ -211,7 +213,8 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     values.totalFloorsMin || values.totalFloorsMax ||
     values.notFirstFloor || values.notLastFloor ||
     values.toursEnabled || values.listingSource ||
-    values.bathroomsMin,
+    values.bathroomsMin ||
+    (values.parkingTypes?.length ?? 0) > 0,
   );
 
   // ── FiltersPanel values ───────────────────────────────────────────────────────
@@ -231,29 +234,39 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     totalFloorsMax: values.totalFloorsMax,
     listingSource: values.listingSource,
     toursEnabled: values.toursEnabled,
+    parkingTypes: values.parkingTypes,
   };
 
   const handlePanelApply = React.useCallback(
     (next: FiltersPanelValues) => {
-      setParams({
-        rooms_min: next.roomsMin,
-        ...(next.roomsMin != null ? { rooms: undefined } : {}),
-        bathrooms_min: next.bathroomsMin,
-        area_min: next.areaMin,
-        area_max: next.areaMax,
-        year_min: next.yearMin,
-        year_max: next.yearMax,
-        floor_min: next.floorMin,
-        floor_max: next.floorMax,
-        total_floors_min: next.totalFloorsMin,
-        total_floors_max: next.totalFloorsMax,
-        not_first_floor: next.notFirstFloor ? 'true' : undefined,
-        not_last_floor: next.notLastFloor ? 'true' : undefined,
-        listing_source: next.listingSource,
-        tours_enabled: next.toursEnabled ? 'true' : undefined,
-      });
+      // parking_type — повторяющийся параметр; setParams умеет только set.
+      // Строим URLSearchParams вручную и делаем один router.replace.
+      const params = new URLSearchParams(searchParams.toString());
+      const setOne = (k: string, v: string | number | undefined) => {
+        if (v == null || v === '') params.delete(k);
+        else params.set(k, String(v));
+      };
+      setOne('rooms_min', next.roomsMin);
+      if (next.roomsMin != null) params.delete('rooms');
+      setOne('bathrooms_min', next.bathroomsMin);
+      setOne('area_min', next.areaMin);
+      setOne('area_max', next.areaMax);
+      setOne('year_min', next.yearMin);
+      setOne('year_max', next.yearMax);
+      setOne('floor_min', next.floorMin);
+      setOne('floor_max', next.floorMax);
+      setOne('total_floors_min', next.totalFloorsMin);
+      setOne('total_floors_max', next.totalFloorsMax);
+      setOne('not_first_floor', next.notFirstFloor ? 'true' : undefined);
+      setOne('not_last_floor', next.notLastFloor ? 'true' : undefined);
+      setOne('listing_source', next.listingSource);
+      setOne('tours_enabled', next.toursEnabled ? 'true' : undefined);
+      params.delete('parking_type');
+      for (const pt of next.parkingTypes ?? []) params.append('parking_type', pt);
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [setParams],
+    [router, pathname, searchParams],
   );
 
   const handlePanelReset = React.useCallback(() => {
@@ -273,6 +286,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
       not_last_floor: undefined,
       listing_source: undefined,
       tours_enabled: undefined,
+      parking_type: undefined,
     });
   }, [setParams]);
 
@@ -313,6 +327,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     if (values.notLastFloor) filters.not_last_floor = true;
     if (values.listingSource) filters.listing_source = values.listingSource;
     if (values.toursEnabled) filters.tours_enabled = true;
+    if (values.parkingTypes && values.parkingTypes.length > 0) filters.parking_types = values.parkingTypes;
     return filters;
   }, [values, territoryPoints]);
 

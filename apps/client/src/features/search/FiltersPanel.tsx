@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 import { RangeFields } from './controls/RangeFields';
 import { BedroomsControl } from './controls/BedroomsControl';
 import { BathroomsControl } from './controls/BathroomsControl';
+import { ParkingMultiSelect } from './controls/ParkingMultiSelect';
+import type { ParkingType } from '@/lib/mock/types';
 
 // ─── Публичные типы (потребляет Task 8) ──────────────────────────────────────
 
@@ -30,6 +32,7 @@ export interface FiltersPanelValues {
   totalFloorsMax?: string;
   listingSource?: 'OWNER' | 'AGENCY';
   toursEnabled?: boolean;
+  parkingTypes?: ParkingType[];
 }
 
 export interface FiltersPanelProps {
@@ -176,7 +179,15 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
         </div>
       </Section>
 
-      {/* 6. Принимает заявки на просмотр */}
+      {/* 6. Парковка */}
+      <Section title={t('parkingTypesTitle')}>
+        <ParkingMultiSelect
+          value={draft.parkingTypes ?? []}
+          onChange={(next) => patch({ parkingTypes: next.length ? next : undefined })}
+        />
+      </Section>
+
+      {/* 7. Принимает заявки на просмотр */}
       <Section title="">
         <CheckboxRow
           label={t('toursEnabled')}

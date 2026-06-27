@@ -24,6 +24,7 @@ const searchItem: ApiSearchItem = {
   currency: 'UZS',
   rooms: 2,
   bathrooms: null,
+  parking_type: null,
   city_id: 'c1',
   district_id: 'uuid-district',
   district_name: 'Юнусабадский',

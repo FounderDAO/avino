@@ -32,8 +32,10 @@ import { Chip } from '@/components/ui/pill';
 import { cn } from '@/lib/utils';
 import { propertyTypeLabel } from '@/lib/format';
 import {
+  PARKING_TYPES,
   PROPERTY_TYPES,
   type Currency,
+  type ParkingType,
   type PropertyType,
   type TransactionType,
 } from '@/lib/mock';
@@ -76,6 +78,7 @@ interface EditForm {
   coords: Coords | null;
   rooms: string;
   bathrooms: string;
+  parking: string;  // '' = Нет
   area: string;
   floor: string;
   totalFloors: string;
@@ -110,6 +113,7 @@ function detailToForm(d: EditListingDetail): EditForm {
     coords,
     rooms,
     bathrooms,
+    parking: d.parking_type ?? '',
     area: d.area != null && d.area !== '' ? String(Number(d.area)) : '',
     floor: d.floor != null ? String(d.floor) : '',
     totalFloors: d.total_floors != null ? String(d.total_floors) : '',
@@ -264,6 +268,7 @@ export function ListingEdit({ id }: { id: string }) {
     }
     patch.tours_enabled = f.toursEnabled;
     patch.tour_windows = f.tourWindows;
+    if (f.parking) patch.parking_type = f.parking as ParkingType;
     return patch;
   };
 
@@ -410,6 +415,18 @@ export function ListingEdit({ id }: { id: string }) {
               </div>
             </FormField>
           )}
+          <FormField label={tNew('fields.parking.label')}>
+            <div className="flex flex-wrap gap-2">
+              <Chip active={f.parking === ''} onClick={() => set('parking', '')}>
+                {tNew('fields.parking.none')}
+              </Chip>
+              {PARKING_TYPES.map((p) => (
+                <Chip key={p} active={f.parking === p} onClick={() => set('parking', p)}>
+                  {tEnums(`parking.${p}`)}
+                </Chip>
+              ))}
+            </div>
+          </FormField>
           <FormField label={tNew('fields.area.label')}>
             <Field
               placeholder={tNew('fields.area.placeholder')}

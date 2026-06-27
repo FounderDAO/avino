@@ -262,6 +262,8 @@
       "sourceOwner": "Собственник",
       "sourceAgency": "Агентство",
       "toursEnabled": "Принимает заявки на просмотр",
+      "parkingTypesTitle": "Парковка",
+      "parkingCount": "Парковка: {count}",
       "rangeFrom": "от",
       "rangeTo": "до",
       "any": "Любое",
@@ -340,7 +342,8 @@
       "area": "Площадь",
       "floor": "Этаж",
       "floorOf": "{floor} из {total}",
-      "year": "Год постройки"
+      "year": "Год постройки",
+      "parking": "Парковка"
     },
     "contact": {
       "greeting": "Здравствуйте! Объявление ещё актуально?",
@@ -517,6 +520,10 @@
       },
       "bathrooms": {
         "label": "Санузлы"
+      },
+      "parking": {
+        "label": "Парковка/гараж",
+        "none": "Нет"
       },
       "area": {
         "label": "Площадь, м²",
@@ -961,6 +968,12 @@
       "NEW_BUILDING": "Новостройка",
       "LAND": "Участок",
       "COMMERCIAL": "Коммерция"
+    },
+    "parking": {
+      "YARD": "Двор",
+      "COVERED": "Крытая",
+      "GARAGE": "Гараж",
+      "UNDERGROUND": "Подземная"
     }
   },
   "breadcrumb": {

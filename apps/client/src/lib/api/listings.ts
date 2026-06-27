@@ -25,6 +25,7 @@ import type {
   ListingFilter,
   ListingPhoto,
   ListingStatus,
+  ParkingType,
   PromotionType,
   PropertyType,
   RadiusCircle,
@@ -57,6 +58,7 @@ export interface ApiSearchItem {
   currency: Currency;
   rooms: number | null;
   bathrooms: number | null;
+  parking_type: ParkingType | null;
   city_id: string | null;
   district_id: string | null;
   /** Имя района на языке ответа (TASK-209); null если район не найден. */
@@ -93,6 +95,7 @@ interface ApiListingDetail {
   area: string | null;
   rooms: number | null;
   bathrooms: number | null;
+  parking_type: ParkingType | null;
   floor: number | null;
   total_floors: number | null;
   year_built: number | null;
@@ -270,6 +273,7 @@ export function mapListing(api: AnyApiListing): Listing {
     area: detail?.area ?? undefined,
     rooms: api.rooms ?? undefined,
     bathrooms: (api as ApiSearchItem | ApiListingDetail).bathrooms ?? undefined,
+    parkingType: (api as ApiSearchItem | ApiListingDetail).parking_type ?? undefined,
     floor: detail?.floor ?? undefined,
     totalFloors: detail?.total_floors ?? undefined,
     year: detail?.year_built ?? undefined,
@@ -396,6 +400,9 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   if (filter.yearMax != null) params.set('year_max', String(filter.yearMax));
   if (filter.listingSource) params.set('listing_source', filter.listingSource);
   if (filter.toursEnabled) params.set('tours_enabled', 'true');
+  if (filter.parkingTypes && filter.parkingTypes.length > 0) {
+    for (const pt of filter.parkingTypes) params.append('parking_type', pt);
+  }
   params.set('limit', String(limit));
   return params;
 }

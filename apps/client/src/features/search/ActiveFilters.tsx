@@ -161,6 +161,13 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
     chips.push({ key: 'tours_enabled', label: t('toursEnabled'), param: 'tours_enabled' });
   }
 
+  if (values.parkingTypes && values.parkingTypes.length > 0) {
+    const label = values.parkingTypes.length > 1
+      ? t('parkingCount', { count: String(values.parkingTypes.length) })
+      : tEnums(`parking.${values.parkingTypes[0]}`);
+    chips.push({ key: 'parking', label, param: '__parking' });
+  }
+
   if (values.query) {
     const label = t('queryChip', { query: values.query });
     chips.push({ key: 'query', label, param: 'query' });
@@ -186,6 +193,11 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
       setParams({ total_floors_min: undefined, total_floors_max: undefined });
     } else if (chip.param === '__year') {
       setParams({ year_min: undefined, year_max: undefined });
+    } else if (chip.param === '__parking') {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('parking_type');
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     } else {
       setParams({ [chip.param]: undefined });
     }
@@ -203,6 +215,7 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
       'year_min', 'year_max',
       'not_first_floor', 'not_last_floor',
       'listing_source', 'tours_enabled',
+      'parking_type',
       'query',
     ];
     for (const key of keysToDelete) {

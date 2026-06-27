@@ -262,6 +262,8 @@
       "sourceOwner": "Egasi",
       "sourceAgency": "Agentlik",
       "toursEnabled": "Ko'rik uchun so'rovlarni qabul qiladi",
+      "parkingTypesTitle": "Avtoturargoh",
+      "parkingCount": "Avtoturargoh: {count}",
       "rangeFrom": "dan",
       "rangeTo": "gacha",
       "any": "Istalgan",
@@ -340,7 +342,8 @@
       "area": "Maydon",
       "floor": "Qavat",
       "floorOf": "{floor} / {total}",
-      "year": "Qurilgan yili"
+      "year": "Qurilgan yili",
+      "parking": "Avtoturargoh"
     },
     "contact": {
       "greeting": "Assalomu alaykum! E'lon hali dolzarbmi?",
@@ -517,6 +520,10 @@
       },
       "bathrooms": {
         "label": "Sanuzellar"
+      },
+      "parking": {
+        "label": "Avtoturargoh/garaj",
+        "none": "Yo'q"
       },
       "area": {
         "label": "Maydon, m²",
@@ -961,6 +968,12 @@
       "NEW_BUILDING": "Yangi bino",
       "LAND": "Yer uchastkasi",
       "COMMERCIAL": "Tijorat"
+    },
+    "parking": {
+      "YARD": "Hovli",
+      "COVERED": "Yopiq",
+      "GARAGE": "Garaj",
+      "UNDERGROUND": "Yer osti"
     }
   },
   "breadcrumb": {
