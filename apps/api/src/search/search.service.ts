@@ -25,6 +25,23 @@ import {
 } from './dto/geo-search.dto';
 import { polygonVerticesFromFilters } from './dto/polygon-ring.util';
 import { SearchListingsQueryDto, SortMode } from './dto/search-listings.dto';
+import {
+  PriceBucketDto,
+  PriceDistributionQueryDto,
+  PriceDistributionResponseDto,
+} from './dto/price-distribution.dto';
+
+/**
+ * Округляет «вверх» до красивого числа (1/2/2.5/5/10 × 10^k) — потолок домена
+ * слайдера, чтобы подписи осей были аккуратными (487300 → 500000).
+ */
+function niceCeil(v: number): number {
+  if (v <= 0) return 0;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const norm = v / mag;
+  const nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+  return nice * mag;
+}
 
 /** Дефолт/максимум размера страницы (API.md §4: default 20, max 100). */
 const DEFAULT_LIMIT = 20;
@@ -446,6 +463,70 @@ export class SearchService {
       langParam,
       acceptLanguage,
     );
+  }
+
+  /**
+   * `GET /api/v1/search/price-distribution` — гистограмма цены для слайдера.
+   * Глобально по (currency, transaction_type), только видимые ACTIVE-объявления.
+   * Домен [0, max], где max = niceCeil(p99); всё дороже — overflow. Без FX.
+   */
+  async priceDistribution(
+    query: PriceDistributionQueryDto,
+  ): Promise<PriceDistributionResponseDto> {
+    const N = 30;
+    const where = Prisma.sql`status = 'ACTIVE' AND transaction_type::text = ${query.transaction_type} AND currency::text = ${query.currency}`;
+
+    const statsRows = await this.prisma.$queryRaw<
+      { ceiling: number | null; total: number }[]
+    >(Prisma.sql`
+      SELECT percentile_cont(0.99) WITHIN GROUP (ORDER BY price)::float8 AS ceiling,
+             count(*)::int AS total
+      FROM listings
+      WHERE ${where}
+    `);
+    const total = statsRows[0]?.total ?? 0;
+    const max = niceCeil(statsRows[0]?.ceiling ?? 0);
+
+    if (total === 0 || max <= 0) {
+      return {
+        currency: query.currency,
+        transaction_type: query.transaction_type,
+        min: 0,
+        max: 0,
+        buckets: [],
+        overflow_count: 0,
+      };
+    }
+
+    const bucketRows = await this.prisma.$queryRaw<{ b: number; c: number }[]>(
+      Prisma.sql`
+        SELECT width_bucket(price::float8, 0::float8, ${max}::float8, ${N}::int) AS b, count(*)::int AS c
+        FROM listings
+        WHERE ${where}
+        GROUP BY b
+        ORDER BY b
+      `,
+    );
+
+    const counts = new Map<number, number>();
+    for (const r of bucketRows) counts.set(Number(r.b), Number(r.c));
+
+    const step = max / N;
+    const buckets: PriceBucketDto[] = [];
+    for (let i = 1; i <= N; i++) {
+      buckets.push({ from: (i - 1) * step, to: i * step, count: counts.get(i) ?? 0 });
+    }
+    // width_bucket → N+1 для price >= max (и 0 для price < 0, чего не бывает).
+    const overflow_count = counts.get(N + 1) ?? 0;
+
+    return {
+      currency: query.currency,
+      transaction_type: query.transaction_type,
+      min: 0,
+      max,
+      buckets,
+      overflow_count,
+    };
   }
 
   /**
