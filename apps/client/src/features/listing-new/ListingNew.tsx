@@ -38,8 +38,10 @@ import { cn } from '@/lib/utils';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatMoney, propertyTypeLabel } from '@/lib/format';
 import {
+  PARKING_TYPES,
   PROPERTY_TYPES,
   type Currency,
+  type ParkingType,
   type PropertyType,
   type TransactionType,
 } from '@/lib/mock';
@@ -80,6 +82,7 @@ interface FormState {
   coords: Coords | null;
   rooms: string;
   bathrooms: string;
+  parking: string;  // '' = Нет
   area: string;
   floor: string;
   totalFloors: string;
@@ -101,6 +104,7 @@ const INITIAL: FormState = {
   coords: null,
   rooms: '2',
   bathrooms: '',
+  parking: '',
   area: '',
   floor: '',
   totalFloors: '',
@@ -242,6 +246,7 @@ export function ListingNew() {
       body.tours_enabled = true;
       body.tour_windows = f.tourWindows;
     }
+    if (f.parking) body.parking_type = f.parking as ParkingType;
     return body;
   };
 
@@ -462,6 +467,18 @@ export function ListingNew() {
                 </div>
               </FormField>
             )}
+            <FormField label={t('fields.parking.label')}>
+              <div className="flex flex-wrap gap-2">
+                <Chip active={f.parking === ''} onClick={() => set('parking', '')}>
+                  {t('fields.parking.none')}
+                </Chip>
+                {PARKING_TYPES.map((p) => (
+                  <Chip key={p} active={f.parking === p} onClick={() => set('parking', p)}>
+                    {tEnums(`parking.${p}`)}
+                  </Chip>
+                ))}
+              </div>
+            </FormField>
             <FormField label={t('fields.area.label')}>
               <Field
                 placeholder={t('fields.area.placeholder')}
