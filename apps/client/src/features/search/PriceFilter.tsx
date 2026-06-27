@@ -52,8 +52,8 @@ export function PriceFilter(props: PriceFilterProps) {
 }
 
 function initDraft(value: { priceMin?: string; priceMax?: string }, domain: PriceDomain): PriceDraft {
-  const min = value.priceMin ? clamp(Number(value.priceMin), domain.min, domain.max) : domain.min;
-  const max = value.priceMax ? clamp(Number(value.priceMax), domain.min, domain.max) : domain.max;
+  const min = value.priceMin ? clamp(Number(value.priceMin) || domain.min, domain.min, domain.max) : null;
+  const max = value.priceMax ? clamp(Number(value.priceMax) || domain.max, domain.min, domain.max) : null;
   return { min, max };
 }
 
@@ -87,7 +87,7 @@ function PriceFilterBody({
   }, [displayCurrency, tx]);
 
   const apply = () => {
-    const { priceMin, priceMax } = toAppliedRange(draft, domain);
+    const { priceMin, priceMax } = toAppliedRange(draft);
     onApply(priceMin, priceMax, displayCurrency);
     close();
   };

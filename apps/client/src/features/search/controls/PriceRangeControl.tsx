@@ -33,6 +33,10 @@ export function PriceRangeControl({
   const maxCount = Math.max(1, ...buckets.map((b) => b.count));
   const step = niceStep(domain);
 
+  // Эффективные границы: null отображается как крайнее значение домена
+  const lo = value.min ?? domain.min;
+  const hi = value.max ?? domain.max;
+
   return (
     <div className="flex flex-col gap-3">
       {/* Гистограмма: столбик внутри выбранного диапазона — бренд-красный, вне — приглушённый */}
@@ -42,7 +46,7 @@ export function PriceRangeControl({
         ) : (
           buckets.map((b, i) => {
             const mid = (b.from + b.to) / 2;
-            const inRange = mid >= value.min && mid <= value.max;
+            const inRange = mid >= lo && mid <= hi;
             return (
               <div
                 key={i}
@@ -60,8 +64,13 @@ export function PriceRangeControl({
         min={domain.min}
         max={domain.max}
         step={step}
-        value={[value.min, value.max]}
-        onValueChange={([min, max]) => onChange({ min, max })}
+        value={[value.min ?? domain.min, value.max ?? domain.max]}
+        onValueChange={([min, max]) =>
+          onChange({
+            min: min <= domain.min ? null : min,
+            max: max >= domain.max ? null : max,
+          })
+        }
         minStepsBetweenThumbs={1}
       >
         <RadixSlider.Track className="relative h-1 w-full grow rounded-full bg-border">
@@ -90,10 +99,10 @@ export function PriceRangeControl({
           <Field
             inputMode="numeric"
             placeholder={fromPlaceholder}
-            value={value.min > domain.min ? String(value.min) : ''}
+            value={value.min == null ? '' : String(value.min)}
             onChange={(e) => {
               const raw = e.target.value.trim();
-              const next = raw === '' ? domain.min : clamp(Number(raw) || domain.min, domain.min, value.max);
+              const next = raw === '' ? null : clamp(Number(raw) || domain.min, domain.min, value.max ?? domain.max);
               onChange({ min: next, max: value.max });
             }}
             className="py-2.5"
@@ -105,10 +114,10 @@ export function PriceRangeControl({
           <Field
             inputMode="numeric"
             placeholder={toPlaceholder}
-            value={value.max < domain.max ? String(value.max) : ''}
+            value={value.max == null ? '' : String(value.max)}
             onChange={(e) => {
               const raw = e.target.value.trim();
-              const next = raw === '' ? domain.max : clamp(Number(raw) || domain.max, value.min, domain.max);
+              const next = raw === '' ? null : clamp(Number(raw) || domain.max, value.min ?? domain.min, domain.max);
               onChange({ min: value.min, max: next });
             }}
             className="py-2.5"

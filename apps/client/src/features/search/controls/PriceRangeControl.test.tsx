@@ -16,7 +16,7 @@ const base = {
 };
 
 it('рендерит подписи домена и два поля', () => {
-  render(<PriceRangeControl {...base} value={{ min: 0, max: 1000 }} onChange={vi.fn()} />);
+  render(<PriceRangeControl {...base} value={{ min: null, max: null }} onChange={vi.fn()} />);
   expect(screen.getByText('$0')).toBeInTheDocument();
   expect(screen.getByText('$1000+')).toBeInTheDocument();
   expect(screen.getByPlaceholderText('от $')).toBeInTheDocument();
@@ -25,14 +25,14 @@ it('рендерит подписи домена и два поля', () => {
 
 it('ввод в поле «Мин» вызывает onChange с клампнутым значением', () => {
   const onChange = vi.fn();
-  render(<PriceRangeControl {...base} value={{ min: 0, max: 1000 }} onChange={onChange} />);
+  render(<PriceRangeControl {...base} value={{ min: null, max: null }} onChange={onChange} />);
   fireEvent.change(screen.getByPlaceholderText('от $'), { target: { value: '200' } });
-  expect(onChange).toHaveBeenCalledWith({ min: 200, max: 1000 });
+  expect(onChange).toHaveBeenCalledWith({ min: 200, max: null });
 });
 
-it('пустое поле «Макс» возвращает max к потолку домена', () => {
+it('пустое поле «Макс» возвращает max к null (без верхней границы)', () => {
   const onChange = vi.fn();
-  render(<PriceRangeControl {...base} value={{ min: 0, max: 800 }} onChange={onChange} />);
+  render(<PriceRangeControl {...base} value={{ min: null, max: 800 }} onChange={onChange} />);
   fireEvent.change(screen.getByPlaceholderText('до $'), { target: { value: '' } });
-  expect(onChange).toHaveBeenCalledWith({ min: 0, max: 1000 });
+  expect(onChange).toHaveBeenCalledWith({ min: null, max: null });
 });

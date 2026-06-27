@@ -3,8 +3,10 @@ export interface PriceDomain {
   max: number;
 }
 export interface PriceDraft {
-  min: number;
-  max: number;
+  /** null = без нижней границы (= домен.min). */
+  min: number | null;
+  /** null = без верхней границы (overflow «max+»). */
+  max: number | null;
 }
 
 /** Ограничивает значение отрезком [lo, hi]. */
@@ -17,16 +19,10 @@ export function niceStep(domain: PriceDomain): number {
   return Math.max(1, Math.round((domain.max - domain.min) / 100));
 }
 
-/**
- * Применённый диапазон: значение на краю домена трактуется как «без границы»
- * (min на дне → нет нижней границы; max на потолке → overflow «max+»).
- */
-export function toAppliedRange(
-  draft: PriceDraft,
-  domain: PriceDomain,
-): { priceMin?: number; priceMax?: number } {
+/** Применённый диапазон: null → undefined (без границы). */
+export function toAppliedRange(draft: PriceDraft): { priceMin?: number; priceMax?: number } {
   return {
-    priceMin: draft.min > domain.min ? draft.min : undefined,
-    priceMax: draft.max < domain.max ? draft.max : undefined,
+    priceMin: draft.min ?? undefined,
+    priceMax: draft.max ?? undefined,
   };
 }
