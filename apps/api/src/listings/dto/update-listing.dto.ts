@@ -16,7 +16,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { Currency, ParkingType, PropertyType, TransactionType } from '@prisma/client';
+import { Amenity, Currency, ParkingType, PropertyType, TransactionType } from '@prisma/client';
 import { TourWindowDto } from './create-listing.dto';
 
 const DECIMAL_2 = /^\d{1,12}(\.\d{1,2})?$/;
@@ -98,6 +98,11 @@ export class UpdateListingDto {
   @IsOptional()
   @IsEnum(ParkingType)
   parking_type?: ParkingType;
+
+  @IsOptional()
+  @IsArray()
+  @IsEnum(Amenity, { each: true })
+  amenities?: Amenity[];
 
   @IsOptional()
   @IsInt()

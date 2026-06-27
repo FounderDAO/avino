@@ -780,6 +780,14 @@ export class SearchService {
         Prisma.sql`parking_type::text IN (${Prisma.join(query.parking_type)})`,
       );
 
+    // Zillow Phase 2: удобства (AND — есть ВСЕ выбранные; пустой/NULL-массив не матчит).
+    // Нативный тип `"Amenity"[]` (не ::text[]) — чтобы GIN-индекс listings_amenities_idx
+    // реально задействовался планировщиком (каст колонки сбил бы индекс на seq-scan).
+    if (query.amenities !== undefined && query.amenities.length > 0)
+      conds.push(
+        Prisma.sql`amenities @> ARRAY[${Prisma.join(query.amenities)}]::"Amenity"[]`,
+      );
+
     // Zillow Phase 1: диапазон площади (м²)
     if (query.area_min !== undefined)
       conds.push(Prisma.sql`area >= ${query.area_min}::numeric`);

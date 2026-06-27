@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  Amenity,
   Currency,
   Language,
   ListingStatus,
@@ -391,6 +392,7 @@ describe('ListingsService', () => {
       districtId: 'd1',
       latitude: new Prisma.Decimal('41.35'),
       longitude: new Prisma.Decimal('69.29'),
+      amenities: [Amenity.ELEVATOR],
       promotionType: PromotionType.VIP,
       promotionExpiresAt: new Date('2026-06-20T00:00:00.000Z'),
       publishedAt: new Date('2026-06-01T10:00:00.000Z'),
@@ -572,6 +574,58 @@ describe('ListingsService', () => {
       const result = await service.findOne(LISTING_ID, moderator);
 
       expect(result.status).toBe(ListingStatus.DRAFT);
+    });
+
+    it('detail отдаёт amenities из БД', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        amenities: [Amenity.ELEVATOR, Amenity.INTERNET],
+      });
+
+      const result = await service.findOne(LISTING_ID, undefined);
+
+      expect(result.amenities).toEqual([Amenity.ELEVATOR, Amenity.INTERNET]);
+    });
+
+    it('detail отдаёт пустой amenities если массив пуст', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        amenities: [],
+      });
+
+      const result = await service.findOne(LISTING_ID, undefined);
+
+      expect(result.amenities).toEqual([]);
+    });
+  });
+
+  describe('amenities', () => {
+    it('passes amenities through to Prisma on create', async () => {
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        amenities: [Amenity.ELEVATOR, Amenity.INTERNET],
+      } as any);
+
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.amenities).toEqual([Amenity.ELEVATOR, Amenity.INTERNET]);
+    });
+
+    it('passes amenities through to Prisma on update', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, {
+        amenities: [Amenity.FURNITURE, Amenity.HEATING],
+      } as any);
+
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.amenities).toEqual([Amenity.FURNITURE, Amenity.HEATING]);
     });
   });
 

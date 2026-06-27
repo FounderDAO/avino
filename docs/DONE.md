@@ -37,6 +37,50 @@ Related ADR:
 
 ---
 
+## 2026-06-27
+
+### TASK-Zillow-Amenities — Удобства (`amenities`): enum-массив, AND-фильтр, миграция (api)
+
+Status: DONE
+Branch: feat/listing-amenities-api
+PR: pending
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260627110000_add_listing_amenities/migration.sql
+- apps/api/src/listings/dto/create-listing.dto.ts
+- apps/api/src/listings/dto/update-listing.dto.ts
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/search/search.service.ts
+- apps/api/src/listings/listings.service.spec.ts
+- apps/api/src/search/search.service.int-spec.ts
+- apps/api/src/search/dto/search-listings.dto.spec.ts
+- apps/api/openapi.public.json
+- apps/api/openapi.internal.json
+- docs/adr/ADR-0111-listing-amenities.md
+
+Summary:
+- Добавлен enum `Amenity` (8 значений: AIR_CONDITIONING, FURNITURE, APPLIANCES, INTERNET,
+  ELEVATOR, BALCONY, HEATING, SECURITY) в schema.prisma.
+- Добавлена колонка `Listing.amenities Amenity[]` (NOT NULL DEFAULT `'{}'`) + GIN-индекс.
+- Рукописная миграция `20260627110000_add_listing_amenities` (CREATE TYPE + ADD COLUMN + GIN).
+- `amenities` принимается в create/update DTO (body-поле, без `@Transform(toArray)`).
+- Search DTO: повторяющийся query-параметр `amenities` с `@Transform(toArray)` (паттерн parking).
+- `buildWhereSql` в SearchService: AND-containment `amenities::text[] @> ARRAY[...]::text[]`.
+- `amenities` только в detail-ответе (`LISTING_DETAIL_SELECT`/`toDetailResponse`); намеренно
+  отсутствует в search-карточке и list — card-shape тесты не затронуты.
+- Unit-тесты: 101 passed. Int-spec (amenities) добавлен, требует живой БД.
+- OpenAPI (public + internal) регенерированы.
+
+Commit messages:
+- feat(api): add amenities enum-array filter (ADR-0111, Zillow Phase 2)
+
+Related ADR:
+- docs/adr/ADR-0111-listing-amenities.md
+
+---
+
 ## 2026-06-26
 
 ### TASK-SEC-02 — OAuth/OTP account-linking hardening (H-2)
