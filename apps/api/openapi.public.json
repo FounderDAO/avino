@@ -512,6 +512,37 @@
     "/api/v1/geo/districts": {
       "get": {
         "operationId": "GeoController_listDistricts",
+        "parameters": [
+          {
+            "name": "region_id",
+            "required": false,
+            "in": "query",
+            "description": "UUID региона для фильтрации; без параметра возвращаются все районы",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/geo/regions": {
+      "get": {
+        "operationId": "GeoController_listRegions",
         "parameters": [],
         "responses": {
           "200": {
@@ -677,6 +708,14 @@
           },
           {
             "name": "city_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "region_id",
             "required": false,
             "in": "query",
             "schema": {
@@ -931,6 +970,14 @@
           },
           {
             "name": "city_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "region_id",
             "required": false,
             "in": "query",
             "schema": {
@@ -1215,6 +1262,14 @@
           },
           {
             "name": "city_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "region_id",
             "required": false,
             "in": "query",
             "schema": {
@@ -1509,6 +1564,14 @@
           },
           {
             "name": "city_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "region_id",
             "required": false,
             "in": "query",
             "schema": {
@@ -1826,6 +1889,14 @@
           },
           {
             "name": "city_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "region_id",
             "required": false,
             "in": "query",
             "schema": {

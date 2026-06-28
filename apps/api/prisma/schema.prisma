@@ -872,6 +872,23 @@ model NotificationDevice {
   @@map("notification_devices")
 }
 
+/// Справочник регионов (областей + город Ташкент) Узбекистана — родитель District.
+/// 14 регионов сидируются в миграции (фиксированные UUID c0000000-*). `code` —
+/// latin-slug (уникальный). Источник: uzbekistan-regions-data (ADR-0113).
+model Region {
+  id        String     @id @default(uuid()) @db.Uuid
+  code      String     @unique @db.VarChar(40)
+  nameUz    String     @map("name_uz") @db.VarChar(120)
+  nameRu    String     @map("name_ru") @db.VarChar(120)
+  nameEn    String     @map("name_en") @db.VarChar(120)
+  sortOrder Int        @map("sort_order")
+  districts District[]
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("regions")
+}
+
 /// Справочник районов для разрешения `district_id` листингов в читаемое название
 /// (ADR-0068, TASK-209). Автономная модель без FK/relation на `listings` — FK будет
 /// добавлен позже, когда данные листингов будут мигрированы на реальные id районов.
@@ -883,9 +900,12 @@ model District {
   nameUz    String   @map("name_uz") @db.VarChar(120)
   nameRu    String   @map("name_ru") @db.VarChar(120)
   nameEn    String   @map("name_en") @db.VarChar(120)
+  regionId  String?  @map("region_id") @db.Uuid
+  region    Region?  @relation(fields: [regionId], references: [id])
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  @@index([regionId])
   @@map("districts")
 }
 
