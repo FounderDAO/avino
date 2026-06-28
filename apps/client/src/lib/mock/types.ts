@@ -154,6 +154,9 @@ export interface Listing {
   /** Автор/контакт. */
   agent: ListingAgent;
 
+  /** UUID владельца объявления (только в detail-ответе; для пометки «моё объявление»). */
+  ownerId?: string;
+
   /** Дата публикации (ISO-строка; рендер — locale-aware relativeTime). */
   createdAt: string;
 

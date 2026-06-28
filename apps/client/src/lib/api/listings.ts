@@ -297,6 +297,8 @@ export function mapListing(api: AnyApiListing): Listing {
 
     photos: toPhotos(api),
     agent,
+    // owner_id есть только в detail-ответе (ApiListingDetail); у карточки поиска — undefined.
+    ownerId: detail?.owner_id,
 
     createdAt: api.created_at,
     status: api.status,

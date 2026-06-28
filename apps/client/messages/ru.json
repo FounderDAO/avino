@@ -365,7 +365,10 @@
       "share": "Поделиться",
       "loginToMessage": "Войдите, чтобы написать продавцу",
       "requestTour": "Запросить тур",
-      "loginToTour": "Войдите, чтобы запросить тур"
+      "loginToTour": "Войдите, чтобы запросить тур",
+      "ownerNotice": "Это ваше объявление",
+      "editListing": "Редактировать",
+      "manageListings": "Мои объявления"
     },
     "amenities": {
       "title": "Удобства"
