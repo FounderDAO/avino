@@ -9,7 +9,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { useRouter, Link } from '@/i18n/navigation';
 import { CalendarDays, MessageSquare, Phone, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FavButton } from '@/components/ui/fav-button';
@@ -18,7 +18,7 @@ import { TourRequestModal } from './TourRequestModal';
 import { ShareModal } from './ShareButton';
 import type { Listing } from '@/lib/mock/types';
 import { useAppSelector } from '@/store/hooks';
-import { selectIsAuthenticated } from '@/store/slices/authSlice';
+import { selectCurrentUser, selectIsAuthenticated } from '@/store/slices/authSlice';
 import { useCreateThreadMutation } from '@/store/api/chatApi';
 import { getApiError } from '@/store/api/apiError';
 
@@ -32,6 +32,12 @@ export function ContactCard({ listing, className }: ContactCardProps) {
   const t = useTranslations('listing');
   const router = useRouter();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const currentUser = useAppSelector(selectCurrentUser);
+  // Владелец, открывший своё объявление, видит управление вместо контактов/чата.
+  const isOwner =
+    isAuthenticated &&
+    Boolean(currentUser?.id) &&
+    currentUser?.id === listing.ownerId;
   const [createThread, { isLoading: isCreatingThread }] = useCreateThreadMutation();
   const [chatError, setChatError] = React.useState<string | null>(null);
   // Раскрытие телефона по клику (как в прототипе — номер из мока).
@@ -94,6 +100,35 @@ export function ContactCard({ listing, className }: ContactCardProps) {
   React.useEffect(() => {
     if (isAuthenticated && pendingTour) { setPendingTour(false); setTourOpen(true); }
   }, [isAuthenticated, pendingTour]);
+
+  // Владельческий вид: плашка + управление (редактирование / мои объявления),
+  // вместо «показать телефон / написать». ShareModal оставляем — полезно и владельцу.
+  if (isOwner) {
+    return (
+      <div className={'rounded-card border border-border bg-surface p-5 shadow-card ' + (className ?? '')}>
+        <div className="text-base font-bold text-ink">{t('contact.ownerNotice')}</div>
+        <div className="mt-4 flex flex-col gap-2.5">
+          <Button asChild size="lg" className="w-full">
+            <Link href={`/sell/${listing.id}/edit`}>{t('contact.editListing')}</Link>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="w-full">
+            <Link href="/account/my-listings">{t('contact.manageListings')}</Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full"
+            onClick={() => setShareOpen(true)}
+          >
+            <Share2 size={17} /> {t('contact.share')}
+          </Button>
+        </div>
+        {shareOpen && (
+          <ShareModal listing={listing} open={shareOpen} onOpenChange={setShareOpen} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={'rounded-card border border-border bg-surface p-5 shadow-card ' + (className ?? '')}>

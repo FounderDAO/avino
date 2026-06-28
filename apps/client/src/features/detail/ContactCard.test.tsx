@@ -20,8 +20,9 @@ const { createSpy, pushSpy } = vi.hoisted(() => ({
   pushSpy: vi.fn(),
 }));
 
-// Управляемое состояние авторизации для useAppSelector(selectIsAuthenticated).
+// Управляемое состояние авторизации + текущий пользователь для useAppSelector.
 let mockAuthed = false;
+let mockUser: { id: string } | null = null;
 
 // next-intl: резолвер по реальному messages/ru.json (как в LoginModal.test).
 vi.mock('next-intl', async () => {
@@ -49,11 +50,31 @@ vi.mock('next-intl', async () => {
 
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: pushSpy }),
+  Link: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: string;
+    children: React.ReactNode;
+  }) => (
+    <a href={typeof href === 'string' ? href : '#'} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 
-// ContactCard вызывает только useAppSelector(selectIsAuthenticated).
+// Прогоняем реальные селекторы (selectIsAuthenticated / selectCurrentUser) по
+// поддельному стейту — так один мок обслуживает оба useAppSelector в компоненте.
 vi.mock('@/store/hooks', () => ({
-  useAppSelector: () => mockAuthed,
+  useAppSelector: (selector: (s: unknown) => unknown) =>
+    selector({
+      auth: {
+        accessToken: mockAuthed ? 'access' : null,
+        refreshToken: mockAuthed ? 'refresh' : null,
+        user: mockUser,
+      },
+    }),
 }));
 
 vi.mock('@/store/api/chatApi', () => ({
@@ -74,7 +95,7 @@ vi.mock('./TourRequestModal', () => ({
 
 import { ContactCard } from './ContactCard';
 
-function makeListing(phone?: string): Listing {
+function makeListing(phone?: string, ownerId?: string): Listing {
   return {
     id: 'lst-1',
     tx: 'SALE',
@@ -87,6 +108,7 @@ function makeListing(phone?: string): Listing {
     address: '',
     district: '',
     photos: [],
+    ownerId,
     agent: { name: 'Тимур Сафаров', pro: false, agency: '', phone },
   } as unknown as Listing;
 }
@@ -94,6 +116,7 @@ function makeListing(phone?: string): Listing {
 describe('ContactCard', () => {
   beforeEach(() => {
     mockAuthed = false;
+    mockUser = null;
     createSpy.mockReturnValue({ unwrap: () => Promise.resolve({ id: 'th-1' }) });
   });
   afterEach(() => {
@@ -146,5 +169,40 @@ describe('ContactCard', () => {
     expect(createSpy).toHaveBeenCalledWith(
       expect.objectContaining({ listing_id: 'lst-1' }),
     );
+  });
+
+  it('показывает владельческий вид, когда текущий пользователь — автор', () => {
+    mockAuthed = true;
+    mockUser = { id: 'u-owner' };
+    const { container } = render(
+      <ContactCard listing={makeListing('+998 90 123-45-67', 'u-owner')} />,
+    );
+    // Плашка вместо контактов/чата.
+    expect(screen.getByText('Это ваше объявление')).toBeInTheDocument();
+    expect(screen.queryByText('Показать телефон')).not.toBeInTheDocument();
+    expect(screen.queryByText('Написать')).not.toBeInTheDocument();
+    // Управление: редактирование и «Мои объявления».
+    expect(
+      container.querySelector('a[href="/sell/lst-1/edit"]'),
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector('a[href="/account/my-listings"]'),
+    ).toBeInTheDocument();
+  });
+
+  it('показывает обычные контакты, если объявление не принадлежит пользователю', () => {
+    mockAuthed = true;
+    mockUser = { id: 'u-other' };
+    render(<ContactCard listing={makeListing('+998 90 123-45-67', 'u-owner')} />);
+    expect(screen.queryByText('Это ваше объявление')).not.toBeInTheDocument();
+    expect(screen.getByText('Показать телефон')).toBeInTheDocument();
+  });
+
+  it('не считает гостя владельцем (аноним видит контакты)', () => {
+    mockAuthed = false;
+    mockUser = null;
+    render(<ContactCard listing={makeListing('+998 90 123-45-67', 'u-owner')} />);
+    expect(screen.queryByText('Это ваше объявление')).not.toBeInTheDocument();
+    expect(screen.getByText('Показать телефон')).toBeInTheDocument();
   });
 });

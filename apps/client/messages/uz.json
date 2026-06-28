@@ -365,7 +365,10 @@
       "share": "Ulashish",
       "loginToMessage": "Sotuvchiga yozish uchun tizimga kiring",
       "requestTour": "Tur so'rash",
-      "loginToTour": "Tur so'rash uchun tizimga kiring"
+      "loginToTour": "Tur so'rash uchun tizimga kiring",
+      "ownerNotice": "Bu sizning e'loningiz",
+      "editListing": "Tahrirlash",
+      "manageListings": "Mening e'lonlarim"
     },
     "amenities": {
       "title": "Qulayliklar"
