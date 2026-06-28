@@ -1,14 +1,13 @@
 /**
  * Верхняя панель админки (порт topbar из scripts/admin.jsx).
  * Бургер (открывает сайдбар на мобильных), заголовок раздела (из pathname),
- * глобальный поиск (desktop), колокол уведомлений, ссылка «На сайт».
+ * глобальный поиск (desktop), колокол уведомлений.
  */
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { IC } from './icons';
-import { AdminButton, IconButton } from './ui/button';
+import { IconButton } from './ui/button';
 import { useToast } from './toast';
 import { useGetMeQuery } from '@/store/api/authApi';
 import { useLogout } from '@/hooks/useLogout';
@@ -58,9 +57,6 @@ export function Topbar({ onBurger }: { onBurger: () => void }) {
           <IC.Bell size={19} strokeWidth={1.9} />
           <span style={{ position: 'absolute', top: 6, right: 7, width: 8, height: 8, borderRadius: '50%', background: 'var(--red)', border: '2px solid var(--surface)' }} />
         </IconButton>
-        <AdminButton variant="outline" size="sm" asChild>
-          <Link href="/">← На сайт</Link>
-        </AdminButton>
         {me && (
           <div className="row gap-8" style={{ paddingLeft: 4 }}>
             <span
