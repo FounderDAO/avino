@@ -1,4 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { ApiQuery } from '@nestjs/swagger';
 import { DistrictListItem, DistrictsService } from './districts.service';
 import { RegionListItem, RegionsService } from './regions.service';
 
@@ -22,6 +23,11 @@ export class GeoController {
    * Ответ: `[{ id, code, name_uz, name_ru, name_en, region_id }]`.
    */
   @Get('districts')
+  @ApiQuery({
+    name: 'region_id',
+    required: false,
+    description: 'UUID региона для фильтрации; без параметра возвращаются все районы',
+  })
   listDistricts(@Query('region_id') regionId?: string): Promise<DistrictListItem[]> {
     return this.districtsService.listAll(regionId);
   }

@@ -4908,9 +4908,11 @@ Summary:
 - Добавлена модель `Region` как родитель `District` (ADR-0113). Листинг
   по-прежнему хранит только `district_id` — регион не денормализуется.
 - Миграция `20260628120000_add_regions`: таблица `regions` + FK
-  `districts.region_id → regions.id` + сид 14 регионов/210 районов
-  (источник: FounderDAO/uzbekistan-regions-data); UUID 12 ташкентских
-  районов `d0000000-*` сохранены (идемпотентный `INSERT … ON CONFLICT DO NOTHING`).
+  `districts.region_id → regions.id` + сид 14 регионов (датасет 210 районов,
+  засижено 209 — дубли region-11 и мусор исключены); источник:
+  FounderDAO/uzbekistan-regions-data; UUID 12 ташкентских районов `d0000000-*`
+  сохранены. Идемпотентность: Prisma `migrate deploy` применяет каждую миграцию
+  ровно один раз через `_prisma_migrations` — `ON CONFLICT` не используется.
 - `GET /api/v1/geo/regions` — новый публичный endpoint, полный список регионов.
 - `GET /api/v1/geo/districts?region_id=<uuid>` — фильтрация районов по региону.
 - `GET /api/v1/search?region_id=<uuid>` — расширяется в подзапрос

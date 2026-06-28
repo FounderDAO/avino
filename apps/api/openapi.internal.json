@@ -547,8 +547,9 @@
         "parameters": [
           {
             "name": "region_id",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "UUID региона для фильтрации; без параметра возвращаются все районы",
             "schema": {
               "type": "string"
             }
