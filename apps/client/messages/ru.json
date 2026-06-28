@@ -979,7 +979,10 @@
     "lotArea": "{value} соток",
     "billion": "млрд",
     "million": "млн",
-    "daysOnSite": "{count, plural, one {# день на сайте} few {# дня на сайте} many {# дней на сайте} other {# дней на сайте}}"
+    "daysOnSite": "{count, plural, one {# день на сайте} few {# дня на сайте} many {# дней на сайте} other {# дней на сайте}}",
+    "weeksOnSite": "{count, plural, one {# неделя на сайте} few {# недели на сайте} many {# недель на сайте} other {# недель на сайте}}",
+    "monthsOnSite": "{count, plural, one {# месяц на сайте} few {# месяца на сайте} many {# месяцев на сайте} other {# месяцев на сайте}}",
+    "yearsOnSite": "{count, plural, one {# год на сайте} few {# года на сайте} many {# лет на сайте} other {# лет на сайте}}"
   },
   "enums": {
     "tx": {

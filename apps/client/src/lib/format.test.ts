@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createTranslator } from 'next-intl';
-import { formatArea, formatRooms, daysOnSite, type T } from './format';
+import { formatArea, formatRooms, daysOnSite, listingAge, type T } from './format';
 
 // Импортируем реальные messages для настоящей ICU-плюрализации.
 import ruMessages from '../../messages/ru.json';
@@ -142,5 +142,44 @@ describe('daysOnSite', () => {
 
   it('возвращает 0 для невалидной даты', () => {
     expect(daysOnSite('not-a-date')).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listingAge — компактная единица возраста для бейджа (дни/недели/месяцы/годы)
+// ---------------------------------------------------------------------------
+describe('listingAge', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const at = (daysAgo: number): string => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-26T00:00:00.000Z'));
+    return new Date(Date.parse('2026-06-26T00:00:00.000Z') - daysAgo * 86_400_000).toISOString();
+  };
+
+  it('моложе суток → null (бейдж «Новое»)', () => {
+    expect(listingAge(at(0))).toBeNull();
+  });
+
+  it('1–13 дней → дни', () => {
+    expect(listingAge(at(1))).toEqual({ unit: 'days', count: 1 });
+    expect(listingAge(at(7))).toEqual({ unit: 'days', count: 7 });
+    expect(listingAge(at(13))).toEqual({ unit: 'days', count: 13 });
+  });
+
+  it('14–29 дней → недели', () => {
+    expect(listingAge(at(14))).toEqual({ unit: 'weeks', count: 2 });
+    expect(listingAge(at(21))).toEqual({ unit: 'weeks', count: 3 });
+    expect(listingAge(at(29))).toEqual({ unit: 'weeks', count: 4 });
+  });
+
+  it('30–364 дней → месяцы', () => {
+    expect(listingAge(at(30))).toEqual({ unit: 'months', count: 1 });
+    expect(listingAge(at(364))).toEqual({ unit: 'months', count: 12 });
+  });
+
+  it('от года → годы', () => {
+    expect(listingAge(at(365))).toEqual({ unit: 'years', count: 1 });
+    expect(listingAge(at(1000))).toEqual({ unit: 'years', count: 2 });
   });
 });

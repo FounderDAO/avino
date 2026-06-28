@@ -979,7 +979,10 @@
     "lotArea": "{value} sotix",
     "billion": "mlrd",
     "million": "mln",
-    "daysOnSite": "{count, plural, other {# kun saytda}}"
+    "daysOnSite": "{count, plural, other {# kun saytda}}",
+    "weeksOnSite": "{count, plural, other {# hafta saytda}}",
+    "monthsOnSite": "{count, plural, other {# oy saytda}}",
+    "yearsOnSite": "{count, plural, other {# yil saytda}}"
   },
   "enums": {
     "tx": {
