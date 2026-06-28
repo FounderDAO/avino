@@ -236,6 +236,9 @@
       "anyType": "Любой тип",
       "district": "Район",
       "allDistricts": "Все районы",
+      "region": "Регион",
+      "allRegions": "Все регионы",
+      "regionRequired": "Сначала выберите регион",
       "sortAria": "Сортировка",
       "sort": {
         "promotion": "Сначала рекомендуемые",

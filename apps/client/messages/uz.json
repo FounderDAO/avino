@@ -236,6 +236,9 @@
       "anyType": "Istalgan tur",
       "district": "Tuman",
       "allDistricts": "Barcha tumanlar",
+      "region": "Hudud",
+      "allRegions": "Barcha hududlar",
+      "regionRequired": "Avval hududni tanlang",
       "sortAria": "Saralash",
       "sort": {
         "promotion": "Avval tavsiya etilganlar",
