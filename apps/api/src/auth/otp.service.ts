@@ -16,6 +16,7 @@ import { normalizeContact } from './contact.util';
 import { generateOtpCode, hashOtpCode } from './otp-hash.util';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
+import { isReviewerBypass, type OtpBypassConfig } from './otp-bypass.util';
 
 /** Ответ `POST /api/v1/auth/otp/request` (API.md §3). */
 export interface RequestOtpResult {
@@ -71,6 +72,24 @@ export class OtpService {
           },
         ],
       });
+    }
+
+    // Обход OTP для номеров-ревьюверов App Store/Play (config-gated, default OFF).
+    // Короткое замыкание ДО проверки «SMS включён» и rate-limit: код не
+    // генерируем и ничего не шлём — verify примет любой 6-значный код
+    // (см. AuthService). Так запрос успешен даже при выключенном Eskiz.
+    const bypass: OtpBypassConfig = {
+      enabled: this.configService.get<boolean>('otp.bypassEnabled') ?? false,
+      phones: this.configService.get<string[]>('otp.bypassPhones') ?? [],
+    };
+    if (isReviewerBypass(bypass, dto.channel, destination)) {
+      const ttl = this.configService.get<number>('otp.ttl') ?? 300;
+      return {
+        request_id: `otp_${randomBytes(4).toString('hex')}`,
+        channel: dto.channel,
+        expires_in: ttl,
+        resend_after: 0,
+      };
     }
 
     // Тест-стенд: config-gated доставка телефонного OTP через Telegram (admin-чат),
