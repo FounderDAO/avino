@@ -280,10 +280,18 @@ export default async function SearchPage({
     amenities: amenities.length > 0 ? amenities : undefined,
   };
 
-  // Заголовок выдачи: «Покупка/Аренда жилья · <запрос|Ташкент>».
+  // Заголовок выдачи: «Покупка/Аренда жилья · <район|регион|запрос|Ташкент>».
+  // Приоритет — самая конкретная выбранная локация (район > регион), иначе
+  // текстовый запрос, иначе дефолт. Имена уже локализованы в getDistricts/getRegions.
   const t = await getTranslations({ locale, namespace: 'search' });
+  const districtName = districtId
+    ? districts.find((d) => d.id === districtId)?.name
+    : undefined;
+  const regionName = regionId
+    ? regions.find((r) => r.id === regionId)?.name
+    : undefined;
   const heading = t(tx === 'RENT' ? 'headingRent' : 'headingSale', {
-    query: query || t('defaultLocation'),
+    query: districtName || regionName || query || t('defaultLocation'),
   });
 
   return (
