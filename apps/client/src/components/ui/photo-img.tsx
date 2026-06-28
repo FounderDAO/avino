@@ -12,7 +12,7 @@
  * Контейнер при fill=true должен иметь position:relative и явные размеры
  * (aspect-ratio или h-*). Это выполнено во всех местах использования:
  *   Gallery — .relative.aspect-[4/3], .relative.block.aspect-[4/3]
- *   PropertyCard — .relative.aspect-[16/11]
+ *   PropertyCard — .relative.aspect-[16/9]
  *   MyListings — .relative.h-[84px]
  */
 'use client';
