@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { DistrictListItem, DistrictsService } from './districts.service';
 import { RegionListItem, RegionsService } from './regions.service';
 
@@ -17,12 +17,13 @@ export class GeoController {
   ) {}
 
   /**
-   * `GET /api/v1/geo/districts` — полный список районов (ADR-0068, API.md §geo).
-   * Auth: public. Ответ: `[{ id, code, name_uz, name_ru, name_en }]`.
+   * `GET /api/v1/geo/districts?region_id=` — список районов, опц. фильтр по региону
+   * (ADR-0068, API.md §geo, Task A4). Auth: public.
+   * Ответ: `[{ id, code, name_uz, name_ru, name_en, region_id }]`.
    */
   @Get('districts')
-  listDistricts(): Promise<DistrictListItem[]> {
-    return this.districtsService.listAll();
+  listDistricts(@Query('region_id') regionId?: string): Promise<DistrictListItem[]> {
+    return this.districtsService.listAll(regionId);
   }
 
   /** `GET /api/v1/geo/regions` — полный список регионов (ADR-0113). Auth: public. */
