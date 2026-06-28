@@ -4883,3 +4883,57 @@ Related ADR:
 Related spec/plan:
 - docs/superpowers/specs/2026-06-27-zillow-filters-phase2-lot-area-design.md
 - docs/superpowers/plans/2026-06-27-zillow-filters-phase2-lot-area.md
+
+## 2026-06-28
+
+### Динамические районы — иерархия Регион → Район (API)
+
+Status: DONE
+Branch: feat/regions-api
+PR: pending
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260628120000_add_regions/migration.sql
+- apps/api/src/geo/regions.service.ts (+ .spec.ts)
+- apps/api/src/geo/districts.service.ts (+ .spec.ts, .int-spec.ts)
+- apps/api/src/geo/geo.controller.ts
+- apps/api/src/geo/geo.module.ts
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/search/search.service.ts
+- apps/api/openapi.public.json, apps/api/openapi.internal.json
+- docs/adr/ADR-0113-region-district-hierarchy.md
+
+Summary:
+- Добавлена модель `Region` как родитель `District` (ADR-0113). Листинг
+  по-прежнему хранит только `district_id` — регион не денормализуется.
+- Миграция `20260628120000_add_regions`: таблица `regions` + FK
+  `districts.region_id → regions.id` + сид 14 регионов (датасет 210 районов,
+  засижено 209 — дубли region-11 и мусор исключены); источник:
+  FounderDAO/uzbekistan-regions-data; UUID 12 ташкентских районов `d0000000-*`
+  сохранены. Идемпотентность: Prisma `migrate deploy` применяет каждую миграцию
+  ровно один раз через `_prisma_migrations` — `ON CONFLICT` не используется.
+- `GET /api/v1/geo/regions` — новый публичный endpoint, полный список регионов.
+- `GET /api/v1/geo/districts?region_id=<uuid>` — фильтрация районов по региону.
+- `GET /api/v1/search?region_id=<uuid>` — расширяется в подзапрос
+  `district_id IN (SELECT id FROM districts WHERE region_id = ...)`.
+- OpenAPI регенерирован: `/api/v1/geo/regions` и параметр `region_id`
+  задокументированы в `openapi.public.json`.
+- Тесты: 743 passed / 90 suites; lint: 0 errors; tsc: clean.
+
+Прод-TODO (после мёржа):
+- `migrate deploy` миграции `20260628120000_add_regions` на staging/prod.
+
+Commit messages:
+- feat(geo): add Region model + migration (14 regions/210 districts)
+- feat(geo): GET /geo/regions endpoint
+- feat(geo): districts?region_id= filter
+- feat(search): region_id filter expands to district subquery
+- docs(api): ADR-0113 region→district hierarchy + openapi regen
+
+Related ADR:
+- docs/adr/ADR-0113-region-district-hierarchy.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-06-28-dynamic-regions-districts-design.md
+- docs/superpowers/plans/2026-06-28-dynamic-regions-districts.md

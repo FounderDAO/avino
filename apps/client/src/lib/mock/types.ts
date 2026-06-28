@@ -167,6 +167,16 @@ export interface Listing {
   tourWindows?: TourWindow[];
 }
 
+/** Регион — справочник `GET /api/v1/geo/regions` (динамические районы). */
+export interface Region {
+  /** UUID региона. */
+  id: string;
+  /** Человекочитаемое название на языке интерфейса. */
+  name: string;
+  /** Машинный код региона (напр. «TASHKENT_CITY»). */
+  code: string;
+}
+
 /** Район — справочник `GET /api/v1/geo/districts` (ADR-0068). */
 export interface District {
   /** UUID района (для фильтра `?district_id=` и /search). */
@@ -175,6 +185,8 @@ export interface District {
   name: string;
   /** Имена на других языках для матчинга подсказок (поиск на латинице). */
   aliases?: string[];
+  /** UUID родительского региона (для каскадного фильтра). */
+  regionId?: string;
 }
 
 /** Карточка агента/агентства (для блока «Агенты»). */
@@ -195,6 +207,8 @@ export interface ListingFilter {
   district?: string;
   /** UUID района для реального поиска (`?district_id=`, GET /search). */
   districtId?: string;
+  /** UUID региона для фильтрации (`?region_id=`, GET /search). */
+  regionId?: string;
   /** Точное число комнат (4 = «4+»). */
   rooms?: number;
   /** Диапазон цены (в единицах валюты объявления; грубый фильтр для моков). */

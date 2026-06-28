@@ -15,11 +15,12 @@ import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { type FilterValues } from './FilterBar';
-import { type District } from '@/lib/mock/types';
+import { type District, type Region } from '@/lib/mock/types';
 
 export interface ActiveFiltersProps {
   values: FilterValues;
   districts: District[];
+  regions: Region[];
 }
 
 /**
@@ -54,7 +55,7 @@ function FilterChip({
   );
 }
 
-export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
+export function ActiveFilters({ values, districts, regions }: ActiveFiltersProps) {
   const t = useTranslations('search.filters');
   const tEnums = useTranslations('enums');
   const router = useRouter();
@@ -91,6 +92,12 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
       const label = tEnums(`propertyType.${single}`);
       chips.push({ key: 'type', label, param: 'type' });
     }
+  }
+
+  if (values.regionId) {
+    const region = regions.find((r) => r.id === values.regionId);
+    const label = region?.name ?? values.regionId;
+    chips.push({ key: 'region_id', label, param: 'region_id' });
   }
 
   if (values.districtId) {
@@ -189,7 +196,10 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
   if (chips.length === 0) return null;
 
   const handleRemove = (chip: ChipDef) => {
-    if (chip.param === '__price') {
+    if (chip.param === 'region_id') {
+      // Сброс региона также снимает выбранный район (каскад).
+      setParams({ region_id: undefined, district_id: undefined });
+    } else if (chip.param === '__price') {
       setParams({ priceMin: undefined, priceMax: undefined });
     } else if (chip.param === '__types') {
       // Удаляем все повторяющиеся ?type= через прямое URLSearchParams.
@@ -226,7 +236,7 @@ export function ActiveFilters({ values, districts }: ActiveFiltersProps) {
     // Используем прямое URLSearchParams для удаления ?type= (повторяющийся).
     const params = new URLSearchParams(searchParams.toString());
     const keysToDelete = [
-      'type', 'district_id', 'rooms', 'rooms_min', 'bathrooms_min',
+      'type', 'region_id', 'district_id', 'rooms', 'rooms_min', 'bathrooms_min',
       'priceMin', 'priceMax',
       'area_min', 'area_max',
       'lot_area_min', 'lot_area_max',

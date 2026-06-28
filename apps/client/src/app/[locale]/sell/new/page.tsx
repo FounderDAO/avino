@@ -1,10 +1,12 @@
 /**
  * /sell/new — страница визарда создания объявления.
- * Рендерит клиентский ListingNew (формы — только моки, без отправки на API).
+ * Server component: предварительно загружает справочники регионов и районов,
+ * передаёт их в клиентский ListingNew.
  */
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { ListingNew } from '@/features/listing-new/ListingNew';
+import { getRegions, getDistricts } from '@/lib/api/geo';
 
 interface PageProps {
   // В Next 15 params — асинхронные.
@@ -21,6 +23,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default function ListingNewPage() {
-  return <ListingNew />;
+export default async function ListingNewPage({ params }: PageProps) {
+  const { locale } = await params;
+  const [regions, districts] = await Promise.all([
+    getRegions(locale),
+    getDistricts(locale),
+  ]);
+  return <ListingNew regions={regions} districts={districts} />;
 }

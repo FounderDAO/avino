@@ -58,7 +58,8 @@ import {
   type UpdateListingPatch,
 } from '@/store/api/listingEditApi';
 import { ToursSection } from '@/features/listing-shared/ToursSection';
-import type { TourWindow } from '@/lib/mock/types';
+import type { TourWindow, Region, District } from '@/lib/mock/types';
+import { RegionDistrictSelect } from '@/features/listing-new/RegionDistrictSelect';
 
 const ROOM_OPTIONS = ['studio', '1', '2', '3', '4', '5+'] as const;
 const BATHROOM_OPTIONS = ['1', '2', '3', '4+'] as const;
@@ -78,6 +79,8 @@ interface EditForm {
   type: PropertyType;
   address: string;
   coords: Coords | null;
+  regionId: string;
+  districtId: string;
   rooms: string;
   bathrooms: string;
   parking: string;  // '' = Нет
@@ -103,7 +106,7 @@ function toDecimal2(raw: string): string {
 }
 
 /** API-деталь → состояние формы (snake_case → camelCase, нормализация чисел). */
-function detailToForm(d: EditListingDetail): EditForm {
+export function detailToForm(d: EditListingDetail): EditForm {
   const coords: Coords | null =
     d.latitude != null && d.longitude != null
       ? [Number(d.latitude), Number(d.longitude)]
@@ -115,6 +118,8 @@ function detailToForm(d: EditListingDetail): EditForm {
     type: d.property_type as PropertyType,
     address: d.address ?? d.address_note ?? '',
     coords,
+    regionId: d.city_id ?? '',
+    districtId: d.district_id ?? '',
     rooms,
     bathrooms,
     parking: d.parking_type ?? '',
@@ -132,6 +137,54 @@ function detailToForm(d: EditListingDetail): EditForm {
     tourWindows: d.tour_windows ?? [],
     amenities: d.amenities ?? [],
   };
+}
+
+/**
+ * Чистая функция сборки тела PATCH /listings/:id из EditForm.
+ * Вынесена из компонента для юнит-тестирования (Task C3).
+ */
+export function buildEditPatch(f: EditForm): UpdateListingPatch {
+  const patch: UpdateListingPatch = {
+    transaction_type: f.tx,
+    property_type: f.type,
+    price: toDecimal2(f.price),
+    currency: f.currency,
+    translation: {
+      title: f.title.trim(),
+      description: f.desc.trim() || undefined,
+      address_note: f.address.trim() || undefined,
+    },
+  };
+  if (f.area) patch.area = toDecimal2(f.area);
+  if (f.lotArea) patch.lot_area = toDecimal2(f.lotArea);
+  const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
+  if (!noRooms) {
+    if (f.rooms) {
+      const n = f.rooms === 'studio' ? 0 : Number.parseInt(f.rooms, 10);
+      if (Number.isFinite(n)) patch.rooms = n;
+    }
+    if (f.bathrooms) {
+      const b = f.bathrooms === '4+' ? 4 : Number.parseInt(f.bathrooms, 10);
+      if (Number.isFinite(b)) patch.bathrooms = b;
+    }
+    if (f.floor) patch.floor = Number.parseInt(f.floor, 10);
+    if (f.totalFloors) patch.total_floors = Number.parseInt(f.totalFloors, 10);
+  }
+  if (f.year) patch.year_built = Number.parseInt(f.year, 10);
+  if (f.address.trim()) patch.address = f.address.trim();
+  if (f.coords) {
+    patch.latitude = String(f.coords[0]);
+    patch.longitude = String(f.coords[1]);
+  }
+  patch.tours_enabled = f.toursEnabled;
+  patch.tour_windows = f.tourWindows;
+  if (f.parking) patch.parking_type = f.parking as ParkingType;
+  // Всегда шлём массив (как tour_windows) — чтобы «снять все удобства → сохранить»
+  // реально очищал их (omit-empty не дал бы отправить пустой массив на бэк).
+  patch.amenities = f.amenities;
+  if (f.regionId) patch.city_id = f.regionId;
+  if (f.districtId) patch.district_id = f.districtId;
+  return patch;
 }
 
 /** Существующие медиа → UploadPhoto[] (без `file`, id = mediaId). */
@@ -170,7 +223,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function ListingEdit({ id }: { id: string }) {
+export function ListingEdit({
+  id,
+  regions,
+  districts,
+}: {
+  id: string;
+  regions: Region[];
+  districts: District[];
+}) {
   const t = useTranslations('listingEdit');
   const tNew = useTranslations('listingNew');
   const tEnums = useTranslations('enums');
@@ -238,49 +299,10 @@ export function ListingEdit({ id }: { id: string }) {
     Boolean(f.price) &&
     Boolean(f.address.trim()) &&
     Boolean(f.area) &&
+    Boolean(f.regionId) &&
+    Boolean(f.districtId) &&
     (noRooms || Boolean(f.rooms)) &&
     photos.length > 0;
-
-  const buildPatch = (): UpdateListingPatch => {
-    const patch: UpdateListingPatch = {
-      transaction_type: f.tx,
-      property_type: f.type,
-      price: toDecimal2(f.price),
-      currency: f.currency,
-      translation: {
-        title: f.title.trim(),
-        description: f.desc.trim() || undefined,
-        address_note: f.address.trim() || undefined,
-      },
-    };
-    if (f.area) patch.area = toDecimal2(f.area);
-    if (f.lotArea) patch.lot_area = toDecimal2(f.lotArea);
-    if (!noRooms) {
-      if (f.rooms) {
-        const n = f.rooms === 'studio' ? 0 : Number.parseInt(f.rooms, 10);
-        if (Number.isFinite(n)) patch.rooms = n;
-      }
-      if (f.bathrooms) {
-        const b = f.bathrooms === '4+' ? 4 : Number.parseInt(f.bathrooms, 10);
-        if (Number.isFinite(b)) patch.bathrooms = b;
-      }
-      if (f.floor) patch.floor = Number.parseInt(f.floor, 10);
-      if (f.totalFloors) patch.total_floors = Number.parseInt(f.totalFloors, 10);
-    }
-    if (f.year) patch.year_built = Number.parseInt(f.year, 10);
-    if (f.address.trim()) patch.address = f.address.trim();
-    if (f.coords) {
-      patch.latitude = String(f.coords[0]);
-      patch.longitude = String(f.coords[1]);
-    }
-    patch.tours_enabled = f.toursEnabled;
-    patch.tour_windows = f.tourWindows;
-    if (f.parking) patch.parking_type = f.parking as ParkingType;
-    // Всегда шлём массив (как tour_windows) — чтобы «снять все удобства → сохранить»
-    // реально очищал их (omit-empty не дал бы отправить пустой массив на бэк).
-    patch.amenities = f.amenities;
-    return patch;
-  };
 
   const handleSave = async () => {
     setSubmitError(null);
@@ -291,7 +313,7 @@ export function ListingEdit({ id }: { id: string }) {
     setBusy(true);
     try {
       // 1. Поля.
-      await updateListing({ id, body: buildPatch() }).unwrap();
+      await updateListing({ id, body: buildEditPatch(f) }).unwrap();
 
       // 2. Удалить снятые существующие фото.
       const keptIds = new Set(photos.filter((p) => !p.file).map((p) => p.id));
@@ -388,6 +410,16 @@ export function ListingEdit({ id }: { id: string }) {
 
         {/* Адрес и точка на карте (Yandex suggest + карта) */}
         <Section title={tNew('steps.address')}>
+          <RegionDistrictSelect
+            regions={regions}
+            districts={districts}
+            regionId={f.regionId || undefined}
+            districtId={f.districtId || undefined}
+            onChange={({ regionId, districtId }) => {
+              set('regionId', regionId ?? '');
+              set('districtId', districtId ?? '');
+            }}
+          />
           <AddressStep
             address={f.address}
             coords={f.coords}

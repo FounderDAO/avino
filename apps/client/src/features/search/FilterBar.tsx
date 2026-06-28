@@ -45,6 +45,7 @@ import {
   type District,
   type ParkingType,
   type PropertyType,
+  type Region,
   type SortOption,
   type TransactionType,
 } from '@/lib/mock/types';
@@ -58,6 +59,8 @@ export interface FilterValues {
   types?: PropertyType[];
   /** UUID выбранного района (`?district_id=`); имя резолвится по `districts`. */
   districtId?: string;
+  /** UUID выбранного региона (`?region_id=`); используется для каскада «Регион → Район». */
+  regionId?: string;
   /** Точное число комнат. */
   rooms?: number;
   /** «N+» режим комнат. */
@@ -93,9 +96,11 @@ export interface FilterBarProps {
   values: FilterValues;
   /** Список районов для дропдауна (GET /geo/districts). */
   districts: District[];
+  /** Список регионов для каскадного дропдауна (GET /geo/regions). */
+  regions: Region[];
 }
 
-export function FilterBar({ values, districts }: FilterBarProps) {
+export function FilterBar({ values, districts, regions }: FilterBarProps) {
   const t = useTranslations();
   const tSearch = useTranslations('search');
   const router = useRouter();
@@ -216,6 +221,16 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     ? tSearch('filters.propertyTypeCount', { count: String(selectedTypes.length) })
     : tSearch('filters.propertyType');
 
+  // Регион (каскад Регион → Район).
+  const selectedRegion = values.regionId
+    ? regions.find((r) => r.id === values.regionId)
+    : undefined;
+  const regionLabel = selectedRegion?.name ?? tSearch('filters.region');
+  // Список районов, отфильтрованный по выбранному региону.
+  const regionDistricts = values.regionId
+    ? districts.filter((d) => d.regionId === values.regionId)
+    : [];
+
   // Район.
   const selectedDistrict = values.districtId
     ? districts.find((d) => d.id === values.districtId)
@@ -334,6 +349,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
     // Мультивыбор типов — сериализуем массивом для UI-восстановления.
     if (values.types && values.types.length > 0) filters.property_types = values.types;
     if (values.districtId) filters.district_id = values.districtId;
+    if (values.regionId) filters.region_id = values.regionId;
     if (values.priceMin) filters.price_min = values.priceMin;
     if (values.priceMax) filters.price_max = values.priceMax;
     if (values.rooms != null) filters.rooms = values.rooms;
@@ -489,13 +505,56 @@ export function FilterBar({ values, districts }: FilterBarProps) {
             </DropdownContent>
           </Dropdown>
 
-          {/* Район */}
+          {/* Регион — каскадный фильтр (выбор региона сбрасывает район) */}
+          <Dropdown>
+            <DropdownTrigger asChild>
+              <TriggerButton
+                label={regionLabel}
+                active={Boolean(values.regionId)}
+                data-testid="filter-region"
+              />
+            </DropdownTrigger>
+            <DropdownContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto p-2">
+              <button
+                type="button"
+                onClick={() => setParams({ region_id: undefined, district_id: undefined })}
+                className={cn(
+                  'flex w-full items-center justify-between rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
+                  !values.regionId && 'bg-mint',
+                )}
+              >
+                {tSearch('filters.allRegions')}
+              </button>
+              {regions.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() =>
+                    setParams({
+                      region_id: values.regionId === r.id ? undefined : r.id,
+                      district_id: undefined,
+                    })
+                  }
+                  className={cn(
+                    'flex w-full items-center rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
+                    values.regionId === r.id && 'bg-mint',
+                  )}
+                >
+                  <span className="truncate">{r.name}</span>
+                </button>
+              ))}
+            </DropdownContent>
+          </Dropdown>
+
+          {/* Район — зависит от выбранного региона */}
           <Dropdown>
             <DropdownTrigger asChild>
               <TriggerButton
                 label={districtLabel}
                 active={Boolean(values.districtId)}
                 data-testid="filter-district"
+                disabled={!values.regionId}
+                title={!values.regionId ? tSearch('filters.regionRequired') : undefined}
               />
             </DropdownTrigger>
             <DropdownContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto p-2">
@@ -509,7 +568,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
               >
                 {tSearch('filters.allDistricts')}
               </button>
-              {districts.map((d) => (
+              {regionDistricts.map((d) => (
                 <button
                   key={d.id}
                   type="button"
@@ -599,7 +658,7 @@ export function FilterBar({ values, districts }: FilterBarProps) {
         </div>
       </div>
       {/* Ряд активных фильтр-чипов под скролл-баром. */}
-      <ActiveFilters values={values} districts={districts} />
+      <ActiveFilters values={values} districts={districts} regions={regions} />
     </div>
   );
 }

@@ -53,7 +53,8 @@ import { type Coords } from './PickMap';
 import { AddressStep } from './AddressStep';
 import { PhotoUploader, type UploadPhoto } from './PhotoUploader';
 import { ToursSection } from '@/features/listing-shared/ToursSection';
-import type { TourWindow } from '@/lib/mock/types';
+import type { TourWindow, Region, District } from '@/lib/mock/types';
+import { RegionDistrictSelect } from './RegionDistrictSelect';
 
 /** Шаги прогресс-бара (подписи — в словаре `listingNew.steps`). */
 const STEPS = [
@@ -77,11 +78,13 @@ const BATHROOM_OPTIONS = ['1', '2', '3', '4+'] as const;
 type Lang = 'RU' | 'UZ' | 'EN';
 
 /** Состояние формы визарда. */
-interface FormState {
+export interface FormState {
   tx: TransactionType;
   type: PropertyType;
   address: string;
   coords: Coords | null;
+  regionId: string;
+  districtId: string;
   rooms: string;
   bathrooms: string;
   parking: string;  // '' = Нет
@@ -106,6 +109,8 @@ const INITIAL: FormState = {
   type: 'APARTMENT',
   address: '',
   coords: null,
+  regionId: '',
+  districtId: '',
   rooms: '2',
   bathrooms: '',
   parking: '',
@@ -130,6 +135,59 @@ type Action = { type: 'set'; key: keyof FormState; value: FormState[keyof FormSt
 
 function reducer(state: FormState, action: Action): FormState {
   return { ...state, [action.key]: action.value };
+}
+
+/**
+ * Чистая функция сборки тела POST /listings из FormState.
+ * Вынесена из компонента для юнит-тестирования (Task C2).
+ */
+export function buildListingBody(
+  f: FormState,
+  noRooms: boolean,
+): import('@/store/api/createListingApi').CreateListingBody {
+  const cleanPrice = (raw: string) => raw.replace(/[^\d.]/g, '');
+  const body: import('@/store/api/createListingApi').CreateListingBody = {
+    transaction_type: f.tx,
+    property_type: f.type,
+    original_language: f.lang,
+    price: cleanPrice(f.price),
+    currency: f.currency,
+    translation: {
+      title: f.title.trim(),
+      description: f.desc.trim() || undefined,
+      address_note: f.address.trim() || undefined,
+    },
+  };
+
+  if (f.area) body.area = f.area;
+  if (f.lotArea) body.lot_area = f.lotArea;
+  if (!noRooms) {
+    if (f.rooms) {
+      const n = f.rooms === 'studio' ? 0 : Number.parseInt(f.rooms, 10);
+      if (Number.isFinite(n)) body.rooms = n;
+    }
+    if (f.bathrooms) {
+      const b = f.bathrooms === '4+' ? 4 : Number.parseInt(f.bathrooms, 10);
+      if (Number.isFinite(b)) body.bathrooms = b;
+    }
+    if (f.floor) body.floor = Number.parseInt(f.floor, 10);
+    if (f.totalFloors) body.total_floors = Number.parseInt(f.totalFloors, 10);
+  }
+  if (f.year) body.year_built = Number.parseInt(f.year, 10);
+  if (f.address.trim()) body.address = f.address.trim();
+  if (f.coords) {
+    body.latitude = String(f.coords[0]);
+    body.longitude = String(f.coords[1]);
+  }
+  if (f.toursEnabled) {
+    body.tours_enabled = true;
+    body.tour_windows = f.tourWindows;
+  }
+  if (f.parking) body.parking_type = f.parking as ParkingType;
+  if (f.amenities.length > 0) body.amenities = f.amenities;
+  if (f.districtId) body.district_id = f.districtId;
+  if (f.regionId) body.city_id = f.regionId;
+  return body;
 }
 
 /** Иконки типов недвижимости. */
@@ -171,7 +229,13 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function ListingNew() {
+export function ListingNew({
+  regions,
+  districts,
+}: {
+  regions: Region[];
+  districts: District[];
+}) {
   const t = useTranslations('listingNew');
   const tUnits = useTranslations('units');
   const tEnums = useTranslations('enums');
@@ -207,56 +271,8 @@ export function ListingNew() {
 
   const apiError = getApiError(createError);
 
-  /** Очистить «сырое» число от пробелов/разделителей → decimal-строка. */
-  const cleanPrice = (raw: string): string => raw.replace(/[^\d.]/g, '');
-
   /** Собрать тело POST /listings из FormState. */
-  const buildBody = (): CreateListingBody => {
-    const body: CreateListingBody = {
-      transaction_type: f.tx,
-      property_type: f.type,
-      original_language: f.lang,
-      price: cleanPrice(f.price),
-      currency: f.currency,
-      translation: {
-        title: f.title.trim(),
-        description: f.desc.trim() || undefined,
-        // Адрес — это введённый текст с районом, без resolvable uuid (geo-gap).
-        // Складываем в address_note как человекочитаемую подсказку.
-        address_note: f.address.trim() || undefined,
-      },
-    };
-
-    if (f.area) body.area = f.area;
-    if (f.lotArea) body.lot_area = f.lotArea;
-    if (!noRooms) {
-      if (f.rooms) {
-        // rooms — int; "Студия"/"5+" нормализуем (студия → 0, 5+ → 5).
-        const n =
-          f.rooms === 'studio' ? 0 : Number.parseInt(f.rooms, 10);
-        if (Number.isFinite(n)) body.rooms = n;
-      }
-      if (f.bathrooms) {
-        const b = f.bathrooms === '4+' ? 4 : Number.parseInt(f.bathrooms, 10);
-        if (Number.isFinite(b)) body.bathrooms = b;
-      }
-      if (f.floor) body.floor = Number.parseInt(f.floor, 10);
-      if (f.totalFloors) body.total_floors = Number.parseInt(f.totalFloors, 10);
-    }
-    if (f.year) body.year_built = Number.parseInt(f.year, 10);
-    if (f.address.trim()) body.address = f.address.trim();
-    if (f.coords) {
-      body.latitude = String(f.coords[0]);
-      body.longitude = String(f.coords[1]);
-    }
-    if (f.toursEnabled) {
-      body.tours_enabled = true;
-      body.tour_windows = f.tourWindows;
-    }
-    if (f.parking) body.parking_type = f.parking as ParkingType;
-    if (f.amenities.length > 0) body.amenities = f.amenities;
-    return body;
-  };
+  const buildBody = (): CreateListingBody => buildListingBody(f, noRooms);
 
   /** Реальная публикация: создать объявление → загрузить фото по одному. */
   const handlePublish = async () => {
@@ -293,9 +309,9 @@ export function ListingNew() {
       case 1:
         return Boolean(f.tx && f.type);
       case 2:
-        // Адрес обязателен; точка на карте — необязательное уточнение (геокод/карта
-        // могут быть недоступны, но объявление всё равно должно создаваться).
-        return Boolean(f.address.trim());
+        // Адрес обязателен; регион и район также обязательны для геопривязки.
+        // Точка на карте — необязательное уточнение.
+        return Boolean(f.address.trim()) && Boolean(f.regionId) && Boolean(f.districtId);
       case 3:
         return Boolean(f.area && (noRooms || f.rooms));
       case 4:
@@ -435,15 +451,27 @@ export function ListingNew() {
           </div>
         )}
 
-        {/* Шаг 2 — Адрес (Yandex Suggest) и точка на реальной карте */}
+        {/* Шаг 2 — Регион/район и адрес (Yandex Suggest) с точкой на карте */}
         {step === 2 && (
-          <AddressStep
-            address={f.address}
-            coords={f.coords}
-            onAddressChange={(v) => set('address', v)}
-            onCoordsChange={(c) => set('coords', c)}
-            locale={locale}
-          />
+          <div className="flex flex-col gap-5">
+            <RegionDistrictSelect
+              regions={regions}
+              districts={districts}
+              regionId={f.regionId || undefined}
+              districtId={f.districtId || undefined}
+              onChange={({ regionId, districtId }) => {
+                set('regionId', regionId ?? '');
+                set('districtId', districtId ?? '');
+              }}
+            />
+            <AddressStep
+              address={f.address}
+              coords={f.coords}
+              onAddressChange={(v) => set('address', v)}
+              onCoordsChange={(c) => set('coords', c)}
+              locale={locale}
+            />
+          </div>
         )}
 
         {/* Шаг 3 — Параметры */}

@@ -43,6 +43,7 @@ export interface EditListingDetail {
   floor: number | null;
   total_floors: number | null;
   year_built: number | null;
+  city_id: string | null;
   district_id: string | null;
   address: string | null;
   latitude: string | null;
@@ -83,6 +84,8 @@ export interface UpdateListingPatch {
   tour_windows?: { start: string; end: string }[];
   parking_type?: ParkingType;
   amenities?: Amenity[];
+  city_id?: string;
+  district_id?: string;
 }
 
 export const listingEditApi = baseApi.injectEndpoints({

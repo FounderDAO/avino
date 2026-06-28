@@ -379,6 +379,16 @@ describe('buildSearchParams — Zillow-фильтры (Task 4)', () => {
     expect(p.getAll('amenities')).toEqual([]);
   });
 
+  it('regionId → region_id в параметрах запроса', () => {
+    const p = buildSearchParams({ regionId: 'uuid-region-tashkent' }, 24);
+    expect(p.get('region_id')).toBe('uuid-region-tashkent');
+  });
+
+  it('regionId не задан → region_id отсутствует', () => {
+    const p = buildSearchParams({ tx: 'SALE' }, 24);
+    expect(p.has('region_id')).toBe(false);
+  });
+
   it('rooms_min, area, floor, year, source, tours', () => {
     const p = buildSearchParams(
       {

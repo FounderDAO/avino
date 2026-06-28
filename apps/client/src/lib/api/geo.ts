@@ -15,7 +15,7 @@
  * становятся `aliases` — чтобы подсказки поиска находили район по латинице
  * («yunusobod», «chilonzor»), как раньше делал мок (см. useGeoSuggest).
  */
-import type { District } from '@/lib/mock/types';
+import type { District, Region } from '@/lib/mock/types';
 import { resolveApiBase } from './base';
 
 /** Строка справочника районов GET /geo/districts (snake_case контракт §geo). */
@@ -25,6 +25,7 @@ export interface ApiDistrict {
   name_uz: string;
   name_ru: string;
   name_en: string;
+  region_id: string | null;
 }
 
 /** Имя района по языку интерфейса: `uz→name_uz`, `en→name_en`, иначе name_ru. */
@@ -50,7 +51,12 @@ function aliasesFor(d: ApiDistrict, displayName: string): string[] {
  */
 export function mapDistrict(api: ApiDistrict, lang = 'ru'): District {
   const name = pickName(api, lang);
-  return { id: api.id, name, aliases: aliasesFor(api, name) };
+  return {
+    id: api.id,
+    name,
+    aliases: aliasesFor(api, name),
+    regionId: api.region_id ?? undefined,
+  };
 }
 
 /**
@@ -72,6 +78,50 @@ export async function getDistricts(lang = 'ru'): Promise<District[]> {
     return data.map((d) => mapDistrict(d, lang));
   } catch (err) {
     console.error('[geo] districts fetch failed, degrading to empty list', err);
+    return [];
+  }
+}
+
+/** Строка справочника регионов GET /geo/regions (snake_case контракт §geo). */
+export interface ApiRegion {
+  id: string;
+  code: string;
+  name_uz: string;
+  name_ru: string;
+  name_en: string;
+}
+
+/** Имя региона по языку интерфейса: `uz→name_uz`, `en→name_en`, иначе name_ru. */
+function pickRegionName(r: ApiRegion, lang: string): string {
+  const l = lang.toLowerCase();
+  if (l.startsWith('uz')) return r.name_uz;
+  if (l.startsWith('en')) return r.name_en;
+  return r.name_ru;
+}
+
+/**
+ * snake_case регион API → UI-модель {@link Region}. Чистая функция (без сети) —
+ * выделена для юнит-тестов выбора языка.
+ */
+export function mapRegion(api: ApiRegion, lang = 'ru'): Region {
+  return { id: api.id, name: pickRegionName(api, lang), code: api.code };
+}
+
+/**
+ * Список регионов для дропдауна фильтра (каскад Регион → Район).
+ * GET /api/v1/geo/regions. Справочник редко меняется → кэш на 1 час.
+ * При ошибке деградирует до пустого списка.
+ */
+export async function getRegions(lang = 'ru'): Promise<Region[]> {
+  try {
+    const res = await fetch(`${resolveApiBase()}/geo/regions`, {
+      next: { revalidate: 3600 },
+      headers: { Accept: 'application/json', 'Accept-Language': lang },
+    });
+    if (!res.ok) throw new Error(`API ${res.status} for /geo/regions`);
+    return ((await res.json()) as ApiRegion[]).map((r) => mapRegion(r, lang));
+  } catch (err) {
+    console.error('[geo] regions fetch failed, degrading to empty list', err);
     return [];
   }
 }
