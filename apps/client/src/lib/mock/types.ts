@@ -207,6 +207,8 @@ export interface ListingFilter {
   district?: string;
   /** UUID района для реального поиска (`?district_id=`, GET /search). */
   districtId?: string;
+  /** UUID региона для фильтрации (`?region_id=`, GET /search). */
+  regionId?: string;
   /** Точное число комнат (4 = «4+»). */
   rooms?: number;
   /** Диапазон цены (в единицах валюты объявления; грубый фильтр для моков). */

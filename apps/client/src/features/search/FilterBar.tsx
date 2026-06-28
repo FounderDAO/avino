@@ -658,7 +658,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
         </div>
       </div>
       {/* Ряд активных фильтр-чипов под скролл-баром. */}
-      <ActiveFilters values={values} districts={districts} />
+      <ActiveFilters values={values} districts={districts} regions={regions} />
     </div>
   );
 }
