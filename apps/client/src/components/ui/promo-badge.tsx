@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { Sparkles } from 'lucide-react';
 import { Badge } from './badge';
 import { cn } from '@/lib/utils';
-import { daysOnSite } from '@/lib/format';
+import { listingAge } from '@/lib/format';
 import type { PromotionType } from '@/lib/mock/types';
 
 export interface PromoBadgeProps {
@@ -44,7 +44,18 @@ export function NewBadge({ className }: { className?: string }) {
   );
 }
 
-/** Бейдж «N дней на сайте» (белый пилюль, как у Zillow). */
+/** Соответствие единицы возраста ключу плюрализации в неймспейсе `units`. */
+const AGE_KEY = {
+  days: 'daysOnSite',
+  weeks: 'weeksOnSite',
+  months: 'monthsOnSite',
+  years: 'yearsOnSite',
+} as const;
+
+/**
+ * Бейдж «времени на сайте» (белый пилюль, как у Zillow).
+ * Моложе суток → «Новое»; дальше — компактная единица: дни/недели/месяцы/годы.
+ */
 export function DaysBadge({
   createdAt,
   className,
@@ -53,7 +64,8 @@ export function DaysBadge({
   className?: string;
 }) {
   const t = useTranslations('units');
-  const days = daysOnSite(createdAt);
+  const age = listingAge(createdAt);
+  if (!age) return <NewBadge className={className} />;
   return (
     <span
       className={cn(
@@ -61,7 +73,7 @@ export function DaysBadge({
         className,
       )}
     >
-      {t('daysOnSite', { count: days })}
+      {t(AGE_KEY[age.unit], { count: age.count })}
     </span>
   );
 }
