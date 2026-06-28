@@ -39,7 +39,7 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
       }
     >
       {/* Фото — слайдер */}
-      <div className="relative aspect-[3/2] shrink-0 overflow-hidden">
+      <div className="relative aspect-[16/9] shrink-0 overflow-hidden">
         <CardPhotoCarousel
           photos={listing.photos}
           alt={listing.title}
@@ -55,7 +55,7 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
       </div>
 
       {/* Тело */}
-      <div className="flex flex-1 flex-col px-3 py-2.5">
+      <div className="flex flex-1 flex-col px-3 py-2">
         <div className="truncate text-[19px] font-bold tracking-[-0.01em] text-ink">
           {fmt.price(listing)}
         </div>

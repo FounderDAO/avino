@@ -26,7 +26,7 @@ export function ExchangeRatePanel() {
         {isLoading
           ? '…'
           : current
-            ? `1 USD = ${current.rate} сум · ${current.source} · ${new Date(current.fetched_at).toLocaleString('ru-RU')}`
+            ? `1 USD = ${Number(current.rate).toLocaleString('en-US')} сум · ${current.source} · ${new Date(current.fetched_at).toLocaleString('ru-RU')}`
             : 'Курс ещё не загружен'}
       </div>
 

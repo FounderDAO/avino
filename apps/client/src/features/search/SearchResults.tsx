@@ -170,8 +170,9 @@ export function SearchResults({
       <div
         className={cn(
           'relative h-full',
-          // Десктоп: левая половина. Мобайл: на весь экран, скрыта когда показан список.
-          'lg:w-1/2',
+          // Десктоп: 60% (карта шире списка, как у Zillow). Мобайл: на весь экран,
+          // скрыта когда показан список.
+          'lg:w-3/5',
           mobView === 'list'
             ? 'hidden lg:block'
             : 'absolute inset-0 z-[1] lg:static',
@@ -238,8 +239,9 @@ export function SearchResults({
       <div
         className={cn(
           'min-w-0 overflow-y-auto',
-          // Десктоп: правая половина. Мобайл: вся ширина, скрыт когда показана карта.
-          'w-full lg:w-1/2 lg:max-w-[50%]',
+          // Десктоп: 40% (уже карты → карточки уже и ниже, видно больше). Мобайл:
+          // вся ширина, скрыт когда показана карта.
+          'w-full lg:w-2/5 lg:max-w-[40%]',
           mobView === 'map' && 'hidden lg:block',
         )}
       >

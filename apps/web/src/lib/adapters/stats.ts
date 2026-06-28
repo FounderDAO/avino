@@ -9,7 +9,7 @@
 import type { AdminStats } from '@/store/api/adminApi';
 import type { Kpi } from '@/lib/mock';
 
-const numberFmt = new Intl.NumberFormat('ru-RU');
+const numberFmt = new Intl.NumberFormat('en-US');
 
 /** Сводные счётчики `AdminStats` → 4 KPI-карточки UI (label/value/accent). */
 export function statsToKpis(s: AdminStats): Kpi[] {

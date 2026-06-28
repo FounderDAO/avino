@@ -558,7 +558,7 @@ export function ListingEdit({
                 className="pl-11 text-lg font-bold"
                 placeholder="0"
                 inputMode="numeric"
-                value={f.price ? Number(f.price).toLocaleString('ru-RU') : ''}
+                value={f.price ? Number(f.price).toLocaleString('en-US') : ''}
                 onChange={(e) => set('price', e.target.value.replace(/\D/g, ''))}
               />
               <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">

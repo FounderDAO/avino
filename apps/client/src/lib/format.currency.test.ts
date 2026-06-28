@@ -1,8 +1,7 @@
 /**
  * Тесты конверсии валют: convertPrice + formatPrice с display/rate.
- * Whitespace caveat: Intl.NumberFormat('ru-RU') эмитирует NARROW NO-BREAK SPACE
- * (U+202F) как разделитель тысяч. Для UZS-вывода нормализуем пробелы перед
- * сравнением строк, сохраняя проверки округления и префикса «≈».
+ * Числа форматируются Intl.NumberFormat('en-US'): запятая — разделитель тысяч,
+ * точка — дробная часть. Проверяем округление и префикс «≈».
  */
 import { describe, it, expect } from 'vitest';
 import { createTranslator } from 'next-intl';
@@ -39,10 +38,9 @@ describe('formatPrice with display currency', () => {
   });
 
   it('USD listing shown in UZS is converted, rounded to 1000, with ≈', () => {
-    // 98000 * 12650 = 1 239 700 000 (already on 1000s)
-    // Normalize narrow no-break spaces (U+202F / U+00A0) → regular space before compare
-    const actual = formatPrice(usd, t, { display: 'UZS', rate: RATE }).replace(/[  ]/g, ' ');
-    expect(actual).toBe('≈ 1 239 700 000 сум');
+    // 98000 * 12650 = 1,239,700,000 (already on 1000s)
+    const actual = formatPrice(usd, t, { display: 'UZS', rate: RATE });
+    expect(actual).toBe('≈ 1,239,700,000 сум');
   });
 
   it('falls back to native when rate is missing', () => {

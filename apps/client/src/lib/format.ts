@@ -1,15 +1,15 @@
 /**
  * Хелперы форматирования. Все подписи/единицы — через словарь (неймспейсы
  * `units` и `enums`): хелперы принимают t-функцию от useTranslations() /
- * getTranslations(). Числа — Intl.NumberFormat (пробелы как разделители тысяч).
+ * getTranslations(). Числа — Intl.NumberFormat (запятая — тысячи, точка — дробь).
  */
 import type { Currency, Listing, PropertyType, TransactionType } from './mock/types';
 
 /** Translator неймспейса (useTranslations('units') | getTranslations('units')). */
 export type T = (key: string, values?: Record<string, string | number>) => string;
 
-/** Форматтер чисел: пробелы как разделители тысяч. */
-const nf = new Intl.NumberFormat('ru-RU');
+/** Форматтер чисел: запятая — разделитель тысяч, точка — дробная часть. */
+const nf = new Intl.NumberFormat('en-US');
 
 export interface FormatPriceOptions {
   /** Добавлять суффикс «/мес» для аренды (по умолчанию true). */
@@ -32,7 +32,7 @@ function roundForCurrency(value: number, currency: Currency): number {
 }
 
 /**
- * Цена объявления: «1 450 000 000 сум» / «$98 000», для аренды — «… /мес».
+ * Цена объявления: «1,450,000,000 сум» / «$98,000», для аренды — «… /мес».
  * При opts.display ≠ listing.currency и opts.rate > 0 — конвертирует с префиксом «≈ ».
  */
 export function formatPrice(
@@ -59,7 +59,7 @@ export function formatMoney(value: number | string, currency: Currency, t: T): s
   return currency === 'USD' ? '$' + nf.format(n) : nf.format(n) + ' ' + t('sum');
 }
 
-/** Компактная цена для пинов карты: «$98K», «1,5 млрд».
+/** Компактная цена для пинов карты: «$98k», «1.5 млрд».
  * При opts.display ≠ listing.currency и opts.rate > 0 — конвертирует с префиксом «≈ ».
  */
 export function pinPrice(
@@ -76,18 +76,18 @@ export function pinPrice(
   const n = target === 'USD' ? Math.round(raw) : Math.round(raw / 1000) * 1000;
   const approx = convert ? t('approx') + ' ' : '';
   if (target === 'USD') {
-    if (n >= 1000) return approx + '$' + trim(n / 1000) + 'K';
+    if (n >= 1000) return approx + '$' + Math.round(n / 1000) + 'k';
     return approx + '$' + trim(n);
   }
   if (n >= 1e9) return approx + trim(n / 1e9) + ' ' + t('billion');
   if (n >= 1e6) return approx + trim(n / 1e6) + ' ' + t('million');
-  if (n >= 1e3) return approx + trim(n / 1e3) + 'K';
+  if (n >= 1e3) return approx + Math.round(n / 1e3) + 'k';
   return approx + trim(n);
 }
 
-/** Округление до 1 знака с запятой как разделителем. */
+/** Округление до 1 знака; точка как десятичный разделитель. */
 function trim(v: number): string {
-  return (Math.round(v * 10) / 10).toString().replace('.', ',');
+  return (Math.round(v * 10) / 10).toString();
 }
 
 /**
@@ -170,17 +170,17 @@ export function daysOnSite(createdAt: string): number {
 }
 
 /**
- * Компактная цена для осей гистограммы/слайдера: «$98K», «$1,5M», «1,5 billion».
+ * Компактная цена для осей гистограммы/слайдера: «$98k», «$1.5M», «1.5 billion».
  * Без конвертации валют — value уже в нужной валюте.
  */
 export function compactPrice(value: number, currency: Currency, t: T): string {
   if (currency === 'USD') {
     if (value >= 1e6) return '$' + trim(value / 1e6) + 'M';
-    if (value >= 1e3) return '$' + trim(value / 1e3) + 'K';
+    if (value >= 1e3) return '$' + Math.round(value / 1e3) + 'k';
     return '$' + Math.round(value);
   }
   if (value >= 1e9) return trim(value / 1e9) + ' ' + t('billion');
   if (value >= 1e6) return trim(value / 1e6) + ' ' + t('million');
-  if (value >= 1e3) return trim(value / 1e3) + 'K';
+  if (value >= 1e3) return Math.round(value / 1e3) + 'k';
   return Math.round(value) + ' ' + t('sum');
 }

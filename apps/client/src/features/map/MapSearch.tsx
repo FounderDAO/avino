@@ -142,7 +142,8 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
       <div
         className={cn(
           'relative h-full',
-          'lg:w-1/2',
+          // Десктоп: 60% карта / 40% список (как на /search) — карточки уже и ниже.
+          'lg:w-3/5',
           mobView === 'list' ? 'hidden lg:block' : 'absolute inset-0 z-[1] lg:static',
         )}
       >
@@ -224,7 +225,7 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
       <div
         className={cn(
           'min-w-0 overflow-y-auto',
-          'w-full lg:w-1/2 lg:max-w-[50%]',
+          'w-full lg:w-2/5 lg:max-w-[40%]',
           mobView === 'map' && 'hidden lg:block',
         )}
       >
