@@ -116,4 +116,49 @@ describe('OtpService', () => {
     expect(rateLimit.assertCanRequest).toHaveBeenCalledTimes(1);
     expect(res.channel).toBe(OtpChannel.SMS);
   });
+
+  it('short-circuits the OTP request for a reviewer bypass phone (no SMS, no code stored)', async () => {
+    config.get.mockImplementation((k: string) => {
+      if (k === 'otp.ttl') return 300;
+      if (k === 'otp.bypassEnabled') return true;
+      if (k === 'otp.bypassPhones') return ['+998902793100'];
+      return undefined;
+    });
+    // SMS-тоггл выключен — обход не должен от него зависеть.
+    sms.isEnabled.mockResolvedValue(false);
+
+    const res = await service.requestOtp(
+      { channel: OtpChannel.SMS, destination: '+998902793100' } as never,
+      '1.2.3.4',
+    );
+
+    expect(res.channel).toBe(OtpChannel.SMS);
+    expect(res.expires_in).toBe(300);
+    // Ничего не сгенерировали/не сохранили/не отправили; rate-limit не трогали.
+    expect(sms.sendOtp).not.toHaveBeenCalled();
+    expect(prisma.otpCode.create).not.toHaveBeenCalled();
+    expect(telegram.sendAdminAlert).not.toHaveBeenCalled();
+    expect(rateLimit.assertCanRequest).not.toHaveBeenCalled();
+  });
+
+  it('does NOT bypass the request when the flag is off (same number, normal SMS flow)', async () => {
+    config.get.mockImplementation((k: string) => {
+      if (k === 'otp.ttl') return 300;
+      if (k === 'otp.bypassEnabled') return false;
+      if (k === 'otp.bypassPhones') return ['+998902793100'];
+      if (k === 'telegram.includeOtpCode') return true;
+      return undefined;
+    });
+    // Предыдущий bypass-тест установил sms.isEnabled=false; сбрасываем для нормального пути.
+    sms.isEnabled.mockResolvedValue(true);
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    await service.requestOtp(
+      { channel: OtpChannel.SMS, destination: '+998902793100' } as never,
+      '1.2.3.4',
+    );
+    // Обычный путь: код доставлен и сохранён.
+    expect(sms.sendOtp).toHaveBeenCalledTimes(1);
+    expect(prisma.otpCode.create).toHaveBeenCalledTimes(1);
+  });
 });

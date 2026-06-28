@@ -53,7 +53,14 @@ describe('AuthService.verifyOtp', () => {
         expiresIn: 900,
       }),
     };
-    config = { get: jest.fn().mockReturnValue(5) }; // otp.maxAttempts
+    config = {
+      get: jest.fn().mockImplementation((k: string) => {
+        if (k === 'otp.maxAttempts') return 5;
+        if (k === 'otp.bypassEnabled') return false;
+        if (k === 'otp.bypassPhones') return [];
+        return undefined;
+      }),
+    };
     telegram = { sendAdminAlert: jest.fn().mockResolvedValue(undefined) };
     const rateLimitService = {
       assertCanVerify: jest.fn().mockResolvedValue(undefined),
@@ -317,6 +324,38 @@ describe('AuthService.verifyOtp', () => {
     expect(telegram.sendAdminAlert).toHaveBeenCalledWith(
       expect.stringContaining('OTP_INVALID'),
     );
+  });
+
+  it('reviewer bypass: accepts any code and logs in without consulting an OTP row', async () => {
+    config.get.mockImplementation((k: string) => {
+      if (k === 'otp.maxAttempts') return 5;
+      if (k === 'otp.bypassEnabled') return true;
+      if (k === 'otp.bypassPhones') return [DEST];
+      return undefined;
+    });
+    prisma.user.findFirst.mockResolvedValue(baseUser);
+    prisma.user.update.mockResolvedValue(baseUser);
+
+    const result = await service.verifyOtp(dto('000000'), '127.0.0.1', 'jest-agent');
+
+    expect(result.access_token).toBe('access');
+    expect(result.user).toMatchObject({ id: 'u1', roles: ['USER'] });
+    // Код не искали и не сверяли — обход коротит до completeLogin.
+    expect(prisma.otpCode.findFirst).not.toHaveBeenCalled();
+    expect(tokenService.issueSession).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', roles: ['USER'] }),
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalled();
+  });
+
+  it('reviewer bypass disabled: the same number still requires a valid code', async () => {
+    // config из beforeEach: bypassEnabled=false.
+    prisma.otpCode.findFirst.mockResolvedValue(null); // нет активного кода
+    await expectCode(
+      service.verifyOtp(dto('000000'), '127.0.0.1'),
+      ApiErrorCode.OTP_INVALID,
+    );
+    expect(prisma.otpCode.findFirst).toHaveBeenCalled();
   });
 });
 

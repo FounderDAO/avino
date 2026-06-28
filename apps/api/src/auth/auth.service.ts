@@ -22,6 +22,7 @@ import { TokenService } from './token.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { MeResponse } from './dto/me-response.dto';
+import { isReviewerBypass, type OtpBypassConfig } from './otp-bypass.util';
 
 /** Сводка пользователя в ответе verify (API.md §3). */
 export interface AuthUserSummary {
@@ -139,6 +140,17 @@ export class AuthService {
     await this.rateLimitService.assertCanVerify(destination, ip);
 
     try {
+      // Обход OTP для номеров-ревьюверов (config-gated, default OFF): принимаем
+      // любой 6-значный код (длину уже проверил DTO) и сразу завершаем вход.
+      // Внутри try — чтобы USER_BLOCKED из resolveUser попал в failure-алерт.
+      const bypass: OtpBypassConfig = {
+        enabled: this.config.get<boolean>('otp.bypassEnabled') ?? false,
+        phones: this.config.get<string[]>('otp.bypassPhones') ?? [],
+      };
+      if (isReviewerBypass(bypass, dto.channel, destination)) {
+        return await this.completeLogin(dto.channel, destination, ip, userAgent);
+      }
+
       const maxAttempts = this.config.get<number>('otp.maxAttempts') ?? 5;
 
       // Последний активный код на контакт: request гасит прежние, поэтому валиден
@@ -210,44 +222,7 @@ export class AuthService {
         data: { consumedAt: new Date() },
       });
 
-      const user = await this.resolveUser(dto.channel, destination);
-
-      const tokens = await this.tokenService.issueSession({
-        userId: user.id,
-        roles: user.roles,
-        ip,
-        userAgent,
-      });
-
-      await this.writeLoginAudit(user.id, ip, userAgent, dto.channel);
-
-      // Admin-алерт об успешном входе (best-effort, fire-and-forget).
-      void this.telegram.sendAdminAlert(
-        formatLoginSuccess({
-          destination,
-          channel: dto.channel,
-          ip,
-          isNewUser: user.isNew,
-          roles: user.roles,
-        }),
-      );
-
-      return {
-        access_token: tokens.accessToken,
-        refresh_token: tokens.refreshToken,
-        token_type: 'Bearer',
-        expires_in: tokens.expiresIn,
-        user: {
-          id: user.id,
-          phone: user.phone,
-          email: user.email,
-          default_language: user.defaultLanguage,
-          status: user.status,
-          roles: user.roles,
-          is_phone_verified: user.isPhoneVerified,
-          is_email_verified: user.isEmailVerified,
-        },
-      };
+      return await this.completeLogin(dto.channel, destination, ip, userAgent);
     } catch (err) {
       // Доменные OTP-ошибки → admin-алерт о неудачном входе, затем пробрасываем.
       const code = this.extractErrorCode(err);
@@ -263,6 +238,57 @@ export class AuthService {
       }
       throw err;
     }
+  }
+
+  /**
+   * Завершение входа после успешной проверки кода ИЛИ обхода OTP (reviewer
+   * bypass): resolve пользователя (signup-as-login), выпуск сессии, аудит LOGIN
+   * и success-алерт. Возвращает контракт `verify` (API.md §3).
+   */
+  private async completeLogin(
+    channel: OtpChannel,
+    destination: string,
+    ip: string,
+    userAgent: string | undefined,
+  ): Promise<VerifyOtpResult> {
+    const user = await this.resolveUser(channel, destination);
+
+    const tokens = await this.tokenService.issueSession({
+      userId: user.id,
+      roles: user.roles,
+      ip,
+      userAgent,
+    });
+
+    await this.writeLoginAudit(user.id, ip, userAgent, channel);
+
+    // Admin-алерт об успешном входе (best-effort, fire-and-forget).
+    void this.telegram.sendAdminAlert(
+      formatLoginSuccess({
+        destination,
+        channel,
+        ip,
+        isNewUser: user.isNew,
+        roles: user.roles,
+      }),
+    );
+
+    return {
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+      token_type: 'Bearer',
+      expires_in: tokens.expiresIn,
+      user: {
+        id: user.id,
+        phone: user.phone,
+        email: user.email,
+        default_language: user.defaultLanguage,
+        status: user.status,
+        roles: user.roles,
+        is_phone_verified: user.isPhoneVerified,
+        is_email_verified: user.isEmailVerified,
+      },
+    };
   }
 
   /**

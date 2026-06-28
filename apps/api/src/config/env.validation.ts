@@ -227,6 +227,17 @@ export class EnvironmentVariables {
   @IsOptional()
   OTP_TELEGRAM_DELIVERY?: string;
 
+  // Обход OTP для номеров-ревьюверов App Store/Play (config-gated, default OFF).
+  // Булева как строка; список номеров — CSV в E.164 (нормализация/валидация в
+  // configuration.ts).
+  @IsString()
+  @IsOptional()
+  OTP_BYPASS_ENABLED?: string;
+
+  @IsString()
+  @IsOptional()
+  OTP_BYPASS_PHONES?: string;
+
   @IsInt()
   @Min(1)
   @IsOptional()
