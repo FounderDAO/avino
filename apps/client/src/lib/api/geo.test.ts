@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapDistrict, type ApiDistrict } from './geo';
+import { mapDistrict, mapRegion, type ApiDistrict, type ApiRegion } from './geo';
 
 const SAMPLE: ApiDistrict = {
   id: 'd-1',
@@ -7,6 +7,15 @@ const SAMPLE: ApiDistrict = {
   name_uz: 'Yunusobod',
   name_ru: 'Юнусабадский',
   name_en: 'Yunusabad',
+  region_id: 'c11',
+};
+
+const SAMPLE_REGION: ApiRegion = {
+  id: 'c11',
+  code: 'TASHKENT',
+  name_uz: 'Toshkent',
+  name_ru: 'Ташкент',
+  name_en: 'Tashkent',
 };
 
 describe('mapDistrict', () => {
@@ -27,11 +36,33 @@ describe('mapDistrict', () => {
   });
 
   it('сохраняет id и не падает на дублирующихся/пустых именах', () => {
-    const dupe: ApiDistrict = { id: 'd-2', code: 'X', name_uz: 'Sergeli', name_ru: 'Sergeli', name_en: '' };
+    const dupe: ApiDistrict = { id: 'd-2', code: 'X', name_uz: 'Sergeli', name_ru: 'Sergeli', name_en: '', region_id: null };
     const d = mapDistrict(dupe, 'uz');
     expect(d.id).toBe('d-2');
     expect(d.name).toBe('Sergeli');
     // Пустые и дубликаты выкинуты.
     expect(d.aliases).toEqual([]);
+  });
+
+  it('проставляет regionId из region_id; null → undefined', () => {
+    expect(mapDistrict(SAMPLE, 'ru').regionId).toBe('c11');
+    const noRegion: ApiDistrict = { ...SAMPLE, region_id: null };
+    expect(mapDistrict(noRegion, 'ru').regionId).toBeUndefined();
+  });
+});
+
+describe('mapRegion', () => {
+  it('выбирает имя по языку (uz/en/ru) с фолбэком на name_ru', () => {
+    expect(mapRegion(SAMPLE_REGION, 'ru').name).toBe('Ташкент');
+    expect(mapRegion(SAMPLE_REGION, 'uz').name).toBe('Toshkent');
+    expect(mapRegion(SAMPLE_REGION, 'en').name).toBe('Tashkent');
+    expect(mapRegion(SAMPLE_REGION, 'ru-RU').name).toBe('Ташкент');
+    expect(mapRegion(SAMPLE_REGION).name).toBe('Ташкент'); // дефолт ru
+  });
+
+  it('сохраняет id и code', () => {
+    const r = mapRegion(SAMPLE_REGION, 'ru');
+    expect(r.id).toBe('c11');
+    expect(r.code).toBe('TASHKENT');
   });
 });
