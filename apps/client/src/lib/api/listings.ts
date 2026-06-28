@@ -385,6 +385,7 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   } else if (filter.type) {
     params.set('property_type', filter.type);
   }
+  if (filter.regionId) params.set('region_id', filter.regionId);
   if (filter.districtId) params.set('district_id', filter.districtId);
   if (filter.priceMin != null) params.set('price_min', String(filter.priceMin));
   if (filter.priceMax != null) params.set('price_max', String(filter.priceMax));

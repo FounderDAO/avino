@@ -14,7 +14,7 @@
  */
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { getDistricts } from '@/lib/api/geo';
+import { getDistricts, getRegions } from '@/lib/api/geo';
 import { searchListingsPage } from '@/lib/api/listings';
 import type {
   Amenity,
@@ -136,6 +136,8 @@ export default async function SearchPage({
   // Район теперь фильтруется по UUID (`?district_id=`, GET /search) — справочник
   // отдаёт id (ADR-0068). Имя для отображения резолвится в FilterBar по списку.
   const districtId = first(sp.district_id) || undefined;
+  // Регион — UI-уровень каскада «Регион → Район»; API не принимает region_id напрямую.
+  const regionId = first(sp.region_id) || undefined;
   const query = first(sp.query) || undefined;
   const view: 'list' | 'map' = first(sp.view) === 'map' ? 'map' : 'list';
 
@@ -213,6 +215,7 @@ export default async function SearchPage({
     type,
     types: types.length > 0 ? types : undefined,
     districtId,
+    regionId,
     roomsExact: rooms,
     roomsMin,
     bathroomsMin,
@@ -238,9 +241,10 @@ export default async function SearchPage({
     parkingTypes: parkingTypes.length > 0 ? parkingTypes : undefined,
     amenities: amenities.length > 0 ? amenities : undefined,
   };
-  const [page, districts] = await Promise.all([
+  const [page, districts, regions] = await Promise.all([
     searchListingsPage(filter, locale),
     getDistricts(locale),
+    getRegions(locale),
   ]);
 
   // Значения для FilterBar (цена и диапазоны — строкой, как в инпутах).
@@ -249,6 +253,7 @@ export default async function SearchPage({
     type,
     types: types.length > 0 ? types : undefined,
     districtId,
+    regionId,
     rooms,
     roomsMin,
     bathroomsMin,
@@ -283,7 +288,7 @@ export default async function SearchPage({
 
   return (
     <div className="fade-up">
-      <FilterBar values={filterValues} districts={districts} />
+      <FilterBar values={filterValues} districts={districts} regions={regions} />
       <SearchResults
         listings={page.listings}
         total={page.total}

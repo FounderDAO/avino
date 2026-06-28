@@ -11,7 +11,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ActiveFilters } from './ActiveFilters';
 import type { FilterValues } from './FilterBar';
-import type { District } from '@/lib/mock/types';
+import type { District, Region } from '@/lib/mock/types';
 
 // ── Моки зависимостей ─────────────────────────────────────────────────────────
 
@@ -43,8 +43,13 @@ vi.mock('next-intl', () => ({
 // ── Тестовые данные ───────────────────────────────────────────────────────────
 
 const districts: District[] = [
-  { id: 'yunusabad-uuid', name: 'Юнусабадский' },
-  { id: 'mirzo-uuid', name: 'Мирзо Улугбек' },
+  { id: 'yunusabad-uuid', name: 'Юнусабадский', regionId: 'r1' },
+  { id: 'mirzo-uuid', name: 'Мирзо Улугбек', regionId: 'r1' },
+];
+
+const regions: Region[] = [
+  { id: 'r1', name: 'Ташкент', code: 'TASHKENT_CITY' },
+  { id: 'r2', name: 'Ташкентская область', code: 'TASHKENT_REGION' },
 ];
 
 const baseValues: FilterValues = {
@@ -64,7 +69,7 @@ beforeEach(() => {
 describe('ActiveFilters', () => {
   it('рендерит null, если активных фильтров нет', () => {
     const { container } = render(
-      <ActiveFilters values={baseValues} districts={districts} />,
+      <ActiveFilters values={baseValues} districts={districts} regions={[]} />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -74,6 +79,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, type: 'APARTMENT' }}
         districts={districts}
+        regions={[]}
       />,
     );
     // Ключ enums.propertyType.APARTMENT
@@ -85,6 +91,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, districtId: 'yunusabad-uuid' }}
         districts={districts}
+        regions={[]}
       />,
     );
     expect(screen.getByText('Юнусабадский')).toBeInTheDocument();
@@ -92,7 +99,7 @@ describe('ActiveFilters', () => {
 
   it('показывает чип комнат', () => {
     render(
-      <ActiveFilters values={{ ...baseValues, rooms: 2 }} districts={districts} />,
+      <ActiveFilters values={{ ...baseValues, rooms: 2 }} districts={districts} regions={[]} />,
     );
     // Мок useTranslations('search.filters') → t('roomsCount', {count:'2'}) → 'search.filters.roomsCount'
     // интерполяция {count} в строке 'search.filters.roomsCount' не срабатывает (нет {count} в ключе)
@@ -104,6 +111,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, priceMin: '50000' }}
         districts={districts}
+        regions={[]}
       />,
     );
     // Мок: t('priceRange', {min:'50000', max:'∞'}) → 'search.filters.priceRange' (ключ без {}-переменных)
@@ -115,6 +123,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, query: 'Центр' }}
         districts={districts}
+        regions={[]}
       />,
     );
     // Мок: t('queryChip', {query:'Центр'}) → 'search.filters.queryChip' (ключ без {}-переменных)
@@ -127,6 +136,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, type: 'APARTMENT' }}
         districts={districts}
+        regions={[]}
       />,
     );
     // aria-label = 'search.filters.removeFilter' (мок возвращает ключ без интерполяции в ключе)
@@ -154,6 +164,7 @@ describe('ActiveFilters', () => {
           query: 'тест',
         }}
         districts={districts}
+        regions={[]}
       />,
     );
     const resetBtn = screen.getByText('search.filters.resetAll');
@@ -176,6 +187,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, type: 'APARTMENT' }}
         districts={districts}
+        regions={[]}
       />,
     );
     // Должен быть ровно 1 чип (тип) + кнопка сброса, но не чип tx/view
@@ -189,6 +201,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, rooms: 3 }}
         districts={districts}
+        regions={[]}
       />,
     );
     const removeBtn = screen.getByRole('button', {
@@ -204,6 +217,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, areaMin: '40' }}
         districts={districts}
+        regions={[]}
       />,
     );
     // Чип содержит значение 40 в метке диапазона
@@ -216,6 +230,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, areaMax: '120' }}
         districts={districts}
+        regions={[]}
       />,
     );
     expect(screen.getByText(/120/)).toBeInTheDocument();
@@ -226,6 +241,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, notFirstFloor: true }}
         districts={districts}
+        regions={[]}
       />,
     );
     // Мок: t('notFirstFloor') → 'search.filters.notFirstFloor'
@@ -237,6 +253,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, notLastFloor: true }}
         districts={districts}
+        regions={[]}
       />,
     );
     expect(screen.getByText('search.filters.notLastFloor')).toBeInTheDocument();
@@ -247,6 +264,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, listingSource: 'OWNER' }}
         districts={districts}
+        regions={[]}
       />,
     );
     expect(screen.getByText('search.filters.sourceOwner')).toBeInTheDocument();
@@ -257,6 +275,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, toursEnabled: true }}
         districts={districts}
+        regions={[]}
       />,
     );
     expect(screen.getByText('search.filters.toursEnabled')).toBeInTheDocument();
@@ -267,6 +286,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, roomsMin: 2 }}
         districts={districts}
+        regions={[]}
       />,
     );
     // t('roomsCount', {count:'2+'}) → 'search.filters.roomsCount'
@@ -279,6 +299,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, areaMin: '40', areaMax: '200' }}
         districts={districts}
+        regions={[]}
       />,
     );
     const removeBtn = screen.getByRole('button', {
@@ -297,6 +318,7 @@ describe('ActiveFilters', () => {
       <ActiveFilters
         values={{ ...baseValues, notFirstFloor: true }}
         districts={districts}
+        regions={[]}
       />,
     );
     const removeBtn = screen.getByRole('button', {
@@ -320,6 +342,7 @@ describe('ActiveFilters', () => {
           toursEnabled: true,
         }}
         districts={districts}
+        regions={[]}
       />,
     );
     const resetBtn = screen.getByText('search.filters.resetAll');
@@ -331,6 +354,67 @@ describe('ActiveFilters', () => {
     expect(calledUrl).not.toMatch(/listing_source=/);
     expect(calledUrl).not.toMatch(/tours_enabled=/);
     // tx=SALE сохранён
+    expect(calledUrl).toMatch(/tx=SALE/);
+  });
+
+  // ── Регион (Task B4) ─────────────────────────────────────────────────────────
+
+  it('показывает чип региона по имени', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, regionId: 'r1' }}
+        districts={districts}
+        regions={regions}
+      />,
+    );
+    expect(screen.getByText('Ташкент')).toBeInTheDocument();
+  });
+
+  it('показывает regionId как fallback, если регион не найден в списке', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, regionId: 'unknown-id' }}
+        districts={districts}
+        regions={regions}
+      />,
+    );
+    expect(screen.getByText('unknown-id')).toBeInTheDocument();
+  });
+
+  it('клик × на чипе региона удаляет region_id И district_id из URL', async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, regionId: 'r1', districtId: 'yunusabad-uuid' }}
+        districts={districts}
+        regions={regions}
+      />,
+    );
+    // Чипов два: регион и район. Первый × — это чип региона.
+    const removeBtns = screen.getAllByRole('button', {
+      name: 'search.filters.removeFilter',
+    });
+    await user.click(removeBtns[0]);
+    expect(mockReplace).toHaveBeenCalledOnce();
+    const calledUrl: string = mockReplace.mock.calls[0][0] as string;
+    expect(calledUrl).not.toMatch(/region_id=/);
+    expect(calledUrl).not.toMatch(/district_id=/);
+  });
+
+  it('«Сбросить всё» удаляет region_id, сохраняя tx', async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, regionId: 'r1' }}
+        districts={districts}
+        regions={regions}
+      />,
+    );
+    const resetBtn = screen.getByText('search.filters.resetAll');
+    await user.click(resetBtn);
+    expect(mockReplace).toHaveBeenCalledOnce();
+    const calledUrl: string = mockReplace.mock.calls[0][0] as string;
+    expect(calledUrl).not.toMatch(/region_id=/);
     expect(calledUrl).toMatch(/tx=SALE/);
   });
 });

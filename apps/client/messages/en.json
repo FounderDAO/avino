@@ -236,6 +236,9 @@
       "anyType": "Any type",
       "district": "District",
       "allDistricts": "All districts",
+      "region": "Region",
+      "allRegions": "All regions",
+      "regionRequired": "Select a region first",
       "sortAria": "Sort by",
       "sort": {
         "promotion": "Recommended first",

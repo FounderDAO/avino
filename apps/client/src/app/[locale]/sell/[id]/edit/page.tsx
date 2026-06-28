@@ -1,11 +1,12 @@
 /**
  * /sell/[id]/edit — страница редактирования собственного объявления.
- * Тонкая серверная обёртка: метаданные + клиентский ListingEdit, который сам
- * грузит объявление по id (Bearer) и шлёт PATCH /listings/:id.
+ * Серверная обёртка: предварительно загружает справочники регионов и районов,
+ * передаёт в клиентский ListingEdit (зеркало /sell/new/page.tsx).
  */
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { ListingEdit } from '@/features/listing-edit/ListingEdit';
+import { getRegions, getDistricts } from '@/lib/api/geo';
 
 interface PageProps {
   // В Next 15 params — асинхронные.
@@ -19,6 +20,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ListingEditPage({ params }: PageProps) {
-  const { id } = await params;
-  return <ListingEdit id={id} />;
+  const { locale, id } = await params;
+  const [regions, districts] = await Promise.all([
+    getRegions(locale),
+    getDistricts(locale),
+  ]);
+  return <ListingEdit id={id} regions={regions} districts={districts} />;
 }
