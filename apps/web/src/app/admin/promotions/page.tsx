@@ -43,7 +43,7 @@ export default function PromotionsPage() {
   const toast = useToast();
   // История промо — мок: глобального списка промо в API нет (см. шапку файла).
   const history = ADMIN.promoHistory;
-  const fmt = (n: number) => Number(n).toLocaleString('ru-RU') + ' сум';
+  const fmt = (n: number) => Number(n).toLocaleString('en-US') + ' сум';
 
   const {
     data: plans,
@@ -162,7 +162,7 @@ export default function PromotionsPage() {
                         <td key={plan}>
                           <div style={{ position: 'relative', maxWidth: 180 }}>
                             <input className="a-field" style={{ width: '100%', paddingRight: 42, fontWeight: 700 }} inputMode="numeric"
-                              value={draft[plan][d] ? Number(draft[plan][d]).toLocaleString('ru-RU') : ''} onChange={(e) => set(plan, d, e.target.value)} />
+                              value={draft[plan][d] ? Number(draft[plan][d]).toLocaleString('en-US') : ''} onChange={(e) => set(plan, d, e.target.value)} />
                             <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontWeight: 600 }}>сум</span>
                           </div>
                         </td>

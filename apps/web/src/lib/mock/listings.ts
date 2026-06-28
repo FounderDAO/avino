@@ -29,7 +29,7 @@ export const PROPERTY_TYPES: Record<PropertyType, string> = {
   COMMERCIAL: 'Коммерция',
 };
 
-const nf = new Intl.NumberFormat('ru-RU');
+const nf = new Intl.NumberFormat('en-US');
 
 /** Форматирует цену листинга. `suffix: false` — без «/мес» для аренды. */
 export function formatPrice(

@@ -168,7 +168,7 @@ export default function BroadcastDetailPage() {
               <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 13px' }}>
                 <div className="muted" style={{ fontSize: 12 }}>Размер аудитории</div>
                 <div style={{ fontWeight: 600, fontSize: 14, marginTop: 2 }}>
-                  {data.recipient_count.toLocaleString('ru-RU')}
+                  {data.recipient_count.toLocaleString('en-US')}
                 </div>
               </div>
 
@@ -246,7 +246,7 @@ export default function BroadcastDetailPage() {
                         >
                           <span className="muted">{statusKey}:</span>{' '}
                           <span style={{ fontWeight: 600 }}>
-                            {count.toLocaleString('ru-RU')}
+                            {count.toLocaleString('en-US')}
                           </span>
                         </div>
                       ))}

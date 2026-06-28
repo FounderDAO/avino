@@ -28,11 +28,11 @@ function isPropertyType(v: unknown): v is PropertyType {
   return typeof v === 'string' && (PROPERTY_TYPES as string[]).includes(v);
 }
 
-/** Форматирует число с разделителями тысяч (RU non-breaking space). */
+/** Форматирует число с разделителями тысяч (запятая). */
 function formatPrice(raw: string): string {
   const n = Number(raw);
   if (!Number.isFinite(n)) return raw;
-  return n.toLocaleString('ru-RU');
+  return n.toLocaleString('en-US');
 }
 
 /**
