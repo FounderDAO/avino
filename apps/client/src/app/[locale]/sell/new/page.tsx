@@ -8,6 +8,10 @@ import { getTranslations } from 'next-intl/server';
 import { ListingNew } from '@/features/listing-new/ListingNew';
 import { getRegions, getDistricts } from '@/lib/api/geo';
 
+// Справочники регионов/районов грузятся с API на сервере. Без этого Next
+// статически пререндерит страницу на build (API недоступен) → пустые списки.
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
   // В Next 15 params — асинхронные.
   params: Promise<{ locale: string }>;
