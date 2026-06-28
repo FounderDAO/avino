@@ -365,7 +365,10 @@
       "share": "Share",
       "loginToMessage": "Sign in to message the seller",
       "requestTour": "Request a tour",
-      "loginToTour": "Sign in to request a tour"
+      "loginToTour": "Sign in to request a tour",
+      "ownerNotice": "This is your listing",
+      "editListing": "Edit listing",
+      "manageListings": "My listings"
     },
     "amenities": {
       "title": "Amenities"
