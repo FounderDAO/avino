@@ -15,14 +15,16 @@
 import * as React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { FilterValues } from './FilterBar';
-import type { District } from '@/lib/mock/types';
+import type { District, Region } from '@/lib/mock/types';
 
 // ── Моки навигации ────────────────────────────────────────────────────────────
 
 const mockReplace = vi.fn();
 const mockPathname = '/search';
-const mockSearchParamsStr = 'tx=SALE';
+// let — чтобы отдельные тесты могли подставить другой начальный URL
+let mockSearchParamsStr = 'tx=SALE';
 
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ replace: mockReplace }),
@@ -118,6 +120,17 @@ const districts: District[] = [
   { id: 'yuna-id', name: 'Юнусабадский' },
 ];
 
+// Регионы и районы с привязкой к региону (для тестов каскада B3)
+const regions: Region[] = [
+  { id: 'r1', name: 'Ташкент (город)', code: 'TASHKENT_CITY' },
+  { id: 'r2', name: 'Ташкентская область', code: 'TASHKENT_REGION' },
+];
+const districtsWithRegions: District[] = [
+  { id: 'yuna-id', name: 'Юнусабадский', regionId: 'r1' },
+  { id: 'chil-id', name: 'Чиланзарский', regionId: 'r1' },
+  { id: 'ang-id', name: 'Ангрен', regionId: 'r2' },
+];
+
 const baseValues: FilterValues = {
   tx: 'SALE',
   sort: 'promotion',
@@ -126,6 +139,7 @@ const baseValues: FilterValues = {
 
 beforeEach(() => {
   mockReplace.mockClear();
+  mockSearchParamsStr = 'tx=SALE';
 });
 
 // ── Тесты ──────────────────────────────────────────────────────────────────────
@@ -133,13 +147,13 @@ beforeEach(() => {
 describe('FilterBar (Zillow-раскладка)', () => {
   it('монтируется без ошибок', () => {
     const { container } = render(
-      <FilterBar values={baseValues} districts={districts} />,
+      <FilterBar values={baseValues} districts={districts} regions={[]} />,
     );
     expect(container).toBeTruthy();
   });
 
   it('показывает триггер Купить/Аренда', () => {
-    render(<FilterBar values={baseValues} districts={districts} />);
+    render(<FilterBar values={baseValues} districts={districts} regions={[]} />);
     // Мок: tSearch('filters.buy') → 'search.filters.buy'
     expect(
       screen.getByRole('button', { name: /search\.filters\.buy/i }),
@@ -147,40 +161,40 @@ describe('FilterBar (Zillow-раскладка)', () => {
   });
 
   it('показывает триггер Цена', () => {
-    render(<FilterBar values={baseValues} districts={districts} />);
+    render(<FilterBar values={baseValues} districts={districts} regions={[]} />);
     expect(
       screen.getByRole('button', { name: /search\.filters\.price$/i }),
     ).toBeInTheDocument();
   });
 
   it('показывает триггер Комнаты', () => {
-    render(<FilterBar values={baseValues} districts={districts} />);
+    render(<FilterBar values={baseValues} districts={districts} regions={[]} />);
     expect(
       screen.getByRole('button', { name: /search\.filters\.rooms$/i }),
     ).toBeInTheDocument();
   });
 
   it('показывает триггер Тип жилья', () => {
-    render(<FilterBar values={baseValues} districts={districts} />);
+    render(<FilterBar values={baseValues} districts={districts} regions={[]} />);
     expect(
       screen.getByRole('button', { name: /search\.filters\.propertyType$/i }),
     ).toBeInTheDocument();
   });
 
   it('показывает триггер Фильтры (⚙)', () => {
-    render(<FilterBar values={baseValues} districts={districts} />);
+    render(<FilterBar values={baseValues} districts={districts} regions={[]} />);
     expect(
       screen.getByRole('button', { name: /search\.filters\.moreFilters/i }),
     ).toBeInTheDocument();
   });
 
   it('НЕ показывает <select> сортировки (Task 9 заберёт)', () => {
-    render(<FilterBar values={baseValues} districts={districts} />);
+    render(<FilterBar values={baseValues} districts={districts} regions={[]} />);
     expect(screen.queryByRole('combobox')).toBeNull();
   });
 
   it('НЕ показывает кнопку сохранения поиска для гостя', () => {
-    render(<FilterBar values={baseValues} districts={districts} />);
+    render(<FilterBar values={baseValues} districts={districts} regions={[]} />);
     // useAppSelector вернёт false → isAuthenticated=false → кнопки нет
     expect(
       screen.queryByRole('button', { name: /search\.filters\.saveSearch/i }),
@@ -192,6 +206,7 @@ describe('FilterBar (Zillow-раскладка)', () => {
       <FilterBar
         values={{ ...baseValues, tx: 'RENT' }}
         districts={districts}
+        regions={[]}
       />,
     );
     expect(
@@ -204,6 +219,7 @@ describe('FilterBar (Zillow-раскладка)', () => {
       <FilterBar
         values={{ ...baseValues, priceMin: '50000' }}
         districts={districts}
+        regions={[]}
       />,
     );
     // Лейбл будет priceRange с подставленными min/max
@@ -217,11 +233,61 @@ describe('FilterBar (Zillow-раскладка)', () => {
       <FilterBar
         values={{ ...baseValues, types: ['APARTMENT', 'HOUSE'] }}
         districts={districts}
+        regions={[]}
       />,
     );
     // Мок: t('propertyTypeCount', {count:'2'}) → 'search.filters.propertyTypeCount'
     expect(
       screen.getByRole('button', { name: /search\.filters\.propertyTypeCount/i }),
     ).toBeInTheDocument();
+  });
+
+  // ── Тесты каскада Регион → Район (B3) ────────────────────────────────────────
+
+  it('без выбранного региона триггер «Район» задизаблен', () => {
+    render(
+      <FilterBar values={baseValues} districts={districtsWithRegions} regions={regions} />,
+    );
+    expect(screen.getByTestId('filter-district')).toBeDisabled();
+  });
+
+  it('выбранный регион фильтрует список районов в дропдауне', async () => {
+    const user = userEvent.setup();
+    render(
+      <FilterBar
+        values={{ ...baseValues, regionId: 'r1' }}
+        districts={districtsWithRegions}
+        regions={regions}
+      />,
+    );
+    // Открываем дропдаун района (он enabled, т.к. regionId задан)
+    await user.click(screen.getByTestId('filter-district'));
+    // Районы r1 должны быть видны, район r2 — нет
+    expect(screen.getByText('Юнусабадский')).toBeInTheDocument();
+    expect(screen.getByText('Чиланзарский')).toBeInTheDocument();
+    expect(screen.queryByText('Ангрен')).toBeNull();
+  });
+
+  it('смена региона сбрасывает district_id в URL', async () => {
+    // Начальный URL содержит и region_id, и district_id
+    mockSearchParamsStr = 'tx=SALE&region_id=r1&district_id=yuna-id';
+    const user = userEvent.setup();
+    render(
+      <FilterBar
+        values={{ ...baseValues, regionId: 'r1', districtId: 'yuna-id' }}
+        districts={districtsWithRegions}
+        regions={regions}
+      />,
+    );
+    // Открываем дропдаун регионов
+    await user.click(screen.getByTestId('filter-region'));
+    // Выбираем регион r2
+    await user.click(screen.getByText('Ташкентская область'));
+    // router.replace вызван ровно раз
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+    const url = mockReplace.mock.calls[0][0] as string;
+    // URL содержит новый регион, но НЕ содержит старый район
+    expect(url).toContain('region_id=r2');
+    expect(url).not.toContain('district_id');
   });
 });
