@@ -24,10 +24,20 @@ import {
   useGenerateTranslationsMutation,
   useUpdateTranslationMutation,
 } from '@/store/api/adminListingsApi';
+import {
+  useListListingPromotionsQuery,
+  useActivatePromotionMutation,
+  useCancelPromotionMutation,
+} from '@/store/api/adminPromotionsApi';
+import { PromoteListingModal } from '@/components/admin/PromoteListingModal';
 import { detailToAdminListing, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import type { AdminListingStatus } from '@/lib/mock';
-import type { ModerationAction } from '@/store/api/adminTypes';
+import type {
+  ModerationAction,
+  ActivatablePromotionType,
+  PromotionPeriodDays,
+} from '@/store/api/adminTypes';
 
 /** Человекочитаемые подписи статусов (RU) — заменяет ADMIN.STATUS_MAP. */
 const STATUS_LABEL: Record<AdminListingStatus, string> = {
@@ -81,6 +91,20 @@ function moderationErrorMessage(error: unknown): string {
   return msg || 'Не удалось выполнить действие.';
 }
 
+/** Человекочитаемый текст ошибки активации/отмены продвижения (RU). */
+function promotionErrorMessage(error: unknown): string {
+  const status = (error as { status?: number } | undefined)?.status;
+  const code = getApiErrorCode(error as never);
+  if (code === 'ACTIVE_PROMOTION_EXISTS' || status === 409) {
+    return 'У объявления уже есть активное продвижение.';
+  }
+  if (code === 'INVALID_PERIOD') return 'Недопустимый срок продвижения.';
+  if (code === 'PROMOTION_NOT_ACTIVE') return 'Продвижение уже неактивно.';
+  if (status === 404) return 'Объявление или продвижение не найдено.';
+  if (status === 403) return 'Недостаточно прав для этого действия.';
+  return getApiError(error as never)?.message || 'Не удалось выполнить действие.';
+}
+
 const REQUIRED_LANGS = ['UZ', 'RU', 'EN'] as const;
 
 export default function ListingDetailPage() {
@@ -94,6 +118,10 @@ export default function ListingDetailPage() {
   const { data: tr } = useGetListingTranslationsQuery(id);
   const [generate, { isLoading: isGenerating }] = useGenerateTranslationsMutation();
   const [saveTr, { isLoading: isSavingTr }] = useUpdateTranslationMutation();
+  const { data: promos } = useListListingPromotionsQuery(id);
+  const [activate, { isLoading: isActivating }] = useActivatePromotionMutation();
+  const [cancelPromo, { isLoading: isCancelling }] = useCancelPromotionMutation();
+  const [promoteOpen, setPromoteOpen] = useState(false);
 
   const presentLangs = new Set((tr?.translations ?? []).map((t) => t.language));
   const translationsComplete = REQUIRED_LANGS.every((l) => presentLangs.has(l));
@@ -137,6 +165,30 @@ export default function ListingDetailPage() {
       setReason('');
     } catch (err) {
       toast(moderationErrorMessage(err));
+    }
+  };
+
+  const doActivate = async (type: ActivatablePromotionType, period_days: PromotionPeriodDays) => {
+    try {
+      await activate({ listingId: id, body: { type, period_days }, idempotencyKey: crypto.randomUUID() }).unwrap();
+      toast('Объявление продвинуто');
+      setPromoteOpen(false);
+    } catch (err) {
+      toast(promotionErrorMessage(err));
+    }
+  };
+
+  const doCancel = async () => {
+    const active = (promos ?? []).find((p) => p.status === 'ACTIVE');
+    if (!active) {
+      toast('Активное продвижение не найдено');
+      return;
+    }
+    try {
+      await cancelPromo({ id: active.id, body: {} }).unwrap();
+      toast('Продвижение снято');
+    } catch (err) {
+      toast(promotionErrorMessage(err));
     }
   };
 
@@ -284,12 +336,30 @@ export default function ListingDetailPage() {
               {status !== 'DRAFT' && <button className="abtn abtn-outline" style={{ width: '100%' }} disabled={isActing} onClick={() => act('SEND_TO_DRAFT')}>В черновики</button>}
               <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
               <button className="abtn abtn-outline" style={{ width: '100%' }} onClick={() => toast('Редактирование объявления')}>Редактировать</button>
-              <button className="abtn abtn-outline" style={{ width: '100%' }} onClick={() => toast(listing.promo === 'NORMAL' ? 'Выдать VIP/TOP' : 'Снять продвижение')}>{listing.promo === 'NORMAL' ? 'Продвинуть (VIP/TOP)' : 'Снять продвижение'}</button>
+              <button
+                className="abtn abtn-outline"
+                style={{ width: '100%' }}
+                disabled={isActivating || isCancelling}
+                onClick={() => (listing.promo === 'NORMAL' ? setPromoteOpen(true) : doCancel())}
+              >
+                {listing.promo === 'NORMAL'
+                  ? 'Продвинуть (VIP/TOP)'
+                  : isCancelling
+                    ? 'Снятие…'
+                    : 'Снять продвижение'}
+              </button>
               <button className="abtn abtn-danger" style={{ width: '100%' }} disabled={isActing} onClick={() => act('DELETE')}>Удалить</button>
             </div>
           </div>
         </div>
       </div>
+      {promoteOpen && (
+        <PromoteListingModal
+          onClose={() => setPromoteOpen(false)}
+          onSubmit={doActivate}
+          isSubmitting={isActivating}
+        />
+      )}
     </div>
   );
 }
