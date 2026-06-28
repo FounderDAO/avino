@@ -463,7 +463,6 @@ export function ListingNew({
                 set('regionId', regionId ?? '');
                 set('districtId', districtId ?? '');
               }}
-              locale={locale}
             />
             <AddressStep
               address={f.address}

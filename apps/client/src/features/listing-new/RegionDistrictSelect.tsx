@@ -24,8 +24,6 @@ export interface RegionDistrictSelectProps {
   regionId?: string;
   districtId?: string;
   onChange: (next: { regionId?: string; districtId?: string }) => void;
-  /** Текущая локаль (резерв для будущей локализации в C4). */
-  locale?: string;
 }
 
 export function RegionDistrictSelect({

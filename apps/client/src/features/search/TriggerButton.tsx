@@ -14,6 +14,7 @@ export const TriggerButton = React.forwardRef<
     className={cn(
       'inline-flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-pill border-[1.5px] px-4 py-[9px] text-sm font-semibold text-ink transition-colors',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
+      'disabled:cursor-not-allowed disabled:opacity-50',
       active ? 'border-teal bg-mint' : 'border-border bg-surface hover:border-ink',
     )}
     {...props}

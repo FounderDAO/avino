@@ -215,6 +215,7 @@ export default async function SearchPage({
     type,
     types: types.length > 0 ? types : undefined,
     districtId,
+    regionId,
     roomsExact: rooms,
     roomsMin,
     bathroomsMin,
