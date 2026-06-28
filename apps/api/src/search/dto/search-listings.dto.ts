@@ -114,6 +114,10 @@ export class SearchListingsQueryDto {
 
   @IsOptional()
   @IsUUID()
+  region_id?: string;
+
+  @IsOptional()
+  @IsUUID()
   district_id?: string;
 
   // ── Forward-compatible поля (API.md §9, TASK-081/082) ──────────────────────

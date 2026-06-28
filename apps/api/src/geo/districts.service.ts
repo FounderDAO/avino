@@ -9,6 +9,8 @@ export interface DistrictListItem {
   name_uz: string;
   name_ru: string;
   name_en: string;
+  /** UUID родительского региона. null только если district создан без regionId (legacy). */
+  region_id: string | null;
 }
 
 /** Trilingual запись района для разрешения имён (внутренний тип). */
@@ -34,13 +36,17 @@ export class DistrictsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Полный список районов в алфавитном порядке (по name_ru) — ответ
-   * `GET /api/v1/geo/districts` (API.md §geo, ADR-0068).
+   * Список районов в алфавитном порядке (по name_ru) — ответ
+   * `GET /api/v1/geo/districts[?region_id=]` (API.md §geo, ADR-0068, Task A4).
+   *
+   * @param regionId — опциональный UUID региона; если передан — возвращает только
+   *   районы этого региона. Без параметра возвращает весь список (обратная совместимость).
    */
-  async listAll(): Promise<DistrictListItem[]> {
+  async listAll(regionId?: string): Promise<DistrictListItem[]> {
     const rows = await this.prisma.district.findMany({
+      where: regionId ? { regionId } : undefined,
       orderBy: { nameRu: 'asc' },
-      select: { id: true, code: true, nameUz: true, nameRu: true, nameEn: true },
+      select: { id: true, code: true, nameUz: true, nameRu: true, nameEn: true, regionId: true },
     });
     return rows.map((r) => ({
       id: r.id,
@@ -48,6 +54,7 @@ export class DistrictsService {
       name_uz: r.nameUz,
       name_ru: r.nameRu,
       name_en: r.nameEn,
+      region_id: r.regionId,
     }));
   }
 

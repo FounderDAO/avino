@@ -836,6 +836,10 @@ export class SearchService {
       conds.push(Prisma.sql`city_id = ${query.city_id}::uuid`);
     if (query.district_id !== undefined)
       conds.push(Prisma.sql`district_id = ${query.district_id}::uuid`);
+    if (query.region_id !== undefined)
+      conds.push(
+        Prisma.sql`district_id IN (SELECT id FROM districts WHERE region_id = ${query.region_id}::uuid)`,
+      );
     if (query.price_min !== undefined)
       conds.push(Prisma.sql`price >= ${query.price_min}::numeric`);
     if (query.price_max !== undefined)

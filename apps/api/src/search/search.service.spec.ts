@@ -28,6 +28,7 @@ import { SearchService } from './search.service';
 describe('SearchService', () => {
   const CITY_ID = '22222222-2222-2222-2222-222222222222';
   const DISTRICT_ID = '33333333-3333-3333-3333-333333333333';
+  const REGION_ID = '44444444-4444-4444-4444-444444444444';
 
   let prisma: any;
   let service: SearchService;
@@ -197,6 +198,18 @@ describe('SearchService', () => {
     );
     expect(sqlText(pageSql)).toContain('price >=');
     expect(sqlText(pageSql)).toContain('price <=');
+  });
+
+  it('filters by region_id using a districts sub-select', async () => {
+    mockQuery([], 0);
+
+    await service.search({ region_id: REGION_ID } as any);
+
+    const pageSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+    expect(sqlText(pageSql)).toContain(
+      'district_id IN (SELECT id FROM districts WHERE region_id =',
+    );
+    expect(pageSql.values).toEqual(expect.arrayContaining([REGION_ID]));
   });
 
   it('treats an expired promotion as NORMAL but keeps an active one (card)', async () => {
