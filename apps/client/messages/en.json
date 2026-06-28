@@ -979,7 +979,10 @@
     "lotArea": "{value} sotka",
     "billion": "bln",
     "million": "mln",
-    "daysOnSite": "{count, plural, one {# day on site} other {# days on site}}"
+    "daysOnSite": "{count, plural, one {# day on site} other {# days on site}}",
+    "weeksOnSite": "{count, plural, one {# week on site} other {# weeks on site}}",
+    "monthsOnSite": "{count, plural, one {# month on site} other {# months on site}}",
+    "yearsOnSite": "{count, plural, one {# year on site} other {# years on site}}"
   },
   "enums": {
     "tx": {

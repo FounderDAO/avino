@@ -169,6 +169,22 @@ export function daysOnSite(createdAt: string): number {
   return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
 }
 
+/** Единица «времени на сайте» для компактного бейджа. */
+export type ListingAge = { unit: 'days' | 'weeks' | 'months' | 'years'; count: number };
+
+/**
+ * Компактный возраст объявления для бейджа: самая крупная подходящая единица.
+ * < 1 суток → `null` (бейдж рисует «Новое»). Дальше: дни → недели → месяцы → годы.
+ */
+export function listingAge(createdAt: string): ListingAge | null {
+  const days = daysOnSite(createdAt);
+  if (days < 1) return null;
+  if (days < 14) return { unit: 'days', count: days };
+  if (days < 30) return { unit: 'weeks', count: Math.floor(days / 7) };
+  if (days < 365) return { unit: 'months', count: Math.floor(days / 30) };
+  return { unit: 'years', count: Math.floor(days / 365) };
+}
+
 /**
  * Компактная цена для осей гистограммы/слайдера: «$98k», «$1.5M», «1.5 billion».
  * Без конвертации валют — value уже в нужной валюте.
