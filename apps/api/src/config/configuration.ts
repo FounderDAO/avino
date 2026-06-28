@@ -186,6 +186,14 @@ export const otpConfig = registerAs('otp', () => ({
   // OTP_TELEGRAM_DELIVERY=true включает на staging. В этом режиме SMS-канал
   // не шлёт SMS и не требует включённого SMS-тоггла (см. OtpService).
   telegramDelivery: process.env.OTP_TELEGRAM_DELIVERY === 'true',
+  // Обход OTP для номеров-ревьюверов App Store/Play (config-gated, default OFF).
+  // bypassEnabled включает приём ЛЮБОГО кода для bypassPhones; bypassPhones —
+  // CSV в E.164 (нормализуем пробелы/дефисы/скобки, отбрасываем невалидные).
+  bypassEnabled: process.env.OTP_BYPASS_ENABLED === 'true',
+  bypassPhones: (process.env.OTP_BYPASS_PHONES ?? '')
+    .split(',')
+    .map((s) => s.replace(/[\s\-()]/g, ''))
+    .filter((s) => /^\+[1-9]\d{7,14}$/.test(s)),
 }));
 
 // Общий per-IP rate-limit (TASK-041, ENV.md §8).
