@@ -87,6 +87,12 @@ export interface LogoutBody {
   refresh_token: string;
 }
 
+export interface MeLegalConsent {
+  /** Версия последнего согласия; null — ни разу не соглашался. */
+  accepted_version: number | null;
+  accepted_at: string | null;
+}
+
 export interface MeResponse {
   id: string;
   phone: string | null;
@@ -97,6 +103,7 @@ export interface MeResponse {
   is_email_verified: boolean;
   roles: UserRole[];
   profile: UserProfile;
+  legal_consent: MeLegalConsent;
 }
 
 // ─── Эндпоинты ────────────────────────────────────────────────────────────

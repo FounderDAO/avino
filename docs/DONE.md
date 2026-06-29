@@ -5065,3 +5065,60 @@ Related ADR:
 Related spec/plan:
 - docs/superpowers/specs/2026-06-29-legal-consent-modal-design.md
 - docs/superpowers/plans/2026-06-29-web-legal-consent-toggle.md
+
+## 2026-06-29
+
+### Legal consent — блокирующая модалка согласия (apps/client)
+
+Status: DONE
+Branch: feat/client-legal-consent-modal
+PR: https://github.com/FounderDAO/avino/pull/267
+
+Files changed:
+- apps/client/src/store/api/publicSettingsApi.ts
+- apps/client/src/store/api/authApi.ts
+- apps/client/src/store/api/usersApi.ts
+- apps/client/src/lib/useLegalConsentGate.ts (+ test)
+- apps/client/src/components/layout/LegalConsentModal.tsx (+ test)
+- apps/client/src/components/LegalConsentGate.tsx (+ test)
+- apps/client/src/store/StoreProvider.tsx
+- apps/client/messages/ru.json
+- apps/client/messages/uz.json
+- apps/client/messages/en.json
+- docs/adr/ADR-0115-legal-consent-modal.md
+
+Summary:
+- PR №3 фичи «согласие с Правилами+Политикой» (после backend PR #265 и web PR #266,
+  ADR-0115). Блокирующая клиентская модалка целиком на гейте.
+- `PublicSettings += { legalConsentRequired, legalConsentVersion }`;
+  `MeResponse += legal_consent { accepted_version, accepted_at }`;
+  мутация `acceptLegalConsent` → `POST /users/me/legal-consent`,
+  `invalidatesTags: ['Auth','User']` → `getMe` перечитывается после согласия.
+- `useLegalConsentGate` — fail-safe предикат: показывать модалку при
+  `isAuthenticated && legalConsentRequired && (accepted_version == null ||
+  accepted_version < legalConsentVersion)`; пока настройки/`me` грузятся или
+  в ошибке — не блокируем.
+- `LegalConsentModal` — radix `Dialog` (зеркало `LoginModal`): без крестика,
+  Esc / клик-вне → `preventDefault`; две галочки со ссылками на `/legal/terms`
+  и `/legal/privacy` (`target=_blank`); «Согласен» disabled до обеих отметок;
+  ошибки через `getApiError`/`isNetworkError`. i18n `legalConsent.*` на ru/uz/en
+  (паритет ключей подтверждён, uz — латиница без кириллических двойников).
+- `LegalConsentGate` смонтирован один раз в `StoreProvider` рядом с
+  `SessionBootstrap` → перекрывает любую страницу портала.
+- Тесты: useLegalConsentGate 8/8, LegalConsentModal 4/4, LegalConsentGate 2/2.
+  Полный прогон 324 passed / 2 known-fail (предсущ. LoginModal.test), lint clean,
+  tsc без новых ошибок.
+
+Commit messages:
+- feat(client): extend RTK contracts for legal consent + accept mutation
+- feat(client): add useLegalConsentGate fail-safe predicate hook
+- feat(client): add blocking LegalConsentModal + legalConsent i18n (ru/uz/en)
+- feat(client): mount LegalConsentGate globally in StoreProvider
+- docs(legal-consent): ADR-0115 follow-up + DONE entry for client modal
+
+Related ADR:
+- docs/adr/ADR-0115-legal-consent-modal.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-06-29-legal-consent-modal-design.md
+- docs/superpowers/plans/2026-06-29-client-legal-consent-modal.md

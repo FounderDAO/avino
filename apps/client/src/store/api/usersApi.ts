@@ -31,6 +31,18 @@ export interface UpdateProfileBody {
   preferred_language?: Language;
 }
 
+/** Тело `POST /api/v1/users/me/legal-consent` — обе галочки обязательны (true). */
+export interface AcceptLegalConsentBody {
+  terms_accepted: boolean;
+  privacy_accepted: boolean;
+}
+
+/** Ответ согласия — та же форма, что `MeResponse.legal_consent`. */
+export interface LegalConsentState {
+  accepted_version: number | null;
+  accepted_at: string | null;
+}
+
 export const usersApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     updateUser: build.mutation<MeResponse, UpdateUserBody>({
@@ -50,8 +62,21 @@ export const usersApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Auth', 'User'],
     }),
+
+    acceptLegalConsent: build.mutation<LegalConsentState, AcceptLegalConsentBody>({
+      query: (body) => ({
+        url: '/users/me/legal-consent',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Auth', 'User'],
+    }),
   }),
   overrideExisting: false,
 });
 
-export const { useUpdateUserMutation, useUpdateProfileMutation } = usersApi;
+export const {
+  useUpdateUserMutation,
+  useUpdateProfileMutation,
+  useAcceptLegalConsentMutation,
+} = usersApi;

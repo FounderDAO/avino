@@ -1043,5 +1043,18 @@
     "updatedLabel": "Last updated",
     "toc": "Contents",
     "breadcrumbHome": "Home"
+  },
+  "legalConsent": {
+    "title": "Accept our terms",
+    "description": "To keep using Avino, please accept the Terms of Service and the Privacy Policy.",
+    "termsPrefix": "I accept the",
+    "termsLink": "Terms of Service",
+    "privacyPrefix": "I accept the",
+    "privacyLink": "Privacy Policy",
+    "accept": "Accept and continue",
+    "errors": {
+      "incomplete": "Please accept both documents.",
+      "network": "Couldn't reach the server. Check your connection and try again."
+    }
   }
 }

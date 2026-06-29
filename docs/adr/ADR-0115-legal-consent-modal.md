@@ -87,3 +87,24 @@ Negative / trade-offs:
 - Смонтирован на `apps/web/src/app/admin/settings/page.tsx` рядом с прочими тогглами.
 
 Остаётся PR №3 (apps/client) — блокирующая модалка + хук-гейт + i18n.
+
+## Follow-up — PR №3 (apps/client модалка)
+
+Клиентская реализация блокирующего гейта поверх бэкенда этого ADR:
+
+- `apps/client/src/store/api/publicSettingsApi.ts` — `PublicSettings +=
+  { legalConsentRequired, legalConsentVersion }`.
+- `apps/client/src/store/api/authApi.ts` — `MeResponse += legal_consent
+  { accepted_version, accepted_at }`.
+- `apps/client/src/store/api/usersApi.ts` — мутация `acceptLegalConsent`
+  (`POST /users/me/legal-consent`, `invalidatesTags: ['Auth','User']`).
+- `apps/client/src/lib/useLegalConsentGate.ts` — fail-safe предикат показа
+  (пока настройки/`me` грузятся или в ошибке — не блокируем).
+- `apps/client/src/components/layout/LegalConsentModal.tsx` — radix `Dialog`
+  без крестика; Esc / клик-вне → `preventDefault`; две галочки со ссылками на
+  `/legal/terms` и `/legal/privacy` (`target=_blank`); «Согласен» активна
+  только при обеих отметках. i18n `legalConsent.*` на ru/uz/en.
+- `apps/client/src/components/LegalConsentGate.tsx` — смонтирован один раз в
+  `StoreProvider`, перекрывает любую страницу.
+
+Все три PR (№1 api, №2 web, №3 client) ADR-0115 закрыты.
