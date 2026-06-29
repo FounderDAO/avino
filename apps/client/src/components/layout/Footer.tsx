@@ -43,8 +43,8 @@ const COLS: {
     links: [
       { labelKey: 'support', href: '/help' },
       { labelKey: 'safeDeal', href: '/help' },
-      { labelKey: 'terms', href: '/help' },
-      { labelKey: 'privacy', href: '/help' },
+      { labelKey: 'terms', href: '/legal/terms' },
+      { labelKey: 'privacy', href: '/legal/privacy' },
     ],
   },
 ];
