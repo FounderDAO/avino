@@ -7,6 +7,7 @@ import { hydrateFavorites, readFavoritesFromStorage } from './favoritesSlice';
 import { hydrateCurrency, readCurrencyFromStorage } from './currencySlice';
 import { useAppDispatch } from './hooks';
 import { SessionBootstrap } from '@/components/SessionBootstrap';
+import { LegalConsentGate } from '@/components/LegalConsentGate';
 
 /**
  * Гидратация избранного из localStorage после монтирования на клиенте.
@@ -48,6 +49,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       <FavoritesHydrator />
       <CurrencyHydrator />
       <SessionBootstrap />
+      <LegalConsentGate />
       {children}
     </Provider>
   );
