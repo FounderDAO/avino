@@ -64,9 +64,11 @@ export interface DetailProps {
   listing: Listing;
   /** Если не передан — показываем только ссылку «Назад к поиску» (backward-compat). */
   breadcrumb?: DetailBreadcrumb;
+  /** Встроенный режим (внутри модалки): без крошки/«Назад»/fade-up, ширину задаёт модалка. */
+  embedded?: boolean;
 }
 
-export async function Detail({ listing, breadcrumb }: DetailProps) {
+export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
   const locale = await getLocale();
   const t = await getTranslations('listing');
   const tUnits = await getTranslations('units');
@@ -87,22 +89,32 @@ export async function Detail({ listing, breadcrumb }: DetailProps) {
     : null;
 
   return (
-    <div className="fade-up mx-auto max-w-[1280px] px-4 pb-12 pt-5 sm:px-6">
-      {/* Хлебная крошка (SEO-видимая) + ссылка «Назад к поиску» */}
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        {breadcrumbItems ? (
-          <Breadcrumb items={breadcrumbItems} />
-        ) : null}
-        <div className="flex items-center gap-3">
-          <Link
-            href={backHref}
-            className="inline-flex items-center gap-1.5 text-[14.5px] font-bold text-teal hover:text-teal-deep"
-          >
-            <ChevronLeft size={18} /> {t('backToSearch')}
-          </Link>
+    <div
+      className={
+        embedded
+          ? 'px-4 pb-10 pt-2 sm:px-6'
+          : 'fade-up mx-auto max-w-[1280px] px-4 pb-12 pt-5 sm:px-6'
+      }
+    >
+      {/* Внутри модалки своя шапка → крошку и «Назад» скрываем, Share оставляем. */}
+      {embedded ? (
+        <div className="mb-3 flex justify-end">
           <ShareButton listing={listing} />
         </div>
-      </div>
+      ) : (
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {breadcrumbItems ? <Breadcrumb items={breadcrumbItems} /> : null}
+          <div className="flex items-center gap-3">
+            <Link
+              href={backHref}
+              className="inline-flex items-center gap-1.5 text-[14.5px] font-bold text-teal hover:text-teal-deep"
+            >
+              <ChevronLeft size={18} /> {t('backToSearch')}
+            </Link>
+            <ShareButton listing={listing} />
+          </div>
+        </div>
+      )}
 
       {/* Галерея */}
       <Gallery photos={listing.photos} alt={listing.title} />
