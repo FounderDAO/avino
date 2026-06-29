@@ -1,23 +1,31 @@
 import { PublicSettingsController } from './public-settings.controller';
 
 describe('PublicSettingsController', () => {
-  it('returns both flags as false', async () => {
-    const promo: any = { isEnabled: jest.fn().mockResolvedValue(false) };
-    const mapHover: any = { isEnabled: jest.fn().mockResolvedValue(false) };
-    const controller = new PublicSettingsController(promo, mapHover);
-    expect(await controller.get()).toEqual({
+  function build(promoVal: boolean, mapVal: boolean, reqVal: boolean, verVal: number) {
+    const promo: any = { isEnabled: jest.fn().mockResolvedValue(promoVal) };
+    const mapHover: any = { isEnabled: jest.fn().mockResolvedValue(mapVal) };
+    const legal: any = {
+      isRequired: jest.fn().mockResolvedValue(reqVal),
+      currentVersion: jest.fn().mockResolvedValue(verVal),
+    };
+    return new PublicSettingsController(promo, mapHover, legal);
+  }
+
+  it('returns all flags with their defaults', async () => {
+    expect(await build(false, false, false, 1).get()).toEqual({
       promotionsEnabled: false,
       mapHoverRecenter: false,
+      legalConsentRequired: false,
+      legalConsentVersion: 1,
     });
   });
 
   it('reflects each flag independently', async () => {
-    const promo: any = { isEnabled: jest.fn().mockResolvedValue(true) };
-    const mapHover: any = { isEnabled: jest.fn().mockResolvedValue(false) };
-    const controller = new PublicSettingsController(promo, mapHover);
-    expect(await controller.get()).toEqual({
+    expect(await build(true, false, true, 3).get()).toEqual({
       promotionsEnabled: true,
       mapHoverRecenter: false,
+      legalConsentRequired: true,
+      legalConsentVersion: 3,
     });
   });
 });

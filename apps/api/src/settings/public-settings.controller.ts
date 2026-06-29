@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { PromotionsFlagService } from './promotions-flag.service';
 import { MapHoverRecenterFlagService } from './map-hover-recenter-flag.service';
+import { LegalConsentFlagService } from './legal-consent-flag.service';
 import { PublicSettingsView } from './dto/public-settings-view.dto';
 
 /**
@@ -12,6 +13,7 @@ export class PublicSettingsController {
   constructor(
     private readonly flags: PromotionsFlagService,
     private readonly mapHover: MapHoverRecenterFlagService,
+    private readonly legalConsent: LegalConsentFlagService,
   ) {}
 
   @Get()
@@ -19,6 +21,8 @@ export class PublicSettingsController {
     return {
       promotionsEnabled: await this.flags.isEnabled(),
       mapHoverRecenter: await this.mapHover.isEnabled(),
+      legalConsentRequired: await this.legalConsent.isRequired(),
+      legalConsentVersion: await this.legalConsent.currentVersion(),
     };
   }
 }

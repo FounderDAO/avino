@@ -7,4 +7,6 @@
 export class PublicSettingsView {
   promotionsEnabled!: boolean;
   mapHoverRecenter!: boolean;
+  legalConsentRequired!: boolean;
+  legalConsentVersion!: number;
 }
