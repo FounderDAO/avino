@@ -36,5 +36,22 @@ Negative / trade-offs:
 - apps/client/src/features/detail/Detail.tsx
 - apps/client/src/app/[locale]/layout.tsx
 
+## Follow-up (2026-06-30) — лайтбокс галереи внутри модалки
+
+Баг: внутри модалки клик по фото открывал лайтбокс, но любое взаимодействие с ним
+закрывало модалку и не давало листать. Причина: radix `Dialog` в modal-режиме
+ставит `body { pointer-events: none }` (интерактивен только `Dialog.Content`), а
+`Lightbox` порталится в `document.body` (вне `Dialog.Content`) — он становился
+мёртвым, а его клики проваливались на Radix-оверлей → dismiss.
+
+Фикс: на корень `Lightbox` добавлены `pointer-events-auto` + маркер `data-lightbox`;
+в `ListingModal` `onInteractOutside`/`onEscapeKeyDown` гасят dismiss/escape, когда
+взаимодействие идёт по `[data-lightbox]`. На полной странице поведение не меняется
+(там `body` уже `auto`). Правило на будущее: любой портал-оверлей, открываемый
+поверх модалки, должен нести `pointer-events-auto` и `data-lightbox`-подобный маркер.
+
+Related files: apps/client/src/components/ui/lightbox.tsx,
+apps/client/src/features/detail/ListingModal.tsx.
+
 ## Related task
 - Listing detail modal on search card click

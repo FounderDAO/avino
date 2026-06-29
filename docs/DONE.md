@@ -37,6 +37,33 @@ Related ADR:
 
 ---
 
+## 2026-06-30
+
+### FIX — Listing modal closes when using gallery lightbox (apps/client)
+
+Status: REVIEW
+Branch: fix/listing-modal-lightbox-pointer-events
+PR: pending
+
+Files changed:
+- apps/client/src/features/detail/ListingModal.tsx
+- apps/client/src/components/ui/lightbox.tsx
+- apps/client/src/components/ui/lightbox.test.tsx
+- docs/adr/ADR-0116-listing-detail-modal-intercepting-routes.md
+
+Summary:
+- Баг: внутри модалки деталки (ADR-0116) клик по фото открывал лайтбокс, но любое взаимодействие с ним закрывало модалку — нельзя было листать фото.
+- Причина: radix `Dialog` в modal-режиме ставит `body { pointer-events: none }` (интерактивен только `Dialog.Content`). `Lightbox` порталится в `document.body` (вне `Dialog.Content`) → становился некликабельным, а его клики проваливались на Radix-оверлей → модалка закрывалась (router.back).
+- Фикс: на корень `Lightbox` добавлены `pointer-events-auto` + маркер `data-lightbox`; в `ListingModal` `onInteractOutside`/`onEscapeKeyDown` гасят dismiss/escape для целей внутри `[data-lightbox]`. На полной странице деталки поведение не меняется (там `body` уже `auto`).
+- Live-verify (docker): фото → лайтбокс открывается поверх и интерактивен; стрелки листают (1/3→2/3), модалка остаётся; ✕ закрывает только лайтбокс; Escape в модалке без лайтбокса закрывает модалку. Регресс-тест на маркеры лайтбокса.
+
+Commit messages:
+- fix(client): keep listing modal open when using gallery lightbox
+- docs: ADR-0116 follow-up + DONE for lightbox-in-modal fix
+
+Related ADR:
+- docs/adr/ADR-0116-listing-detail-modal-intercepting-routes.md (Follow-up 2026-06-30)
+
 ## 2026-06-29
 
 ### TASK — Listing detail modal on search card click (apps/client)
