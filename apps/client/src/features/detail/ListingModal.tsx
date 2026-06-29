@@ -34,6 +34,17 @@ export function ListingModal({ listingId, children }: ListingModalProps) {
         <Dialog.Overlay className="fixed inset-0 z-[80] bg-ink/50 backdrop-blur-[3px]" />
         <Dialog.Content
           aria-describedby={undefined}
+          // Лайтбокс галереи порталится в document.body (вне Dialog.Content), чтобы
+          // убежать от transform-контекста. Без этих гардов Radix считает клик по
+          // лайтбоксу «кликом снаружи» и закрывает модалку (router.back). Гасим
+          // dismiss/escape, когда взаимодействие идёт по элементу с [data-lightbox].
+          onInteractOutside={(e) => {
+            const target = e.detail.originalEvent.target as HTMLElement | null;
+            if (target?.closest('[data-lightbox]')) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (document.querySelector('[data-lightbox]')) e.preventDefault();
+          }}
           className="fixed z-[81] flex flex-col bg-surface shadow-raised
             inset-0 h-dvh w-full
             lg:inset-auto lg:left-1/2 lg:top-1/2 lg:h-auto lg:max-h-[92vh]
