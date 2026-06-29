@@ -385,6 +385,7 @@ describe('AuthService.getMe', () => {
       contactPhone: '+998901234567',
       preferredLanguage: 'RU',
     },
+    legalConsents: [] as { version: number; acceptedAt: Date }[],
   };
 
   beforeEach(() => {
@@ -420,11 +421,16 @@ describe('AuthService.getMe', () => {
         contact_phone: '+998901234567',
         preferred_language: 'RU',
       },
+      legal_consent: { accepted_version: null, accepted_at: null },
     });
     // не отдаём DELETED-аккаунты по валидному токену
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
       where: { id: 'u1', status: { not: UserStatus.DELETED } },
-      include: { profile: true, roles: { include: { role: true } } },
+      include: {
+        profile: true,
+        roles: { include: { role: true } },
+        legalConsents: { orderBy: { version: 'desc' }, take: 1 },
+      },
     });
   });
 
@@ -471,5 +477,19 @@ describe('AuthService.getMe', () => {
       const res = (e as HttpException).getResponse() as { code: string };
       expect(res.code).toBe(ApiErrorCode.UNAUTHORIZED);
     }
+  });
+
+  it('maps the latest legal consent into legal_consent', async () => {
+    prisma.user.findFirst.mockResolvedValue({
+      ...dbUser,
+      legalConsents: [{ version: 2, acceptedAt: new Date('2026-06-29T10:00:00.000Z') }],
+    });
+
+    const result = await service.getMe('u1');
+
+    expect(result.legal_consent).toEqual({
+      accepted_version: 2,
+      accepted_at: '2026-06-29T10:00:00.000Z',
+    });
   });
 });

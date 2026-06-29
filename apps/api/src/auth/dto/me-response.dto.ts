@@ -19,6 +19,17 @@ export interface MeProfile {
 }
 
 /**
+ * Состояние согласия пользователя с юр-документами в ответе `GET /auth/me`.
+ * `accepted_version` — версия последнего согласия (null, если ни разу). Клиент
+ * сравнивает её с `legalConsentVersion` из GET /settings/public, чтобы решить,
+ * показывать ли блокирующую модалку (design 2026-06-29).
+ */
+export interface MeLegalConsent {
+  accepted_version: number | null;
+  accepted_at: string | null;
+}
+
+/**
  * Ответ `GET /api/v1/auth/me` (TASK-045, API.md §3) — текущий пользователь +
  * профиль + роли. snake_case строго по контракту и фронтовому типу `MeResponse`.
  * `profile` присутствует всегда (даже без строки `user_profiles` — с null-полями).
@@ -33,4 +44,5 @@ export interface MeResponse {
   is_email_verified: boolean;
   roles: string[];
   profile: MeProfile;
+  legal_consent: MeLegalConsent;
 }

@@ -306,7 +306,11 @@ export class AuthService {
   async getMe(userId: string): Promise<MeResponse> {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, status: { not: UserStatus.DELETED } },
-      include: { profile: true, roles: { include: { role: true } } },
+      include: {
+        profile: true,
+        roles: { include: { role: true } },
+        legalConsents: { orderBy: { version: 'desc' }, take: 1 },
+      },
     });
 
     if (!user) {
@@ -315,6 +319,8 @@ export class AuthService {
         HttpStatus.UNAUTHORIZED,
       );
     }
+
+    const latestConsent = user.legalConsents[0];
 
     return {
       id: user.id,
@@ -333,6 +339,10 @@ export class AuthService {
         contact_phone: user.profile?.contactPhone ?? null,
         preferred_language:
           user.profile?.preferredLanguage ?? user.defaultLanguage,
+      },
+      legal_consent: {
+        accepted_version: latestConsent?.version ?? null,
+        accepted_at: latestConsent?.acceptedAt.toISOString() ?? null,
       },
     };
   }
