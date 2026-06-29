@@ -24,6 +24,7 @@ const inter = Inter({
 
 interface LayoutProps {
   children: React.ReactNode;
+  modal: React.ReactNode;
   params: Promise<{ locale: string }>;
 }
 
@@ -49,7 +50,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function RootLayout({ children, params }: LayoutProps) {
+export default async function RootLayout({ children, modal, params }: LayoutProps) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
@@ -94,6 +95,7 @@ export default async function RootLayout({ children, params }: LayoutProps) {
               <main className="flex-1">{children}</main>
               <Footer />
             </div>
+            {modal}
           </StoreProvider>
         </NextIntlClientProvider>
       </body>
