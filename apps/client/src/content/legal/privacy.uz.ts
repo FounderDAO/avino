@@ -230,7 +230,7 @@ export const privacyUz: LegalDoc = {
           items: [
             "Sessiya cookie-lari — Xizmat bilan ishlash davomida seansni (avtorizatsiyani) saqlash uchun zarur; brauzer yopilganda oʻchiriladi.",
             "Sozlamalar cookie-lari — tanlangan interfeys tili va narxlarni koʻrsatish valyutasi kabi afzalliklaringizni saqlaydi.",
-            "Tahliliy cookie-lar — foydalanuvchilarning Xizmat bilan qanday muloqot qilishini agregatlangan va anonimlashtirigan shaklda tushunishimizga yordam beradi.",
+            "Tahliliy cookie-lar — foydalanuvchilarning Xizmat bilan qanday muloqot qilishini agregatlangan va anonimlashtirilgan shaklda tushunishimizga yordam beradi.",
           ],
         },
         {
@@ -266,7 +266,7 @@ export const privacyUz: LegalDoc = {
           type: "p",
           text:
             "Hisob oʻchirilgandan soʻng shaxsga doir maʻlumotlar «[…]» oqilona muddat " +
-            "ichida oʻchiriladi yoki anonimlashtiradi, bundan qonunchilik bilan saqlash " +
+            "ichida oʻchiriladi yoki anonimlashtiriladi, bundan qonunchilik bilan saqlash " +
             "talab etilgan yoki Operatorning qonuniy manfaatlarini himoya qilish zarur " +
             "boʻlgan hollar mustasno.",
         },

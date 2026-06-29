@@ -41,7 +41,7 @@ Related ADR:
 
 ### TASK — Legal pages: Terms of Service & Privacy Policy (apps/client)
 
-Status: DONE
+Status: REVIEW
 Branch: feat/legal-pages
 PR: pending
 

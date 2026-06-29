@@ -20,7 +20,7 @@ export const termsUz: LegalDoc = {
         {
           type: "p",
           text:
-            "Avino — avino.uz domenida mavjud boʻgan koʻchmas mulk eʻlonlarini joylashtirish " +
+            "Avino — avino.uz domenida mavjud boʻlgan koʻchmas mulk eʻlonlarini joylashtirish " +
             "va qidirish onlayn xizmatidir. Xizmat foydalanuvchilarga Oʻzbekiston Respublikasi " +
             "hududida turar-joy va tijorat koʻchmas mulkini sotish, ijaraga berish va sotib " +
             "olish boʻyicha eʻlonlar joylashtirish imkonini beradi.",
@@ -42,7 +42,7 @@ export const termsUz: LegalDoc = {
           items: [
             "«Foydalanuvchi» — Xizmatda roʻyxatdan oʻtgan yoki undan foydalanadigan har qanday jismoniy yoki yuridik shaxs.",
             "«Eʻlon» — Foydalanuvchi tomonidan Xizmatda joylashtiriladigan koʻchmas mulk obʻyekti haqidagi tuzilgan maʻlumot.",
-            "«Xizmat» — avino.uz va bogʻliq mobil ilovalar orqali mavjud boʻgan dasturiy taʻminot, kontent, interfeyslar va infratuzilma majmui.",
+            "«Xizmat» — avino.uz va bogʻliq mobil ilovalar orqali mavjud boʻlgan dasturiy taʻminot, kontent, interfeyslar va infratuzilma majmui.",
             "«Moderatsiya» — Operatorning eʻlonni ochiq nashrdan oldin yoki shikoyatdan keyin tekshirish jarayoni.",
           ],
         },
@@ -123,7 +123,7 @@ export const termsUz: LegalDoc = {
         },
         {
           type: "p",
-          text: "Har bir eʻlon nashrdan soʻng majburiy moderatsiyadan oʻtadi. Mumkin boʻgan holatlar:",
+          text: "Har bir eʻlon nashrdan soʻng majburiy moderatsiyadan oʻtadi. Mumkin boʻlgan holatlar:",
         },
         {
           type: "list",
