@@ -89,10 +89,14 @@ export function Lightbox({ photos, index, onIndexChange, onClose, alt }: Lightbo
 
   return createPortal(
     <div
+      data-lightbox
       onClick={onClose}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 p-4"
+      // pointer-events-auto: внутри модалки (radix Dialog) body получает
+      // pointer-events:none; лайтбокс порталится в body и без этого был бы мёртв.
+      // На полной странице body уже auto — класс безвреден.
+      className="pointer-events-auto fixed inset-0 z-[90] flex items-center justify-center bg-black/90 p-4"
       role="dialog"
       aria-modal="true"
     >
