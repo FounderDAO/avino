@@ -5072,7 +5072,7 @@ Related spec/plan:
 
 Status: DONE
 Branch: feat/client-legal-consent-modal
-PR: pending
+PR: https://github.com/FounderDAO/avino/pull/267
 
 Files changed:
 - apps/client/src/store/api/publicSettingsApi.ts
