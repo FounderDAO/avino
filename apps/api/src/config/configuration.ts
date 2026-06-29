@@ -112,6 +112,20 @@ export const mapHoverRecenterConfig = registerAs('mapHoverRecenter', () => ({
       : false,
 }));
 
+export const legalConsentConfig = registerAs('legalConsent', () => ({
+  // Требовать согласие с Правилами/Политикой при первом входе. По умолчанию
+  // ВЫКЛЮЧЕНО (fail-safe, как promotions/mapHoverRecenter). Явный
+  // LEGAL_CONSENT_REQUIRED=true → true. Перебивается runtime-строкой
+  // legal_consent_required в app_settings (admin-тоггл).
+  required:
+    process.env.LEGAL_CONSENT_REQUIRED != null
+      ? process.env.LEGAL_CONSENT_REQUIRED === 'true'
+      : false,
+  // Текущая версия юр-документов. При изменении текстов админ поднимает версию
+  // (app_settings legal_consent_version) → пользователи соглашаются заново.
+  version: parseInt(process.env.LEGAL_CONSENT_VERSION ?? '1', 10),
+}));
+
 // Фоновая чистка осиротевших фото в R2 (ADR-0099). Деструктивно → по умолчанию
 // ВЫКЛЮЧЕНО (явный MEDIA_CLEANUP_ENABLED=true в deploy env включает). cron —
 // расписание (по умолчанию ежедневно 04:00); graceHours — не трогать объекты
@@ -356,6 +370,7 @@ export const configurations = [
   translateConfig,
   promotionConfig,
   mapHoverRecenterConfig,
+  legalConsentConfig,
   savedSearchConfig,
   mailConfig,
   otpConfig,
