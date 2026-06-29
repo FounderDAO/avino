@@ -5,6 +5,7 @@
  * Здесь JSON-LD и generateMetadata НЕ дублируем.
  */
 import { setRequestLocale, getTranslations } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
 import { getListingById } from '@/lib/api/listings';
 import { Detail } from '@/features/detail/Detail';
 import { ListingModal } from '@/features/detail/ListingModal';
@@ -26,6 +27,12 @@ export default async function InterceptedListingModal({ params }: PageProps) {
         <div className="px-6 py-16 text-center">
           <h2 className="text-xl font-extrabold text-ink">{t('notFound.title')}</h2>
           <p className="mt-2 text-muted-foreground">{t('notFound.text')}</p>
+          <Link
+            href="/search"
+            className="mt-4 inline-block font-bold text-teal hover:text-teal-deep"
+          >
+            {t('notFound.cta')}
+          </Link>
         </div>
       </ListingModal>
     );

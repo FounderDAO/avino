@@ -46,7 +46,7 @@ export function ListingModal({ listingId, children }: ListingModalProps) {
             <Link
               href={`/listing/${listingId}`}
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-[13.5px] font-bold text-teal hover:bg-surface-2"
             >
               <ExternalLink size={15} strokeWidth={2.2} />
