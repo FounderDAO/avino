@@ -372,7 +372,9 @@
     },
     "amenities": {
       "title": "Qulayliklar"
-    }
+    },
+    "openFullPage": "Sahifani ochish",
+    "modalTitle": "E'lon"
   },
   "tourRequest": {
     "title": "Tur uchun ariza",
