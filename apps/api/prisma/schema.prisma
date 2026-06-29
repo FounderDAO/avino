@@ -299,6 +299,8 @@ model User {
   // Рассылки: созданные этим пользователем (как админ) и адресованные ему (SINGLE).
   broadcastsCreated    Broadcast[]          @relation("BroadcastCreatedBy")
   broadcastsReceived   Broadcast[]          @relation("BroadcastTargetUser")
+  // Согласия с юр-документами (Правила+Политика); append-only аудит-след (design 2026-06-29).
+  legalConsents        LegalConsent[]
 
   @@map("users")
 }
@@ -1019,4 +1021,19 @@ enum BroadcastStatus {
   SENT
   FAILED
   CANCELED
+}
+
+/// legal_consents — append-only лог согласий пользователя с Правилами и Политикой
+/// (design 2026-06-29). «Текущая принятая версия» = последняя строка пользователя;
+/// версия документов задаётся admin-настройкой app_settings.legal_consent_version.
+model LegalConsent {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  version    Int
+  acceptedAt DateTime @default(now()) @map("accepted_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("legal_consents")
 }
