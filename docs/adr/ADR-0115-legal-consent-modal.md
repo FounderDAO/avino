@@ -74,3 +74,16 @@ Negative / trade-offs:
 - Design: docs/superpowers/specs/2026-06-29-legal-consent-modal-design.md
 - Plan (PR №1): docs/superpowers/plans/2026-06-29-legal-consent-api.md
 - Follow-ups: PR №2 (apps/web admin-тоггл), PR №3 (apps/client модалка)
+
+## Follow-up — PR №2 (apps/web admin-тоггл)
+
+Поставлен админ-контроль в `apps/web` поверх бэкенда этого ADR:
+
+- `apps/web/src/store/api/adminLegalConsentFlagApi.ts` — RTK Query-слайс
+  `GET`/`PATCH /admin/legal-consent-flag` (зеркало `adminPromotionsFlagApi`).
+- `apps/web/src/components/admin/LegalConsentRequiredToggle.tsx` — тоггл
+  «Требовать согласие» + поле «Текущая версия документов» (валидация целое ≥ 1,
+  зеркало `@Min(1)` бэка). Дефолт — выключено (PATCH не шлётся без действия админа).
+- Смонтирован на `apps/web/src/app/admin/settings/page.tsx` рядом с прочими тогглами.
+
+Остаётся PR №3 (apps/client) — блокирующая модалка + хук-гейт + i18n.

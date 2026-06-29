@@ -5025,3 +5025,43 @@ Related ADR:
 Related spec/plan:
 - docs/superpowers/specs/2026-06-28-dynamic-regions-districts-design.md
 - docs/superpowers/plans/2026-06-28-dynamic-regions-districts.md
+
+## 2026-06-29
+
+### Legal consent — admin-тоггл «Требовать согласие» + версия (apps/web)
+
+Status: DONE
+Branch: feat/web-legal-consent-toggle
+PR: pending
+
+Files changed:
+- apps/web/src/store/api/adminLegalConsentFlagApi.ts
+- apps/web/src/components/admin/LegalConsentRequiredToggle.tsx
+- apps/web/src/app/admin/settings/page.tsx
+- docs/adr/ADR-0115-legal-consent-modal.md
+
+Summary:
+- PR №2 фичи «согласие с Правилами+Политикой» (после backend PR #265, ADR-0115).
+- RTK Query-слайс `adminLegalConsentFlagApi` поверх `adminApi`:
+  `GET`/`PATCH /admin/legal-consent-flag`, тело PATCH `{ required?, version? }`,
+  `invalidatesTags: ['Admin']` → состояние перечитывается после изменения.
+- Компонент `LegalConsentRequiredToggle`: тоггл «Требовать согласие»
+  (зеркало `PromotionsAvailabilityToggle`) + поле «Текущая версия документов»
+  (инпут + «Сохранить версию», валидация целое ≥ 1, зеркало `@Min(1)` бэка).
+  Дефолт OFF ничего не меняет (PATCH не шлётся без действия админа).
+- Смонтирован на `app/admin/settings/page.tsx` рядом с прочими тогглами.
+- i18n в admin-панели нет → хардкод RU (как в соседних тогглах).
+- `apps/web` без тест-харнесса → верификация tsc + lint + next build (clean).
+
+Commit messages:
+- feat(web): add adminLegalConsentFlagApi RTK Query slice
+- feat(web): add LegalConsentRequiredToggle admin component
+- feat(web): mount LegalConsentRequiredToggle on admin settings page
+- docs(legal-consent): ADR-0115 follow-up + DONE entry for web admin toggle
+
+Related ADR:
+- docs/adr/ADR-0115-legal-consent-modal.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-06-29-legal-consent-modal-design.md
+- docs/superpowers/plans/2026-06-29-web-legal-consent-toggle.md
