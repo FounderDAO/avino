@@ -37,6 +37,45 @@ Related ADR:
 
 ---
 
+## 2026-06-29
+
+### TASK — Legal pages: Terms of Service & Privacy Policy (apps/client)
+
+Status: REVIEW
+Branch: feat/legal-pages
+PR: pending
+
+Files changed:
+- apps/client/src/content/legal/types.ts
+- apps/client/src/content/legal/terms.ru.ts
+- apps/client/src/content/legal/terms.uz.ts
+- apps/client/src/content/legal/terms.en.ts
+- apps/client/src/content/legal/privacy.ru.ts
+- apps/client/src/content/legal/privacy.uz.ts
+- apps/client/src/content/legal/privacy.en.ts
+- apps/client/src/content/legal/index.ts
+- apps/client/src/content/legal/terms.test.ts
+- apps/client/src/content/legal/privacy.test.ts
+- apps/client/src/content/legal/index.test.ts
+- apps/client/src/features/legal/LegalDocument.tsx
+- apps/client/src/features/legal/LegalDocument.test.tsx
+- apps/client/src/app/[locale]/legal/terms/page.tsx
+- apps/client/src/app/[locale]/legal/privacy/page.tsx
+- apps/client/src/components/layout/Footer.tsx
+- apps/client/messages/ru.json
+- apps/client/messages/uz.json
+- apps/client/messages/en.json
+- docs/adr/ADR-0114-legal-pages.md
+
+Summary:
+- Added public legal pages «Правила сервиса» (/legal/terms) and «Политика конфиденциальности» (/legal/privacy) in uz/ru/en, modelled on OLX.uz.
+- Hybrid storage: small i18n chrome (namespace `legal`) + long body in per-locale TS data modules under content/legal/, rendered by a single server component LegalDocument with an anchored table of contents.
+- Footer «Правила сервиса» / «Политика конфиденциальности» links repointed from /help to the new routes.
+- Legal entity details are placeholder tokens pending replacement and a lawyer's review before production.
+
+Related ADR:
+- docs/adr/ADR-0114-legal-pages.md
+
 ## 2026-06-27
 
 ### TASK-Zillow-Amenities — Удобства (`amenities`): enum-массив, AND-фильтр, миграция (api)

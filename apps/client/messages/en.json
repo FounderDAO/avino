@@ -1028,5 +1028,20 @@
     "email": "Email",
     "close": "Close",
     "shareText": "{title} · {price}"
+  },
+  "legal": {
+    "meta": {
+      "terms": {
+        "title": "Terms of Service — Avino",
+        "description": "Avino terms of service: posting listings, moderation, promotion, and liability of the parties."
+      },
+      "privacy": {
+        "title": "Privacy Policy — Avino",
+        "description": "How Avino collects, uses and protects users' personal data."
+      }
+    },
+    "updatedLabel": "Last updated",
+    "toc": "Contents",
+    "breadcrumbHome": "Home"
   }
 }

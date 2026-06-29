@@ -1028,5 +1028,20 @@
     "email": "Email",
     "close": "Yopish",
     "shareText": "{title} · {price}"
+  },
+  "legal": {
+    "meta": {
+      "terms": {
+        "title": "Xizmat qoidalari — Avino",
+        "description": "Avino xizmatidan foydalanish qoidalari: e'lonlarni joylash, moderatsiya, reklama va tomonlarning javobgarligi."
+      },
+      "privacy": {
+        "title": "Maxfiylik siyosati — Avino",
+        "description": "Avino foydalanuvchilarning shaxsiy ma'lumotlarini qanday yig'adi, ishlatadi va himoya qiladi."
+      }
+    },
+    "updatedLabel": "Oxirgi yangilanish",
+    "toc": "Mundarija",
+    "breadcrumbHome": "Bosh sahifa"
   }
 }
