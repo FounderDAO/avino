@@ -9,6 +9,8 @@ import { baseApi } from './baseApi';
 export interface PublicSettings {
   promotionsEnabled: boolean;
   mapHoverRecenter: boolean;
+  legalConsentRequired: boolean;
+  legalConsentVersion: number;
 }
 
 export const publicSettingsApi = baseApi.injectEndpoints({
