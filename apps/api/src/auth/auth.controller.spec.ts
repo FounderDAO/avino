@@ -26,6 +26,7 @@ describe('AuthController.me', () => {
         contact_phone: null,
         preferred_language: 'RU',
       },
+      legal_consent: { accepted_version: null, accepted_at: null },
     };
     const authService = { getMe: jest.fn().mockResolvedValue(me) };
     const controller = new AuthController(

@@ -4,7 +4,7 @@ import { AdminComplaintsController, ComplaintsModule } from '../complaints';
 import { ModerationModule } from '../moderation';
 import { PromotionsModule } from '../promotions';
 import { RolesModule } from '../roles';
-import { SettingsModule, AdminPromotionsFlagController, AdminMapHoverRecenterFlagController } from '../settings';
+import { SettingsModule, AdminPromotionsFlagController, AdminMapHoverRecenterFlagController, AdminLegalConsentFlagController } from '../settings';
 import { TranslationsModule } from '../translations';
 import { AdminListingPromotionsController } from './admin-listing-promotions.controller';
 import { AdminListingsController } from './admin-listings.controller';
@@ -64,6 +64,7 @@ import { AdminUsersService } from './admin-users.service';
     AdminNotificationSettingsController,
     AdminPromotionsFlagController,
     AdminMapHoverRecenterFlagController,
+    AdminLegalConsentFlagController,
     AdminUsersController,
     AdminLogsController,
     AdminComplaintsController,

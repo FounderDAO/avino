@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { RolesModule } from '../roles';
+import { SettingsModule } from '../settings';
 import { ProfilesService } from '../profiles';
+import { LegalConsentService } from './legal-consent.service';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
@@ -15,9 +17,9 @@ import { UsersService } from './users.service';
  * но провайдится здесь — `/users/me/profile` обслуживает тот же контроллер.
  */
 @Module({
-  imports: [RolesModule],
+  imports: [RolesModule, SettingsModule],
   controllers: [UsersController],
-  providers: [UsersService, ProfilesService],
+  providers: [UsersService, ProfilesService, LegalConsentService],
   exports: [UsersService, ProfilesService],
 })
 export class UsersModule {}

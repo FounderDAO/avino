@@ -39,6 +39,55 @@ Related ADR:
 
 ## 2026-06-29
 
+### TASK — Legal consent backend: model, flags, endpoint, /auth/me (apps/api)
+
+Status: REVIEW
+Branch: feat/api-legal-consent
+PR: pending
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260629000000_add_legal_consents/migration.sql
+- apps/api/src/config/configuration.ts
+- apps/api/src/settings/legal-consent-flag.constants.ts
+- apps/api/src/settings/legal-consent-flag.service.ts
+- apps/api/src/settings/dto/update-legal-consent-flag.dto.ts
+- apps/api/src/settings/admin-legal-consent-flag.controller.ts
+- apps/api/src/settings/dto/public-settings-view.dto.ts
+- apps/api/src/settings/public-settings.controller.ts
+- apps/api/src/settings/settings.module.ts
+- apps/api/src/settings/index.ts
+- apps/api/src/admin/admin.module.ts
+- apps/api/src/auth/dto/me-response.dto.ts
+- apps/api/src/auth/auth.service.ts
+- apps/api/src/common/dto/error-response.dto.ts
+- apps/api/src/users/dto/accept-legal-consent.dto.ts
+- apps/api/src/users/legal-consent.service.ts
+- apps/api/src/users/users.controller.ts
+- apps/api/src/users/users.module.ts
+- apps/api/openapi.public.json
+- apps/api/openapi.internal.json
+- docs/adr/ADR-0115-legal-consent-modal.md
+
+Summary:
+- Backend для согласия с юр-документами (PR №1 из 3): append-only таблица `legal_consents` + миграция; per-user, версионируемое, серверное хранение согласия.
+- Требование управляется из админки через `app_settings` (`legal_consent_required` дефолт OFF, `legal_consent_version` дефолт 1), отдаётся в `GET /settings/public` (`legalConsentRequired`, `legalConsentVersion`); admin GET/PATCH `AdminLegalConsentFlagController` зарегистрирован в AdminModule (DTO не утекают в публичный OpenAPI).
+- `GET /auth/me` расширен `legal_consent { accepted_version, accepted_at }`; `POST /users/me/legal-consent` пишет согласие текущей версии (обе галочки обязательны → иначе 422 CONSENT_INCOMPLETE) + audit_log.
+- Follow-ups: PR №2 (apps/web admin-тоггл), PR №3 (apps/client блокирующая модалка). Полный api-suite зелёный (769 тестов); OpenAPI регенерирован.
+
+Commit messages:
+- feat(legal-consent): add legal_consents model and migration
+- feat(legal-consent): add flag constants, resolvers and env config
+- feat(legal-consent): add LegalConsentFlagService
+- feat(legal-consent): expose flags via GET /settings/public
+- feat(legal-consent): add admin legal-consent-flag controller
+- feat(legal-consent): expose legal_consent in GET /auth/me
+- feat(legal-consent): add POST /users/me/legal-consent endpoint
+- chore(openapi): regenerate for legal-consent endpoints and settings
+
+Related ADR:
+- docs/adr/ADR-0115-legal-consent-modal.md
+
 ### TASK — Legal pages: Terms of Service & Privacy Policy (apps/client)
 
 Status: REVIEW
