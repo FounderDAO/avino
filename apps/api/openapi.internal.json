@@ -340,6 +340,52 @@
         }
       }
     },
+    "/api/v1/users/me/legal-consent": {
+      "post": {
+        "operationId": "UsersController_acceptLegalConsent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptLegalConsentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/public": {
+      "get": {
+        "operationId": "PublicSettingsController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSettingsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/listings/{listingId}/translations": {
       "get": {
         "operationId": "TranslationsController_list",
@@ -2167,24 +2213,6 @@
         }
       }
     },
-    "/api/v1/settings/public": {
-      "get": {
-        "operationId": "PublicSettingsController_get",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicSettingsView"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/favorites": {
       "get": {
         "operationId": "FavoritesController_list",
@@ -3560,6 +3588,50 @@
         }
       }
     },
+    "/api/v1/admin/legal-consent-flag": {
+      "get": {
+        "operationId": "AdminLegalConsentFlagController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "AdminLegalConsentFlagController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLegalConsentFlagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/users": {
       "get": {
         "operationId": "AdminUsersController_list",
@@ -4329,6 +4401,44 @@
           }
         }
       },
+      "AcceptLegalConsentDto": {
+        "type": "object",
+        "properties": {
+          "terms_accepted": {
+            "type": "boolean"
+          },
+          "privacy_accepted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "terms_accepted",
+          "privacy_accepted"
+        ]
+      },
+      "PublicSettingsView": {
+        "type": "object",
+        "properties": {
+          "promotionsEnabled": {
+            "type": "boolean"
+          },
+          "mapHoverRecenter": {
+            "type": "boolean"
+          },
+          "legalConsentRequired": {
+            "type": "boolean"
+          },
+          "legalConsentVersion": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "promotionsEnabled",
+          "mapHoverRecenter",
+          "legalConsentRequired",
+          "legalConsentVersion"
+        ]
+      },
       "TourWindowDto": {
         "type": "object",
         "properties": {
@@ -4674,21 +4784,6 @@
           "max",
           "buckets",
           "overflow_count"
-        ]
-      },
-      "PublicSettingsView": {
-        "type": "object",
-        "properties": {
-          "promotionsEnabled": {
-            "type": "boolean"
-          },
-          "mapHoverRecenter": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "promotionsEnabled",
-          "mapHoverRecenter"
         ]
       },
       "CreateFavoriteDto": {
@@ -5062,6 +5157,18 @@
         "required": [
           "enabled"
         ]
+      },
+      "UpdateLegalConsentFlagDto": {
+        "type": "object",
+        "properties": {
+          "required": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "number",
+            "minimum": 1
+          }
+        }
       },
       "UpdateAdminUserDto": {
         "type": "object",
