@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
 import { ProfileResponse, ProfilesService } from '../profiles';
 import { UpdateProfileDto } from '../profiles/dto/update-profile.dto';
+import { AcceptLegalConsentDto } from './dto/accept-legal-consent.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { LegalConsentService, LegalConsentState } from './legal-consent.service';
 import { UserMeResponse, UsersService } from './users.service';
 
 /**
@@ -20,6 +22,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly profilesService: ProfilesService,
+    private readonly legalConsentService: LegalConsentService,
   ) {}
 
   /** `GET /api/v1/users/me` — текущий пользователь, профиль и роли. */
@@ -44,5 +47,14 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
   ): Promise<ProfileResponse> {
     return this.profilesService.updateForUser(userId, dto);
+  }
+
+  /** `POST /api/v1/users/me/legal-consent` — согласие с Правилами и Политикой. */
+  @Post('me/legal-consent')
+  acceptLegalConsent(
+    @CurrentUser('id') userId: string,
+    @Body() dto: AcceptLegalConsentDto,
+  ): Promise<LegalConsentState> {
+    return this.legalConsentService.record(userId, dto);
   }
 }
