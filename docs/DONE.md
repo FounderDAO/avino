@@ -39,6 +39,39 @@ Related ADR:
 
 ## 2026-06-29
 
+### TASK — Listing detail modal on search card click (apps/client)
+
+Status: REVIEW
+Branch: feature/search-card-listing-modal
+PR: pending
+
+Files changed:
+- apps/client/src/app/[locale]/@modal/default.tsx
+- apps/client/src/app/[locale]/@modal/(.)listing/[id]/page.tsx
+- apps/client/src/app/[locale]/layout.tsx
+- apps/client/src/features/detail/ListingModal.tsx
+- apps/client/src/features/detail/ListingModal.test.tsx
+- apps/client/src/features/detail/Detail.tsx
+- apps/client/messages/ru.json
+- apps/client/messages/uz.json
+- apps/client/messages/en.json
+- docs/adr/ADR-0116-listing-detail-modal-intercepting-routes.md
+
+Summary:
+- Клик по карточке на /search открывает деталку в модальном окне поверх выдачи (как Zillow), а не уводит на отдельную страницу. Механизм — Next.js intercepting + parallel routes: слот `@modal` в `[locale]`-лейауте + перехватчик `@modal/(.)listing/[id]` рендерит переиспользуемый `Detail` (новый режим `embedded`) внутри клиентского `ListingModal` (radix-ui Dialog).
+- Полная страница `/listing/[id]` не изменена и обслуживает hard-nav, новую вкладку, прямой заход и SEO/JSON-LD. Cmd/Ctrl/средний клик по карточке нативно открывает полную страницу в новой вкладке; в шапке модалки есть кнопка «Открыть страницу ↗» (target=_blank). Esc/фон/✕/«Назад» браузера → router.back() закрывает модалку.
+- Выкатка по умолчанию, без фиче-флага. Перехват действует на любой soft-nav к /listing/[id] под лейаутом (главная/избранное/«похожие») — намеренно. На мобиле модалка — полноэкранный лист.
+- Live-verify (docker, локальный стенд): soft-клик → модалка + URL /listing/[id] + выдача сохраняется сзади; ссылка «Открыть страницу» = /ru/listing/<id>, target=_blank, rel=noopener; Esc → возврат на /search; прямой заход → полная страница с крошкой/SEO.
+
+Commit messages:
+- feat(client): add ListingModal shell + openFullPage i18n
+- feat(client): add embedded mode to Detail for modal reuse
+- feat(client): add @modal parallel slot to locale layout
+- feat(client): intercept /listing/[id] into modal on soft-nav
+
+Related ADR:
+- docs/adr/ADR-0116-listing-detail-modal-intercepting-routes.md
+
 ### TASK — Legal consent backend: model, flags, endpoint, /auth/me (apps/api)
 
 Status: REVIEW
