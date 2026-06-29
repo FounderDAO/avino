@@ -1043,5 +1043,18 @@
     "updatedLabel": "Oxirgi yangilanish",
     "toc": "Mundarija",
     "breadcrumbHome": "Bosh sahifa"
+  },
+  "legalConsent": {
+    "title": "Shartlarga rozilik",
+    "description": "Avino'dan foydalanishni davom ettirish uchun Foydalanish qoidalari va Maxfiylik siyosatini qabul qiling.",
+    "termsPrefix": "Men qabul qilaman",
+    "termsLink": "Foydalanish qoidalari",
+    "privacyPrefix": "Men qabul qilaman",
+    "privacyLink": "Maxfiylik siyosati",
+    "accept": "Roziman va davom etish",
+    "errors": {
+      "incomplete": "Ikkala hujjatni ham qabul qilish kerak.",
+      "network": "Server bilan bog'lanib bo'lmadi. Internet aloqasini tekshiring va qayta urinib ko'ring."
+    }
   }
 }
