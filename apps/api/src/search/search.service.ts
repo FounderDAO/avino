@@ -48,6 +48,15 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 /**
+ * Сколько промо-объявлений закрепляется в начале выдачи при ЯВНОМ выборе
+ * сортировки (price/area/date), ADR-0117. Промо-приоритет НЕ доминирует над всей
+ * выдачей: первые {@link PINNED_PROMO_COUNT} промо (по тиру) прибиваются к началу
+ * 1-й страницы, остальное строго по выбранному ключу. Для дефолта
+ * («Рекомендуемые», без `sort`) поведение прежнее — полный промо-приоритет.
+ */
+const PINNED_PROMO_COUNT = 3;
+
+/**
  * Карточка листинга в результатах поиска (API.md §9). Decimal/даты —
  * строки (контрактный формат). `effective_tier` — time-guarded тир промо
  * (истёкшая промо трактуется как `NORMAL`). `title`/`language` выбираются по
@@ -266,16 +275,39 @@ export class SearchService {
     private readonly uploads: UploadsService,
   ) {}
 
-  /** `GET /api/v1/search` — promotion-приоритетный поиск ACTIVE-листингов. */
+  /**
+   * `GET /api/v1/search` — поиск ACTIVE-листингов (API.md §9).
+   *
+   * Дефолт («Рекомендуемые», без `sort`) — полный промо-приоритет
+   * (`effective_tier DESC, created_at DESC, id DESC`, TASK-081/ADR-0004).
+   * ЯВНЫЙ `sort` (price/area/date) — гибрид (ADR-0117): топ-{@link
+   * PINNED_PROMO_COUNT} промо закреплены в начале, остальное строго по выбранному
+   * ключу; для `price_*` ключ нормализуется в USD по текущему курсу ЦБУ
+   * ({@link SearchService.searchExplicitSort}).
+   */
   async search(
     query: SearchListingsQueryDto,
     langParam?: string,
     acceptLanguage?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
-    const cfg = SORTS[query.sort ?? 'date_desc'];
     const cursor = this.decodeCursor(query.cursor);
     const filterSql = this.buildWhereSql(query);
+
+    // Явная сортировка → гибрид (закреплённое промо + строгий ключ + FX).
+    if (query.sort !== undefined) {
+      return this.searchExplicitSort(
+        query.sort,
+        filterSql,
+        cursor,
+        limit,
+        langParam,
+        acceptLanguage,
+      );
+    }
+
+    // «Рекомендуемые» (дефолт): полный промо-приоритет (TASK-081, ADR-0004).
+    const cfg = SORTS['date_desc'];
     const pageWhere = cursor
       ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
@@ -308,6 +340,137 @@ export class SearchService {
       langParam,
       acceptLanguage,
     );
+  }
+
+  /**
+   * Гибридная выдача при ЯВНОМ `sort` (ADR-0117). В отличие от дефолтного
+   * промо-приоритета, промо НЕ доминирует над всей выдачей:
+   *
+   * 1. Закрепляются топ-{@link PINNED_PROMO_COUNT} промо (по `tier_rank DESC,
+   *    created_at DESC, id DESC`) — «витрина» в начале 1-й страницы.
+   * 2. Остальное — строгий поток по выбранному ключу (`<secondary> <dir>, id DESC`),
+   *    БЕЗ промо-приоритета; закреплённые id исключены из потока на ВСЕХ страницах
+   *    (без дублей). Keyset потока — 2-кортежный `(<secondary>, id)`.
+   * 3. Для `price_*` вторичный ключ нормализуется в USD по текущему курсу ЦБУ
+   *    ({@link SearchService.fxRate}), чтобы UZS/USD сравнивались по реальной
+   *    стоимости; нет курса → деградация к сырой цене.
+   *
+   * `total` — полное число совпадений по фильтру (закреплённые показываются один
+   * раз на 1-й странице, из потока исключены, поэтому без двойного счёта).
+   */
+  private async searchExplicitSort(
+    sort: SortMode,
+    filterSql: Prisma.Sql,
+    cursor: SearchCursor | null,
+    limit: number,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<CursorPaginatedResponse<SearchListItem>> {
+    const rate =
+      sort === 'price_asc' || sort === 'price_desc'
+        ? await this.fxRate()
+        : null;
+    const cfg = this.explicitSortConfig(sort, rate);
+    const orderDir = cfg.dir === 'DESC' ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+
+    // 1. Закреплённые промо: топ-N по тиру под текущим фильтром (только page 1
+    //    показывается, но считается всегда — нужен для исключения из потока).
+    const pinnedRows = await this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
+      SELECT id, created_at, ${TIER_RANK_SQL} AS tier_rank, NULL AS sort_val
+      FROM listings
+      WHERE ${filterSql} AND (${TIER_RANK_SQL}) > 0
+      ORDER BY ${TIER_RANK_SQL} DESC, created_at DESC, id DESC
+      LIMIT ${PINNED_PROMO_COUNT}
+    `);
+    const pinnedIds = pinnedRows.map((r) => r.id);
+    const excludePinned = pinnedIds.length
+      ? Prisma.sql`AND id <> ALL(ARRAY[${Prisma.join(pinnedIds)}]::uuid[])`
+      : Prisma.empty;
+
+    // 2. Строгий поток (исключая закреплённые), keyset 2-кортежный.
+    const strictWhere = cursor
+      ? Prisma.sql`${filterSql} ${excludePinned} AND ${this.strictCursorConditionSql(cursor, cfg)}`
+      : Prisma.sql`${filterSql} ${excludePinned}`;
+
+    const [strictRows, countRows] = await Promise.all([
+      this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
+        SELECT id, created_at, 0::int AS tier_rank, (${cfg.secondary}) AS sort_val
+        FROM listings
+        WHERE ${strictWhere}
+        ORDER BY (${cfg.secondary}) ${orderDir}, id DESC
+        LIMIT ${limit + 1}
+      `),
+      this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
+        SELECT count(*)::int AS count FROM listings WHERE ${filterSql}
+      `),
+    ]);
+
+    const hasMore = strictRows.length > limit;
+    const strictPage = hasMore ? strictRows.slice(0, limit) : strictRows;
+    const last = strictPage[strictPage.length - 1];
+
+    // Page 1 (без курсора) — впереди закреплённый промо-блок; далее только поток.
+    const rows = cursor ? strictPage : [...pinnedRows, ...strictPage];
+
+    return {
+      data: await this.hydrateCards(rows, langParam, acceptLanguage),
+      meta: {
+        limit,
+        total: countRows[0]?.count ?? 0,
+        next_cursor:
+          hasMore && last
+            ? this.encodeCursor({ rank: 0, val: cfg.encodeVal(last), id: last.id })
+            : null,
+      },
+    };
+  }
+
+  /**
+   * SortConfig для явной сортировки. Для `price_*` вторичный ключ нормализуется в
+   * USD: UZS-цены делятся на курс (`1 USD = rate UZS`), USD остаются как есть — так
+   * выдача сортируется по РЕАЛЬНОЙ стоимости. Нет курса (`rate=null`) → сырая цена
+   * (деградация без падения). Прочие ключи (area/date) — без изменений.
+   */
+  private explicitSortConfig(sort: SortMode, rate: string | null): SortConfig {
+    const base = SORTS[sort];
+    if (sort !== 'price_asc' && sort !== 'price_desc') {
+      return base;
+    }
+    const secondary = rate
+      ? Prisma.sql`(CASE WHEN currency = 'UZS' THEN price / ${rate}::numeric ELSE price END)`
+      : Prisma.sql`price`;
+    return { ...base, secondary };
+  }
+
+  /**
+   * Keyset-условие «строго после позиции» для строгого потока явной сортировки
+   * (ADR-0117): тира в порядке нет, поэтому сравниваются только `(<secondary>, id)`.
+   * Направление вторичного ключа — `<` для DESC, `>` для ASC.
+   */
+  private strictCursorConditionSql(
+    cursor: SearchCursor,
+    cfg: SortConfig,
+  ): Prisma.Sql {
+    const afterOp = cfg.dir === 'DESC' ? Prisma.sql`<` : Prisma.sql`>`;
+    const boundVal = cfg.bindVal(cursor.val);
+    return Prisma.sql`(
+      (${cfg.secondary}) ${afterOp} ${boundVal}
+      OR ((${cfg.secondary}) = ${boundVal} AND id < ${cursor.id}::uuid)
+    )`;
+  }
+
+  /**
+   * Текущий курс `1 USD = rate UZS` (последний по `fetched_at`) строкой для
+   * биндинга `::numeric`, либо `null` если строки курса нет (тогда FX-нормализация
+   * пропускается). Совпадает с источником {@link ExchangeRateService.getCurrent}.
+   */
+  private async fxRate(): Promise<string | null> {
+    const row = await this.prisma.exchangeRate.findFirst({
+      where: { base: 'USD', quote: 'UZS' },
+      orderBy: { fetchedAt: 'desc' },
+      select: { rate: true },
+    });
+    return row ? row.rate.toString() : null;
   }
 
   /**
