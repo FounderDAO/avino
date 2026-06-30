@@ -39,6 +39,33 @@ Related ADR:
 
 ## 2026-06-30
 
+### FIX — Явная сортировка `/search`: гибрид (закреплённое промо) + FX-нормализация цены (apps/api)
+
+Status: REVIEW
+Branch: fix/search-explicit-sort-hybrid-fx
+PR: pending
+
+Files changed:
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/search.service.int-spec.ts
+- docs/API.md
+- docs/adr/ADR-0117-search-explicit-sort-hybrid-fx.md
+
+Summary:
+- Баг (QA): «Сначала дешёвые» (`sort=price_asc`) визуально не работает. Две причины, обе подтверждены на живых данных стенда (64 объявления, смешанные USD/UZS): (1) промо-тир ВСЕГДА первичный ключ (ADR-0004) → первыми все VIP/TOP, реально самое дешёвое (3 185 000 UZS ≈ $264) на ~19-й позиции; (2) цена сортируется по сырому числу без учёта валюты → `64 300 USD` «дешевле», чем `7 035 000 UZS` (≈ $583).
+- Фикс (ADR-0117): при ЯВНОМ `sort` — гибрид. Топ-3 промо закреплены в начале 1-й страницы как «витрина», остальное строго по выбранному ключу (промо не доминирует); закреплённые исключены из потока на всех страницах (без дублей, keyset 2-кортежный). Для `price_*` ключ нормализуется в USD по текущему курсу ЦБУ (`CASE WHEN currency='UZS' THEN price/rate ELSE price END`). Дефолт «Рекомендуемые» (без `sort`) — без изменений (полный промо-приоритет). Гео-эндпоинты не тронуты.
+- QA: все фильтры (price/currency, property_type, transaction_type, rooms_min, bathrooms_min, parking_type, amenities AND, lot_area, area, комбо) проверены на живом API — 0 нарушений; проблема была только в сортировке.
+- Drive-by (необходимо для прогона int-spec): починены предсуществующие сломанные UUID-фикстуры int-spec (невалидный hex `BAT`/`L`/`N` → парс-ошибка; uppercase `A101` vs lowercase из БД → mismatch) в группах bathrooms/lot_area/amenities. Сами фичи работали; падали только тесты (int-spec не в CI). После починки эти группы зелёные.
+- Тесты: `search.service.int-spec.ts` 40/40 (новый блок: закрепление ровно N=3 при 4 промо, FX-порядок UZS<USD на смешанной валюте, keyset без дублей; обновлён keyset-тест TASK-207 pages 4→3). Unit 79/79. `tsc --noEmit` чисто, eslint чисто. Доп. проверка SQL на реальном каталоге: самое дешёвое (3 185 000 UZS = $264) теперь первое.
+
+Commit messages:
+- fix(search): hybrid explicit sort (pinned promo) + FX-normalized price ordering
+- test(search): repair pre-existing broken int-spec UUID fixtures (baths/lot/amenities)
+- docs: ADR-0117 + API.md §9 explicit-sort hybrid + FX
+
+Related ADR:
+- docs/adr/ADR-0117-search-explicit-sort-hybrid-fx.md (дополняет ADR-0004)
+
 ### FIX — Listing modal stays open after «Написать» / forward navigation (apps/client)
 
 Status: REVIEW
