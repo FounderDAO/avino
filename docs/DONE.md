@@ -39,6 +39,34 @@ Related ADR:
 
 ## 2026-06-30
 
+### FIX — Listing modal stays open after «Написать» / forward navigation (apps/client)
+
+Status: REVIEW
+Branch: fix/listing-modal-close-on-navigation
+PR: pending
+
+Files changed:
+- apps/client/src/features/detail/ListingModal.tsx
+- apps/client/src/features/detail/ListingModal.test.tsx
+- apps/client/src/features/search/controls/priceRange.test.ts
+- apps/client/src/lib/format.compactPrice.test.ts
+- docs/adr/ADR-0116-listing-detail-modal-intercepting-routes.md
+
+Summary:
+- Баг: в модалке деталки (ADR-0116) кнопка «Написать» уводила в `/account/inbox`, но сама модалка оставалась висеть поверх чата; ручное закрытие через `router.back()` выкидывало на `/search`.
+- Причина: модалка живёт в параллельном слоте `@modal`; App Router не сбрасывает слот на `default.tsx` при soft-навигации вперёд на роут, не матчащий перехват — `ListingModal` оставался смонтирован с `open === true`.
+- Фикс: `ListingModal` синхронизирует `open` с URL через `usePathname()` — открыт ровно пока `pathname === /listing/${listingId}`; уход на другой роут закрывает модалку без `router.back()` (навигация уже ушла вперёд). Пользовательское закрытие (✕/Esc/фон) по-прежнему зовёт `router.back()`. Заодно чинятся владельческие ссылки внутри модалки («Редактировать», «Мои объявления»).
+- Drive-by: добавлены явные `import { it, expect } from 'vitest'` в `priceRange.test.ts` и `format.compactPrice.test.ts` — устраняет предсущ. ошибки `tsc --noEmit` (TS2304/TS2582) в этих файлах.
+- Тесты: ListingModal 4/4 (новый кейс «закрывается при навигации без router.back»); `tsc` по затронутым файлам чист. Остаются 2 known-fail (`LoginModal.test`/`AppleSignInButton`, не регресс).
+
+Commit messages:
+- fix(client): close listing modal on forward navigation out of /listing/[id]
+- test(client): add explicit vitest imports to fix tsc on two test files
+- docs: ADR-0116 follow-up + DONE for modal-close-on-navigation fix
+
+Related ADR:
+- docs/adr/ADR-0116-listing-detail-modal-intercepting-routes.md (Follow-up 2026-06-30)
+
 ### FIX — Listing modal closes when using gallery lightbox (apps/client)
 
 Status: REVIEW

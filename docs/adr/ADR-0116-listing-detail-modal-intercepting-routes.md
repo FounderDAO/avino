@@ -53,5 +53,27 @@ Negative / trade-offs:
 Related files: apps/client/src/components/ui/lightbox.tsx,
 apps/client/src/features/detail/ListingModal.tsx.
 
+## Follow-up (2026-06-30) — модалка не закрывалась при навигации вперёд
+
+Баг: кнопка «Написать» в `ContactCard` делает `router.push('/account/inbox')`,
+но модалка оставалась висеть поверх чата; закрыть её вручную можно было только
+через `router.back()`, что выкидывало на `/search`.
+
+Причина: модалка живёт в параллельном слоте `@modal`. В App Router этот слот
+**не сбрасывается** на `default.tsx` при soft-навигации вперёд на роут, не
+матчащий перехват (`/account/inbox`) — слот продолжает рендерить `ListingModal`
+с внутренним `open === true`. То же касалось бы и владельческих ссылок внутри
+модалки («Редактировать», «Мои объявления»).
+
+Фикс: `ListingModal` синхронизирует `open` с URL через `usePathname()` —
+открыт ровно пока `pathname === \`/listing/${listingId}\``; уход на другой роут
+закрывает модалку **без** `router.back()` (навигация уже ушла вперёд, back бы её
+отменил). Пользовательское закрытие (✕/Esc/фон) по-прежнему зовёт `router.back()`.
+Правило на будущее: любую навигацию изнутри intercepting-route-модалки на сторонний
+роут модалка должна переживать самозакрытием по `pathname`, а не полагаться на
+сброс параллельного слота.
+
+Related files: apps/client/src/features/detail/ListingModal.tsx.
+
 ## Related task
 - Listing detail modal on search card click
