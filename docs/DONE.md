@@ -56,12 +56,14 @@ Summary:
 - Фикс (ADR-0118): новый route-handler `GET /api/og/listing/:id` (вне `[locale]`, middleware-matcher исключает `/api`) на каждый запрос серверно тянет первое фото листинга и стримит байты с `Cache-Control: public, max-age=86400`. `og:image`/`twitter:image` страницы листинга → этот стабильный URL (presigned-ссылка наружу не утекает, превью не «протухает»). На любой сбой (нет фото / листинг не найден / upstream не 2xx / исключение) — 302 на бренд-иконку `/apple-icon.png`, превью никогда без картинки. В `openGraph` страницы добавлен `siteName: 'Avino'` (Next не deep-merge'ит `openGraph` layout→page, поэтому дублируется явно; `layout.tsx` не тронут).
 - `twitter:image` наследует `openGraph.images` (подтверждено curl'ом до фикса). Захардкоженные `width:1200/height:630` у og-картинки убраны (реальные размеры фото не гарантируем; Telegram масштабирует сам).
 - Операционно: уже расшаренные ссылки показывают старое кеш-превью, пока Telegram не обновит кеш (`@WebpageBot` или со временем) — проверять на свежей ссылке.
-- Тесты: `route.test.ts` 4/4 (фото→стрим с `Content-Type` из upstream + `Cache-Control`; нет фото / нет листинга / upstream 4xx → 302 фолбэк). `next build` чисто, маршрут `ƒ /api/og/listing/[id]` (Dynamic).
+- По финальному ревью (opus): добавлен `AbortSignal.timeout(5000)` на upstream-fetch (зависший R2 не держит запрос — abort уходит в фолбэк) и клэмп не-`image/*` content-type (R2 иногда отдаёт `application/octet-stream`) на `image/jpeg`.
+- Тесты: `route.test.ts` 6/6 (фото→стрим с `Content-Type` из upstream + `Cache-Control`; нет фото / нет листинга / upstream 4xx → 302 фолбэк; исключение в `getListingById`→302; octet-stream→`image/jpeg`). `next build` чисто, маршрут `ƒ /api/og/listing/[id]` (Dynamic).
 
 Commit messages:
 - feat(client): стабильный OG-image route для шаринга объявлений
 - feat(client): og:image листинга → стабильный route + og:site_name
 - docs: ADR-0118 + DONE — стабильный OG-image для шаринга объявлений
+- fix(client): таймаут upstream-fetch + клэмп content-type в OG-image route
 
 Related ADR:
 - docs/adr/ADR-0118-listing-share-stable-og-image.md

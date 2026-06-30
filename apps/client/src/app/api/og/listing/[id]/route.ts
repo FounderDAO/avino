@@ -26,12 +26,14 @@ export async function GET(
     const src = listing?.photos?.[0]?.url;
     if (!src) return fallback();
 
-    const upstream = await fetch(src);
+    const upstream = await fetch(src, { signal: AbortSignal.timeout(5000) });
     if (!upstream.ok) return fallback();
 
+    const upstreamType = upstream.headers.get('content-type');
+    const contentType = upstreamType?.startsWith('image/') ? upstreamType : 'image/jpeg';
     return new Response(upstream.body, {
       headers: {
-        'Content-Type': upstream.headers.get('content-type') ?? 'image/jpeg',
+        'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400',
       },
     });

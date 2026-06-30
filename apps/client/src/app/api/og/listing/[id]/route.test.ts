@@ -35,7 +35,10 @@ it('стримит байты фото с image content-type и суточным
 
   const res = await GET(new Request('https://avino.uz/api/og/listing/abc'), ctx('abc'));
 
-  expect(fetchMock).toHaveBeenCalledWith('https://r2.example/signed.jpg?sig=1');
+  expect(fetchMock).toHaveBeenCalledWith(
+    'https://r2.example/signed.jpg?sig=1',
+    expect.objectContaining({ signal: expect.anything() }),
+  );
   expect(res.status).toBe(200);
   expect(res.headers.get('content-type')).toBe('image/jpeg');
   expect(res.headers.get('cache-control')).toBe('public, max-age=86400');
@@ -64,4 +67,28 @@ it('редиректит на бренд-фолбэк, когда upstream от�
   const res = await GET(new Request('https://avino.uz/api/og/listing/y'), ctx('y'));
   expect(res.status).toBe(302);
   expect(res.headers.get('location')).toBe('https://avino.uz/apple-icon.png');
+});
+
+it('редиректит на бренд-фолбэк при исключении в getListingById', async () => {
+  mockedGet.mockRejectedValue(new Error('boom'));
+  const res = await GET(new Request('https://avino.uz/api/og/listing/e'), ctx('e'));
+  expect(res.status).toBe(302);
+  expect(res.headers.get('location')).toBe('https://avino.uz/apple-icon.png');
+});
+
+it('подменяет не-image content-type на image/jpeg', async () => {
+  mockedGet.mockResolvedValue({
+    photos: [{ url: 'https://r2.example/octet' }],
+  } as never);
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(
+      new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'content-type': 'application/octet-stream' },
+      }),
+    ),
+  );
+  const res = await GET(new Request('https://avino.uz/api/og/listing/o'), ctx('o'));
+  expect(res.headers.get('content-type')).toBe('image/jpeg');
 });
