@@ -567,18 +567,30 @@ Query-фильтры (`ARCHITECTURE` §12):
 | `floor`, `total_floors`, `year_built` | int | |
 | `feature_ids` | uuid[] | амenities (CSV или повтор параметра) |
 | `promotion_type` | `NORMAL \| TOP \| VIP` | фильтр по тиру (опц.) |
-| `sort` | `date_desc \| price_asc \| price_desc \| area_desc` | вторичный ключ сортировки; **умолчание** `date_desc`; невалидное значение → 400 |
+| `sort` | `date_desc \| price_asc \| price_desc \| area_desc` | ключ сортировки; **умолчание** `date_desc`; невалидное значение → 400. При явном выборе — гибрид (см. ниже): закреплённое промо + строгий ключ; `price_*` нормализуется по курсу (ADR-0117) |
 | `cursor`, `limit` | | keyset-пагинация |
 
-**Сортировка** (TASK-207, ADR-0004):
-Promotion-тир **всегда первичен**: `VIP > TOP > NORMAL` (time-guarded: `promotion_expires_at > now()`, иначе `NORMAL`).
-Вторичный ключ задаётся параметром `sort`:
-- `date_desc` — `created_at DESC` (поведение по умолчанию и при отсутствии `sort`)
-- `price_asc` — `price ASC`
-- `price_desc` — `price DESC`
+**Сортировка** (TASK-207, ADR-0004, ADR-0117):
+
+- **«Рекомендуемые» (без `sort`)** — полный promotion-приоритет:
+  `effective_tier DESC, created_at DESC, id DESC` (`VIP > TOP > NORMAL`,
+  time-guarded: `promotion_expires_at > now()`, иначе `NORMAL`).
+- **Явный `sort`** (`price_asc`/`price_desc`/`area_desc`/`date_desc`) — **гибрид**
+  (ADR-0117): топ-**3** промо (по тиру) закреплены в начале 1-й страницы как
+  «витрина», остальное **строго** по выбранному ключу — промо НЕ доминирует над
+  всей выдачей. Закреплённые исключены из основного потока на всех страницах (без
+  дублей).
+
+Ключ по `sort`:
+- `date_desc` — `created_at DESC` (умолчание при отсутствии `sort`)
+- `price_asc` / `price_desc` — по цене, **нормализованной в USD по текущему курсу
+  ЦБУ** (UZS делится на курс; USD как есть), чтобы UZS/USD сравнивались по реальной
+  стоимости; курса нет → деградация к сырой цене
 - `area_desc` — `area DESC`; объявления без площади (`area = NULL`) — последними
 
-Tie-break по `id DESC` гарантирует детерминированность keyset-пагинации.
+Tie-break по `id DESC` гарантирует детерминированность keyset-пагинации. На 1-й
+странице явной сортировки выдача = закреплённое промо (≤3) + страница потока,
+поэтому может содержать до 3 элементов сверх `limit`.
 
 200:
 ```json

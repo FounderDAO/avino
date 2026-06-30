@@ -1,5 +1,6 @@
 import {
   Currency,
+  ExchangeRateSource,
   Language,
   ListingStatus,
   ParkingType,
@@ -449,11 +450,13 @@ describe('SearchService sort + rooms (integration, TASK-207)', () => {
       expect(pages).toBeLessThanOrEqual(10); // защита от зацикливания
     } while (cursor);
 
-    expect(pages).toBe(4); // 7 записей по 2 → страницы: 2+2+2+1
+    // ADR-0117: page 1 = закреплённое промо (vip+top, ≤ N=3) + первая страница
+    // строгого потока (limit=2) = 4 элемента; далее поток по 2 → 2+1. Итого 3 страницы.
+    expect(pages).toBe(3);
     expect(collected).toHaveLength(7);
     expect(new Set(collected).size).toBe(7); // без дублей
 
-    // Первые два — VIP/TOP (tier-первичный); остальные 5 — NORMAL по price ASC.
+    // Первые два — закреплённые промо VIP/TOP; остальные 5 — NORMAL по price ASC.
     expect(collected[0]).toBe(ID.vip);
     expect(collected[1]).toBe(ID.top);
     const normalCollected = collected.slice(2);
@@ -467,6 +470,178 @@ describe('SearchService sort + rooms (integration, TASK-207)', () => {
     expect(normalCollected[3]).toBe(ID.n2); // 300
     expect(normalCollected[4]).toBe(ID.n5); // 400
     void normalPrices;
+  });
+});
+
+/**
+ * Integration-тесты ГИБРИДНОЙ явной сортировки + FX-нормализации (ADR-0117).
+ *
+ * Поведение: при ЯВНОМ `sort` (price/area/date) промо-приоритет НЕ доминирует над
+ * всей выдачей — закрепляются только топ-N=3 промо, остальное строго по выбранному
+ * ключу. Для `price_*` вторичный ключ нормализуется в базовую валюту (USD) по
+ * текущему курсу ЦБУ, чтобы UZS/USD сравнивались по реальной стоимости.
+ *
+ * Дефолт (без `sort`, «Рекомендуемые») — старое поведение (полный промо-приоритет).
+ *
+ * Изоляция — отдельный `CITY` + собственная строка курса (удаляются в afterAll).
+ */
+describe('SearchService explicit-sort hybrid pin + FX (integration, ADR-0117)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY = '44444444-5555-4666-8777-000000000044';
+  const future = new Date('2027-01-01T00:00:00.000Z');
+
+  // Валидные UUID; суффикс ...a4 изолирует от прочих наборов.
+  const ID = {
+    vipNew: 'a0000001-0000-4000-8000-0000000000a4', // VIP, новее → закреплён #1
+    vipOld: 'a0000002-0000-4000-8000-0000000000a4', // VIP, старее → закреплён #2
+    topNew: 'b0000001-0000-4000-8000-0000000000a4', // TOP, новее → закреплён #3
+    topOld: 'b0000002-0000-4000-8000-0000000000a4', // TOP, 4-е промо → в общий поток
+    nmUzs: 'c0000001-0000-4000-8000-0000000000a4', // NORMAL 12M UZS  → норм. 1200
+    nmUsd: 'c0000002-0000-4000-8000-0000000000a4', // NORMAL 5000 USD → норм. 5000
+    nmUsd2: 'c0000003-0000-4000-8000-0000000000a4', // NORMAL 8000 USD → норм. 8000
+  };
+
+  let ownerId: string;
+  let rateId: string;
+
+  async function seed(p: {
+    id: string;
+    promo: PromotionType;
+    expiresAt: Date | null;
+    createdAt: Date;
+    price: string;
+    currency: Currency;
+  }): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id: p.id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: p.price,
+        currency: p.currency,
+        cityId: CITY,
+        promotionType: p.promo,
+        promotionExpiresAt: p.expiresAt,
+        createdAt: p.createdAt,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `fx-${p.id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY } });
+    const owner = await prisma.user.create({
+      data: { phone: '+998900000044' },
+    });
+    ownerId = owner.id;
+
+    // Контролируемый курс: 1 USD = 10 000 UZS. fetched_at в будущем → «текущий».
+    const rate = await prisma.exchangeRate.create({
+      data: {
+        base: Currency.USD,
+        quote: Currency.UZS,
+        rate: '10000',
+        source: ExchangeRateSource.MANUAL,
+        fetchedAt: new Date('2099-01-01T00:00:00.000Z'),
+      },
+    });
+    rateId = rate.id;
+
+    // 4 промо (> N=3): vipNew/vipOld/topNew закрепятся; topOld — в общий поток.
+    await seed({ id: ID.vipNew, promo: PromotionType.VIP, expiresAt: future, createdAt: new Date('2026-05-22T00:00:00.000Z'), price: '50000000.00', currency: Currency.UZS });
+    await seed({ id: ID.vipOld, promo: PromotionType.VIP, expiresAt: future, createdAt: new Date('2026-05-21T00:00:00.000Z'), price: '50000000.00', currency: Currency.UZS });
+    await seed({ id: ID.topNew, promo: PromotionType.TOP, expiresAt: future, createdAt: new Date('2026-05-24T00:00:00.000Z'), price: '50000000.00', currency: Currency.UZS });
+    // topOld: 4-е промо → строгий поток. Норм. цена 100M/10000 = 10000 (дороже всех NORMAL).
+    await seed({ id: ID.topOld, promo: PromotionType.TOP, expiresAt: future, createdAt: new Date('2026-05-23T00:00:00.000Z'), price: '100000000.00', currency: Currency.UZS });
+    // NORMAL смешанные валюты: nmUzs дешевле всех по РЕАЛЬНОЙ стоимости, но дороже по сырому числу.
+    await seed({ id: ID.nmUzs, promo: PromotionType.NORMAL, expiresAt: null, createdAt: new Date('2026-05-10T00:00:00.000Z'), price: '12000000.00', currency: Currency.UZS });
+    await seed({ id: ID.nmUsd, promo: PromotionType.NORMAL, expiresAt: null, createdAt: new Date('2026-05-11T00:00:00.000Z'), price: '5000.00', currency: Currency.USD });
+    await seed({ id: ID.nmUsd2, promo: PromotionType.NORMAL, expiresAt: null, createdAt: new Date('2026-05-12T00:00:00.000Z'), price: '8000.00', currency: Currency.USD });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY } });
+    if (rateId) {
+      await prisma.exchangeRate.delete({ where: { id: rateId } });
+    }
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('price_asc: pins exactly N=3 promoted, then orders the rest by FX-normalized price (UZS converted)', async () => {
+    const res = await service.search({ city_id: CITY, sort: 'price_asc', limit: 100 });
+    const ids = res.data.map((d) => d.id);
+
+    // Ровно 3 закреплённых промо сверху (4-е промо topOld — НЕ закреплено).
+    expect(ids.slice(0, 3)).toEqual([ID.vipNew, ID.vipOld, ID.topNew]);
+
+    // Хвост — строго по РЕАЛЬНОЙ (нормализованной) цене:
+    //   nmUzs (12M/10000=1200) < nmUsd (5000) < nmUsd2 (8000) < topOld (100M/10000=10000)
+    expect(ids.slice(3)).toEqual([ID.nmUzs, ID.nmUsd, ID.nmUsd2, ID.topOld]);
+
+    // Ключевая проверка нормализации: UZS-объявление (сырое 12 000 000) идёт
+    // РАНЬШЕ USD-объявления (сырое 5 000), т.к. реально дешевле.
+    expect(ids.indexOf(ID.nmUzs)).toBeLessThan(ids.indexOf(ID.nmUsd));
+    expect(ids).toHaveLength(7);
+    expect(res.meta.total).toBe(7);
+  });
+
+  it('price_desc: pins N=3 promoted, then orders the rest by FX-normalized price DESC', async () => {
+    const res = await service.search({ city_id: CITY, sort: 'price_desc', limit: 100 });
+    const ids = res.data.map((d) => d.id);
+    expect(ids.slice(0, 3)).toEqual([ID.vipNew, ID.vipOld, ID.topNew]);
+    // topOld(10000) > nmUsd2(8000) > nmUsd(5000) > nmUzs(1200)
+    expect(ids.slice(3)).toEqual([ID.topOld, ID.nmUsd2, ID.nmUsd, ID.nmUzs]);
+  });
+
+  it('default (no explicit sort): keeps FULL promotion priority — all 4 promoted on top', async () => {
+    const res = await service.search({ city_id: CITY, limit: 100 });
+    const ids = res.data.map((d) => d.id);
+    // Без явного сорта — старое поведение: ВСЕ промо сверху (тир ↓, дата ↓).
+    expect(ids.slice(0, 4)).toEqual([ID.vipNew, ID.vipOld, ID.topNew, ID.topOld]);
+  });
+
+  it('keyset: pinned promo are never duplicated across pages, all 7 returned once', async () => {
+    const collected: string[] = [];
+    let cursor: string | null | undefined;
+    let pages = 0;
+    do {
+      const page = await service.search({
+        city_id: CITY,
+        sort: 'price_asc',
+        limit: 3,
+        cursor: cursor ?? undefined,
+      });
+      collected.push(...page.data.map((d) => d.id));
+      cursor = page.meta.next_cursor;
+      pages += 1;
+      expect(pages).toBeLessThanOrEqual(10);
+    } while (cursor);
+
+    expect(new Set(collected).size).toBe(collected.length); // без дублей
+    expect(collected.filter((id) => id === ID.vipNew)).toHaveLength(1);
+    expect(new Set(collected)).toEqual(new Set(Object.values(ID))); // все 7 ровно один раз
   });
 });
 
@@ -485,14 +660,14 @@ describe('SearchService bathrooms_min filter (integration, Zillow Phase 2)', () 
     uploadsStub,
   );
 
-  const CITY_ID_BATHS = '44444444-5555-4444-8777-000000000BAT';
+  const CITY_ID_BATHS = '44444444-5555-4444-8777-000000000ba7';
 
   // Фиксированные UUIDs для детерминированных проверок.
   const ID = {
-    baths1: 'aaaaaaaa-0001-4000-8000-0000000BAT01', // bathrooms=1
-    baths2: 'bbbbbbbb-0001-4000-8000-0000000BAT02', // bathrooms=2
-    baths3: 'cccccccc-0001-4000-8000-0000000BAT03', // bathrooms=3
-    bathsNull: 'dddddddd-0001-4000-8000-0000000BAT04', // bathrooms=null
+    baths1: 'aaaaaaaa-0001-4000-8000-0000000ba701', // bathrooms=1
+    baths2: 'bbbbbbbb-0001-4000-8000-0000000ba702', // bathrooms=2
+    baths3: 'cccccccc-0001-4000-8000-0000000ba703', // bathrooms=3
+    bathsNull: 'dddddddd-0001-4000-8000-0000000ba704', // bathrooms=null
   };
 
   let ownerId: string;
@@ -1177,13 +1352,13 @@ describe('SearchService lot_area_min/max filter (integration, Zillow Phase 2)', 
     uploadsStub,
   );
 
-  const CITY_ID_LOT = '66666666-7777-4666-8999-00000000L001';
+  const CITY_ID_LOT = '66666666-7777-4666-8999-000000001001';
 
   const ID = {
-    lot3: 'aaaaaaaa-0001-4000-8000-00000000L301',   // lotArea=3.00
-    lot6: 'bbbbbbbb-0001-4000-8000-00000000L601',   // lotArea=6.00
-    lot12: 'cccccccc-0001-4000-8000-00000000L121',  // lotArea=12.00
-    lotNull: 'dddddddd-0001-4000-8000-00000000LN01', // lotArea=null
+    lot3: 'aaaaaaaa-0001-4000-8000-000000001301',   // lotArea=3.00
+    lot6: 'bbbbbbbb-0001-4000-8000-000000001601',   // lotArea=6.00
+    lot12: 'cccccccc-0001-4000-8000-000000001121',  // lotArea=12.00
+    lotNull: 'dddddddd-0001-4000-8000-000000001001', // lotArea=null
   };
 
   let ownerId: string;
@@ -1279,9 +1454,9 @@ describe('SearchService amenities filter (integration, Zillow Phase 2)', () => {
   const CITY_ID_AMENITIES = '77777777-8888-4777-9000-00000000A001';
 
   const ID = {
-    both: 'aaaaaaaa-0002-4000-8000-00000000A101',  // amenities=[ELEVATOR, AIR_CONDITIONING]
-    elevatorOnly: 'bbbbbbbb-0002-4000-8000-00000000A102', // amenities=[ELEVATOR]
-    empty: 'cccccccc-0002-4000-8000-00000000A103',  // amenities=[]
+    both: 'aaaaaaaa-0002-4000-8000-00000000a101',  // amenities=[ELEVATOR, AIR_CONDITIONING]
+    elevatorOnly: 'bbbbbbbb-0002-4000-8000-00000000a102', // amenities=[ELEVATOR]
+    empty: 'cccccccc-0002-4000-8000-00000000a103',  // amenities=[]
   };
 
   let ownerId: string;
