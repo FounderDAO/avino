@@ -35,9 +35,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const descFallback = `${listing.type} · ${listing.district} · ${price}`;
   const description = (listing.desc ?? descFallback).slice(0, 155);
 
-  const ogImages = listing.photos[0]
-    ? [{ url: listing.photos[0].url, width: 1200, height: 630, alt: listing.title }]
-    : [];
+  // og:image указывает на стабильный route /api/og/listing/:id (а не на presigned
+  // R2-ссылку с TTL 1ч), чтобы превью соцсетей не «протухало». Фолбэк-картинку
+  // обеспечивает сам маршрут, поэтому og:image отдаём всегда.
+  const ogImages = [{ url: `/api/og/listing/${id}`, alt: listing.title }];
 
   return {
     title,
@@ -45,6 +46,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     alternates: alternatesFor(`/listing/${id}`),
     openGraph: {
       type: 'website',
+      siteName: 'Avino',
       title,
       description,
       url: `${BASE}/${locale}/listing/${id}`,
