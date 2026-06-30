@@ -1,3 +1,4 @@
+import { it, expect } from 'vitest';
 import { clamp, niceStep, toAppliedRange } from './priceRange';
 
 it('clamp ограничивает значение доменом', () => {

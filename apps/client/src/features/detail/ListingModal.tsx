@@ -10,7 +10,7 @@ import * as React from 'react';
 import { Dialog } from 'radix-ui';
 import { useTranslations } from 'next-intl';
 import { ExternalLink } from 'lucide-react';
-import { Link, useRouter } from '@/i18n/navigation';
+import { Link, usePathname, useRouter } from '@/i18n/navigation';
 
 export interface ListingModalProps {
   listingId: string;
@@ -21,7 +21,17 @@ export function ListingModal({ listingId, children }: ListingModalProps) {
   const t = useTranslations('listing');
   const tCommon = useTranslations('common');
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = React.useState(true);
+
+  // Параллельный слот @modal не сбрасывается на default.tsx при soft-навигации
+  // вперёд (напр. «Написать» → /account/inbox или ссылка «Редактировать»):
+  // модалка зависала бы поверх новой страницы. Держим её открытой ровно пока
+  // URL = странице этого объявления; ушли на другой роут → закрываем БЕЗ
+  // router.back() (мы уже ушли вперёд — back бы отменил переход).
+  React.useEffect(() => {
+    setOpen(pathname === `/listing/${listingId}`);
+  }, [pathname, listingId]);
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
