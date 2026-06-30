@@ -13,7 +13,7 @@ import { render, screen } from '@testing-library/react';
 import type { Listing } from '@/lib/mock/types';
 
 // --- Мок флага промо (управляем значением в каждом тесте) ---
-const mockUsePromotionsEnabled = vi.fn<[], boolean>(() => false);
+const mockUsePromotionsEnabled = vi.fn<() => boolean>(() => false);
 
 vi.mock('@/lib/usePromotionsEnabled', () => ({
   usePromotionsEnabled: () => mockUsePromotionsEnabled(),
@@ -25,7 +25,14 @@ vi.mock('@/store/hooks', () => ({
 }));
 
 // --- Мок API листингов (данные задаём через mockGetMyListings) ---
-const mockGetMyListings = vi.fn(() => ({ data: undefined, isLoading: false }));
+type MyListingsResult = {
+  data: { items: Listing[]; total: number } | undefined;
+  isLoading: boolean;
+};
+const mockGetMyListings = vi.fn<() => MyListingsResult>(() => ({
+  data: undefined,
+  isLoading: false,
+}));
 
 vi.mock('@/store/api/myListingsApi', () => ({
   useGetMyListingsQuery: () => mockGetMyListings(),
