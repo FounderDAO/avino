@@ -39,6 +39,35 @@ Related ADR:
 
 ## 2026-06-30
 
+### FIX — Богатое превью ссылок: стабильный OG-image для шаринга объявлений (apps/client)
+
+Status: REVIEW
+Branch: feat/listing-share-og-image
+PR: pending
+
+Files changed:
+- apps/client/src/app/api/og/listing/[id]/route.ts
+- apps/client/src/app/api/og/listing/[id]/route.test.ts
+- apps/client/src/app/[locale]/listing/[id]/page.tsx
+- docs/adr/ADR-0118-listing-share-stable-og-image.md
+
+Summary:
+- Баг: при шаринге ссылки на объявление в Telegram превью «скучное» — без картинки и без строки-бренда (как у OLX). Метаданные были (`og:title/description/image`), но `og:image` указывал на presigned R2-ссылку (`X-Amz-Expires=3600`, TTL 1ч). Соцсети кешируют HTML и дотягивают/перепроверяют картинку позже → через час ссылка отдаёт 403 → превью без фото (тот же класс бага, что ADR-0086). Плюс отсутствовал `og:site_name`.
+- Фикс (ADR-0118): новый route-handler `GET /api/og/listing/:id` (вне `[locale]`, middleware-matcher исключает `/api`) на каждый запрос серверно тянет первое фото листинга и стримит байты с `Cache-Control: public, max-age=86400`. `og:image`/`twitter:image` страницы листинга → этот стабильный URL (presigned-ссылка наружу не утекает, превью не «протухает»). На любой сбой (нет фото / листинг не найден / upstream не 2xx / исключение) — 302 на бренд-иконку `/apple-icon.png`, превью никогда без картинки. В `openGraph` страницы добавлен `siteName: 'Avino'` (Next не deep-merge'ит `openGraph` layout→page, поэтому дублируется явно; `layout.tsx` не тронут).
+- `twitter:image` наследует `openGraph.images` (подтверждено curl'ом до фикса). Захардкоженные `width:1200/height:630` у og-картинки убраны (реальные размеры фото не гарантируем; Telegram масштабирует сам).
+- Операционно: уже расшаренные ссылки показывают старое кеш-превью, пока Telegram не обновит кеш (`@WebpageBot` или со временем) — проверять на свежей ссылке.
+- По финальному ревью (opus): добавлен `AbortSignal.timeout(5000)` на upstream-fetch (зависший R2 не держит запрос — abort уходит в фолбэк) и клэмп не-`image/*` content-type (R2 иногда отдаёт `application/octet-stream`) на `image/jpeg`.
+- Тесты: `route.test.ts` 6/6 (фото→стрим с `Content-Type` из upstream + `Cache-Control`; нет фото / нет листинга / upstream 4xx → 302 фолбэк; исключение в `getListingById`→302; octet-stream→`image/jpeg`). `next build` чисто, маршрут `ƒ /api/og/listing/[id]` (Dynamic).
+
+Commit messages:
+- feat(client): стабильный OG-image route для шаринга объявлений
+- feat(client): og:image листинга → стабильный route + og:site_name
+- docs: ADR-0118 + DONE — стабильный OG-image для шаринга объявлений
+- fix(client): таймаут upstream-fetch + клэмп content-type в OG-image route
+
+Related ADR:
+- docs/adr/ADR-0118-listing-share-stable-og-image.md
+
 ### FIX — Явная сортировка `/search`: гибрид (закреплённое промо) + FX-нормализация цены (apps/api)
 
 Status: REVIEW
