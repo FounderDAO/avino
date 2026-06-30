@@ -1,3 +1,4 @@
+import { it, expect } from 'vitest';
 import { compactPrice } from './format';
 
 // units-переводчик: ключ → сам ключ
