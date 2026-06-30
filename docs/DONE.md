@@ -37,6 +37,30 @@ Related ADR:
 
 ---
 
+## 2026-07-01
+
+### FIX — OG-image на staging указывал на нерабочий прод-хост (build-arg `NEXT_PUBLIC_SITE_URL`)
+
+Status: REVIEW
+Branch: fix/client-site-url-build-arg
+PR: pending
+
+Files changed:
+- apps/client/Dockerfile
+- docker-compose.prod.yml
+
+Summary:
+- После мёржа #273 (ADR-0118) превью на staging осталось без картинки. Причина: новый `og:image` = `${BASE}/api/og/listing/:id`, а `BASE` (`@/lib/seo/base`) дефолтит в `https://avino.uz`, т.к. `NEXT_PUBLIC_SITE_URL` нигде не задавался и Dockerfile его даже не объявлял. Прод-домен `avino.uz` сейчас не обслуживается (нет валидного TLS/приложения) → Telegram не может забрать картinку с прод-хоста. До #273 og:image был абсолютной R2-presigned-ссылкой и от `BASE` не зависел — поэтому баг проявился только сейчас.
+- Фикс: `apps/client/Dockerfile` объявляет `ARG/ENV NEXT_PUBLIC_SITE_URL` (дефолт `https://avino.uz`); `docker-compose.prod.yml` задаёт его build-arg `https://${DOMAIN_CLIENT}` (зеркало существующего `NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN_API}`). На staging `DOMAIN_CLIENT=test.avino.uz` → `BASE=https://test.avino.uz`; на prod → `avino.uz`. Без хардкода окружений.
+- Проверка: `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app config` (с `DOMAIN_CLIENT=test.avino.uz`) резолвит `NEXT_PUBLIC_SITE_URL: https://test.avino.uz`. Маршрут `https://test.avino.uz/api/og/listing/<id>` уже отдаёт `200 image/jpeg`.
+- ⚠️ `NEXT_PUBLIC_*` впекается на build → после мёржа нужно **пересобрать** client-образ на staging (`up -d --build`). Уже расшаренные ссылки — сбросить кеш Telegram через `@WebpageBot`.
+
+Commit messages:
+- fix(client): plumb NEXT_PUBLIC_SITE_URL build-arg → BASE follows DOMAIN_CLIENT
+
+Related ADR:
+- docs/adr/ADR-0118-listing-share-stable-og-image.md (follow-up: deploy-config)
+
 ## 2026-06-30
 
 ### FIX — Богатое превью ссылок: стабильный OG-image для шаринга объявлений (apps/client)

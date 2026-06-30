@@ -17,6 +17,14 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_YANDEX_MAPS_API_KEY=
 ENV NEXT_PUBLIC_YANDEX_MAPS_API_KEY=$NEXT_PUBLIC_YANDEX_MAPS_API_KEY
 
+# Базовый публичный URL сайта (BASE в @/lib/seo/base). Нужен для АБСОЛЮТНЫХ
+# og:image/twitter:image (→ route /api/og/listing/:id), canonical/hreflang и og:url.
+# NEXT_PUBLIC → инлайнится на build. Дефолт — прод-домен; на staging переопределяется
+# build-arg в https://${DOMAIN_CLIENT}. Без него BASE дефолтит в avino.uz, и на staging
+# og:image указывает на нерабочий прод-хост → Telegram не тянет картинку превью.
+ARG NEXT_PUBLIC_SITE_URL=https://avino.uz
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+
 COPY . .
 RUN pnpm install --frozen-lockfile \
  && pnpm --filter @avino/shared build \

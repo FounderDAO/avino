@@ -52,6 +52,10 @@ services:
     build:
       args:
         NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN_API}
+        # BASE сайта = собственный домен клиента (staging: test.avino.uz, prod: avino.uz).
+        # Нужно для абсолютного og:image (route /api/og/listing/:id) — иначе дефолт
+        # avino.uz, и на staging превью-картинка тянется с нерабочего прод-хоста.
+        NEXT_PUBLIC_SITE_URL: https://${DOMAIN_CLIENT}
     ports: !reset []
     environment:
       NODE_ENV: production
