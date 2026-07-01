@@ -284,6 +284,8 @@ function amenitiesFor(g, pt) {
     if (a === 'ELEVATOR' && pt === 'HOUSE') continue; // в доме лифта нет
     if (!out.includes(a)) out.push(a);
   }
+  // Бассейн — только не-квартиры (мобилка #5): часть домов для демо фильтра POOL.
+  if (pt === 'HOUSE' && g % 3 === 0 && !out.includes('POOL')) out.push('POOL');
   return out;
 }
 
@@ -354,34 +356,71 @@ function titles(pt, d, rooms, area, zhk) {
   };
 }
 
-function descs(pt, tx, d, dim, rooms) {
-  const m2 = parseFloat(dim.area);
-  const sot = m2 / 100;
+// Лайфстайл-описания БЕЗ структурных полей (комнаты/м²/этаж/год показываются из
+// полей объявления — не дублируем, баглист мобилки #6). Вариант — по g (детерминизм).
+function descs(g, pt, tx, d) {
   const ru = tx === 'RENT' ? 'Сдаётся в аренду' : 'Продаётся';
   const uz = tx === 'RENT' ? 'Ijaraga beriladi' : 'Sotiladi';
   const en = tx === 'RENT' ? 'For rent' : 'For sale';
   if (pt === 'LAND') {
-    return {
-      RU: `${ru}. Земельный участок ${sot} соток (${m2} м²) в районе ${d.nameRu}. Ровный рельеф, подведены коммуникации, удобный подъезд.`,
-      UZ: `${uz}. ${d.nameRu} tumanida ${sot} sotix (${m2} m²) yer. Tekis relyef, kommunikatsiyalar mavjud, qulay yo'l.`,
-      EN: `${en}. ${sot} sotka (${m2} m²) land plot in ${d.nameEn}. Flat terrain, utilities connected, easy access.`,
-    };
+    const v = [
+      {
+        RU: `${ru}. Ровный участок правильной формы в районе ${d.nameRu}. Коммуникации рядом, круглогодичный подъезд, тихое окружение — подойдёт и под строительство, и как вложение.`,
+        UZ: `${uz}. ${d.nameUz} tumanida tekis, to'g'ri shaklli uchastka. Kommunikatsiyalar yaqin, yil davomida qulay yo'l, tinch atrof-muhit.`,
+        EN: `${en}. Level, regular-shaped plot in ${d.nameEn}. Utilities nearby, year-round access, quiet surroundings — great for building or investment.`,
+      },
+      {
+        RU: `${ru}. Участок в развивающейся части ${d.nameRu}: асфальтированный подъезд, электричество и вода по границе. Документы готовы к сделке.`,
+        UZ: `${uz}. ${d.nameUz}ning rivojlanayotgan qismida uchastka: asfalt yo'l, elektr va suv chegarada. Hujjatlar bitimga tayyor.`,
+        EN: `${en}. Plot in a growing part of ${d.nameEn}: paved access, power and water at the boundary. Paperwork ready.`,
+      },
+      {
+        RU: `${ru}. Тихий участок недалеко от основных магистралей ${d.nameRu}. Хорошие соседи, перспективная локация, разумный торг возможен.`,
+        UZ: `${uz}. ${d.nameUz} asosiy yo'llariga yaqin tinch uchastka. Yaxshi qo'shnilar, istiqbolli joylashuv, kelishish mumkin.`,
+        EN: `${en}. Quiet plot near the main roads of ${d.nameEn}. Good neighbours, promising location, price negotiable.`,
+      },
+    ];
+    return v[g % v.length];
   }
   if (pt === 'COMMERCIAL') {
-    return {
-      RU: `${ru}. Коммерческое помещение ${m2} м² в ${d.nameRu}, ${dim.yearBuilt} г. Отдельный вход, парковка, готово под бизнес.`,
-      UZ: `${uz}. ${d.nameRu}da ${m2} m² tijorat binosi, ${dim.yearBuilt}-yil. Alohida kirish, avtoturargoh, biznesga tayyor.`,
-      EN: `${en}. ${m2} m² commercial unit in ${d.nameEn}, built ${dim.yearBuilt}. Separate entrance, parking, business-ready.`,
-    };
+    const v = [
+      {
+        RU: `${ru}. Помещение с отдельным входом и витринными окнами в проходной части ${d.nameRu}. Подходит под магазин, офис или сферу услуг.`,
+        UZ: `${uz}. ${d.nameUz}ning gavjum qismida alohida kirish va vitrina oynalariga ega bino. Do'kon, ofis yoki xizmat ko'rsatish uchun mos.`,
+        EN: `${en}. Unit with a separate entrance and display windows in a busy part of ${d.nameEn}. Suits retail, office or services.`,
+      },
+      {
+        RU: `${ru}. Готовое к работе помещение: свежий ремонт, все коммуникации, парковка для клиентов. Первая линия, ${d.nameRu}.`,
+        UZ: `${uz}. Ishga tayyor bino: yangi ta'mir, barcha kommunikatsiyalar, mijozlar uchun avtoturargoh. Birinchi qator, ${d.nameUz}.`,
+        EN: `${en}. Move-in-ready unit: fresh renovation, all utilities, customer parking. Street-front location in ${d.nameEn}.`,
+      },
+      {
+        RU: `${ru}. Ликвидное помещение в ${d.nameRu} с высоким пешеходным трафиком. Гибкая планировка, возможно расширение на соседние площади.`,
+        UZ: `${uz}. ${d.nameUz}da piyodalar oqimi yuqori bo'lgan likvidli bino. Moslashuvchan rejalashtirish, kengaytirish imkoniyati bor.`,
+        EN: `${en}. High-footfall unit in ${d.nameEn}. Flexible layout, adjacent space available for expansion.`,
+      },
+    ];
+    return v[g % v.length];
   }
-  const flRu = dim.floor && dim.totalFloors ? `этаж ${dim.floor}/${dim.totalFloors}, ` : '';
-  const flUz = dim.floor && dim.totalFloors ? `${dim.floor}/${dim.totalFloors}-qavat, ` : '';
-  const flEn = dim.floor && dim.totalFloors ? `floor ${dim.floor}/${dim.totalFloors}, ` : '';
-  return {
-    RU: `${ru}. ${rooms}-комнатная, ${m2} м², ${flRu}${dim.yearBuilt} г. постройки, ${d.nameRu}. Рядом школа, магазины и остановки транспорта.`,
-    UZ: `${uz}. ${rooms} xonali, ${m2} m², ${flUz}${dim.yearBuilt}-yil, ${d.nameRu}. Yaqinda maktab, do'konlar va bekatlar.`,
-    EN: `${en}. ${rooms}-room, ${m2} m², ${flEn}built ${dim.yearBuilt}, ${d.nameEn}. Schools, shops and transit nearby.`,
-  };
+  const tw = TYPE_W[pt] || { ru: 'квартира', uz: 'kvartira', en: 'apartment' };
+  const v = [
+    {
+      RU: `${ru}. Светлая ${tw.ru} с продуманной планировкой в ${d.nameRu}. Во дворе детская площадка; школа, детский сад и магазины — в пешей доступности.`,
+      UZ: `${uz}. ${d.nameUz}da yorug', qulay rejalashtirilgan ${tw.uz}. Hovlida bolalar maydonchasi; maktab, bog'cha va do'konlar piyoda yetib boriladigan masofada.`,
+      EN: `${en}. Bright ${tw.en} with a practical layout in ${d.nameEn}. Playground in the courtyard; school, kindergarten and shops within walking distance.`,
+    },
+    {
+      RU: `${ru}. Качественный ремонт, тёплый и тихий двор, приветливые соседи. Удобный выезд на основные магистрали ${d.nameRu}, остановки транспорта рядом.`,
+      UZ: `${uz}. Sifatli ta'mir, issiq va tinch hovli, yaxshi qo'shnilar. ${d.nameUz} asosiy yo'llariga qulay chiqish, bekatlar yaqin.`,
+      EN: `${en}. Quality renovation, warm and quiet courtyard, friendly neighbours. Easy access to the main roads of ${d.nameEn}, transit stops nearby.`,
+    },
+    {
+      RU: `${ru}. Развитая инфраструктура ${d.nameRu}: рынки, парки и поликлиника в нескольких минутах. Отличный вариант и для жизни, и под сдачу.`,
+      UZ: `${uz}. ${d.nameUz}ning rivojlangan infratuzilmasi: bozorlar, parklar va poliklinika bir necha daqiqada. Yashash uchun ham, ijaraga berish uchun ham ajoyib variant.`,
+      EN: `${en}. Well-developed ${d.nameEn} infrastructure: markets, parks and a clinic minutes away. Great both to live in and to rent out.`,
+    },
+  ];
+  return v[g % v.length];
 }
 
 const MEDIA_PLAN = {
@@ -522,7 +561,7 @@ async function upsertListing(g, region, district, now) {
   });
 
   const t = titles(pt, district, dim.rooms, dim.area, zhk);
-  const ds = descs(pt, tx, district, dim, dim.rooms);
+  const ds = descs(g, pt, tx, district);
   const LANGS = [['RU', 0], ['UZ', 1], ['EN', 2]];
   for (const [lang, li] of LANGS) {
     await prisma.listingTranslation.upsert({
