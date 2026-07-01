@@ -237,6 +237,18 @@ describe('ListingsService', () => {
       const data = prisma.listing.create.mock.calls[0][0].data;
       expect(data.bathrooms).toBe(1.5);
     });
+
+    it('passes is_basement through to Prisma on create', async () => {
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        is_basement: true,
+      } as any);
+
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.isBasement).toBe(true);
+    });
   });
 
   describe('update', () => {
@@ -397,6 +409,7 @@ describe('ListingsService', () => {
       area: new Prisma.Decimal('62.50'),
       rooms: 2,
       floor: 4,
+      isBasement: false,
       totalFloors: 9,
       yearBuilt: 2018,
       address: 'Yunusobod 12-23',
@@ -454,6 +467,7 @@ describe('ListingsService', () => {
         status: ListingStatus.ACTIVE,
         price: '4500000.00',
         area: '62.50',
+        is_basement: false,
         latitude: '41.350000',
         longitude: '69.290000',
         promotion_type: PromotionType.VIP,
@@ -685,6 +699,7 @@ describe('ListingsService', () => {
       currency: Currency.UZS,
       area: new Prisma.Decimal('62.50'),
       rooms: 2,
+      isBasement: false,
       cityId: 'c1',
       districtId: 'd1',
       promotionType: PromotionType.NORMAL,
@@ -729,6 +744,7 @@ describe('ListingsService', () => {
         lot_area: null,
         rooms: 2,
         bathrooms: null,
+        is_basement: false,
         city_id: 'c1',
         district_id: 'd1',
         promotion_type: PromotionType.NORMAL,

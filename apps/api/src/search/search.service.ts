@@ -72,6 +72,7 @@ export interface SearchListItem {
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
+  is_basement: boolean;
   lot_area: string | null;
   city_id: string | null;
   district_id: string | null;
@@ -221,6 +222,7 @@ const SEARCH_SELECT = {
   rooms: true,
   bathrooms: true,
   parkingType: true,
+  isBasement: true,
   lotArea: true,
   cityId: true,
   districtId: true,
@@ -1058,6 +1060,10 @@ export class SearchService {
     if (query.not_last_floor === true)
       conds.push(Prisma.sql`floor < total_floors`);
 
+    // Мобилка #4: только цокольный этаж
+    if (query.is_basement === true)
+      conds.push(Prisma.sql`is_basement = true`);
+
     // Zillow Phase 1: этажность здания
     if (query.total_floors_min !== undefined)
       conds.push(Prisma.sql`total_floors >= ${query.total_floors_min}`);
@@ -1164,6 +1170,7 @@ export class SearchService {
       // Контракт: number с шагом 0.5 (не строка, как другие Decimal) — спека 2026-07-02.
       bathrooms: listing.bathrooms?.toNumber() ?? null,
       parking_type: listing.parkingType,
+      is_basement: listing.isBasement,
       lot_area: listing.lotArea?.toFixed(2) ?? null,
       city_id: listing.cityId,
       district_id: listing.districtId,

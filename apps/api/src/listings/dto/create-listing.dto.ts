@@ -138,6 +138,11 @@ export class CreateListingDto {
   @Max(SMALLINT_MAX)
   floor?: number;
 
+  /** Цокольный этаж (баглист мобилки #4). При true клиент обычно шлёт floor: null. */
+  @IsOptional()
+  @IsBoolean()
+  is_basement?: boolean;
+
   @IsOptional()
   @IsInt()
   @Min(0)

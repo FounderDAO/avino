@@ -438,6 +438,7 @@ model Listing {
   parkingType        ParkingType?                           @map("parking_type")
   amenities          Amenity[]
   floor              Int?                                   @db.SmallInt
+  isBasement         Boolean                                @default(false) @map("is_basement")
   totalFloors        Int?                                   @map("total_floors") @db.SmallInt
   yearBuilt          Int?                                   @map("year_built") @db.SmallInt
   address            String?                                @db.VarChar(500)

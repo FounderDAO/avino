@@ -43,6 +43,11 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(inst.not_last_floor).toBe(false);
   });
 
+  it('парсит is_basement из query-строки', () => {
+    expect(dto({ is_basement: 'true' }).inst.is_basement).toBe(true);
+    expect(dto({ is_basement: 'false' }).inst.is_basement).toBe(false);
+  });
+
   it('нормализует listing_source в массив и валидирует значения', () => {
     expect(dto({ listing_source: 'OWNER' }).inst.listing_source).toEqual(['OWNER']);
     expect(dto({ listing_source: ['OWNER', 'AGENCY'] }).errors).toHaveLength(0);

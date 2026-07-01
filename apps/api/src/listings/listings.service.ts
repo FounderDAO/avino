@@ -59,6 +59,7 @@ interface ListingScalarInput {
   parking_type?: ParkingType;
   amenities?: Amenity[];
   floor?: number;
+  is_basement?: boolean;
   total_floors?: number;
   year_built?: number;
   address?: string;
@@ -96,6 +97,7 @@ interface ListingScalarData {
   parkingType?: ParkingType;
   amenities?: Amenity[];
   floor?: number;
+  isBasement?: boolean;
   totalFloors?: number;
   yearBuilt?: number;
   address?: string;
@@ -189,6 +191,7 @@ export interface ListingDetailResponse {
   parking_type: ParkingType | null;
   amenities: Amenity[];
   floor: number | null;
+  is_basement: boolean;
   total_floors: number | null;
   year_built: number | null;
   city_id: string | null;
@@ -250,6 +253,7 @@ const LISTING_DETAIL_SELECT = {
   parkingType: true,
   amenities: true,
   floor: true,
+  isBasement: true,
   totalFloors: true,
   yearBuilt: true,
   address: true,
@@ -308,6 +312,7 @@ export interface ListingListItem {
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
+  is_basement: boolean;
   city_id: string | null;
   district_id: string | null;
   promotion_type: PromotionType;
@@ -341,6 +346,7 @@ const LISTING_LIST_SELECT = {
   rooms: true,
   bathrooms: true,
   parkingType: true,
+  isBasement: true,
   cityId: true,
   districtId: true,
   promotionType: true,
@@ -769,6 +775,7 @@ export class ListingsService {
     if (dto.parking_type !== undefined) data.parkingType = dto.parking_type;
     if (dto.amenities !== undefined) data.amenities = dto.amenities;
     if (dto.floor !== undefined) data.floor = dto.floor;
+    if (dto.is_basement !== undefined) data.isBasement = dto.is_basement;
     if (dto.total_floors !== undefined) data.totalFloors = dto.total_floors;
     if (dto.year_built !== undefined) data.yearBuilt = dto.year_built;
     if (dto.address !== undefined) data.address = dto.address;
@@ -853,6 +860,7 @@ export class ListingsService {
       rooms: listing.rooms,
       bathrooms: listing.bathrooms?.toNumber() ?? null,
       parking_type: listing.parkingType,
+      is_basement: listing.isBasement,
       city_id: listing.cityId,
       district_id: listing.districtId,
       promotion_type: listing.promotionType,
@@ -928,6 +936,7 @@ export class ListingsService {
       parking_type: listing.parkingType,
       amenities: listing.amenities,
       floor: listing.floor,
+      is_basement: listing.isBasement,
       total_floors: listing.totalFloors,
       year_built: listing.yearBuilt,
       city_id: listing.cityId,
