@@ -22,6 +22,7 @@ export const baseApi = createApi({
     'Chat',
     'Notification',
     'TourRequest',
+    'TourTakenSlots',
     'User',
   ],
   endpoints: () => ({}),

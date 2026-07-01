@@ -392,6 +392,8 @@
     "windowRequired": "Select a time",
     "phoneRequired": "Enter a phone number",
     "dateRequired": "Select a date",
+    "slotTaken": "taken",
+    "slotTakenError": "This time slot is already taken. Please choose another.",
     "close": "Close"
   },
   "sell": {
