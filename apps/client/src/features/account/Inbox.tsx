@@ -435,9 +435,7 @@ export function Inbox() {
                 >
                   <ChevronLeft size={22} />
                 </button>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint font-extrabold text-teal-deep">
-                  {avatarInitial(selectedThread)}
-                </span>
+                <ThreadAvatar thread={selectedThread} className="h-10 w-10" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-bold">
                     {threadTitle(selectedThread)}
