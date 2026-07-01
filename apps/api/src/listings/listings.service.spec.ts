@@ -185,6 +185,20 @@ describe('ListingsService', () => {
       expect(data.lotArea).toBe('5.50');
     });
 
+    it('passes living_area/non_living_area through to Prisma on create', async () => {
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        living_area: '95.00',
+        non_living_area: '25.50',
+      } as any);
+
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.livingArea).toBe('95.00');
+      expect(data.nonLivingArea).toBe('25.50');
+    });
+
     it('auto-grants the OWNER role when the author has no seller role (first listing)', async () => {
       prisma.userRole.count.mockResolvedValue(0); // ни одной продавцовской роли
       prisma.role.findUnique.mockResolvedValue({ id: 'role-owner' });
@@ -407,6 +421,8 @@ describe('ListingsService', () => {
       price: new Prisma.Decimal('4500000.00'),
       currency: Currency.UZS,
       area: new Prisma.Decimal('62.50'),
+      livingArea: new Prisma.Decimal('95.00'),
+      nonLivingArea: null,
       rooms: 2,
       floor: 4,
       isBasement: false,
@@ -467,6 +483,8 @@ describe('ListingsService', () => {
         status: ListingStatus.ACTIVE,
         price: '4500000.00',
         area: '62.50',
+        living_area: '95.00',
+        non_living_area: null,
         is_basement: false,
         latitude: '41.350000',
         longitude: '69.290000',

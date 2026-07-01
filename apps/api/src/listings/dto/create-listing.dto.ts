@@ -109,6 +109,16 @@ export class CreateListingDto {
   @Matches(DECIMAL_2, { message: 'lot_area must be a decimal string with up to 2 fraction digits' })
   lot_area?: string;
 
+  /** Жилая площадь, м² (мобилка #10; клиент показывает для дома/особняка). */
+  @IsOptional()
+  @Matches(DECIMAL_2, { message: 'living_area must be a decimal string with up to 2 fraction digits' })
+  living_area?: string;
+
+  /** Нежилая площадь, м² (кухня/санузлы/коридоры). */
+  @IsOptional()
+  @Matches(DECIMAL_2, { message: 'non_living_area must be a decimal string with up to 2 fraction digits' })
+  non_living_area?: string;
+
   @IsOptional()
   @IsInt()
   @Min(0)

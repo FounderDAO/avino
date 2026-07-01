@@ -54,6 +54,8 @@ interface ListingScalarInput {
   currency?: Currency;
   area?: string;
   lot_area?: string;
+  living_area?: string;
+  non_living_area?: string;
   rooms?: number;
   bathrooms?: number;
   parking_type?: ParkingType;
@@ -92,6 +94,8 @@ interface ListingScalarData {
   currency?: Currency;
   area?: string;
   lotArea?: string;
+  livingArea?: string;
+  nonLivingArea?: string;
   rooms?: number;
   bathrooms?: number;
   parkingType?: ParkingType;
@@ -186,6 +190,8 @@ export interface ListingDetailResponse {
   currency: Currency;
   area: string | null;
   lot_area: string | null;
+  living_area: string | null;
+  non_living_area: string | null;
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
@@ -248,6 +254,8 @@ const LISTING_DETAIL_SELECT = {
   currency: true,
   area: true,
   lotArea: true,
+  livingArea: true,
+  nonLivingArea: true,
   rooms: true,
   bathrooms: true,
   parkingType: true,
@@ -770,6 +778,9 @@ export class ListingsService {
     if (dto.currency !== undefined) data.currency = dto.currency;
     if (dto.area !== undefined) data.area = dto.area;
     if (dto.lot_area !== undefined) data.lotArea = dto.lot_area;
+    if (dto.living_area !== undefined) data.livingArea = dto.living_area;
+    if (dto.non_living_area !== undefined)
+      data.nonLivingArea = dto.non_living_area;
     if (dto.rooms !== undefined) data.rooms = dto.rooms;
     if (dto.bathrooms !== undefined) data.bathrooms = dto.bathrooms;
     if (dto.parking_type !== undefined) data.parkingType = dto.parking_type;
@@ -931,6 +942,8 @@ export class ListingsService {
       currency: listing.currency,
       area: listing.area?.toFixed(2) ?? null,
       lot_area: listing.lotArea?.toFixed(2) ?? null,
+      living_area: listing.livingArea?.toFixed(2) ?? null,
+      non_living_area: listing.nonLivingArea?.toFixed(2) ?? null,
       rooms: listing.rooms,
       bathrooms: listing.bathrooms?.toNumber() ?? null,
       parking_type: listing.parkingType,
