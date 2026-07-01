@@ -60,6 +60,7 @@ enum Amenity {
   BALCONY
   HEATING
   SECURITY
+  POOL
 }
 
 /// Тип сделки по объявлению (DB_SCHEMA.md §3). Создаётся как Postgres enum
@@ -433,11 +434,14 @@ model Listing {
   currency           Currency
   area               Decimal?                               @db.Decimal(10, 2)
   lotArea            Decimal?                               @map("lot_area") @db.Decimal(10, 2)
+  livingArea         Decimal?                               @map("living_area") @db.Decimal(10, 2)
+  nonLivingArea      Decimal?                               @map("non_living_area") @db.Decimal(10, 2)
   rooms              Int?                                   @db.SmallInt
-  bathrooms          Int?                                   @db.SmallInt
+  bathrooms          Decimal?                               @db.Decimal(3, 1)
   parkingType        ParkingType?                           @map("parking_type")
   amenities          Amenity[]
   floor              Int?                                   @db.SmallInt
+  isBasement         Boolean                                @default(false) @map("is_basement")
   totalFloors        Int?                                   @map("total_floors") @db.SmallInt
   yearBuilt          Int?                                   @map("year_built") @db.SmallInt
   address            String?                                @db.VarChar(500)
@@ -457,6 +461,7 @@ model Listing {
   // принимаются; окна — общие, локальное Asia/Tashkent.
   toursEnabled       Boolean                                @default(false) @map("tours_enabled")
   tourWindows        Json                                   @default("[]") @map("tour_windows")
+  viewsCount         Int                                    @default(0) @map("views_count")
   createdAt          DateTime                               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime                               @updatedAt @map("updated_at") @db.Timestamptz(6)
 

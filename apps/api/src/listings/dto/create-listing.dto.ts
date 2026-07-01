@@ -8,6 +8,7 @@ import {
   IsLatitude,
   IsLongitude,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -25,6 +26,7 @@ import {
   PropertyType,
   TransactionType,
 } from '@prisma/client';
+import { IsHalfStep } from '../../common/validation/is-half-step';
 
 /**
  * Денежные/площадные поля — строки-Decimal, никогда float (ADR-002). До 12 цифр
@@ -107,16 +109,28 @@ export class CreateListingDto {
   @Matches(DECIMAL_2, { message: 'lot_area must be a decimal string with up to 2 fraction digits' })
   lot_area?: string;
 
+  /** Жилая площадь, м² (мобилка #10; клиент показывает для дома/особняка). */
+  @IsOptional()
+  @Matches(DECIMAL_2, { message: 'living_area must be a decimal string with up to 2 fraction digits' })
+  living_area?: string;
+
+  /** Нежилая площадь, м² (кухня/санузлы/коридоры). */
+  @IsOptional()
+  @Matches(DECIMAL_2, { message: 'non_living_area must be a decimal string with up to 2 fraction digits' })
+  non_living_area?: string;
+
   @IsOptional()
   @IsInt()
   @Min(0)
   @Max(SMALLINT_MAX)
   rooms?: number;
 
+  /** Санузлы, шаг 0.5 (1, 1.5, 2 …) — баглист мобилки #3. */
   @IsOptional()
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 1 })
+  @IsHalfStep()
   @Min(0)
-  @Max(SMALLINT_MAX)
+  @Max(99)
   bathrooms?: number;
 
   @IsOptional()
@@ -133,6 +147,11 @@ export class CreateListingDto {
   @Min(0)
   @Max(SMALLINT_MAX)
   floor?: number;
+
+  /** Цокольный этаж (баглист мобилки #4). При true клиент обычно шлёт floor: null. */
+  @IsOptional()
+  @IsBoolean()
+  is_basement?: boolean;
 
   @IsOptional()
   @IsInt()

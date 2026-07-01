@@ -43,6 +43,11 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(inst.not_last_floor).toBe(false);
   });
 
+  it('парсит is_basement из query-строки', () => {
+    expect(dto({ is_basement: 'true' }).inst.is_basement).toBe(true);
+    expect(dto({ is_basement: 'false' }).inst.is_basement).toBe(false);
+  });
+
   it('нормализует listing_source в массив и валидирует значения', () => {
     expect(dto({ listing_source: 'OWNER' }).inst.listing_source).toEqual(['OWNER']);
     expect(dto({ listing_source: ['OWNER', 'AGENCY'] }).errors).toHaveLength(0);
@@ -55,6 +60,12 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(inst.amenities).toEqual(['ELEVATOR', 'HEATING']);
   });
 
+  it('принимает amenities=POOL (бассейн, мобилка #5)', () => {
+    const { inst, errors } = dto({ amenities: 'POOL' });
+    expect(errors).toHaveLength(0);
+    expect(inst.amenities).toEqual(['POOL']);
+  });
+
   it('отклоняет невалидное значение amenities', () => {
     const { errors } = dto({ amenities: ['NOPE'] });
     expect(errors.length).toBeGreaterThan(0);
@@ -64,5 +75,16 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     const { inst, errors } = dto({ amenities: 'ELEVATOR' });
     expect(errors).toHaveLength(0);
     expect(inst.amenities).toEqual(['ELEVATOR']);
+  });
+
+  it('принимает bathrooms_min кратный 0.5', () => {
+    const { inst, errors } = dto({ bathrooms_min: '1.5' });
+    expect(errors).toHaveLength(0);
+    expect(inst.bathrooms_min).toBe(1.5);
+  });
+
+  it('отклоняет bathrooms_min, не кратный 0.5', () => {
+    const { errors } = dto({ bathrooms_min: '1.3' });
+    expect(errors.length).toBeGreaterThan(0);
   });
 });

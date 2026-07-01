@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Headers,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -101,6 +102,18 @@ export class ListingsController {
       lang,
       acceptLanguage,
     );
+  }
+
+  /**
+   * `POST /api/v1/listings/:id/view` — засчитать просмотр детали (мобилка #8).
+   * Публичный (гость тоже считается), 204 без тела; несуществующий/DELETED → 404.
+   */
+  @Post(':id/view')
+  @HttpCode(204)
+  registerView(
+    @Param('id', ParseUUIDPipe) listingId: string,
+  ): Promise<void> {
+    return this.listingsService.registerView(listingId);
   }
 
   /** `PATCH /api/v1/listings/:id` — обновить собственное объявление. */

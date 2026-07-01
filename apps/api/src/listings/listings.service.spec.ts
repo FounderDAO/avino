@@ -68,6 +68,7 @@ describe('ListingsService', () => {
         findMany: jest.fn(),
         count: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
       // Авто-апгрейд автора до OWNER при первом объявлении (ADR-0083). Дефолт —
       // «уже продавец» (count>0), чтобы базовый тест create фокусировался на
@@ -83,6 +84,8 @@ describe('ListingsService', () => {
     // create() оборачивает апгрейд роли + запись листинга в один $transaction;
     // мок прокидывает тот же prisma как tx-клиент (callback-форма).
     prisma.$transaction = jest.fn().mockImplementation((cb: any) => cb(prisma));
+    // registerView — raw UPDATE (не трогает @updatedAt), см. describe('registerView').
+    prisma.$executeRaw = jest.fn();
     // Реальный TranslationsService (логика переводов делегирована ему, TASK-070);
     // его resolveLanguage/buildOriginalTranslationInput чисты, prisma не вызывают.
     // DistrictsService застаблен — резолв district_name проверяется в int-spec.
@@ -185,6 +188,20 @@ describe('ListingsService', () => {
       expect(data.lotArea).toBe('5.50');
     });
 
+    it('passes living_area/non_living_area through to Prisma on create', async () => {
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        living_area: '95.00',
+        non_living_area: '25.50',
+      } as any);
+
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.livingArea).toBe('95.00');
+      expect(data.nonLivingArea).toBe('25.50');
+    });
+
     it('auto-grants the OWNER role when the author has no seller role (first listing)', async () => {
       prisma.userRole.count.mockResolvedValue(0); // ни одной продавцовской роли
       prisma.role.findUnique.mockResolvedValue({ id: 'role-owner' });
@@ -224,6 +241,30 @@ describe('ListingsService', () => {
 
       expect(prisma.userRole.upsert).not.toHaveBeenCalled();
       expect(prisma.listing.create).toHaveBeenCalled();
+    });
+
+    it('passes fractional bathrooms (1.5) through to Prisma on create', async () => {
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        bathrooms: 1.5,
+      } as any);
+
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.bathrooms).toBe(1.5);
+    });
+
+    it('passes is_basement through to Prisma on create', async () => {
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        is_basement: true,
+      } as any);
+
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.isBasement).toBe(true);
     });
   });
 
@@ -383,8 +424,11 @@ describe('ListingsService', () => {
       price: new Prisma.Decimal('4500000.00'),
       currency: Currency.UZS,
       area: new Prisma.Decimal('62.50'),
+      livingArea: new Prisma.Decimal('95.00'),
+      nonLivingArea: null,
       rooms: 2,
       floor: 4,
+      isBasement: false,
       totalFloors: 9,
       yearBuilt: 2018,
       address: 'Yunusobod 12-23',
@@ -397,6 +441,8 @@ describe('ListingsService', () => {
       promotionExpiresAt: new Date('2026-06-20T00:00:00.000Z'),
       publishedAt: new Date('2026-06-01T10:00:00.000Z'),
       createdAt: new Date('2026-05-30T09:00:00.000Z'),
+      viewsCount: 12,
+      _count: { favorites: 3 },
       translations: [
         {
           language: Language.RU,
@@ -442,6 +488,9 @@ describe('ListingsService', () => {
         status: ListingStatus.ACTIVE,
         price: '4500000.00',
         area: '62.50',
+        living_area: '95.00',
+        non_living_area: null,
+        is_basement: false,
         latitude: '41.350000',
         longitude: '69.290000',
         promotion_type: PromotionType.VIP,
@@ -452,6 +501,8 @@ describe('ListingsService', () => {
         features_text: 'балкон',
         published_at: '2026-06-01T10:00:00.000Z',
         created_at: '2026-05-30T09:00:00.000Z',
+        views_count: 12,
+        likes_count: 3,
         // Контакт автора (TASK-210): displayName + contactPhone приоритетны,
         // роль AGENT → type=agent, is_pro=true.
         contact: {
@@ -673,12 +724,15 @@ describe('ListingsService', () => {
       currency: Currency.UZS,
       area: new Prisma.Decimal('62.50'),
       rooms: 2,
+      isBasement: false,
       cityId: 'c1',
       districtId: 'd1',
       promotionType: PromotionType.NORMAL,
       promotionExpiresAt: null,
       publishedAt: null,
       createdAt: new Date('2026-06-03T09:00:00.000Z'),
+      viewsCount: 0,
+      _count: { favorites: 0 },
       translations: [
         { language: Language.RU, title: '2-комн квартира' },
         { language: Language.EN, title: '2-room apartment' },
@@ -716,6 +770,8 @@ describe('ListingsService', () => {
         area: '62.50',
         lot_area: null,
         rooms: 2,
+        bathrooms: null,
+        is_basement: false,
         city_id: 'c1',
         district_id: 'd1',
         promotion_type: PromotionType.NORMAL,
@@ -726,6 +782,8 @@ describe('ListingsService', () => {
         thumbnail_url: 'https://cdn.avino.uz/l1/1_thumb.webp',
         published_at: null,
         created_at: '2026-06-03T09:00:00.000Z',
+        views_count: 0,
+        likes_count: 0,
       });
     });
 
@@ -789,6 +847,22 @@ describe('ListingsService', () => {
 
       expect(result.data[0].title).toBe('Only EN');
       expect(result.data[0].thumbnail_url).toBeNull();
+    });
+  });
+
+  describe('registerView', () => {
+    it('инкрементит views_count raw-UPDATE, резолвится без ошибки', async () => {
+      prisma.$executeRaw.mockResolvedValue(1);
+
+      await expect(service.registerView(LISTING_ID)).resolves.toBeUndefined();
+
+      expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    });
+
+    it('404 когда листинг не найден или не ACTIVE', async () => {
+      prisma.$executeRaw.mockResolvedValue(0);
+
+      await expectCode(service.registerView(LISTING_ID), ApiErrorCode.NOT_FOUND);
     });
   });
 });

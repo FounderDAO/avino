@@ -54,11 +54,14 @@ interface ListingScalarInput {
   currency?: Currency;
   area?: string;
   lot_area?: string;
+  living_area?: string;
+  non_living_area?: string;
   rooms?: number;
   bathrooms?: number;
   parking_type?: ParkingType;
   amenities?: Amenity[];
   floor?: number;
+  is_basement?: boolean;
   total_floors?: number;
   year_built?: number;
   address?: string;
@@ -91,11 +94,14 @@ interface ListingScalarData {
   currency?: Currency;
   area?: string;
   lotArea?: string;
+  livingArea?: string;
+  nonLivingArea?: string;
   rooms?: number;
   bathrooms?: number;
   parkingType?: ParkingType;
   amenities?: Amenity[];
   floor?: number;
+  isBasement?: boolean;
   totalFloors?: number;
   yearBuilt?: number;
   address?: string;
@@ -184,11 +190,14 @@ export interface ListingDetailResponse {
   currency: Currency;
   area: string | null;
   lot_area: string | null;
+  living_area: string | null;
+  non_living_area: string | null;
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
   amenities: Amenity[];
   floor: number | null;
+  is_basement: boolean;
   total_floors: number | null;
   year_built: number | null;
   city_id: string | null;
@@ -212,6 +221,8 @@ export interface ListingDetailResponse {
   media: ListingMediaResponse[];
   tours_enabled: boolean;
   tour_windows: TourWindow[];
+  views_count: number;
+  likes_count: number;
   published_at: string | null;
   created_at: string;
 }
@@ -245,11 +256,14 @@ const LISTING_DETAIL_SELECT = {
   currency: true,
   area: true,
   lotArea: true,
+  livingArea: true,
+  nonLivingArea: true,
   rooms: true,
   bathrooms: true,
   parkingType: true,
   amenities: true,
   floor: true,
+  isBasement: true,
   totalFloors: true,
   yearBuilt: true,
   address: true,
@@ -263,6 +277,9 @@ const LISTING_DETAIL_SELECT = {
   createdAt: true,
   toursEnabled: true,
   tourWindows: true,
+  viewsCount: true,
+  // Живой агрегат лайков (мобилка #8): COUNT по favorites, без денормализации.
+  _count: { select: { favorites: true } },
   translations: {
     select: {
       language: true,
@@ -308,6 +325,7 @@ export interface ListingListItem {
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
+  is_basement: boolean;
   city_id: string | null;
   district_id: string | null;
   promotion_type: PromotionType;
@@ -315,6 +333,8 @@ export interface ListingListItem {
   original_language: Language;
   title: string;
   thumbnail_url: string | null;
+  views_count: number;
+  likes_count: number;
   published_at: string | null;
   created_at: string;
 }
@@ -341,12 +361,16 @@ const LISTING_LIST_SELECT = {
   rooms: true,
   bathrooms: true,
   parkingType: true,
+  isBasement: true,
   cityId: true,
   districtId: true,
   promotionType: true,
   promotionExpiresAt: true,
   publishedAt: true,
   createdAt: true,
+  viewsCount: true,
+  // Живой агрегат лайков (мобилка #8): COUNT по favorites, без денормализации.
+  _count: { select: { favorites: true } },
   translations: {
     select: { language: true, title: true },
   },
@@ -740,6 +764,27 @@ export class ListingsService {
     };
   }
 
+  /**
+   * `POST /api/v1/listings/:id/view` — счётчик просмотров детали (мобилка #8).
+   * Простой атомарный инкремент без дедупликации (решение спеки 2026-07-02).
+   * Только ACTIVE: непубличные статусы отвечают 404, как анонимный GET детали
+   * (не раскрываем существование скрытых объявлений и не копим просмотры до
+   * публикации). Raw UPDATE, а не prisma.update: @updatedAt не должен бампаться
+   * анонимными просмотрами — updated_at остаётся «последним редактированием».
+   */
+  async registerView(listingId: string): Promise<void> {
+    const count = await this.prisma.$executeRaw`
+      UPDATE listings SET views_count = views_count + 1
+      WHERE id = ${listingId}::uuid AND status = 'ACTIVE'
+    `;
+    if (count === 0) {
+      throw new NotFoundException({
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Listing not found',
+      });
+    }
+  }
+
   /** Владелец листинга или привилегированная роль (MODERATOR/ADMIN). */
   private canViewNonActive(
     ownerId: string,
@@ -764,11 +809,15 @@ export class ListingsService {
     if (dto.currency !== undefined) data.currency = dto.currency;
     if (dto.area !== undefined) data.area = dto.area;
     if (dto.lot_area !== undefined) data.lotArea = dto.lot_area;
+    if (dto.living_area !== undefined) data.livingArea = dto.living_area;
+    if (dto.non_living_area !== undefined)
+      data.nonLivingArea = dto.non_living_area;
     if (dto.rooms !== undefined) data.rooms = dto.rooms;
     if (dto.bathrooms !== undefined) data.bathrooms = dto.bathrooms;
     if (dto.parking_type !== undefined) data.parkingType = dto.parking_type;
     if (dto.amenities !== undefined) data.amenities = dto.amenities;
     if (dto.floor !== undefined) data.floor = dto.floor;
+    if (dto.is_basement !== undefined) data.isBasement = dto.is_basement;
     if (dto.total_floors !== undefined) data.totalFloors = dto.total_floors;
     if (dto.year_built !== undefined) data.yearBuilt = dto.year_built;
     if (dto.address !== undefined) data.address = dto.address;
@@ -851,8 +900,9 @@ export class ListingsService {
       area: listing.area?.toFixed(2) ?? null,
       lot_area: listing.lotArea?.toFixed(2) ?? null,
       rooms: listing.rooms,
-      bathrooms: listing.bathrooms,
+      bathrooms: listing.bathrooms?.toNumber() ?? null,
       parking_type: listing.parkingType,
+      is_basement: listing.isBasement,
       city_id: listing.cityId,
       district_id: listing.districtId,
       promotion_type: listing.promotionType,
@@ -860,6 +910,8 @@ export class ListingsService {
       original_language: listing.originalLanguage,
       title: translation?.title ?? '',
       thumbnail_url: thumbnailUrl,
+      views_count: listing.viewsCount,
+      likes_count: listing._count.favorites,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
     };
@@ -923,11 +975,14 @@ export class ListingsService {
       currency: listing.currency,
       area: listing.area?.toFixed(2) ?? null,
       lot_area: listing.lotArea?.toFixed(2) ?? null,
+      living_area: listing.livingArea?.toFixed(2) ?? null,
+      non_living_area: listing.nonLivingArea?.toFixed(2) ?? null,
       rooms: listing.rooms,
-      bathrooms: listing.bathrooms,
+      bathrooms: listing.bathrooms?.toNumber() ?? null,
       parking_type: listing.parkingType,
       amenities: listing.amenities,
       floor: listing.floor,
+      is_basement: listing.isBasement,
       total_floors: listing.totalFloors,
       year_built: listing.yearBuilt,
       city_id: listing.cityId,
@@ -948,6 +1003,8 @@ export class ListingsService {
       media,
       tours_enabled: listing.toursEnabled,
       tour_windows: (listing.tourWindows as unknown as TourWindow[]) ?? [],
+      views_count: listing.viewsCount,
+      likes_count: listing._count.favorites,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
     };

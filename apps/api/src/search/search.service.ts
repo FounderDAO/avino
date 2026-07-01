@@ -72,6 +72,7 @@ export interface SearchListItem {
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
+  is_basement: boolean;
   lot_area: string | null;
   city_id: string | null;
   district_id: string | null;
@@ -86,6 +87,9 @@ export interface SearchListItem {
   /** До 3 свежих presigned URL фото (индекс 0 = обложка, ADR-0086). */
   thumbnails: string[];
   created_at: string;
+  /** Счётчики детали (мобилка #8): просмотры и лайки (избранное всех юзеров). */
+  views_count: number;
+  likes_count: number;
   /**
    * Дистанция от точки запроса в метрах (округлённая). Присутствует только в
    * гео-ответах (`/search/radius`, `/search/near-me`); в обычном `/search`
@@ -221,6 +225,7 @@ const SEARCH_SELECT = {
   rooms: true,
   bathrooms: true,
   parkingType: true,
+  isBasement: true,
   lotArea: true,
   cityId: true,
   districtId: true,
@@ -230,6 +235,9 @@ const SEARCH_SELECT = {
   promotionExpiresAt: true,
   originalLanguage: true,
   createdAt: true,
+  viewsCount: true,
+  // Живой агрегат лайков (мобилка #8): COUNT по favorites, без денормализации.
+  _count: { select: { favorites: true } },
   translations: {
     select: { language: true, title: true },
   },
@@ -1018,9 +1026,9 @@ export class SearchService {
     if (query.rooms_min !== undefined)
       conds.push(Prisma.sql`rooms >= ${query.rooms_min}`);
 
-    // Zillow Phase 2: «N+ санузлов»
+    // Zillow Phase 2 + мобилка #3: «N+ санузлов», дробный шаг 0.5
     if (query.bathrooms_min !== undefined)
-      conds.push(Prisma.sql`bathrooms >= ${query.bathrooms_min}`);
+      conds.push(Prisma.sql`bathrooms >= ${query.bathrooms_min}::numeric`);
 
     // Zillow Phase 2: тип парковки (IN-мультивыбор; NULL исключается)
     if (query.parking_type !== undefined && query.parking_type.length > 0)
@@ -1057,6 +1065,10 @@ export class SearchService {
       conds.push(Prisma.sql`floor > 1`);
     if (query.not_last_floor === true)
       conds.push(Prisma.sql`floor < total_floors`);
+
+    // Мобилка #4: только цокольный этаж
+    if (query.is_basement === true)
+      conds.push(Prisma.sql`is_basement = true`);
 
     // Zillow Phase 1: этажность здания
     if (query.total_floors_min !== undefined)
@@ -1161,8 +1173,10 @@ export class SearchService {
       price: listing.price.toFixed(2),
       currency: listing.currency,
       rooms: listing.rooms,
-      bathrooms: listing.bathrooms,
+      // Контракт: number с шагом 0.5 (не строка, как другие Decimal) — спека 2026-07-02.
+      bathrooms: listing.bathrooms?.toNumber() ?? null,
       parking_type: listing.parkingType,
+      is_basement: listing.isBasement,
       lot_area: listing.lotArea?.toFixed(2) ?? null,
       city_id: listing.cityId,
       district_id: listing.districtId,
@@ -1185,6 +1199,8 @@ export class SearchService {
         language,
       ),
       created_at: listing.createdAt.toISOString(),
+      views_count: listing.viewsCount,
+      likes_count: listing._count.favorites,
     };
   }
 

@@ -22,6 +22,7 @@ import {
   PropertyType,
   TransactionType,
 } from '@prisma/client';
+import { IsHalfStep } from '../../common/validation/is-half-step';
 
 /**
  * Допустимые значения параметра `sort` (TASK-207, API.md §9).
@@ -164,10 +165,11 @@ export class SearchListingsQueryDto {
   @Min(0)
   rooms_min?: number;
 
-  /** «N+ санузлов» (bathrooms >= N) — кнопки 1+/2+/3+/4+. */
+  /** «N+ санузлов» (bathrooms >= N), дробный шаг 0.5 — например 1.5. */
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 1 })
+  @IsHalfStep()
   @Min(0)
   bathrooms_min?: number;
 
@@ -189,6 +191,10 @@ export class SearchListingsQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_max?: number;
   @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() not_first_floor?: boolean;
   @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() not_last_floor?: boolean;
+
+  /** Только цокольный этаж (мобилка #4): true → is_basement = true; false/нет — без фильтра. */
+  @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() is_basement?: boolean;
+
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) total_floors_min?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) total_floors_max?: number;
   @IsOptional() @Type(() => Number) @IsInt() year_min?: number;
