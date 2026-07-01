@@ -198,4 +198,31 @@ describe('TourRequestsService', () => {
     prisma.listing.findFirst.mockResolvedValue(null);
     await expect(service.listTakenSlots('L404')).rejects.toMatchObject({ status: 404 });
   });
+
+  it('taken: границы горизонта — UTC-полночь сегодня .. +30 дней включительно', async () => {
+    prisma.listing.findFirst.mockResolvedValue({ id: 'L1' });
+    prisma.tourRequest.findMany.mockResolvedValue([]);
+    await service.listTakenSlots('L1');
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const horizon = new Date(today);
+    horizon.setUTCDate(horizon.getUTCDate() + 30);
+    expect(prisma.tourRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          requestedDate: { gte: today, lte: horizon },
+        }),
+      }),
+    );
+  });
+
+  it('setStatus: P2002 при CONFIRM (слот перезанят) → 409 TOUR_SLOT_TAKEN', async () => {
+    prisma.tourRequest.findUnique.mockResolvedValue({ id: 'TR1', requesterId: 'U2', status: 'PENDING', listing: { ownerId: 'OWNER1' } });
+    prisma.$transaction.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' }),
+    );
+    const err = await service.setStatus('OWNER1', 'TR1', TourRequestAction.CONFIRM).catch((e) => e);
+    expect(err.getStatus()).toBe(409);
+    expect(err.getResponse()).toMatchObject({ code: 'TOUR_SLOT_TAKEN' });
+  });
 });

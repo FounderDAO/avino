@@ -1249,6 +1249,8 @@ Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
 | `ALREADY_FAVORITED` | 409 | Листинг уже в избранном |
 | `DEVICE_TOKEN_EXISTS` | 409 | push_token уже зарегистрирован |
 | `ACTIVE_PROMOTION_EXISTS` | 409 | Уже есть активная промо на листинг |
+| `TOUR_REQUEST_DUPLICATE` | 409 | Повторная своя активная заявка на тот же слот тура |
+| `TOUR_SLOT_TAKEN` | 409 | Слот тура (листинг+дата+окно) занят чужой активной (PENDING/CONFIRMED) заявкой |
 | `LISTING_NOT_AVAILABLE` | 422 | Листинг DELETED/непубличен (чат/действие невозможно) |
 | `INVALID_STATUS_TRANSITION` | 422 | Недопустимый переход статуса листинга |
 | `INVALID_PERIOD` | 422 | period_days не в {7,14,30} |

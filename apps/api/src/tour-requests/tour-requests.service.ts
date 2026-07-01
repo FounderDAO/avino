@@ -202,13 +202,23 @@ export class TourRequestsService {
       notifyUserId = tr.listing.ownerId;
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const u = await tx.tourRequest.update({ where: { id }, data: { status: nextStatus }, select: TOUR_REQUEST_SELECT });
-      await this.notifications.queueTourStatusChanged(tx, notifyUserId, {
-        tourRequestId: u.id, listingId: u.listingId, status: nextStatus,
+    let updated: TourRequestRow;
+    try {
+      updated = await this.prisma.$transaction(async (tx) => {
+        const u = await tx.tourRequest.update({ where: { id }, data: { status: nextStatus }, select: TOUR_REQUEST_SELECT });
+        await this.notifications.queueTourStatusChanged(tx, notifyUserId, {
+          tourRequestId: u.id, listingId: u.listingId, status: nextStatus,
+        });
+        return u;
       });
-      return u;
-    });
+    } catch (error) {
+      // CONFIRM возвращает строку в предикат tour_requests_active_slot_key;
+      // если слот успела занять другая активная заявка — P2002 → 409.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException({ code: ApiErrorCode.TOUR_SLOT_TAKEN, message: 'This tour slot is already taken' });
+      }
+      throw error;
+    }
     return this.toResponse(updated);
   }
 
