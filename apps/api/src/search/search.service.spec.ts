@@ -67,6 +67,8 @@ describe('SearchService', () => {
       promotionExpiresAt: null,
       originalLanguage: Language.RU,
       createdAt: new Date('2026-06-01T12:00:00.000Z'),
+      viewsCount: 0,
+      _count: { favorites: 0 },
       translations: [{ language: Language.RU, title: '3-комн в центре' }],
       media: [
         { url: 'https://cdn/l1.webp', thumbnailUrl: 'https://cdn/l1_t.webp' },
@@ -154,6 +156,8 @@ describe('SearchService', () => {
       thumbnails: ['https://cdn/l1_t.webp'],
       district_name: null,
       created_at: '2026-06-01T12:00:00.000Z',
+      views_count: 0,
+      likes_count: 0,
     });
     expect(result.meta).toEqual({ limit: 20, total: 1, next_cursor: null });
   });

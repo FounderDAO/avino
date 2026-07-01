@@ -87,6 +87,9 @@ export interface SearchListItem {
   /** До 3 свежих presigned URL фото (индекс 0 = обложка, ADR-0086). */
   thumbnails: string[];
   created_at: string;
+  /** Счётчики детали (мобилка #8): просмотры и лайки (избранное всех юзеров). */
+  views_count: number;
+  likes_count: number;
   /**
    * Дистанция от точки запроса в метрах (округлённая). Присутствует только в
    * гео-ответах (`/search/radius`, `/search/near-me`); в обычном `/search`
@@ -232,6 +235,9 @@ const SEARCH_SELECT = {
   promotionExpiresAt: true,
   originalLanguage: true,
   createdAt: true,
+  viewsCount: true,
+  // Живой агрегат лайков (мобилка #8): COUNT по favorites, без денормализации.
+  _count: { select: { favorites: true } },
   translations: {
     select: { language: true, title: true },
   },
@@ -1193,6 +1199,8 @@ export class SearchService {
         language,
       ),
       created_at: listing.createdAt.toISOString(),
+      views_count: listing.viewsCount,
+      likes_count: listing._count.favorites,
     };
   }
 

@@ -439,6 +439,8 @@ describe('ListingsService', () => {
       promotionExpiresAt: new Date('2026-06-20T00:00:00.000Z'),
       publishedAt: new Date('2026-06-01T10:00:00.000Z'),
       createdAt: new Date('2026-05-30T09:00:00.000Z'),
+      viewsCount: 12,
+      _count: { favorites: 3 },
       translations: [
         {
           language: Language.RU,
@@ -497,6 +499,8 @@ describe('ListingsService', () => {
         features_text: 'балкон',
         published_at: '2026-06-01T10:00:00.000Z',
         created_at: '2026-05-30T09:00:00.000Z',
+        views_count: 12,
+        likes_count: 3,
         // Контакт автора (TASK-210): displayName + contactPhone приоритетны,
         // роль AGENT → type=agent, is_pro=true.
         contact: {
@@ -725,6 +729,8 @@ describe('ListingsService', () => {
       promotionExpiresAt: null,
       publishedAt: null,
       createdAt: new Date('2026-06-03T09:00:00.000Z'),
+      viewsCount: 0,
+      _count: { favorites: 0 },
       translations: [
         { language: Language.RU, title: '2-комн квартира' },
         { language: Language.EN, title: '2-room apartment' },
@@ -774,6 +780,8 @@ describe('ListingsService', () => {
         thumbnail_url: 'https://cdn.avino.uz/l1/1_thumb.webp',
         published_at: null,
         created_at: '2026-06-03T09:00:00.000Z',
+        views_count: 0,
+        likes_count: 0,
       });
     });
 

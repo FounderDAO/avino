@@ -221,6 +221,8 @@ export interface ListingDetailResponse {
   media: ListingMediaResponse[];
   tours_enabled: boolean;
   tour_windows: TourWindow[];
+  views_count: number;
+  likes_count: number;
   published_at: string | null;
   created_at: string;
 }
@@ -275,6 +277,9 @@ const LISTING_DETAIL_SELECT = {
   createdAt: true,
   toursEnabled: true,
   tourWindows: true,
+  viewsCount: true,
+  // Живой агрегат лайков (мобилка #8): COUNT по favorites, без денормализации.
+  _count: { select: { favorites: true } },
   translations: {
     select: {
       language: true,
@@ -328,6 +333,8 @@ export interface ListingListItem {
   original_language: Language;
   title: string;
   thumbnail_url: string | null;
+  views_count: number;
+  likes_count: number;
   published_at: string | null;
   created_at: string;
 }
@@ -361,6 +368,9 @@ const LISTING_LIST_SELECT = {
   promotionExpiresAt: true,
   publishedAt: true,
   createdAt: true,
+  viewsCount: true,
+  // Живой агрегат лайков (мобилка #8): COUNT по favorites, без денормализации.
+  _count: { select: { favorites: true } },
   translations: {
     select: { language: true, title: true },
   },
@@ -897,6 +907,8 @@ export class ListingsService {
       original_language: listing.originalLanguage,
       title: translation?.title ?? '',
       thumbnail_url: thumbnailUrl,
+      views_count: listing.viewsCount,
+      likes_count: listing._count.favorites,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
     };
@@ -988,6 +1000,8 @@ export class ListingsService {
       media,
       tours_enabled: listing.toursEnabled,
       tour_windows: (listing.tourWindows as unknown as TourWindow[]) ?? [],
+      views_count: listing.viewsCount,
+      likes_count: listing._count.favorites,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
     };
