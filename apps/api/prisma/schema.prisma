@@ -60,6 +60,7 @@ enum Amenity {
   BALCONY
   HEATING
   SECURITY
+  POOL
 }
 
 /// Тип сделки по объявлению (DB_SCHEMA.md §3). Создаётся как Postgres enum

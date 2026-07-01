@@ -60,6 +60,12 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(inst.amenities).toEqual(['ELEVATOR', 'HEATING']);
   });
 
+  it('принимает amenities=POOL (бассейн, мобилка #5)', () => {
+    const { inst, errors } = dto({ amenities: 'POOL' });
+    expect(errors).toHaveLength(0);
+    expect(inst.amenities).toEqual(['POOL']);
+  });
+
   it('отклоняет невалидное значение amenities', () => {
     const { errors } = dto({ amenities: ['NOPE'] });
     expect(errors.length).toBeGreaterThan(0);
