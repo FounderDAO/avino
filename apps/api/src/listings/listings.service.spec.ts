@@ -68,6 +68,7 @@ describe('ListingsService', () => {
         findMany: jest.fn(),
         count: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
       // Авто-апгрейд автора до OWNER при первом объявлении (ADR-0083). Дефолт —
       // «уже продавец» (count>0), чтобы базовый тест create фокусировался на
@@ -836,6 +837,25 @@ describe('ListingsService', () => {
 
       expect(result.data[0].title).toBe('Only EN');
       expect(result.data[0].thumbnail_url).toBeNull();
+    });
+  });
+
+  describe('registerView', () => {
+    it('инкрементит views_count существующего листинга', async () => {
+      prisma.listing.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.registerView(LISTING_ID);
+
+      expect(prisma.listing.updateMany).toHaveBeenCalledWith({
+        where: { id: LISTING_ID, status: { not: ListingStatus.DELETED } },
+        data: { viewsCount: { increment: 1 } },
+      });
+    });
+
+    it('404 когда листинг не найден или DELETED', async () => {
+      prisma.listing.updateMany.mockResolvedValue({ count: 0 });
+
+      await expectCode(service.registerView(LISTING_ID), ApiErrorCode.NOT_FOUND);
     });
   });
 });
