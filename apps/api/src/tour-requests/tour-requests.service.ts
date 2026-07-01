@@ -74,34 +74,52 @@ export class TourRequestsService {
     }
     const requestedDate = this.parseRequestedDate(dto.requested_date);
 
-    const dup = await this.prisma.tourRequest.findFirst({
+    // Слот эксклюзивен: любая активная (PENDING/CONFIRMED) заявка блокирует его
+    // (spec 2026-07-02). Своя заявка — прежний TOUR_REQUEST_DUPLICATE, чужая —
+    // TOUR_SLOT_TAKEN. Гонка двух create ловится ниже по P2002 на
+    // tour_requests_active_slot_key.
+    const active = await this.prisma.tourRequest.findFirst({
       where: {
-        listingId: listing.id, requesterId, requestedDate,
+        listingId: listing.id, requestedDate,
         windowStart: dto.window_start, windowEnd: dto.window_end,
-        status: TourRequestStatus.PENDING,
+        status: { in: [TourRequestStatus.PENDING, TourRequestStatus.CONFIRMED] },
       },
-      select: { id: true },
+      select: { requesterId: true },
     });
-    if (dup) {
-      throw new ConflictException({ code: ApiErrorCode.TOUR_REQUEST_DUPLICATE, message: 'A pending tour request for this slot already exists' });
+    if (active) {
+      if (active.requesterId === requesterId) {
+        throw new ConflictException({ code: ApiErrorCode.TOUR_REQUEST_DUPLICATE, message: 'A pending tour request for this slot already exists' });
+      }
+      throw new ConflictException({ code: ApiErrorCode.TOUR_SLOT_TAKEN, message: 'This tour slot is already taken' });
     }
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      const tr = await tx.tourRequest.create({
-        data: {
-          listingId: listing.id, requesterId, requestedDate,
-          windowStart: dto.window_start, windowEnd: dto.window_end,
-          requesterName: dto.requester_name, requesterPhone: dto.requester_phone,
-          message: dto.message ?? null,
-        },
-        select: TOUR_REQUEST_SELECT,
+    let created: TourRequestRow;
+    try {
+      created = await this.prisma.$transaction(async (tx) => {
+        const tr = await tx.tourRequest.create({
+          data: {
+            listingId: listing.id, requesterId, requestedDate,
+            windowStart: dto.window_start, windowEnd: dto.window_end,
+            requesterName: dto.requester_name, requesterPhone: dto.requester_phone,
+            message: dto.message ?? null,
+          },
+          select: TOUR_REQUEST_SELECT,
+        });
+        await this.notifications.queueTourRequest(tx, listing.ownerId, {
+          tourRequestId: tr.id, listingId: listing.id,
+          requestedDate: dto.requested_date, windowStart: dto.window_start, windowEnd: dto.window_end,
+        });
+        return tr;
       });
-      await this.notifications.queueTourRequest(tx, listing.ownerId, {
-        tourRequestId: tr.id, listingId: listing.id,
-        requestedDate: dto.requested_date, windowStart: dto.window_start, windowEnd: dto.window_end,
-      });
-      return tr;
-    });
+    } catch (error) {
+      // Гонка: двое прошли проверку одновременно — unique-индекс
+      // tour_requests_active_slot_key отдаёт P2002 (в транзакции единственный
+      // insert с unique-ограничением — tourRequest.create).
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException({ code: ApiErrorCode.TOUR_SLOT_TAKEN, message: 'This tour slot is already taken' });
+      }
+      throw error;
+    }
     return this.toResponse(created);
   }
 
