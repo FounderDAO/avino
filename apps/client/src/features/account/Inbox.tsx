@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fieldClass } from '@/components/ui/field';
+import { PhotoImg } from '@/components/ui/photo-img';
 import { useFormatter, useTranslations } from 'next-intl';
 import { formatMoney, type T } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
@@ -57,6 +58,44 @@ function threadTitle(t: ApiThread): string {
 /** Аватар-инициал из имени собеседника (фолбэк — «#»). */
 function avatarInitial(t: ApiThread): string {
   return threadTitle(t).trim()[0]?.toUpperCase() ?? '#';
+}
+
+/**
+ * Аватар диалога — фото объекта (`listing_preview.thumbnail_url`), чтобы при
+ * нескольких объявлениях у одного собеседника диалоги различались визуально
+ * (spec 2026-07-02-chat-thread-listing-context). Фолбэк (нет превью или фото) —
+ * прежний круг с инициалом собеседника. `className` задаёт размеры (h-* w-*).
+ */
+function ThreadAvatar({
+  thread,
+  className,
+}: {
+  thread: ApiThread;
+  className: string;
+}) {
+  const src = thread.listing_preview?.thumbnail_url;
+  if (src) {
+    return (
+      <span
+        className={cn(
+          'relative shrink-0 overflow-hidden rounded-[10px]',
+          className,
+        )}
+      >
+        <PhotoImg src={src} sizes="48px" />
+      </span>
+    );
+  }
+  return (
+    <span
+      className={cn(
+        'flex shrink-0 items-center justify-center rounded-full bg-mint text-[16px] font-extrabold text-teal-deep',
+        className,
+      )}
+    >
+      {avatarInitial(thread)}
+    </span>
+  );
 }
 
 /** Фолбэк вторичной строки списка: цена объявления либо статус. */
@@ -326,7 +365,7 @@ export function Inbox() {
                   t.last_message,
                   currentUserId,
                   tAccount('inbox.you'),
-                ) ?? listingSubtitle(t, tUnits);
+                ) ?? '';
               return (
                 <button
                   key={t.id}
@@ -338,9 +377,7 @@ export function Inbox() {
                       : 'bg-transparent hover:bg-surface-2',
                   )}
                 >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-mint text-[16px] font-extrabold text-teal-deep">
-                    {avatarInitial(t)}
-                  </span>
+                  <ThreadAvatar thread={t} className="h-11 w-11" />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
                       <b className="truncate text-[14.5px]">{threadTitle(t)}</b>
@@ -350,6 +387,11 @@ export function Inbox() {
                         </span>
                       )}
                     </span>
+                    {t.listing_preview && (
+                      <span className="mt-0.5 block truncate text-[12px] text-muted-foreground">
+                        {t.listing_preview.title} · {listingSubtitle(t, tUnits)}
+                      </span>
+                    )}
                     <span className="mt-0.5 flex items-center gap-2">
                       <span
                         className={cn(
