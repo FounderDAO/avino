@@ -1018,9 +1018,9 @@ export class SearchService {
     if (query.rooms_min !== undefined)
       conds.push(Prisma.sql`rooms >= ${query.rooms_min}`);
 
-    // Zillow Phase 2: «N+ санузлов»
+    // Zillow Phase 2 + мобилка #3: «N+ санузлов», дробный шаг 0.5
     if (query.bathrooms_min !== undefined)
-      conds.push(Prisma.sql`bathrooms >= ${query.bathrooms_min}`);
+      conds.push(Prisma.sql`bathrooms >= ${query.bathrooms_min}::numeric`);
 
     // Zillow Phase 2: тип парковки (IN-мультивыбор; NULL исключается)
     if (query.parking_type !== undefined && query.parking_type.length > 0)
@@ -1161,7 +1161,8 @@ export class SearchService {
       price: listing.price.toFixed(2),
       currency: listing.currency,
       rooms: listing.rooms,
-      bathrooms: listing.bathrooms,
+      // Контракт: number с шагом 0.5 (не строка, как другие Decimal) — спека 2026-07-02.
+      bathrooms: listing.bathrooms?.toNumber() ?? null,
       parking_type: listing.parkingType,
       lot_area: listing.lotArea?.toFixed(2) ?? null,
       city_id: listing.cityId,

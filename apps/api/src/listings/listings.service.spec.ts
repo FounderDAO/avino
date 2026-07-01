@@ -225,6 +225,18 @@ describe('ListingsService', () => {
       expect(prisma.userRole.upsert).not.toHaveBeenCalled();
       expect(prisma.listing.create).toHaveBeenCalled();
     });
+
+    it('passes fractional bathrooms (1.5) through to Prisma on create', async () => {
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        bathrooms: 1.5,
+      } as any);
+
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.bathrooms).toBe(1.5);
+    });
   });
 
   describe('update', () => {
@@ -716,6 +728,7 @@ describe('ListingsService', () => {
         area: '62.50',
         lot_area: null,
         rooms: 2,
+        bathrooms: null,
         city_id: 'c1',
         district_id: 'd1',
         promotion_type: PromotionType.NORMAL,

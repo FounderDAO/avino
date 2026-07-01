@@ -8,6 +8,7 @@ import {
   IsLatitude,
   IsLongitude,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -25,6 +26,7 @@ import {
   PropertyType,
   TransactionType,
 } from '@prisma/client';
+import { IsHalfStep } from '../../common/validation/is-half-step';
 
 /**
  * Денежные/площадные поля — строки-Decimal, никогда float (ADR-002). До 12 цифр
@@ -113,10 +115,12 @@ export class CreateListingDto {
   @Max(SMALLINT_MAX)
   rooms?: number;
 
+  /** Санузлы, шаг 0.5 (1, 1.5, 2 …) — баглист мобилки #3. */
   @IsOptional()
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 1 })
+  @IsHalfStep()
   @Min(0)
-  @Max(SMALLINT_MAX)
+  @Max(99)
   bathrooms?: number;
 
   @IsOptional()

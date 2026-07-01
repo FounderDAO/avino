@@ -164,10 +164,10 @@ export class SearchListingsQueryDto {
   @Min(0)
   rooms_min?: number;
 
-  /** «N+ санузлов» (bathrooms >= N) — кнопки 1+/2+/3+/4+. */
+  /** «N+ санузлов» (bathrooms >= N), дробный шаг 0.5 — например 1.5. */
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 1 })
   @Min(0)
   bathrooms_min?: number;
 

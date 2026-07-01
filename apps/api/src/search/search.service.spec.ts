@@ -137,6 +137,7 @@ describe('SearchService', () => {
       price: '950000000.00',
       currency: Currency.UZS,
       rooms: 3,
+      bathrooms: null,
       lot_area: null,
       city_id: CITY_ID,
       district_id: DISTRICT_ID,

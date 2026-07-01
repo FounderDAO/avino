@@ -7,6 +7,7 @@ import {
   IsInt,
   IsLatitude,
   IsLongitude,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -18,6 +19,7 @@ import {
 } from 'class-validator';
 import { Amenity, Currency, ParkingType, PropertyType, TransactionType } from '@prisma/client';
 import { TourWindowDto } from './create-listing.dto';
+import { IsHalfStep } from '../../common/validation/is-half-step';
 
 const DECIMAL_2 = /^\d{1,12}(\.\d{1,2})?$/;
 const SMALLINT_MAX = 32767;
@@ -89,10 +91,12 @@ export class UpdateListingDto {
   @Max(SMALLINT_MAX)
   rooms?: number;
 
+  /** Санузлы, шаг 0.5 (1, 1.5, 2 …) — баглист мобилки #3. */
   @IsOptional()
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 1 })
+  @IsHalfStep()
   @Min(0)
-  @Max(SMALLINT_MAX)
+  @Max(99)
   bathrooms?: number;
 
   @IsOptional()
