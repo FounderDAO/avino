@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../common/guards';
 import { CreateTourRequestDto } from './dto/create-tour-request.dto';
 import { TourRequestStatusDto } from './dto/tour-request-status.dto';
 import {
-  TourRequestListResponse, TourRequestResponse, TourRequestsService,
+  TakenSlotsResponse, TourRequestListResponse, TourRequestResponse, TourRequestsService,
 } from './tour-requests.service';
 
 /** TourRequestsController — заявки на тур (просмотр). Все роуты Bearer-only. */
@@ -26,6 +26,14 @@ export class TourRequestsController {
     @Body() dto: CreateTourRequestDto,
   ): Promise<TourRequestResponse> {
     return this.service.create(userId, dto);
+  }
+
+  /** Занятые слоты листинга для формы заявки (анонимно: только дата и окно). */
+  @Get('taken')
+  taken(
+    @Query('listing_id', ParseUUIDPipe) listingId: string,
+  ): Promise<TakenSlotsResponse> {
+    return this.service.listTakenSlots(listingId);
   }
 
   @Get('outgoing')

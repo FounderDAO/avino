@@ -173,4 +173,29 @@ describe('TourRequestsService', () => {
     expect(res.status).toBe('CANCELLED');
     expect(notifications.queueTourStatusChanged).toHaveBeenCalledWith(prisma, 'OWNER1', expect.objectContaining({ status: 'CANCELLED' }));
   });
+
+  it('taken: отдаёт активные слоты горизонта без личных данных', async () => {
+    prisma.listing.findFirst.mockResolvedValue({ id: 'L1' });
+    prisma.tourRequest.findMany.mockResolvedValue([
+      { requestedDate: new Date('2026-07-03T00:00:00.000Z'), windowStart: '11:00', windowEnd: '13:00' },
+    ]);
+    const res = await service.listTakenSlots('L1');
+    expect(res).toEqual({
+      data: [{ requested_date: '2026-07-03', window_start: '11:00', window_end: '13:00' }],
+    });
+    expect(prisma.tourRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          listingId: 'L1',
+          status: { in: ['PENDING', 'CONFIRMED'] },
+        }),
+        select: { requestedDate: true, windowStart: true, windowEnd: true },
+      }),
+    );
+  });
+
+  it('taken: 404 если листинг не найден или DELETED', async () => {
+    prisma.listing.findFirst.mockResolvedValue(null);
+    await expect(service.listTakenSlots('L404')).rejects.toMatchObject({ status: 404 });
+  });
 });

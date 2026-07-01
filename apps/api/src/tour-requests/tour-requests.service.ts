@@ -44,6 +44,17 @@ export interface TourRequestListQuery {
   cursor?: string;
 }
 
+/** Занятый слот тура для UI (без личных данных заявителя, spec 2026-07-02). */
+export interface TakenSlot {
+  requested_date: string;
+  window_start: string;
+  window_end: string;
+}
+
+export interface TakenSlotsResponse {
+  data: TakenSlot[];
+}
+
 @Injectable()
 export class TourRequestsService {
   constructor(
@@ -121,6 +132,41 @@ export class TourRequestsService {
       throw error;
     }
     return this.toResponse(created);
+  }
+
+  /**
+   * `GET /tour-requests/taken` — активные (PENDING/CONFIRMED) слоты листинга на
+   * ближайшие TOUR_HORIZON_DAYS дней. PENDING и CONFIRMED снаружи неразличимы
+   * (оба «занято»); личные данные заявителей не отдаются.
+   */
+  async listTakenSlots(listingId: string): Promise<TakenSlotsResponse> {
+    const listing = await this.prisma.listing.findFirst({
+      where: { id: listingId, status: { not: ListingStatus.DELETED } },
+      select: { id: true },
+    });
+    if (!listing) {
+      throw new NotFoundException({ code: ApiErrorCode.NOT_FOUND, message: 'Listing not found' });
+    }
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const horizon = new Date(today);
+    horizon.setUTCDate(horizon.getUTCDate() + TOUR_HORIZON_DAYS);
+    const rows = await this.prisma.tourRequest.findMany({
+      where: {
+        listingId,
+        status: { in: [TourRequestStatus.PENDING, TourRequestStatus.CONFIRMED] },
+        requestedDate: { gte: today, lte: horizon },
+      },
+      orderBy: [{ requestedDate: 'asc' }, { windowStart: 'asc' }],
+      select: { requestedDate: true, windowStart: true, windowEnd: true },
+    });
+    return {
+      data: rows.map((r) => ({
+        requested_date: r.requestedDate.toISOString().slice(0, 10),
+        window_start: r.windowStart,
+        window_end: r.windowEnd,
+      })),
+    };
   }
 
   async setStatus(userId: string, id: string, action: TourRequestAction): Promise<TourRequestResponse> {
