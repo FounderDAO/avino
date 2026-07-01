@@ -518,6 +518,26 @@
         }
       }
     },
+    "/api/v1/listings/{id}/view": {
+      "post": {
+        "operationId": "ListingsController_registerView",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/listings/{id}/status": {
       "patch": {
         "operationId": "ListingsController_setStatus",
@@ -861,6 +881,14 @@
             }
           },
           {
+            "name": "is_basement",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "total_floors_min",
             "required": false,
             "in": "query",
@@ -1116,6 +1144,14 @@
           },
           {
             "name": "not_last_floor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "is_basement",
             "required": false,
             "in": "query",
             "schema": {
@@ -1408,6 +1444,14 @@
           },
           {
             "name": "not_last_floor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "is_basement",
             "required": false,
             "in": "query",
             "schema": {
@@ -1710,6 +1754,14 @@
           },
           {
             "name": "not_last_floor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "is_basement",
             "required": false,
             "in": "query",
             "schema": {
@@ -2035,6 +2087,14 @@
           },
           {
             "name": "not_last_floor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "is_basement",
             "required": false,
             "in": "query",
             "schema": {
@@ -2983,6 +3043,14 @@
             "type": "string",
             "pattern": "DECIMAL_2"
           },
+          "living_area": {
+            "type": "string",
+            "pattern": "DECIMAL_2"
+          },
+          "non_living_area": {
+            "type": "string",
+            "pattern": "DECIMAL_2"
+          },
           "rooms": {
             "type": "number",
             "minimum": 0,
@@ -2991,7 +3059,7 @@
           "bathrooms": {
             "type": "number",
             "minimum": 0,
-            "maximum": 32767
+            "maximum": 99
           },
           "parking_type": {
             "type": "object"
@@ -3006,6 +3074,9 @@
             "type": "number",
             "minimum": 0,
             "maximum": 32767
+          },
+          "is_basement": {
+            "type": "boolean"
           },
           "total_floors": {
             "type": "number",
@@ -3100,6 +3171,14 @@
             "type": "string",
             "pattern": "DECIMAL_2"
           },
+          "living_area": {
+            "type": "string",
+            "pattern": "DECIMAL_2"
+          },
+          "non_living_area": {
+            "type": "string",
+            "pattern": "DECIMAL_2"
+          },
           "rooms": {
             "type": "number",
             "minimum": 0,
@@ -3108,7 +3187,7 @@
           "bathrooms": {
             "type": "number",
             "minimum": 0,
-            "maximum": 32767
+            "maximum": 99
           },
           "parking_type": {
             "type": "object"
@@ -3123,6 +3202,9 @@
             "type": "number",
             "minimum": 0,
             "maximum": 32767
+          },
+          "is_basement": {
+            "type": "boolean"
           },
           "total_floors": {
             "type": "number",
