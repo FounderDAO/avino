@@ -4216,6 +4216,33 @@
         }
       }
     },
+    "/api/v1/tour-requests/taken": {
+      "get": {
+        "operationId": "TourRequestsController_taken",
+        "parameters": [
+          {
+            "name": "listing_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tour-requests/outgoing": {
       "get": {
         "operationId": "TourRequestsController_outgoing",
