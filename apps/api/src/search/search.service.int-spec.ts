@@ -1547,3 +1547,102 @@ describe('SearchService amenities filter (integration, Zillow Phase 2)', () => {
     expect(ids).toContain(ID.empty);
   });
 });
+
+/**
+ * Integration-тесты is_basement фильтра SearchService (баглист мобилки #4).
+ * Проверяет: is_basement=true возвращает только цокольные листинги;
+ * без параметра фильтр не применяется (цокольные и обычные вместе).
+ *
+ * Изоляция — уникальный `CITY_ID_BASEMENT`; данные удаляются в afterAll.
+ */
+describe('SearchService is_basement filter (integration, мобилка #4)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY_ID_BASEMENT = '88888888-9999-4888-8000-000000000ba1';
+
+  const ID = {
+    basement: 'aaaaaaaa-0001-4000-8000-000000000ba1', // isBasement=true
+    normal: 'bbbbbbbb-0001-4000-8000-000000000ba1', // isBasement=false (default)
+  };
+
+  let ownerId: string;
+
+  async function createListing(params: {
+    id: string;
+    isBasement: boolean;
+  }): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id: params.id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: '100000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_BASEMENT,
+        isBasement: params.isBasement,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `basement-${params.id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_BASEMENT } });
+
+    const owner = await prisma.user.create({
+      data: { phone: '+998900000BA1' },
+    });
+    ownerId = owner.id;
+
+    await createListing({ id: ID.basement, isBasement: true });
+    await createListing({ id: ID.normal, isBasement: false });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_BASEMENT } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('is_basement=true возвращает только цокольные листинги', async () => {
+    const res = await service.search({
+      city_id: CITY_ID_BASEMENT,
+      is_basement: true,
+      limit: 100,
+    } as any);
+    const ids = res.data.map((l) => l.id);
+    expect(ids).toContain(ID.basement);
+    expect(ids).not.toContain(ID.normal);
+    expect(ids).toHaveLength(1);
+  });
+
+  it('без параметра is_basement фильтр не применяется — цокольные и обычные вместе', async () => {
+    const res = await service.search({
+      city_id: CITY_ID_BASEMENT,
+      limit: 100,
+    } as any);
+    const ids = res.data.map((l) => l.id);
+    expect(ids).toContain(ID.basement);
+    expect(ids).toContain(ID.normal);
+    expect(ids).toHaveLength(2);
+  });
+});
