@@ -284,7 +284,7 @@ function amenitiesFor(g, pt) {
     if (a === 'ELEVATOR' && pt === 'HOUSE') continue; // в доме лифта нет
     if (!out.includes(a)) out.push(a);
   }
-  // Бассейн — только не-квартиры (мобилка #5): часть домов для демо фильтра POOL.
+  // Бассейн — только дома (мобилка #5): часть HOUSE для демо фильтра POOL.
   if (pt === 'HOUSE' && g % 3 === 0 && !out.includes('POOL')) out.push('POOL');
   return out;
 }

@@ -22,6 +22,7 @@ import {
   PropertyType,
   TransactionType,
 } from '@prisma/client';
+import { IsHalfStep } from '../../common/validation/is-half-step';
 
 /**
  * Допустимые значения параметра `sort` (TASK-207, API.md §9).
@@ -168,6 +169,7 @@ export class SearchListingsQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 1 })
+  @IsHalfStep()
   @Min(0)
   bathrooms_min?: number;
 

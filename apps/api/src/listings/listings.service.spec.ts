@@ -84,6 +84,8 @@ describe('ListingsService', () => {
     // create() оборачивает апгрейд роли + запись листинга в один $transaction;
     // мок прокидывает тот же prisma как tx-клиент (callback-форма).
     prisma.$transaction = jest.fn().mockImplementation((cb: any) => cb(prisma));
+    // registerView — raw UPDATE (не трогает @updatedAt), см. describe('registerView').
+    prisma.$executeRaw = jest.fn();
     // Реальный TranslationsService (логика переводов делегирована ему, TASK-070);
     // его resolveLanguage/buildOriginalTranslationInput чисты, prisma не вызывают.
     // DistrictsService застаблен — резолв district_name проверяется в int-spec.
@@ -849,19 +851,16 @@ describe('ListingsService', () => {
   });
 
   describe('registerView', () => {
-    it('инкрементит views_count существующего листинга', async () => {
-      prisma.listing.updateMany.mockResolvedValue({ count: 1 });
+    it('инкрементит views_count raw-UPDATE, резолвится без ошибки', async () => {
+      prisma.$executeRaw.mockResolvedValue(1);
 
-      await service.registerView(LISTING_ID);
+      await expect(service.registerView(LISTING_ID)).resolves.toBeUndefined();
 
-      expect(prisma.listing.updateMany).toHaveBeenCalledWith({
-        where: { id: LISTING_ID, status: { not: ListingStatus.DELETED } },
-        data: { viewsCount: { increment: 1 } },
-      });
+      expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
     });
 
-    it('404 когда листинг не найден или DELETED', async () => {
-      prisma.listing.updateMany.mockResolvedValue({ count: 0 });
+    it('404 когда листинг не найден или не ACTIVE', async () => {
+      prisma.$executeRaw.mockResolvedValue(0);
 
       await expectCode(service.registerView(LISTING_ID), ApiErrorCode.NOT_FOUND);
     });

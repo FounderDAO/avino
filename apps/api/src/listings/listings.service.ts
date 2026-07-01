@@ -767,14 +767,17 @@ export class ListingsService {
   /**
    * `POST /api/v1/listings/:id/view` — счётчик просмотров детали (мобилка #8).
    * Простой атомарный инкремент без дедупликации (решение спеки 2026-07-02).
-   * DELETED исключён из read-path → как и findOne, отвечает 404.
+   * Только ACTIVE: непубличные статусы отвечают 404, как анонимный GET детали
+   * (не раскрываем существование скрытых объявлений и не копим просмотры до
+   * публикации). Raw UPDATE, а не prisma.update: @updatedAt не должен бампаться
+   * анонимными просмотрами — updated_at остаётся «последним редактированием».
    */
   async registerView(listingId: string): Promise<void> {
-    const res = await this.prisma.listing.updateMany({
-      where: { id: listingId, status: { not: ListingStatus.DELETED } },
-      data: { viewsCount: { increment: 1 } },
-    });
-    if (res.count === 0) {
+    const count = await this.prisma.$executeRaw`
+      UPDATE listings SET views_count = views_count + 1
+      WHERE id = ${listingId}::uuid AND status = 'ACTIVE'
+    `;
+    if (count === 0) {
       throw new NotFoundException({
         code: ApiErrorCode.NOT_FOUND,
         message: 'Listing not found',

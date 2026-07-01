@@ -76,4 +76,15 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(errors).toHaveLength(0);
     expect(inst.amenities).toEqual(['ELEVATOR']);
   });
+
+  it('принимает bathrooms_min кратный 0.5', () => {
+    const { inst, errors } = dto({ bathrooms_min: '1.5' });
+    expect(errors).toHaveLength(0);
+    expect(inst.bathrooms_min).toBe(1.5);
+  });
+
+  it('отклоняет bathrooms_min, не кратный 0.5', () => {
+    const { errors } = dto({ bathrooms_min: '1.3' });
+    expect(errors.length).toBeGreaterThan(0);
+  });
 });
