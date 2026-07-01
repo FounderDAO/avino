@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { Prisma } from '@prisma/client';
 import { TourRequestsService } from './tour-requests.service';
 import { PrismaService } from '../prisma';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -89,10 +90,54 @@ describe('TourRequestsService', () => {
     await expect(service.create('OWNER1', validDto() as any)).rejects.toMatchObject({ status: 403 });
   });
 
-  it('409 при дубле PENDING', async () => {
+  it('409 TOUR_REQUEST_DUPLICATE при своей активной заявке на слот', async () => {
     prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
-    prisma.tourRequest.findFirst.mockResolvedValue({ id: 'DUP' });
-    await expect(service.create('U2', validDto() as any)).rejects.toMatchObject({ status: 409 });
+    prisma.tourRequest.findFirst.mockResolvedValue({ requesterId: 'U2' });
+    const err = await service.create('U2', validDto() as any).catch((e) => e);
+    expect(err.getStatus()).toBe(409);
+    expect(err.getResponse()).toMatchObject({ code: 'TOUR_REQUEST_DUPLICATE' });
+  });
+
+  it('409 TOUR_SLOT_TAKEN если слот занят чужой активной заявкой', async () => {
+    prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
+    prisma.tourRequest.findFirst.mockResolvedValue({ requesterId: 'SOMEONE_ELSE' });
+    const err = await service.create('U2', validDto() as any).catch((e) => e);
+    expect(err.getStatus()).toBe(409);
+    expect(err.getResponse()).toMatchObject({ code: 'TOUR_SLOT_TAKEN' });
+  });
+
+  it('проверка занятости учитывает PENDING и CONFIRMED (и только их)', async () => {
+    prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
+    prisma.tourRequest.findFirst.mockResolvedValue(null);
+    prisma.tourRequest.create.mockResolvedValue({
+      id: 'TR1', listingId: 'L1', requesterId: 'U2', status: 'PENDING',
+      requestedDate: new Date(`${validDto().requested_date}T00:00:00.000Z`),
+      windowStart: '07:00', windowEnd: '10:00', requesterName: 'Tap Links',
+      requesterPhone: '+998901112233', message: 'hi', createdAt: new Date(),
+    });
+    await service.create('U2', validDto() as any);
+    expect(prisma.tourRequest.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ['PENDING', 'CONFIRMED'] },
+        }),
+        select: { requesterId: true },
+      }),
+    );
+  });
+
+  it('409 TOUR_SLOT_TAKEN при гонке (P2002 на unique-индексе слота)', async () => {
+    prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
+    prisma.tourRequest.findFirst.mockResolvedValue(null);
+    prisma.$transaction.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+      }),
+    );
+    const err = await service.create('U2', validDto() as any).catch((e) => e);
+    expect(err.getStatus()).toBe(409);
+    expect(err.getResponse()).toMatchObject({ code: 'TOUR_SLOT_TAKEN' });
   });
 
   it('владелец подтверждает PENDING → CONFIRMED + уведомление покупателю', async () => {
@@ -127,5 +172,30 @@ describe('TourRequestsService', () => {
     const res = await service.setStatus('U2', 'TR1', TourRequestAction.CANCEL);
     expect(res.status).toBe('CANCELLED');
     expect(notifications.queueTourStatusChanged).toHaveBeenCalledWith(prisma, 'OWNER1', expect.objectContaining({ status: 'CANCELLED' }));
+  });
+
+  it('taken: отдаёт активные слоты горизонта без личных данных', async () => {
+    prisma.listing.findFirst.mockResolvedValue({ id: 'L1' });
+    prisma.tourRequest.findMany.mockResolvedValue([
+      { requestedDate: new Date('2026-07-03T00:00:00.000Z'), windowStart: '11:00', windowEnd: '13:00' },
+    ]);
+    const res = await service.listTakenSlots('L1');
+    expect(res).toEqual({
+      data: [{ requested_date: '2026-07-03', window_start: '11:00', window_end: '13:00' }],
+    });
+    expect(prisma.tourRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          listingId: 'L1',
+          status: { in: ['PENDING', 'CONFIRMED'] },
+        }),
+        select: { requestedDate: true, windowStart: true, windowEnd: true },
+      }),
+    );
+  });
+
+  it('taken: 404 если листинг не найден или DELETED', async () => {
+    prisma.listing.findFirst.mockResolvedValue(null);
+    await expect(service.listTakenSlots('L404')).rejects.toMatchObject({ status: 404 });
   });
 });

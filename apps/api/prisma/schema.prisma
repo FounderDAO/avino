@@ -978,6 +978,10 @@ model TourRequest {
   listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   requester User    @relation(fields: [requesterId], references: [id], onDelete: Cascade)
 
+  // Частичный unique-индекс tour_requests_active_slot_key
+  // (listing_id, requested_date, window_start, window_end) WHERE status IN
+  // ('PENDING','CONFIRMED') — эксклюзивность слота; Prisma не описывает partial
+  // index, см. миграцию 20260702050000_tour_slot_unique_active.
   @@index([listingId])
   @@index([requesterId])
   @@index([status])
