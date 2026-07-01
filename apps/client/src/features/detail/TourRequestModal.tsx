@@ -4,11 +4,13 @@ import * as React from 'react';
 import { Dialog } from 'radix-ui';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
-import { useCreateTourRequestMutation } from '@/store/api/tourRequestsApi';
+import { useCreateTourRequestMutation, useGetTakenSlotsQuery } from '@/store/api/tourRequestsApi';
 import { getApiError } from '@/store/api/apiError';
 import type { Listing } from '@/lib/mock/types';
+import { takenWindowKeys, windowKey } from './tour-slots';
 
 export interface TourRequestModalProps {
   listing: Listing;
@@ -47,6 +49,26 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
   const [message, setMessage] = React.useState(t('messageDefault'));
   const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState(false);
+
+  // Занятые слоты листинга (модалка открывается только авторизованным —
+  // ContactCard шлёт гостя в логин, поэтому Bearer-запрос безопасен).
+  const { data: takenSlots, refetch: refetchTaken } = useGetTakenSlotsQuery(
+    listing.id,
+    { skip: !open },
+  );
+  const takenForDate = React.useMemo(
+    () => takenWindowKeys(takenSlots, date),
+    [takenSlots, date],
+  );
+
+  // Если выбранное окно занято на выбранную дату — сдвигаем на первое свободное
+  // (findIndex → -1, когда всё занято: submit упрётся в windowRequired).
+  React.useEffect(() => {
+    const w = windows[windowIdx];
+    if (w && takenForDate.has(windowKey(w))) {
+      setWindowIdx(windows.findIndex((x) => !takenForDate.has(windowKey(x))));
+    }
+  }, [takenForDate, windows, windowIdx]);
 
   // Сбрасываем форму при каждом открытии модалки.
   const prevOpen = React.useRef(false);
@@ -90,9 +112,15 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
       closeTimer.current = setTimeout(() => onOpenChange(false), 1200);
     } catch (err) {
       const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);
+      if (apiErr?.code === 'TOUR_SLOT_TAKEN') {
+        // Слот заняли, пока заполняли форму: понятный текст + свежая занятость.
+        setError(t('slotTakenError'));
+        void refetchTaken();
+        return;
+      }
       setError(apiErr?.message ?? t('error'));
     }
-  }, [phone, windows, windowIdx, date, createTour, listing.id, name, message, onOpenChange, t]);
+  }, [phone, windows, windowIdx, date, createTour, listing.id, name, message, onOpenChange, t, refetchTaken]);
 
   const email = user?.email ?? '';
 
@@ -149,17 +177,30 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
 
               <fieldset className="flex flex-col gap-1.5 text-[13px] font-semibold">
                 <legend>{t('window')} *</legend>
-                {windows.map((w, i) => (
-                  <label key={`${w.start}-${w.end}`} className="flex items-center gap-2 font-normal">
-                    <input
-                      type="radio"
-                      name="tour-window"
-                      checked={windowIdx === i}
-                      onChange={() => setWindowIdx(i)}
-                    />
-                    {w.start}–{w.end}
-                  </label>
-                ))}
+                {windows.map((w, i) => {
+                  const taken = takenForDate.has(windowKey(w));
+                  return (
+                    <label
+                      key={`${w.start}-${w.end}`}
+                      className={cn(
+                        'flex items-center gap-2 font-normal',
+                        taken && 'text-muted-foreground',
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="tour-window"
+                        checked={windowIdx === i}
+                        disabled={taken}
+                        onChange={() => setWindowIdx(i)}
+                      />
+                      {w.start}–{w.end}
+                      {taken && (
+                        <span className="text-[12px]">⛔ {t('slotTaken')}</span>
+                      )}
+                    </label>
+                  );
+                })}
               </fieldset>
 
               <label className="flex flex-col gap-1 text-[13px] font-semibold">

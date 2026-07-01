@@ -392,6 +392,8 @@
     "windowRequired": "Выберите время",
     "phoneRequired": "Укажите телефон",
     "dateRequired": "Выберите дату",
+    "slotTaken": "занято",
+    "slotTakenError": "Это время уже занято другим пользователем. Выберите другое.",
     "close": "Закрыть"
   },
   "sell": {

@@ -6,7 +6,10 @@ const createSpy = vi.fn(() => ({ unwrap: () => Promise.resolve({ id: 'TR1' }) })
 let mockUser: unknown = { profile: { display_name: 'Tap Links', contact_phone: '+998901112233' }, email: 'a@b.c', phone: null };
 
 vi.mock('@/store/hooks', () => ({ useAppSelector: (sel: (s: unknown) => unknown) => sel({ auth: { accessToken: 't', user: mockUser } }) }));
-vi.mock('@/store/api/tourRequestsApi', () => ({ useCreateTourRequestMutation: () => [createSpy, { isLoading: false }] }));
+vi.mock('@/store/api/tourRequestsApi', () => ({
+  useCreateTourRequestMutation: () => [createSpy, { isLoading: false }],
+  useGetTakenSlotsQuery: () => ({ data: [], refetch: vi.fn() }),
+}));
 vi.mock('next-intl', () => ({ useTranslations: (ns: string) => (k: string) => (ns ? ((ru as unknown as Record<string, Record<string, string>>)[ns]?.[k] ?? k) : k) }));
 
 import { TourRequestModal } from './TourRequestModal';

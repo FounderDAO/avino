@@ -392,6 +392,8 @@
     "windowRequired": "Vaqtni tanlang",
     "phoneRequired": "Telefonni kiriting",
     "dateRequired": "Sanani tanlang",
+    "slotTaken": "band",
+    "slotTakenError": "Bu vaqt allaqachon band. Boshqa vaqtni tanlang.",
     "close": "Yopish"
   },
   "sell": {
