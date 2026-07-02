@@ -496,6 +496,19 @@ export class SearchService {
   }
 
   /**
+   * SQL-выражение цены листинга, приведённой к валюте `currency` по курсу ЦБУ
+   * (`1 USD = rate UZS`). Единый источник FX-нормализации для ценового фильтра
+   * ({@link buildWhereSql}) и гистограммы ({@link priceDistribution}) — цена
+   * листинга иной валюты сравнивается/бакетируется так же, как её видит
+   * пользователь (конвертированной). Возвращает целочисленно-безопасный `numeric`.
+   */
+  private priceInCurrencySql(currency: Currency, rate: string): Prisma.Sql {
+    return currency === Currency.USD
+      ? Prisma.sql`(CASE WHEN currency = 'UZS' THEN price / ${rate}::numeric ELSE price END)`
+      : Prisma.sql`(CASE WHEN currency = 'USD' THEN price * ${rate}::numeric ELSE price END)`;
+  }
+
+  /**
    * `GET /api/v1/search/radius` — ACTIVE-листинги в радиусе `radius_m` метров от
    * точки (`ST_DWithin` по GIST-индексу `idx_listings_location`). Порядок —
    * promotion-приоритетный, как у `/search` (keyset с тиром), каждый элемент
@@ -655,19 +668,33 @@ export class SearchService {
 
   /**
    * `GET /api/v1/search/price-distribution` — гистограмма цены для слайдера.
-   * Глобально по (currency, transaction_type), только видимые ACTIVE-объявления.
-   * Домен [0, max], где max = niceCeil(p99); всё дороже — overflow. Без FX.
+   * Глобально по transaction_type, только видимые ACTIVE-объявления.
+   * Домен [0, max], где max = niceCeil(p99); всё дороже — overflow.
+   *
+   * FX (зеркало ценового фильтра, {@link buildWhereSql}): при наличии курса ЦБУ
+   * учитываются объявления ОБЕИХ валют, цена каждого приводится к `currency` —
+   * гистограмма совпадает с конвертированными ценами выдачи и не «теряет» половину
+   * объявлений другой валюты. Нет курса → деградация к прежней per-currency
+   * гистограмме (только листинги валюты запроса, raw-цена).
    */
   async priceDistribution(
     query: PriceDistributionQueryDto,
   ): Promise<PriceDistributionResponseDto> {
     const N = 30;
-    const where = Prisma.sql`status = 'ACTIVE' AND transaction_type::text = ${query.transaction_type} AND currency::text = ${query.currency}`;
+    const rate = await this.fxRate();
+    // Цена, приведённая к валюте запроса; нет курса → сырая цена (см. `where`).
+    const priceExpr = rate
+      ? this.priceInCurrencySql(query.currency, rate)
+      : Prisma.sql`price`;
+    // Есть курс → все валюты (конвертируем); нет курса → только валюта запроса.
+    const where = rate
+      ? Prisma.sql`status = 'ACTIVE' AND transaction_type::text = ${query.transaction_type}`
+      : Prisma.sql`status = 'ACTIVE' AND transaction_type::text = ${query.transaction_type} AND currency::text = ${query.currency}`;
 
     const statsRows = await this.prisma.$queryRaw<
       { ceiling: number | null; total: number }[]
     >(Prisma.sql`
-      SELECT percentile_cont(0.99) WITHIN GROUP (ORDER BY price)::float8 AS ceiling,
+      SELECT percentile_cont(0.99) WITHIN GROUP (ORDER BY ${priceExpr})::float8 AS ceiling,
              count(*)::int AS total
       FROM listings
       WHERE ${where}
@@ -688,7 +715,7 @@ export class SearchService {
 
     const bucketRows = await this.prisma.$queryRaw<{ b: number; c: number }[]>(
       Prisma.sql`
-        SELECT width_bucket(price::float8, 0::float8, ${max}::float8, ${N}::int) AS b, count(*)::int AS c
+        SELECT width_bucket((${priceExpr})::float8, 0::float8, ${max}::float8, ${N}::int) AS b, count(*)::int AS c
         FROM listings
         WHERE ${where}
         GROUP BY b
@@ -1045,10 +1072,7 @@ export class SearchService {
     const hasPriceBound =
       query.price_min !== undefined || query.price_max !== undefined;
     if (hasPriceBound && query.currency !== undefined && rate) {
-      const priceInCurrency =
-        query.currency === Currency.USD
-          ? Prisma.sql`(CASE WHEN currency = 'UZS' THEN price / ${rate}::numeric ELSE price END)`
-          : Prisma.sql`(CASE WHEN currency = 'USD' THEN price * ${rate}::numeric ELSE price END)`;
+      const priceInCurrency = this.priceInCurrencySql(query.currency, rate);
       if (query.price_min !== undefined)
         conds.push(Prisma.sql`${priceInCurrency} >= ${query.price_min}::numeric`);
       if (query.price_max !== undefined)
