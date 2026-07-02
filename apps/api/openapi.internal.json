@@ -3280,6 +3280,55 @@
         }
       }
     },
+    "/api/v1/admin/promotions": {
+      "get": {
+        "operationId": "AdminPromotionsOverviewController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/admin/promotions/summary": {
+      "get": {
+        "operationId": "AdminPromotionsOverviewController_summary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/listing-promotions/{id}/cancel": {
       "patch": {
         "operationId": "AdminListingPromotionsController_cancel",
