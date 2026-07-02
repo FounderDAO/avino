@@ -82,7 +82,9 @@ function ThreadAvatar({
           className,
         )}
       >
-        <PhotoImg src={src} sizes="48px" />
+        {/* h-full w-full: в fill-режиме безвредно, а error-плейсхолдер PhotoImg
+            (глиф ~49px) без размеров клиппится в 40-44px контейнере вкривь. */}
+        <PhotoImg src={src} sizes="48px" className="h-full w-full" />
       </span>
     );
   }
@@ -98,7 +100,7 @@ function ThreadAvatar({
   );
 }
 
-/** Фолбэк вторичной строки списка: цена объявления либо статус. */
+/** Вторичная часть строки объявления (список и шапка): цена либо статус. */
 function listingSubtitle(t: ApiThread, tUnits: T): string {
   const p = t.listing_preview;
   if (!p) return '';
@@ -349,7 +351,7 @@ export function Inbox() {
           {threadsLoading ? (
             <div className="flex flex-col gap-2 p-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-[64px] rounded-card" />
+                <Skeleton key={i} className="h-[78px] rounded-card" />
               ))}
             </div>
           ) : list.length === 0 ? (
