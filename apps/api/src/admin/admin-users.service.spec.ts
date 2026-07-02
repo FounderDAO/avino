@@ -36,6 +36,7 @@ describe('AdminUsersService', () => {
     updatedAt: new Date('2026-06-02T00:00:00Z'),
     deletedAt: null,
     roles: [{ role: { code: 'USER' } }, { role: { code: 'AGENT' } }],
+    _count: { listings: 2 },
     profile: {
       firstName: 'Ali',
       lastName: 'Valiev',
@@ -103,6 +104,7 @@ describe('AdminUsersService', () => {
       expect(result.data[0]).toMatchObject({
         id: USER_ID,
         roles: ['USER', 'AGENT'],
+        listings_count: 2,
         is_email_verified: false,
         created_at: '2026-05-01T00:00:00.000Z',
         last_login_at: '2026-06-01T00:00:00.000Z',

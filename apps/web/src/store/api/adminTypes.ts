@@ -101,6 +101,15 @@ export interface AdminListingRow {
   currency: Currency;
   city_id: string | null;
   district_id: string | null;
+  /**
+   * Имя района (nameRu) для колонки «Район». `optional`: старый бэкенд поля
+   * не отдаёт — UI деградирует к «—».
+   */
+  district_name?: string | null;
+  /** Число комнат (null для участков). `optional` — мягкая деградация к «—». */
+  rooms?: number | null;
+  /** Счётчик просмотров. `optional` — мягкая деградация к «—». */
+  views_count?: number;
   owner_id: string;
   /**
    * Инлайн-профиль автора (ADR-0084) — чтобы карточка модерации показывала
@@ -245,6 +254,11 @@ export interface AdminUserRow {
   is_phone_verified: boolean;
   is_email_verified: boolean;
   roles: RoleCode[];
+  /**
+   * Число объявлений пользователя (без DELETED) — колонка «Объявл.».
+   * `optional`: старый бэкенд поля не отдаёт — UI деградирует к 0.
+   */
+  listings_count?: number;
   last_login_at: string | null;
   created_at: string;
 }
