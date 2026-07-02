@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { IC, type LucideIcon } from './icons';
 import { useGetAdminStatsQuery } from '@/store/api/adminStatsApi';
+import { useGetMeQuery } from '@/store/api/authApi';
 
 type NavItem = [href: string, label: string, Icon: LucideIcon];
 
@@ -44,6 +45,9 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   // что и KPI «На проверке» на дашборде; инвалидируется после каждой модерации.
   const { data: stats } = useGetAdminStatsQuery();
   const moderationCount = stats?.listings_new ?? 0;
+  // Реальный пользователь в футере (раньше был зашит «Модератор admin@avino.uz»).
+  const { data: me } = useGetMeQuery();
+  const meName = me?.profile?.display_name || me?.email || me?.phone || '';
   return (
     <aside className={'a-side' + (open ? ' open' : '')}>
       <div className="a-side-head row" style={{ justifyContent: 'space-between' }}>
@@ -77,15 +81,19 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           </div>
         ))}
       </div>
-      <div style={{ padding: 14, borderTop: '1px solid rgba(255,255,255,.1)' }}>
-        <div className="row gap-12" style={{ gap: 10 }}>
-          <span style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--teal)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14 }}>М</span>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ color: '#fff', fontWeight: 600, fontSize: 14 }}>Модератор</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)' }}>admin@avino.uz</div>
+      {me && (
+        <div style={{ padding: 14, borderTop: '1px solid rgba(255,255,255,.1)' }}>
+          <div className="row gap-12" style={{ gap: 10 }}>
+            <span style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--teal)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14 }}>
+              {(meName[0] ?? '?').toUpperCase()}
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: '#fff', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meName}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{me.email ?? me.phone ?? ''}</div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </aside>
   );
 }
