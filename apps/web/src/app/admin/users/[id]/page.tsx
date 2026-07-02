@@ -149,8 +149,6 @@ export default function UserDetailPage() {
         <div className="a-card" style={{ padding: 20 }}>
           <h3 style={{ fontSize: 15, marginBottom: 14 }}>Действия</h3>
           <div className="col gap-10">
-            <button className="abtn abtn-outline" style={{ width: '100%' }} onClick={() => toast('Ссылка для сброса пароля отправлена')}>Сбросить пароль</button>
-            <button className="abtn abtn-outline" style={{ width: '100%' }} onClick={() => toast('Письмо с подтверждением отправлено')}>Отправить подтверждение</button>
             <button className="abtn" disabled={statusBusy} style={{ width: '100%', background: user.status === 'active' ? 'var(--red-bg)' : 'var(--green-bg)', color: user.status === 'active' ? 'var(--red)' : 'var(--green)' }} onClick={() => changeStatus(user.status === 'active' ? 'BLOCKED' : 'ACTIVE')}>
               {user.status === 'active' ? 'Заблокировать' : 'Разблокировать'}
             </button>
