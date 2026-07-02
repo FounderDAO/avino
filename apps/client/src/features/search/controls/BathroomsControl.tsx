@@ -1,6 +1,7 @@
 /**
  * BathroomsControl — выбор «N+ санузлов» в стиле Zillow (без exact-match).
- * Кнопки «Любое / 1+ / 2+ / 3+ / 4+». Клик по выбранной снимает выбор.
+ * Кнопки «Любое / 1+ / 1.5+ / 2+ / … / 4+». Клик по выбранной снимает выбор.
+ * Шаг 0.5 (LAST_CHANGED_API.md §1: `bathrooms_min` принимает дробные).
  */
 'use client';
 
@@ -16,8 +17,11 @@ export interface BathroomsControlProps {
 
 const BATHROOM_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: '1+' },
+  { value: 1.5, label: '1.5+' },
   { value: 2, label: '2+' },
+  { value: 2.5, label: '2.5+' },
   { value: 3, label: '3+' },
+  { value: 3.5, label: '3.5+' },
   { value: 4, label: '4+' },
 ];
 

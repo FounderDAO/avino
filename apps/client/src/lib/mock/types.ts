@@ -34,7 +34,7 @@ export type ParkingType = 'YARD' | 'COVERED' | 'GARAGE' | 'UNDERGROUND';
 /** Все типы парковки (порядок — как в выпадающих списках UI). */
 export const PARKING_TYPES: ParkingType[] = ['YARD', 'COVERED', 'GARAGE', 'UNDERGROUND'];
 
-/** Удобства объявления (ADR-0111, Zillow Phase 2). */
+/** Удобства объявления (ADR-0111, Zillow Phase 2; POOL — LAST_CHANGED_API.md §1). */
 export type Amenity =
   | 'AIR_CONDITIONING'
   | 'FURNITURE'
@@ -43,7 +43,8 @@ export type Amenity =
   | 'ELEVATOR'
   | 'BALCONY'
   | 'HEATING'
-  | 'SECURITY';
+  | 'SECURITY'
+  | 'POOL';
 
 /** Все удобства (порядок — как в UI). */
 export const AMENITIES: Amenity[] = [
@@ -55,6 +56,7 @@ export const AMENITIES: Amenity[] = [
   'BALCONY',
   'HEATING',
   'SECURITY',
+  'POOL',
 ];
 
 export type ListingStatus =
@@ -132,6 +134,18 @@ export interface Listing {
   totalFloors?: number;
   /** Год постройки/сдачи. */
   year?: number;
+  /** Цокольный этаж (LAST_CHANGED_API.md §1); при true floor не задаётся. */
+  isBasement?: boolean;
+  /** Жилая площадь, м² (Decimal-строка). */
+  livingArea?: string | null;
+  /** Нежилая площадь, м² (Decimal-строка). */
+  nonLivingArea?: string | null;
+  /** Кол-во просмотров (только в ответах API). */
+  viewsCount?: number;
+  /** Кол-во намерений позвонить (только в ответах API). */
+  callsCount?: number;
+  /** Кол-во добавлений в избранное (только в ответах API). */
+  likesCount?: number;
 
   /** Заголовок объявления. */
   title: string;
@@ -253,6 +267,8 @@ export interface ListingFilter {
   /** Источник объявления. */
   listingSource?: 'OWNER' | 'AGENCY';
   toursEnabled?: boolean;
+  /** Только цокольные этажи (`?is_basement=true`, LAST_CHANGED_API.md §1). */
+  isBasement?: boolean;
 }
 
 /**

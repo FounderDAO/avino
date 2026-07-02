@@ -278,7 +278,8 @@
       "any": "Любое",
       "roomsExact": "Комнат ровно: {count}",
       "lotAreaTitle": "Площадь участка",
-      "amenitiesTitle": "Удобства"
+      "amenitiesTitle": "Удобства",
+      "isBasement": "Цокольный этаж"
     },
     "results": {
       "count": "{count, plural, one {# объявление} few {# объявления} many {# объявлений} other {# объявления}}",
@@ -355,7 +356,10 @@
       "floorOf": "{floor} из {total}",
       "year": "Год постройки",
       "parking": "Парковка",
-      "lotArea": "Участок"
+      "lotArea": "Участок",
+      "livingArea": "Жилая площадь",
+      "nonLivingArea": "Нежилая площадь",
+      "basementValue": "Цоколь"
     },
     "contact": {
       "greeting": "Здравствуйте! Объявление ещё актуально?",
@@ -376,7 +380,11 @@
       "title": "Удобства"
     },
     "openFullPage": "Открыть страницу",
-    "modalTitle": "Объявление"
+    "modalTitle": "Объявление",
+    "stats": {
+      "viewsAria": "Просмотров: {count}",
+      "likesAria": "В избранном: {count}"
+    }
   },
   "tourRequest": {
     "title": "Заявка на тур",
@@ -581,7 +589,16 @@
       },
       "amenities": {
         "label": "Удобства"
-      }
+      },
+      "livingArea": {
+        "label": "Жилая площадь, м²",
+        "placeholder": "например, 45"
+      },
+      "nonLivingArea": {
+        "label": "Нежилая площадь, м²",
+        "placeholder": "например, 10"
+      },
+      "isBasement": "Цокольный этаж"
     },
     "photoUploader": {
       "dropTitle": "Перетащите фото сюда или нажмите, чтобы выбрать",
@@ -827,6 +844,11 @@
           "markSold": "Отметить объявление как проданное? Оно скроется из поиска (можно вернуть позже).",
           "markRented": "Отметить объявление как сданное? Оно скроется из поиска (можно вернуть позже)."
         }
+      },
+      "stats": {
+        "views": "Просмотров: {count}",
+        "likes": "В избранном: {count}",
+        "calls": "Звонков: {count}"
       }
     },
     "notifications": {
@@ -1026,7 +1048,8 @@
       "ELEVATOR": "Лифт",
       "BALCONY": "Балкон",
       "HEATING": "Отопление",
-      "SECURITY": "Видеонаблюдение"
+      "SECURITY": "Видеонаблюдение",
+      "POOL": "Бассейн"
     }
   },
   "breadcrumb": {

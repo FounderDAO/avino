@@ -10,6 +10,9 @@
  *  - POST   /listings/:id/media          — добавить фото (multipart, поле `file`).
  *  - DELETE /listings/:id/media/:mediaId — удалить фото.
  *  - PATCH  /listings/:id/media/reorder  — порядок ({ order: mediaId[] }, 0-based).
+ *  - POST   /listings/:id/view           — счётчик просмотров (LAST_CHANGED_API.md §2).
+ *    ПУБЛИЧНЫЙ (без Bearer), доступен для ЛЮБОГО id, не только «своих» — размещён
+ *    здесь как ближайший по теме listings-слайс, а не потому что требует владения.
  *
  * `original_language` менять нельзя (ADR-005), `status` — только модерация: оба не
  * входят в тело PATCH.
@@ -57,6 +60,13 @@ export interface EditListingDetail {
   media: EditListingMedia[];
   tours_enabled: boolean;
   tour_windows: { start: string; end: string }[];
+  /** Новые поля LAST_CHANGED_API.md §1; опциональны на случай рассинхрона с бэком. */
+  is_basement?: boolean;
+  living_area?: string | null;
+  non_living_area?: string | null;
+  views_count?: number;
+  calls_count?: number;
+  likes_count?: number;
 }
 
 /** Тело PATCH /listings/:id (строго поля UpdateListingDto). */
@@ -68,8 +78,10 @@ export interface UpdateListingPatch {
   area?: string;
   lot_area?: string;
   rooms?: number;
+  /** Дробный, шаг 0.5 (не кратное 0.5 → 400). */
   bathrooms?: number;
-  floor?: number;
+  /** `null` — явно очистить (цокольный этаж, is_basement=true). */
+  floor?: number | null;
   total_floors?: number;
   year_built?: number;
   address?: string;
@@ -86,6 +98,9 @@ export interface UpdateListingPatch {
   amenities?: Amenity[];
   city_id?: string;
   district_id?: string;
+  is_basement?: boolean;
+  living_area?: string | null;
+  non_living_area?: string | null;
 }
 
 export const listingEditApi = baseApi.injectEndpoints({
@@ -129,6 +144,24 @@ export const listingEditApi = baseApi.injectEndpoints({
         body: { order },
       }),
     }),
+
+    /**
+     * Зарегистрировать просмотр объявления. POST /listings/:id/view → 204.
+     * Публичный (без Bearer), без тела; 404 у неопубликованного — вызывающий
+     * должен проглотить ошибку (LAST_CHANGED_API.md §2).
+     */
+    registerListingView: build.mutation<void, string>({
+      query: (id) => ({ url: `/listings/${id}/view`, method: 'POST' }),
+    }),
+
+    /**
+     * Зарегистрировать намерение позвонить. POST /listings/:id/call → 204.
+     * Публичный (без Bearer), без тела; 404 у неопубликованного — вызывающий
+     * должен проглотить ошибку (спека 2026-07-03).
+     */
+    registerListingCall: build.mutation<void, string>({
+      query: (id) => ({ url: `/listings/${id}/call`, method: 'POST' }),
+    }),
   }),
 });
 
@@ -138,4 +171,6 @@ export const {
   useAddListingMediaMutation,
   useDeleteListingMediaMutation,
   useReorderListingMediaMutation,
+  useRegisterListingViewMutation,
+  useRegisterListingCallMutation,
 } = listingEditApi;

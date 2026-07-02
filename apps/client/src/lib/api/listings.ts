@@ -76,6 +76,16 @@ export interface ApiSearchItem {
   /** До 3 свежих presigned URL фото (индекс 0 = обложка). thumbnail_url = thumbnails[0]. */
   thumbnails?: string[];
   created_at: string;
+  /**
+   * Новые поля LAST_CHANGED_API.md §1 (29.06–02.07.2026). Опциональны на
+   * фронте на случай рассинхрона со старым бэкендом (см. `features?` выше).
+   */
+  is_basement?: boolean;
+  living_area?: string | null;
+  non_living_area?: string | null;
+  views_count?: number;
+  calls_count?: number;
+  likes_count?: number;
 }
 
 /** Публичный контакт автора (TASK-210, ADR-0069); только в detail. */
@@ -133,6 +143,16 @@ interface ApiListingDetail {
   created_at: string;
   tours_enabled: boolean;
   tour_windows: { start: string; end: string }[];
+  /**
+   * Новые поля LAST_CHANGED_API.md §1 (29.06–02.07.2026). Опциональны на
+   * фронте на случай рассинхрона со старым бэкендом (см. `features?` выше).
+   */
+  is_basement?: boolean;
+  living_area?: string | null;
+  non_living_area?: string | null;
+  views_count?: number;
+  calls_count?: number;
+  likes_count?: number;
 }
 
 /** Envelope поиска (API.md §9). Реиспользуется клиентским searchApi (TASK-152). */
@@ -283,6 +303,12 @@ export function mapListing(api: AnyApiListing): Listing {
     floor: detail?.floor ?? undefined,
     totalFloors: detail?.total_floors ?? undefined,
     year: detail?.year_built ?? undefined,
+    isBasement: (api as ApiSearchItem | ApiListingDetail).is_basement ?? undefined,
+    livingArea: (api as ApiSearchItem | ApiListingDetail).living_area ?? undefined,
+    nonLivingArea: (api as ApiSearchItem | ApiListingDetail).non_living_area ?? undefined,
+    viewsCount: (api as ApiSearchItem | ApiListingDetail).views_count ?? undefined,
+    callsCount: (api as ApiSearchItem | ApiListingDetail).calls_count ?? undefined,
+    likesCount: (api as ApiSearchItem | ApiListingDetail).likes_count ?? undefined,
 
     title: api.title,
     desc: detail?.description ?? undefined,
@@ -417,6 +443,7 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   if (filter.yearMax != null) params.set('year_max', String(filter.yearMax));
   if (filter.listingSource) params.set('listing_source', filter.listingSource);
   if (filter.toursEnabled) params.set('tours_enabled', 'true');
+  if (filter.isBasement) params.set('is_basement', 'true');
   if (filter.parkingTypes && filter.parkingTypes.length > 0) {
     for (const pt of filter.parkingTypes) params.append('parking_type', pt);
   }

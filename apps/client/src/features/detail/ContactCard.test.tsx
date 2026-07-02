@@ -15,9 +15,10 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Listing } from '@/lib/mock/types';
 
-const { createSpy, pushSpy } = vi.hoisted(() => ({
+const { createSpy, pushSpy, registerCallSpy } = vi.hoisted(() => ({
   createSpy: vi.fn(),
   pushSpy: vi.fn(),
+  registerCallSpy: vi.fn(),
 }));
 
 // Управляемое состояние авторизации + текущий пользователь для useAppSelector.
@@ -81,6 +82,10 @@ vi.mock('@/store/api/chatApi', () => ({
   useCreateThreadMutation: () => [createSpy, { isLoading: false }],
 }));
 
+vi.mock('@/store/api/listingEditApi', () => ({
+  useRegisterListingCallMutation: () => [registerCallSpy, { isLoading: false }],
+}));
+
 // LoginModal, FavButton и TourRequestModal тянут собственные стораджи — заменяем лёгкими стабами.
 vi.mock('@/components/layout/LoginModal', () => ({
   LoginModal: ({ open }: { open: boolean }) =>
@@ -118,6 +123,7 @@ describe('ContactCard', () => {
     mockAuthed = false;
     mockUser = null;
     createSpy.mockReturnValue({ unwrap: () => Promise.resolve({ id: 'th-1' }) });
+    registerCallSpy.mockReturnValue({ unwrap: () => Promise.resolve() });
   });
   afterEach(() => {
     vi.clearAllMocks();
@@ -204,5 +210,25 @@ describe('ContactCard', () => {
     render(<ContactCard listing={makeListing('+998 90 123-45-67', 'u-owner')} />);
     expect(screen.queryByText('Это ваше объявление')).not.toBeInTheDocument();
     expect(screen.getByText('Показать телефон')).toBeInTheDocument();
+  });
+
+  it('клик по раскрытой tel:-ссылке засчитывает звонок', async () => {
+    const user = userEvent.setup();
+    render(<ContactCard listing={makeListing('+998 90 123-45-67')} />);
+    await user.click(screen.getByText('Показать телефон'));
+    await user.click(screen.getByRole('link', { name: /\+998 90 123-45-67/ }));
+    expect(registerCallSpy).toHaveBeenCalledWith('lst-1');
+  });
+
+  it('ошибка мутации звонка не ломает tel:-ссылку', async () => {
+    registerCallSpy.mockReturnValue({
+      unwrap: () => Promise.reject(new Error('network')),
+    });
+    const user = userEvent.setup();
+    render(<ContactCard listing={makeListing('+998 90 123-45-67')} />);
+    await user.click(screen.getByText('Показать телефон'));
+    const link = screen.getByRole('link', { name: /\+998 90 123-45-67/ });
+    await user.click(link);
+    expect(link).toHaveAttribute('href', 'tel:+99890123-45-67');
   });
 });

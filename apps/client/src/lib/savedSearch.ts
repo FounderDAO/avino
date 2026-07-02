@@ -107,6 +107,7 @@ export function describeFilters(filters: SavedSearchFilters, t: T): string {
   else if (filters.listing_source === 'AGENCY') parts.push(t('search.filters.sourceAgency'));
 
   if (filters.tours_enabled) parts.push(t('search.filters.toursEnabled'));
+  if (filters.is_basement) parts.push(t('search.filters.isBasement'));
 
   const parking = Array.isArray(filters.parking_types) ? (filters.parking_types as string[]) : [];
   if (parking.length) parts.push(t('search.filters.parkingTypesTitle'));
@@ -157,6 +158,7 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   if (filters.not_last_floor) params.set('not_last_floor', 'true');
   set('listing_source', asString(filters.listing_source));
   if (filters.tours_enabled) params.set('tours_enabled', 'true');
+  if (filters.is_basement) params.set('is_basement', 'true');
   if (Array.isArray(filters.parking_types)) {
     for (const p of filters.parking_types as string[]) {
       if (PARKING_TYPES.includes(p as ParkingType)) params.append('parking_type', p);
