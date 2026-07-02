@@ -14,6 +14,10 @@ out/
 .env.local
 .env.*.local
 
+# Secrets (Google OAuth client files и т.п.) — никогда не коммитить
+client_secret*.json
+**/client_secret*.json
+
 # Logs
 *.log
 npm-debug.log*
