@@ -950,6 +950,12 @@
       "confirm": "Confirm",
       "decline": "Decline",
       "cancel": "Cancel",
+      "modalTitle": "Tour request",
+      "message": "Message",
+      "noMessage": "No message",
+      "openListing": "Open listing",
+      "close": "Close",
+      "actionError": "Could not update the request",
       "status": {
         "PENDING": "Pending",
         "CONFIRMED": "Confirmed",

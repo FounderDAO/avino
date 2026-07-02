@@ -11,6 +11,8 @@ import {
   type TourRequestItem,
   type TourAction,
 } from '@/store/api/tourRequestsApi';
+import { cn } from '@/lib/utils';
+import { IncomingTourModal } from './IncomingTourModal';
 
 function StatusBadge({ status }: { status: TourRequestItem['status'] }) {
   const t = useTranslations('account');
@@ -21,17 +23,45 @@ function StatusBadge({ status }: { status: TourRequestItem['status'] }) {
   );
 }
 
+/** Класс заливки для цветных действий: CONFIRM — зелёный, DECLINE — красный, иначе обводка. */
+function actionClass(action: TourAction): string {
+  if (action === 'CONFIRM') return 'bg-green text-white hover:brightness-95';
+  if (action === 'DECLINE') return 'bg-red text-white hover:bg-red-press';
+  return 'border border-border hover:bg-bg';
+}
+
 function Row({
   item,
   actions,
+  onOpen,
 }: {
   item: TourRequestItem;
   actions: { label: string; action: TourAction }[];
+  onOpen?: () => void;
 }) {
   const t = useTranslations('account');
   const [update, { isLoading }] = useUpdateTourStatusMutation();
+  const clickable = Boolean(onOpen);
   return (
-    <div className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface p-4">
+    <div
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={onOpen}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpen?.();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        'flex items-center justify-between gap-3 rounded-card border border-border bg-surface p-4',
+        clickable && 'cursor-pointer hover:border-teal/60',
+      )}
+    >
       <div className="min-w-0">
         <div className="truncate text-[15px] font-semibold">
           <span>{item.requester_name}</span>
@@ -48,12 +78,17 @@ function Row({
             key={a.action}
             type="button"
             disabled={isLoading}
-            onClick={() => {
+            onClick={(e) => {
+              // Клик по кнопке действия не должен открывать модалку строки.
+              e.stopPropagation();
               void update({ id: item.id, action: a.action })
                 .unwrap()
                 .catch(() => {});
             }}
-            className="rounded-pill border border-border px-3 py-1.5 text-[13px] font-semibold hover:bg-bg"
+            className={cn(
+              'rounded-pill px-3 py-1.5 text-[13px] font-semibold disabled:opacity-50',
+              actionClass(a.action),
+            )}
           >
             {a.label}
           </button>
@@ -68,6 +103,7 @@ export default function Tours() {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const { data: outgoing } = useGetOutgoingToursQuery(undefined, { skip: !isAuthenticated });
   const { data: incoming } = useGetIncomingToursQuery(undefined, { skip: !isAuthenticated });
+  const [selected, setSelected] = React.useState<TourRequestItem | null>(null);
 
   if (!isAuthenticated) return <p className="text-muted-foreground">{t('tours.guest')}</p>;
 
@@ -85,6 +121,7 @@ export default function Tours() {
             <Row
               key={it.id}
               item={it}
+              onOpen={() => setSelected(it)}
               actions={
                 it.status === 'PENDING'
                   ? [
@@ -113,6 +150,8 @@ export default function Tours() {
           ))}
         </section>
       )}
+
+      <IncomingTourModal item={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
