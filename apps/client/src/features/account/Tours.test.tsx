@@ -3,8 +3,8 @@ import { describe, it, expect, vi } from 'vitest';
 import ru from '../../../messages/ru.json';
 
 const updateSpy = vi.fn(() => ({ unwrap: () => Promise.resolve({}) }));
-const outgoing = [{ id: 'O1', listing_id: 'L1', status: 'PENDING', requested_date: '2099-01-01', window_start: '07:00', window_end: '10:00', requester_name: 'Me', requester_phone: 'x', message: null, created_at: '' }];
-const incoming = [{ id: 'I1', listing_id: 'L2', status: 'PENDING', requested_date: '2099-02-02', window_start: '18:00', window_end: '20:00', requester_name: 'Buyer', requester_phone: 'y', message: null, created_at: '' }];
+const outgoing = [{ id: 'O1', listing_id: 'L1', requester_id: 'R0', status: 'PENDING', requested_date: '2099-01-01', window_start: '07:00', window_end: '10:00', requester_name: 'Me', requester_phone: 'x', message: null, created_at: '' }];
+const incoming = [{ id: 'I1', listing_id: 'L2', requester_id: 'R1', status: 'PENDING', requested_date: '2099-02-02', window_start: '18:00', window_end: '20:00', requester_name: 'Buyer', requester_phone: 'y', message: 'Здравствуйте', created_at: '' }];
 
 vi.mock('@/store/hooks', () => ({ useAppSelector: () => true }));
 vi.mock('@/store/api/tourRequestsApi', () => ({
@@ -12,16 +12,24 @@ vi.mock('@/store/api/tourRequestsApi', () => ({
   useGetIncomingToursQuery: () => ({ data: incoming, isLoading: false, isError: false }),
   useUpdateTourStatusMutation: () => [updateSpy, { isLoading: false }],
 }));
+vi.mock('@/i18n/navigation', () => ({ Link: (p: any) => <a href={p.href}>{p.children}</a> }));
 vi.mock('next-intl', () => ({ useTranslations: (ns: string) => (k: string) => k.split('.').reduce((o: any, p) => o?.[p], (ru as any)[ns]) ?? k }));
 
 import Tours from './Tours';
 
 describe('Tours', () => {
-  it('рендерит входящую заявку и подтверждает её', () => {
+  it('клик по строке входящего запроса открывает модалку с сообщением', () => {
     render(<Tours />);
-    expect(screen.getByText('Buyer')).toBeInTheDocument();
-    fireEvent.click(screen.getByText(ru.account.tours.confirm));
+    fireEvent.click(screen.getByText('Buyer'));
+    expect(screen.getByText(ru.account.tours.modalTitle)).toBeInTheDocument();
+    expect(screen.getByText('Здравствуйте')).toBeInTheDocument();
+  });
+
+  it('инлайн «Подтвердить» вызывает мутацию и НЕ открывает модалку', () => {
+    render(<Tours />);
+    fireEvent.click(screen.getAllByText(ru.account.tours.confirm)[0]);
     expect(updateSpy).toHaveBeenCalledWith({ id: 'I1', action: 'CONFIRM' });
+    expect(screen.queryByText(ru.account.tours.modalTitle)).not.toBeInTheDocument();
   });
 
   it('покупатель может отменить свою заявку', () => {
