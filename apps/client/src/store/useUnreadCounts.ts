@@ -44,7 +44,9 @@ export interface UseUnreadCountsOptions {
  * pollingInterval (двигатель свежести), остальные потребители — без (читают
  * общий кэш; RTK дедуплицирует подписки на один endpoint).
  */
-export function useUnreadCounts(opts: UseUnreadCountsOptions = {}): UnreadCounts {
+export function useUnreadCounts(
+  opts: UseUnreadCountsOptions = {},
+): UnreadCounts & { ready: boolean } {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const queryOpts = {
     skip: !isAuthenticated,
@@ -52,12 +54,24 @@ export function useUnreadCounts(opts: UseUnreadCountsOptions = {}): UnreadCounts
     skipPollingIfUnfocused: true,
   } as const;
 
-  const { data: threads } = useGetThreadsQuery(undefined, queryOpts);
-  const { data: notifications } = useGetNotificationsQuery(undefined, queryOpts);
-  const { data: incoming } = useGetIncomingToursQuery(undefined, queryOpts);
+  const { data: threads, isSuccess: threadsReady } = useGetThreadsQuery(
+    undefined,
+    queryOpts,
+  );
+  const { data: notifications, isSuccess: notificationsReady } =
+    useGetNotificationsQuery(undefined, queryOpts);
+  const { data: incoming, isSuccess: incomingReady } = useGetIncomingToursQuery(
+    undefined,
+    queryOpts,
+  );
+
+  const ready = threadsReady && notificationsReady && incomingReady;
 
   return useMemo(
-    () => computeUnreadCounts(threads, notifications?.unread, incoming),
-    [threads, notifications?.unread, incoming],
+    () => ({
+      ...computeUnreadCounts(threads, notifications?.unread, incoming),
+      ready,
+    }),
+    [threads, notifications?.unread, incoming, ready],
   );
 }

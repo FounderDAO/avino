@@ -24,13 +24,21 @@ export function UnreadIndicators({ messages, notifications }: UnreadIndicatorsPr
   const t = useTranslations('nav');
   return (
     <>
-      <Link href="/account/inbox" aria-label={t('messages')} className={ICON}>
+      <Link
+        href="/account/inbox"
+        aria-label={messages > 0 ? `${t('messages')}: ${messages}` : t('messages')}
+        className={ICON}
+      >
         <Mail size={20} strokeWidth={1.9} />
         <CountBadge count={messages} className={DOT} max={9} />
       </Link>
       <Link
         href="/account/notifications"
-        aria-label={t('notifications')}
+        aria-label={
+          notifications > 0
+            ? `${t('notifications')}: ${notifications}`
+            : t('notifications')
+        }
         className={ICON}
       >
         <Bell size={20} strokeWidth={1.9} />

@@ -21,11 +21,11 @@ describe('UnreadIndicators', () => {
     render(<UnreadIndicators messages={3} notifications={5} />);
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
-    expect(screen.getByLabelText(ru.nav.messages)).toHaveAttribute(
+    expect(screen.getByLabelText(`${ru.nav.messages}: 3`)).toHaveAttribute(
       'href',
       '/account/inbox',
     );
-    expect(screen.getByLabelText(ru.nav.notifications)).toHaveAttribute(
+    expect(screen.getByLabelText(`${ru.nav.notifications}: 5`)).toHaveAttribute(
       'href',
       '/account/notifications',
     );

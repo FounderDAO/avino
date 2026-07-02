@@ -47,9 +47,13 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
 
   // Единый владелец фонового поллинга счётчиков (виден на всех страницах)
   // и звука при появлении нового непрочитанного.
-  const { messages: unreadMessages, notifications: unreadNotifications, total: unreadTotal } =
-    useUnreadCounts({ pollingInterval: 20000 });
-  useUnreadSound(unreadTotal);
+  const {
+    messages: unreadMessages,
+    notifications: unreadNotifications,
+    total: unreadTotal,
+    ready: unreadReady,
+  } = useUnreadCounts({ pollingInterval: 20000 });
+  useUnreadSound(unreadTotal, unreadReady);
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -190,7 +194,7 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
                       <Link href={it.href} className="flex items-center justify-center gap-2">
                         {t(it.labelKey)}
                         {it.key === 'chat' && (
-                          <CountBadge count={unreadMessages} max={99} />
+                          <CountBadge count={unreadMessages} max={9} />
                         )}
                       </Link>
                     </Button>
