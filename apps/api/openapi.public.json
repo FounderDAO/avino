@@ -3430,7 +3430,12 @@
         "type": "object",
         "properties": {
           "platform": {
-            "type": "object"
+            "type": "string",
+            "enum": [
+              "ANDROID",
+              "IOS",
+              "WEB"
+            ]
           },
           "push_token": {
             "type": "string",
