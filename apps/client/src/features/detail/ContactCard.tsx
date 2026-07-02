@@ -20,6 +20,7 @@ import type { Listing } from '@/lib/mock/types';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser, selectIsAuthenticated } from '@/store/slices/authSlice';
 import { useCreateThreadMutation } from '@/store/api/chatApi';
+import { useRegisterListingCallMutation } from '@/store/api/listingEditApi';
 import { getApiError } from '@/store/api/apiError';
 
 export interface ContactCardProps {
@@ -39,6 +40,7 @@ export function ContactCard({ listing, className }: ContactCardProps) {
     Boolean(currentUser?.id) &&
     currentUser?.id === listing.ownerId;
   const [createThread, { isLoading: isCreatingThread }] = useCreateThreadMutation();
+  const [registerCall] = useRegisterListingCallMutation();
   const [chatError, setChatError] = React.useState<string | null>(null);
   // Раскрытие телефона по клику (как в прототипе — номер из мока).
   const [phoneShown, setPhoneShown] = React.useState(false);
@@ -160,6 +162,13 @@ export function ContactCard({ listing, className }: ContactCardProps) {
             <a
               href={`tel:${agent.phone.replace(/\s/g, '')}`}
               className="inline-flex w-full items-center justify-center gap-2 rounded-pill bg-ink px-7 py-4 text-base font-bold tracking-[-0.01em] text-white transition-colors hover:bg-black"
+              onClick={() => {
+                // Намерение позвонить (спека 2026-07-03). Не ждём ответа и не
+                // блокируем набор номера; 404/сеть — глотаем.
+                void registerCall(listing.id)
+                  .unwrap()
+                  .catch(() => {});
+              }}
             >
               <Phone size={18} /> {agent.phone}
             </a>

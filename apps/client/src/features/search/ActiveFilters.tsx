@@ -173,6 +173,10 @@ export function ActiveFilters({ values, districts, regions }: ActiveFiltersProps
     chips.push({ key: 'tours_enabled', label: t('toursEnabled'), param: 'tours_enabled' });
   }
 
+  if (values.isBasement) {
+    chips.push({ key: 'is_basement', label: t('isBasement'), param: 'is_basement' });
+  }
+
   if (values.parkingTypes && values.parkingTypes.length > 0) {
     const label = values.parkingTypes.length > 1
       ? t('parkingCount', { count: String(values.parkingTypes.length) })
@@ -244,7 +248,7 @@ export function ActiveFilters({ values, districts, regions }: ActiveFiltersProps
       'total_floors_min', 'total_floors_max',
       'year_min', 'year_max',
       'not_first_floor', 'not_last_floor',
-      'listing_source', 'tours_enabled',
+      'listing_source', 'tours_enabled', 'is_basement',
       'parking_type',
       'amenities',
       'query',
