@@ -8,10 +8,11 @@
  * для отображения всех ролей в карточке. Вёрстка страниц не меняется — только
  * источник данных и типы.
  *
- * Чего нет в API (отдаём «—»/0 с пометкой):
- * - `listings` — эндпоинта «листинги пользователя» нет → всегда 0.
+ * Чего нет в API (отдаём «—» с пометкой):
  * - `name` в списке `GET /admin/users` нет профиля → fallback email/phone/«—»;
  *   в карточке имя берём из профиля (`display_name` или `first_name+last_name`).
+ * `listings` — счётчик `listings_count` из списка/карточки (без DELETED);
+ * старый бэкенд поля не отдаёт → 0.
  */
 import type { UserStatus } from '@/store/api/authApi';
 import type {
@@ -120,7 +121,7 @@ function profileName(profile: AdminUserProfile | null): string | null {
 
 /**
  * Строка списка `GET /admin/users` → UI-модель. Профиля в списке нет, поэтому
- * `name` = email → phone → «—». `listings` всегда 0 (нет API).
+ * `name` = email → phone → «—».
  */
 export function rowToAdminUser(r: AdminUserRow): UiAdminUser {
   return {
@@ -130,7 +131,7 @@ export function rowToAdminUser(r: AdminUserRow): UiAdminUser {
     email: r.email ?? '',
     role: primaryRole(r.roles),
     roles: r.roles,
-    listings: 0,
+    listings: r.listings_count ?? 0,
     status: apiToUiStatus(r.status),
     joined: fmtDate(r.created_at),
     verified: r.is_email_verified || r.is_phone_verified,
@@ -150,8 +151,7 @@ export function detailToAdminUser(d: AdminUserDetail): UiAdminUser {
     email: d.email ?? '',
     role: primaryRole(d.roles),
     roles: d.roles,
-    // Эндпоинта «листинги пользователя» нет → всегда 0 (см. шапку файла).
-    listings: 0,
+    listings: d.listings_count ?? 0,
     status: apiToUiStatus(d.status),
     joined: fmtDate(d.created_at),
     verified: d.is_email_verified || d.is_phone_verified,

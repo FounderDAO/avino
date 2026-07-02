@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Language, Prisma, UserStatus } from '@prisma/client';
+import { Language, ListingStatus, Prisma, UserStatus } from '@prisma/client';
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { PaginatedResponse } from '../moderation';
@@ -28,6 +28,8 @@ export interface AdminUserListItem {
   is_phone_verified: boolean;
   is_email_verified: boolean;
   roles: string[];
+  /** Число объявлений пользователя (без DELETED) — колонка «Объявл.» админ-списка. */
+  listings_count: number;
   last_login_at: string | null;
   created_at: string;
 }
@@ -55,6 +57,12 @@ const LIST_SELECT = {
   lastLoginAt: true,
   createdAt: true,
   roles: { select: { role: { select: { code: true } } } },
+  // Счётчик объявлений (без DELETED) — filtered relation count (Prisma ≥4.16).
+  _count: {
+    select: {
+      listings: { where: { status: { not: ListingStatus.DELETED } } },
+    },
+  },
 } as const;
 
 const DETAIL_SELECT = {
@@ -323,6 +331,7 @@ export class AdminUsersService {
       is_phone_verified: row.isPhoneVerified,
       is_email_verified: row.isEmailVerified,
       roles: row.roles.map((r) => r.role.code),
+      listings_count: row._count.listings,
       last_login_at: row.lastLoginAt?.toISOString() ?? null,
       created_at: row.createdAt.toISOString(),
     };

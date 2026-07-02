@@ -62,6 +62,12 @@ export interface AdminListingListItem {
   currency: Currency;
   city_id: string | null;
   district_id: string | null;
+  /** Имя района (nameRu) — для колонки «Район» в админ-таблице; нет района → null. */
+  district_name: string | null;
+  /** Число комнат — для колонки «Комн.»; null для участков и т.п. */
+  rooms: number | null;
+  /** Счётчик просмотров листинга (`listings.views_count`). */
+  views_count: number;
   owner_id: string;
   owner: AdminListingOwner;
   original_language: Language;
@@ -147,6 +153,8 @@ const LISTING_LIST_SELECT = {
   currency: true,
   cityId: true,
   districtId: true,
+  rooms: true,
+  viewsCount: true,
   publishedAt: true,
   createdAt: true,
   translations: {
@@ -236,8 +244,27 @@ export class ModerationService {
       this.prisma.listing.count({ where }),
     ]);
 
+    // Имена районов одним запросом по districtId строк страницы: relation
+    // Listing→District в схеме нет (districtId — просто скалярный указатель).
+    const districtIds = [
+      ...new Set(
+        rows
+          .map((row) => row.districtId)
+          .filter((id): id is string => id !== null),
+      ),
+    ];
+    const districts = districtIds.length
+      ? await this.prisma.district.findMany({
+          where: { id: { in: districtIds } },
+          select: { id: true, nameRu: true },
+        })
+      : [];
+    const districtNames = new Map(districts.map((d) => [d.id, d.nameRu]));
+
     return {
-      data: await Promise.all(rows.map((row) => this.toListItem(row))),
+      data: await Promise.all(
+        rows.map((row) => this.toListItem(row, districtNames)),
+      ),
       meta: { page, limit, total },
     };
   }
@@ -422,6 +449,7 @@ export class ModerationService {
   /** Компактная карточка листинга в snake_case для админ-списка. */
   private async toListItem(
     listing: AdminListingRow,
+    districtNames: ReadonlyMap<string, string>,
   ): Promise<AdminListingListItem> {
     const translation =
       listing.translations.find(
@@ -444,6 +472,10 @@ export class ModerationService {
       currency: listing.currency,
       city_id: listing.cityId,
       district_id: listing.districtId,
+      district_name:
+        (listing.districtId && districtNames.get(listing.districtId)) || null,
+      rooms: listing.rooms,
+      views_count: listing.viewsCount,
       owner_id: listing.ownerId,
       owner: this.toOwner(listing.owner),
       original_language: listing.originalLanguage,
