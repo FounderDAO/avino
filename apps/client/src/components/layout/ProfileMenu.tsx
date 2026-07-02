@@ -42,7 +42,7 @@ export const FAVORITE_MENU_LINKS: MenuLink[] = [
 ];
 
 /** Контакт для шапки панели: email-локалpart → телефон → запасной текст. Имя НЕ используется. */
-function contactLabel(
+export function contactLabel(
   user: { email: string | null; phone: string | null } | null | undefined,
   fallback: string,
 ): string {
