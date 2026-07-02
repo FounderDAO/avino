@@ -5,8 +5,8 @@
  * Список `GET /admin/listings` отдаёт строку с комнатами/районом/просмотрами и
  * инлайн-профилем автора (колонка «Агент» — имя из owner). Промо в списке нет —
  * плейсхолдер. Детали `GET /listings/:id` дают почти всё (media, площадь,
- * комнаты, этаж, год, описание, features_text, промо); имени района и
- * просмотров в деталях нет — «—».
+ * комнаты, этаж, год, описание, features_text, промо, просмотры, лайки — см.
+ * LAST_CHANGED_API.md §1); имени района в деталях нет — «—».
  */
 import type {
   AdminListingOwner,
@@ -167,9 +167,12 @@ export function detailToAdminListing(d: ListingDetail): AdminListing {
     price: d.price,
     currency: d.currency,
     area: d.area,
+    livingArea: d.living_area,
+    nonLivingArea: d.non_living_area,
     rooms: d.rooms,
     floor: d.floor,
     totalFloors: d.total_floors,
+    isBasement: d.is_basement,
     year: d.year_built,
     district: DASH,
     address: d.address ?? DASH,
@@ -196,7 +199,9 @@ export function detailToAdminListing(d: ListingDetail): AdminListing {
     district: DASH,
     agent: DASH,
     status: apiToUiStatus(d.status),
-    views: DASH,
+    views: d.views_count ?? DASH,
+    calls: d.calls_count ?? DASH,
+    likes: d.likes_count ?? DASH,
     created: fmtDate(d.created_at),
     promo: d.promotion_type,
     tx: TX_LABEL[d.transaction_type] ?? d.transaction_type,

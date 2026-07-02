@@ -64,6 +64,7 @@ const AMENITY_LABELS: Record<string, string> = {
   BALCONY: 'Балкон',
   HEATING: 'Отопление',
   SECURITY: 'Видеонаблюдение',
+  POOL: 'Бассейн',
 };
 
 const logDateFmt = new Intl.DateTimeFormat('ru-RU', {
@@ -147,6 +148,19 @@ export default function ListingDetailPage() {
   }
 
   const src = listing.priceRaw;
+
+  /** «Параметры»: базовые поля + опциональные (жилая/нежилая площадь, цоколь) — только если есть значение. */
+  const params: [string, string | number][] = [
+    ['ID объявления', listing.id],
+    ['Автор', listing.agent],
+    ['Адрес', src.address],
+    ['Год постройки', src.year || '—'],
+    ['Этаж', src.floor ? `${src.floor}/${src.totalFloors}` : '—'],
+    ...(src.livingArea ? ([['Жилая площадь', `${src.livingArea} м²`]] as [string, string][]) : []),
+    ...(src.nonLivingArea ? ([['Нежилая площадь', `${src.nonLivingArea} м²`]] as [string, string][]) : []),
+    ...(src.isBasement ? ([['Цокольный этаж', 'Да']] as [string, string][]) : []),
+    ['Создано', listing.created],
+  ];
 
   const act = async (action: ModerationAction) => {
     if (action === 'REJECT' && !reason) {
@@ -240,7 +254,7 @@ export default function ListingDetailPage() {
           <div className="a-card" style={{ padding: 22 }}>
             <h3 style={{ fontSize: 16, marginBottom: 12 }}>Параметры</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
-              {([['ID объявления', listing.id], ['Автор', listing.agent], ['Адрес', src.address], ['Год постройки', src.year || '—'], ['Этаж', src.floor ? `${src.floor}/${src.totalFloors}` : '—'], ['Создано', listing.created]] as [string, string | number][]).map(([k, v]) => (
+              {params.map(([k, v]) => (
                 <div key={k} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 13px' }}><div className="muted" style={{ fontSize: 12 }}>{k}</div><div style={{ fontWeight: 600, fontSize: 14, marginTop: 2 }}>{v}</div></div>
               ))}
             </div>
@@ -308,7 +322,7 @@ export default function ListingDetailPage() {
           <div className="a-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 15, marginBottom: 6 }}>Статистика</h3>
             <div className="row" style={{ justifyContent: 'space-between' }}>
-              {([['Просмотры', listing.views], ['Статус', STATUS_LABEL[status]]] as [string, string | number][]).map(([k, v]) => (
+              {([['Просмотры', listing.views], ['Звонки', listing.calls ?? '—'], ['Понравилось', listing.likes ?? '—'], ['Статус', STATUS_LABEL[status]]] as [string, string | number][]).map(([k, v]) => (
                 <div key={k}><div style={{ fontWeight: 800, fontSize: 18 }}>{v}</div><div className="muted" style={{ fontSize: 11.5 }}>{k}</div></div>
               ))}
             </div>
