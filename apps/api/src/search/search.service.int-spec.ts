@@ -1646,3 +1646,132 @@ describe('SearchService is_basement filter (integration, мобилка #4)', ()
     expect(ids).toHaveLength(2);
   });
 });
+
+/**
+ * FX-нормализация ценового фильтра (баг-репорт: диапазон 45k–110k показывал
+ * только несколько объявлений, снижение нижней границы не добавляло результатов).
+ *
+ * Корень: цена показывается пользователю КОНВЕРТИРОВАННОЙ в выбранную валюту, а
+ * фильтр отсекал объявления другой валюты равенством `currency = X`. Теперь цену
+ * каждого листинга приводим к валюте фильтра по курсу ЦБУ — в диапазон попадают
+ * объявления ОБЕИХ валют, как их и видит пользователь.
+ *
+ * Сид: два эквивалентных по стоимости листинга ($50k USD и 600M UZS при
+ * 1 USD = 12000 UZS), плюс два вне диапазона.
+ */
+describe('SearchService price filter FX-normalization (integration)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY_ID_FX = '22222222-3333-4444-8555-000000000199';
+  const RATE = '12000'; // 1 USD = 12000 UZS
+
+  const ID = {
+    usdIn:  'aaaaaaaa-0199-4000-8000-000000000001', // 50 000 USD  (в диапазоне)
+    uzsIn:  'bbbbbbbb-0199-4000-8000-000000000001', // 600 000 000 UZS ≈ 50 000 USD (в диапазоне)
+    usdOut: 'cccccccc-0199-4000-8000-000000000001', // 10 000 USD  (ниже диапазона)
+    uzsOut: 'dddddddd-0199-4000-8000-000000000001', // 2 400 000 000 UZS ≈ 200 000 USD (выше диапазона)
+  };
+
+  let ownerId: string;
+  let rateId: string;
+
+  async function createListing(params: {
+    id: string;
+    price: string;
+    currency: Currency;
+  }): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id: params.id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: params.price,
+        currency: params.currency,
+        cityId: CITY_ID_FX,
+        promotionType: PromotionType.NORMAL,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `fx-${params.id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_FX } });
+
+    const owner = await prisma.user.create({ data: { phone: '+998900000199' } });
+    ownerId = owner.id;
+
+    // Свежайший курс (future fetchedAt) — гарантированно выбирается fxRate().
+    const rate = await prisma.exchangeRate.create({
+      data: {
+        base: Currency.USD,
+        quote: Currency.UZS,
+        rate: RATE,
+        source: ExchangeRateSource.MANUAL,
+        fetchedAt: new Date('2099-01-01T00:00:00.000Z'),
+      },
+    });
+    rateId = rate.id;
+
+    await createListing({ id: ID.usdIn,  price: '50000.00',    currency: Currency.USD });
+    await createListing({ id: ID.uzsIn,  price: '600000000.00', currency: Currency.UZS });
+    await createListing({ id: ID.usdOut, price: '10000.00',    currency: Currency.USD });
+    await createListing({ id: ID.uzsOut, price: '2400000000.00', currency: Currency.UZS });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_FX } });
+    if (rateId) await prisma.exchangeRate.delete({ where: { id: rateId } });
+    if (ownerId) await prisma.user.delete({ where: { id: ownerId } });
+    await prisma.$disconnect();
+  });
+
+  it('диапазон в USD включает эквивалентный по стоимости UZS-листинг (FX)', async () => {
+    const res = await service.search({
+      city_id: CITY_ID_FX,
+      price_min: '45000',
+      price_max: '110000',
+      currency: Currency.USD,
+      limit: 100,
+    });
+    const ids = res.data.map((l) => l.id);
+    expect(ids).toContain(ID.usdIn);
+    expect(ids).toContain(ID.uzsIn); // ключевое: раньше молча выпадал
+    expect(ids).not.toContain(ID.usdOut);
+    expect(ids).not.toContain(ID.uzsOut);
+    expect(ids).toHaveLength(2);
+  });
+
+  it('диапазон в UZS включает эквивалентный по стоимости USD-листинг (FX)', async () => {
+    const res = await service.search({
+      city_id: CITY_ID_FX,
+      price_min: '540000000', // 45k USD в UZS
+      price_max: '1320000000', // 110k USD в UZS
+      currency: Currency.UZS,
+      limit: 100,
+    });
+    const ids = res.data.map((l) => l.id);
+    expect(ids).toContain(ID.uzsIn);
+    expect(ids).toContain(ID.usdIn);
+    expect(ids).not.toContain(ID.usdOut);
+    expect(ids).not.toContain(ID.uzsOut);
+    expect(ids).toHaveLength(2);
+  });
+});

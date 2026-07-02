@@ -13,7 +13,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import { usePathname } from '@/i18n/navigation';
-import { Heart, Menu, X } from 'lucide-react';
+import { Heart, Menu, X, ChevronRight, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from './Logo';
 import { LangSwitcher } from './LangSwitcher';
@@ -23,17 +23,57 @@ import { NAV_ITEMS } from './Nav';
 import { Button } from '@/components/ui/button';
 import { useFavoritesCount } from '@/store/favorites';
 import { useAppSelector } from '@/store/hooks';
-import { selectIsAuthenticated } from '@/store/slices/authSlice';
+import { selectIsAuthenticated, selectCurrentUser } from '@/store/slices/authSlice';
 import {
   ProfileMenu,
   PROFILE_MENU_LINKS,
   FAVORITE_MENU_LINKS,
+  contactLabel,
 } from './ProfileMenu';
 import { useLogout } from './useLogout';
 import { UnreadIndicators } from './UnreadIndicators';
 import { CountBadge } from '@/components/ui/count-badge';
 import { useUnreadCounts } from '@/store/useUnreadCounts';
 import { useUnreadSound } from '@/lib/useUnreadSound';
+
+/** Ряд мобильного меню: ссылка + опциональный аддон + шеврон. */
+function MenuRow({
+  href,
+  label,
+  active = false,
+  trailing,
+  onClick,
+}: {
+  href: string;
+  label: string;
+  active?: boolean;
+  trailing?: React.ReactNode;
+  onClick?: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={cn(
+        'flex items-center justify-between gap-3 border-b border-border/60 py-3.5 text-[17px]',
+        active ? 'font-bold text-red' : 'font-semibold text-ink',
+      )}
+    >
+      <span className="truncate">{label}</span>
+      <span className="flex shrink-0 items-center gap-2">
+        {trailing}
+        <ChevronRight size={18} className={active ? 'text-red' : 'text-muted-foreground'} />
+      </span>
+    </Link>
+  );
+}
+
+/** Мелкий заголовок секции в мобильном меню. */
+function MenuSectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="pb-1 pt-5 text-[13px] font-bold text-muted-foreground">{children}</div>
+  );
+}
 
 function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) {
   const t = useTranslations('nav');
@@ -43,7 +83,13 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
   const [login, setLogin] = React.useState(false);
   const favCount = useFavoritesCount();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const currentUser = useAppSelector(selectCurrentUser);
   const { logout, isLoggingOut } = useLogout();
+
+  // Идентичность для карточки мобильного меню (контакт, без имени — как в ProfileMenu).
+  const contact = contactLabel(currentUser, t('account'));
+  const avatarUrl = currentUser?.profile?.avatar_url ?? null;
+  const avatarInitial = /^[\p{L}]/u.test(contact) ? contact[0].toUpperCase() : null;
 
   // Единый владелец фонового поллинга счётчиков (виден на всех страницах)
   // и звука при появлении нового непрочитанного.
@@ -66,6 +112,16 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
   React.useEffect(() => {
     setMenu(false);
   }, [pathname]);
+
+  // Лок скролла страницы, пока открыто мобильное меню (фон не двигается/не выглядывает).
+  React.useEffect(() => {
+    if (!menu) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [menu]);
 
   const isActive = (key: string) => {
     if (key === 'sell') return pathname.startsWith('/sell');
@@ -163,70 +219,127 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
 
       {/* Мобильное полноэкранное меню */}
       {menu && (
-        <div className="fixed inset-0 z-[60] flex flex-col bg-background md:hidden">
+        <div className="fixed inset-0 z-[60] flex h-[100dvh] flex-col overflow-hidden bg-[linear-gradient(180deg,var(--surface)_0%,var(--background)_42%)] md:hidden">
+          {/* Шапка меню */}
           <div
-            className="mx-auto flex w-full max-w-[1280px] items-center justify-between px-4"
+            className="flex shrink-0 items-center justify-between px-4"
             style={{ height: 'var(--header-h)' }}
           >
             <Logo />
-            <button type="button" aria-label={t('close')} onClick={() => setMenu(false)} className="p-1.5">
+            <button
+              type="button"
+              aria-label={t('close')}
+              onClick={() => setMenu(false)}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-ink hover:bg-surface-2"
+            >
               <X size={26} />
             </button>
           </div>
-          <div className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col gap-1 px-4 pt-3">
-            {NAV_ITEMS.map((n) => (
-              <Link
-                key={n.key}
-                href={n.href}
-                className="border-b border-border py-4 text-[22px] font-extrabold text-ink"
-              >
-                {t(n.labelKey)}
+
+          {/* Тело (скроллится) */}
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
+            {isAuthenticated && (
+              <div className="mb-4 flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-raised">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-mint text-base font-bold text-teal">
+                  {avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                  ) : avatarInitial ? (
+                    avatarInitial
+                  ) : (
+                    <User size={22} strokeWidth={1.9} />
+                  )}
+                </span>
+                <span className="truncate text-[15px] font-bold text-ink">{contact}</span>
+              </div>
+            )}
+
+            <Button size="lg" asChild className="w-full">
+              <Link href="/sell" onClick={() => setMenu(false)}>
+                {t('postListingFull')}
               </Link>
-            ))}
-            <div className="mt-6 flex flex-col gap-3">
-              <Button size="lg" asChild>
-                <Link href="/sell">{t('postListingFull')}</Link>
+            </Button>
+
+            <nav className="mt-4">
+              {NAV_ITEMS.map((n) => (
+                <MenuRow
+                  key={n.key}
+                  href={n.href}
+                  label={t(n.labelKey)}
+                  active={isActive(n.key)}
+                  onClick={() => setMenu(false)}
+                />
+              ))}
+            </nav>
+
+            {isAuthenticated ? (
+              <>
+                <MenuSectionLabel>{t('profileMenu.sectionMain')}</MenuSectionLabel>
+                {PROFILE_MENU_LINKS.map((it) => (
+                  <MenuRow
+                    key={it.key}
+                    href={it.href}
+                    label={t(it.labelKey)}
+                    onClick={() => setMenu(false)}
+                    trailing={
+                      it.key === 'chat' ? (
+                        <CountBadge count={unreadMessages} max={9} />
+                      ) : undefined
+                    }
+                  />
+                ))}
+                <MenuSectionLabel>{t('profileMenu.favorites')}</MenuSectionLabel>
+                {FAVORITE_MENU_LINKS.map((it) => (
+                  <MenuRow
+                    key={it.key}
+                    href={it.href}
+                    label={t(it.labelKey)}
+                    onClick={() => setMenu(false)}
+                    trailing={
+                      it.key === 'favListings' && favCount > 0 ? (
+                        <span className="text-[13px] font-bold text-muted-foreground">
+                          {favCount}
+                        </span>
+                      ) : undefined
+                    }
+                  />
+                ))}
+              </>
+            ) : (
+              <Button
+                size="lg"
+                variant="outline"
+                className="mt-4 w-full"
+                onClick={() => {
+                  setMenu(false);
+                  setLogin(true);
+                }}
+              >
+                {t('login')}
               </Button>
-              {isAuthenticated ? (
-                <>
-                  {[...PROFILE_MENU_LINKS, ...FAVORITE_MENU_LINKS].map((it) => (
-                    <Button key={it.key} size="lg" variant="outline" asChild>
-                      <Link href={it.href} className="flex items-center justify-center gap-2">
-                        {t(it.labelKey)}
-                        {it.key === 'chat' && (
-                          <CountBadge count={unreadMessages} max={9} />
-                        )}
-                      </Link>
-                    </Button>
-                  ))}
-                  <Button
-                    size="lg"
-                    variant="ghost"
-                    disabled={isLoggingOut}
-                    onClick={() => {
-                      setMenu(false);
-                      void logout();
-                    }}
-                  >
-                    {t('logout')}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={() => {
-                    setMenu(false);
-                    setLogin(true);
-                  }}
-                >
-                  {t('login')}
-                </Button>
-              )}
-              <div className="mt-2 flex items-center gap-3">
+            )}
+          </div>
+
+          {/* Футер (закреплён): переключатели + «Выйти» */}
+          <div className="shrink-0 border-t border-border bg-surface/70 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
                 <CurrencySwitcher />
                 <LangSwitcher />
               </div>
+              {isAuthenticated && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isLoggingOut}
+                  onClick={() => {
+                    setMenu(false);
+                    void logout();
+                  }}
+                >
+                  {t('logout')}
+                </Button>
+              )}
             </div>
           </div>
         </div>
