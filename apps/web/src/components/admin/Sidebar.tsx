@@ -20,6 +20,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       ['/admin/listings', 'Объявления', IC.Home],
       ['/admin/moderation', 'Модерация', IC.Check],
+      ['/admin/complaints', 'Жалобы', IC.Flag],
     ],
   },
   { group: 'Люди', items: [['/admin/users', 'Пользователи', IC.User]] },
@@ -41,10 +42,12 @@ function isActive(pathname: string, href: string): boolean {
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  // Живой счётчик очереди модерации (NEW-листинги) для бейджа — тот же источник,
-  // что и KPI «На проверке» на дашборде; инвалидируется после каждой модерации.
+  // Живые счётчики очереди модерации (NEW-листинги) и новых жалоб для бейджей —
+  // те же источники, что KPI «На проверке» / «Жалобы» на дашборде;
+  // инвалидируются после каждой модерации/обработки жалобы.
   const { data: stats } = useGetAdminStatsQuery();
   const moderationCount = stats?.listings_new ?? 0;
+  const complaintsCount = stats?.complaints_new ?? 0;
   // Реальный пользователь в футере (раньше был зашит «Модератор admin@avino.uz»).
   const { data: me } = useGetMeQuery();
   const meName = me?.profile?.display_name || me?.email || me?.phone || '';
@@ -70,7 +73,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           <div key={g.group}>
             <div className="a-navgroup">{g.group}</div>
             {g.items.map(([href, label, Icon]) => {
-              const count = href === '/admin/moderation' ? moderationCount : 0;
+              const count =
+                href === '/admin/moderation' ? moderationCount : href === '/admin/complaints' ? complaintsCount : 0;
               return (
                 <Link key={href} href={href} className={'a-navitem' + (isActive(pathname, href) ? ' active' : '')} onClick={onClose}>
                   <Icon size={19} strokeWidth={1.9} /> {label}
