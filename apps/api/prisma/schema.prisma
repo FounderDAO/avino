@@ -462,6 +462,7 @@ model Listing {
   toursEnabled       Boolean                                @default(false) @map("tours_enabled")
   tourWindows        Json                                   @default("[]") @map("tour_windows")
   viewsCount         Int                                    @default(0) @map("views_count")
+  callsCount         Int                                    @default(0) @map("calls_count")
   createdAt          DateTime                               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime                               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
