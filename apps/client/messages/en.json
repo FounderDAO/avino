@@ -278,7 +278,8 @@
       "any": "Any",
       "roomsExact": "Exactly {count} rooms",
       "lotAreaTitle": "Lot size",
-      "amenitiesTitle": "Amenities"
+      "amenitiesTitle": "Amenities",
+      "isBasement": "Basement"
     },
     "results": {
       "count": "{count, plural, one {# listing} other {# listings}}",
@@ -355,7 +356,10 @@
       "floorOf": "{floor} of {total}",
       "year": "Year built",
       "parking": "Parking",
-      "lotArea": "Lot"
+      "lotArea": "Lot",
+      "livingArea": "Living area",
+      "nonLivingArea": "Non-living area",
+      "basementValue": "Basement"
     },
     "contact": {
       "greeting": "Hello! Is this listing still available?",
@@ -376,7 +380,11 @@
       "title": "Amenities"
     },
     "openFullPage": "Open full page",
-    "modalTitle": "Listing"
+    "modalTitle": "Listing",
+    "stats": {
+      "viewsAria": "Views: {count}",
+      "likesAria": "Favorited: {count}"
+    }
   },
   "tourRequest": {
     "title": "Request a tour",
@@ -581,7 +589,16 @@
       },
       "amenities": {
         "label": "Amenities"
-      }
+      },
+      "livingArea": {
+        "label": "Living area, m²",
+        "placeholder": "e.g. 45"
+      },
+      "nonLivingArea": {
+        "label": "Non-living area, m²",
+        "placeholder": "e.g. 10"
+      },
+      "isBasement": "Basement floor"
     },
     "photoUploader": {
       "dropTitle": "Drag photos here or click to choose",
@@ -827,6 +844,11 @@
           "markSold": "Mark this listing as sold? It will be hidden from search (you can reactivate it later).",
           "markRented": "Mark this listing as rented? It will be hidden from search (you can reactivate it later)."
         }
+      },
+      "stats": {
+        "views": "Views: {count}",
+        "likes": "Favorited: {count}",
+        "calls": "Calls: {count}"
       }
     },
     "notifications": {
@@ -1026,7 +1048,8 @@
       "ELEVATOR": "Elevator",
       "BALCONY": "Balcony",
       "HEATING": "Heating",
-      "SECURITY": "Security"
+      "SECURITY": "Security",
+      "POOL": "Pool"
     }
   },
   "breadcrumb": {

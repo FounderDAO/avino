@@ -3,8 +3,8 @@
  *
  * Источник данных: GET /listings/mine (Bearer) через useGetMyListingsQuery.
  * Возвращает объявления ЛЮБОГО статуса (кроме DELETED). Статус-пилл читает
- * реальный listing_status. Аналитики (просмотры/обращения) API не отдаёт —
- * см. TODO(listing-analytics).
+ * реальный listing_status. Просмотры/избранное — `views_count`/`likes_count`
+ * (LAST_CHANGED_API.md §1); обращения (лиды) API по-прежнему не отдаёт.
  *
  * Состояния: гость → EmptyState с подсказкой входа; загрузка → скелетон-строки;
  * пусто → EmptyState. Действия карточки: «Редактировать» (→ /sell/:id/edit),
@@ -16,6 +16,9 @@
 import * as React from 'react';
 import { Link } from '@/i18n/navigation';
 import {
+  Eye,
+  Phone,
+  Heart,
   Home,
   Pencil,
   Sparkles,
@@ -123,7 +126,35 @@ function ListingRow({ l, promotionsEnabled }: { l: Listing; promotionsEnabled: b
         <div className="mt-[3px] text-[13.5px] text-muted-foreground">
           {fmt.price(l)} · {l.district}
         </div>
-        {/* TODO(listing-analytics): API /listings/mine не отдаёт views/leads. */}
+        {/* Просмотры/избранное (LAST_CHANGED_API.md §1). */}
+        {(l.viewsCount != null || l.likesCount != null || l.callsCount != null) && (
+          <div className="mt-[3px] flex items-center gap-3 text-[12.5px] text-muted-foreground">
+            {l.viewsCount != null && (
+              <span
+                className="inline-flex items-center gap-1"
+                title={t('myListings.stats.views', { count: l.viewsCount })}
+              >
+                <Eye size={13} strokeWidth={2} /> {l.viewsCount}
+              </span>
+            )}
+            {l.likesCount != null && (
+              <span
+                className="inline-flex items-center gap-1"
+                title={t('myListings.stats.likes', { count: l.likesCount })}
+              >
+                <Heart size={13} strokeWidth={2} /> {l.likesCount}
+              </span>
+            )}
+            {l.callsCount != null && (
+              <span
+                className="inline-flex items-center gap-1"
+                title={t('myListings.stats.calls', { count: l.callsCount })}
+              >
+                <Phone size={13} strokeWidth={2} /> {l.callsCount}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Действия: основное (Редактировать) + премиум-CTA + меню статусов «⋯» */}

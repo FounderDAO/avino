@@ -34,9 +34,17 @@ export interface CreateListingBody {
   // Опциональные:
   area?: string;
   lot_area?: string;
+  /** Жилая площадь, м² (Decimal-строка, LAST_CHANGED_API.md §1). */
+  living_area?: string | null;
+  /** Нежилая площадь, м² (Decimal-строка, LAST_CHANGED_API.md §1). */
+  non_living_area?: string | null;
   rooms?: number;
+  /** Дробный, шаг 0.5 (не кратное 0.5 → 400). */
   bathrooms?: number;
-  floor?: number;
+  /** `null` — явно очистить (цокольный этаж, is_basement=true). */
+  floor?: number | null;
+  /** Цокольный этаж; при true floor нужно слать null. */
+  is_basement?: boolean;
   total_floors?: number;
   year_built?: number;
   address?: string;

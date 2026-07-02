@@ -53,7 +53,7 @@ export async function generateMetadata({
     sp.total_floors_min || sp.total_floors_max ||
     sp.year_min || sp.year_max ||
     sp.lot_area_min || sp.lot_area_max ||
-    sp.listing_source || sp.tours_enabled || sp.parking_type || sp.amenities,
+    sp.listing_source || sp.tours_enabled || sp.is_basement || sp.parking_type || sp.amenities,
   );
 
   // Canonical: оставляем только семантические параметры (strip sort/view/cursor/price/rooms).
@@ -201,6 +201,7 @@ export default async function SearchPage({
   const notFirstFloor = first(sp.not_first_floor) === 'true' ? true : undefined;
   const notLastFloor = first(sp.not_last_floor) === 'true' ? true : undefined;
   const toursEnabled = first(sp.tours_enabled) === 'true' ? true : undefined;
+  const isBasement = first(sp.is_basement) === 'true' ? true : undefined;
 
   // Источник объявления.
   const rawSource = first(sp.listing_source);
@@ -240,6 +241,7 @@ export default async function SearchPage({
     listingSource,
     parkingTypes: parkingTypes.length > 0 ? parkingTypes : undefined,
     amenities: amenities.length > 0 ? amenities : undefined,
+    isBasement,
   };
   const [page, districts, regions] = await Promise.all([
     searchListingsPage(filter, locale),
@@ -278,6 +280,7 @@ export default async function SearchPage({
     listingSource,
     parkingTypes: parkingTypes.length > 0 ? parkingTypes : undefined,
     amenities: amenities.length > 0 ? amenities : undefined,
+    isBasement,
   };
 
   // Заголовок выдачи: «Покупка/Аренда жилья · <район|регион|запрос|Ташкент>».

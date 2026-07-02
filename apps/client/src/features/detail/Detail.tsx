@@ -16,12 +16,15 @@ import {
   Building2,
   Check,
   ChevronLeft,
+  Eye,
   Flame,
+  Heart,
   MapPin,
   ShieldCheck,
   Snowflake,
   Sofa,
   WashingMachine,
+  Waves,
   Wifi,
   type LucideIcon,
 } from 'lucide-react';
@@ -40,8 +43,9 @@ import { ContactCard } from './ContactCard';
 import { DetailMap } from './DetailMap';
 import { DetailPrice } from './DetailPrice';
 import { ShareButton } from './ShareButton';
+import { ViewTracker } from './ViewTracker';
 
-/** Иконки удобств (ADR-0111, Zillow Phase 2). */
+/** Иконки удобств (ADR-0111, Zillow Phase 2; POOL — LAST_CHANGED_API.md §1). */
 const AMENITY_ICON: Record<Amenity, LucideIcon> = {
   AIR_CONDITIONING: Snowflake,
   FURNITURE: Sofa,
@@ -51,6 +55,7 @@ const AMENITY_ICON: Record<Amenity, LucideIcon> = {
   BALCONY: Building2,
   HEATING: Flame,
   SECURITY: ShieldCheck,
+  POOL: Waves,
 };
 
 /** Пропы хлебной крошки — передаются из page.tsx (уже имеет переводы). */
@@ -96,6 +101,9 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
           : 'fade-up mx-auto max-w-[1280px] px-4 pb-12 pt-5 sm:px-6'
       }
     >
+      {/* Регистрирует просмотр (POST /listings/:id/view, LAST_CHANGED_API.md §2). Без UI. */}
+      <ViewTracker id={listing.id} />
+
       {/* Внутри модалки своя шапка → крошку и «Назад» скрываем, Share оставляем. */}
       {embedded ? (
         <div className="mb-3 flex justify-end">
@@ -137,6 +145,27 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
             <span className="rounded-badge border border-border bg-surface-2 px-2.5 py-1 text-[12.5px] font-bold">
               {txLabel(listing.tx, tEnums)}
             </span>
+            {/* Счётчики просмотров/избранного (LAST_CHANGED_API.md §1) — ненавязчиво. */}
+            {(listing.viewsCount != null || listing.likesCount != null) && (
+              <span className="ml-auto flex items-center gap-3 text-[13px] text-muted-foreground">
+                {listing.viewsCount != null && (
+                  <span
+                    className="inline-flex items-center gap-1"
+                    title={t('stats.viewsAria', { count: listing.viewsCount })}
+                  >
+                    <Eye size={14} strokeWidth={1.9} /> {listing.viewsCount}
+                  </span>
+                )}
+                {listing.likesCount != null && (
+                  <span
+                    className="inline-flex items-center gap-1"
+                    title={t('stats.likesAria', { count: listing.likesCount })}
+                  >
+                    <Heart size={14} strokeWidth={1.9} /> {listing.likesCount}
+                  </span>
+                )}
+              </span>
+            )}
           </div>
 
           {/* Цена */}

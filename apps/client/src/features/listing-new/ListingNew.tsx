@@ -71,8 +71,11 @@ const TOTAL = STEPS.length;
 /** Варианты «количество комнат» ('studio' — код студии в стейте). */
 const ROOM_OPTIONS = ['studio', '1', '2', '3', '4', '5+'] as const;
 
-/** Варианты «количество санузлов» (пусто = не выбрано, опционально). */
-const BATHROOM_OPTIONS = ['1', '2', '3', '4+'] as const;
+/**
+ * Варианты «количество санузлов» (пусто = не выбрано, опционально).
+ * Шаг 0.5 (LAST_CHANGED_API.md §1: `bathrooms` дробный, шаг 0.5, max 99).
+ */
+const BATHROOM_OPTIONS = ['1', '1.5', '2', '2.5', '3', '3.5', '4+'] as const;
 
 /** Язык оригинала объявления. */
 type Lang = 'RU' | 'UZ' | 'EN';
@@ -90,7 +93,13 @@ export interface FormState {
   parking: string;  // '' = Нет
   area: string;
   lotArea: string;
+  /** Жилая площадь, м² (Decimal-строка, LAST_CHANGED_API.md §1). */
+  livingArea: string;
+  /** Нежилая площадь, м² (Decimal-строка, LAST_CHANGED_API.md §1). */
+  nonLivingArea: string;
   floor: string;
+  /** Цокольный этаж; при true floor не задаётся (шлём null). */
+  isBasement: boolean;
   totalFloors: string;
   year: string;
   price: string;
@@ -116,7 +125,10 @@ const INITIAL: FormState = {
   parking: '',
   area: '',
   lotArea: '',
+  livingArea: '',
+  nonLivingArea: '',
   floor: '',
+  isBasement: false,
   totalFloors: '',
   year: '',
   price: '',
@@ -161,16 +173,24 @@ export function buildListingBody(
 
   if (f.area) body.area = f.area;
   if (f.lotArea) body.lot_area = f.lotArea;
+  if (f.livingArea) body.living_area = f.livingArea;
+  if (f.nonLivingArea) body.non_living_area = f.nonLivingArea;
   if (!noRooms) {
     if (f.rooms) {
       const n = f.rooms === 'studio' ? 0 : Number.parseInt(f.rooms, 10);
       if (Number.isFinite(n)) body.rooms = n;
     }
     if (f.bathrooms) {
-      const b = f.bathrooms === '4+' ? 4 : Number.parseInt(f.bathrooms, 10);
+      // Дробный шаг 0.5 (LAST_CHANGED_API.md §1) — parseFloat, не parseInt.
+      const b = f.bathrooms === '4+' ? 4 : Number.parseFloat(f.bathrooms);
       if (Number.isFinite(b)) body.bathrooms = b;
     }
-    if (f.floor) body.floor = Number.parseInt(f.floor, 10);
+    if (f.isBasement) {
+      body.is_basement = true;
+      body.floor = null;
+    } else if (f.floor) {
+      body.floor = Number.parseInt(f.floor, 10);
+    }
     if (f.totalFloors) body.total_floors = Number.parseInt(f.totalFloors, 10);
   }
   if (f.year) body.year_built = Number.parseInt(f.year, 10);
@@ -543,6 +563,26 @@ export function ListingNew({
                 onChange={(e) => set('area', e.target.value.replace(/\D/g, ''))}
               />
             </FormField>
+            {!noRooms && (
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label={t('fields.livingArea.label')}>
+                  <Field
+                    placeholder={t('fields.livingArea.placeholder')}
+                    inputMode="decimal"
+                    value={f.livingArea}
+                    onChange={(e) => set('livingArea', e.target.value.replace(/[^\d.]/g, ''))}
+                  />
+                </FormField>
+                <FormField label={t('fields.nonLivingArea.label')}>
+                  <Field
+                    placeholder={t('fields.nonLivingArea.placeholder')}
+                    inputMode="decimal"
+                    value={f.nonLivingArea}
+                    onChange={(e) => set('nonLivingArea', e.target.value.replace(/[^\d.]/g, ''))}
+                  />
+                </FormField>
+              </div>
+            )}
             {(f.type === 'HOUSE' || f.type === 'LAND') && (
               <FormField label={t('fields.lotArea.label')}>
                 <Field
@@ -554,11 +594,27 @@ export function ListingNew({
               </FormField>
             )}
             {!noRooms && (
+              <label className="flex items-center gap-2 text-[14px] font-semibold text-ink">
+                <input
+                  type="checkbox"
+                  checked={f.isBasement}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    set('isBasement', checked);
+                    if (checked) set('floor', '');
+                  }}
+                  className="h-4 w-4 rounded border-border accent-ink"
+                />
+                {t('fields.isBasement')}
+              </label>
+            )}
+            {!noRooms && (
               <div className="grid grid-cols-3 gap-3">
                 <FormField label={t('fields.floor')}>
                   <Field
                     placeholder="8"
                     inputMode="numeric"
+                    disabled={f.isBasement}
                     value={f.floor}
                     onChange={(e) => set('floor', e.target.value.replace(/\D/g, ''))}
                   />

@@ -89,6 +89,8 @@ export interface FilterValues {
   listingSource?: 'OWNER' | 'AGENCY';
   parkingTypes?: ParkingType[];
   amenities?: Amenity[];
+  /** Только цокольные этажи (`?is_basement=true`, LAST_CHANGED_API.md §1). */
+  isBasement?: boolean;
 }
 
 export interface FilterBarProps {
@@ -246,7 +248,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     values.totalFloorsMin || values.totalFloorsMax ||
     values.notFirstFloor || values.notLastFloor ||
     values.toursEnabled || values.listingSource ||
-    values.bathroomsMin ||
+    values.bathroomsMin || values.isBasement ||
     (values.parkingTypes?.length ?? 0) > 0 ||
     (values.amenities?.length ?? 0) > 0,
   );
@@ -272,6 +274,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     toursEnabled: values.toursEnabled,
     parkingTypes: values.parkingTypes,
     amenities: values.amenities,
+    isBasement: values.isBasement,
   };
 
   const handlePanelApply = React.useCallback(
@@ -300,6 +303,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
       setOne('not_last_floor', next.notLastFloor ? 'true' : undefined);
       setOne('listing_source', next.listingSource);
       setOne('tours_enabled', next.toursEnabled ? 'true' : undefined);
+      setOne('is_basement', next.isBasement ? 'true' : undefined);
       params.delete('parking_type');
       for (const pt of next.parkingTypes ?? []) params.append('parking_type', pt);
       params.delete('amenities');
@@ -329,6 +333,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
       not_last_floor: undefined,
       listing_source: undefined,
       tours_enabled: undefined,
+      is_basement: undefined,
       parking_type: undefined,
       amenities: undefined,
     });
@@ -374,6 +379,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     if (values.notLastFloor) filters.not_last_floor = true;
     if (values.listingSource) filters.listing_source = values.listingSource;
     if (values.toursEnabled) filters.tours_enabled = true;
+    if (values.isBasement) filters.is_basement = true;
     if (values.parkingTypes && values.parkingTypes.length > 0) filters.parking_types = values.parkingTypes;
     if (values.amenities && values.amenities.length > 0) filters.amenities = values.amenities;
     return filters;
