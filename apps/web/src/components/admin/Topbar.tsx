@@ -16,6 +16,7 @@ const TITLES: Record<string, string> = {
   '/admin': 'Панель управления',
   '/admin/listings': 'Объявления',
   '/admin/moderation': 'Модерация',
+  '/admin/complaints': 'Жалобы',
   '/admin/agents': 'Агенты',
   '/admin/users': 'Пользователи',
   '/admin/promotions': 'Продвижение',
