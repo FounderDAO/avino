@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { DevicePlatform } from '@prisma/client';
 import { IsEnum, IsString, MaxLength, MinLength } from 'class-validator';
 
@@ -11,9 +12,12 @@ import { IsEnum, IsString, MaxLength, MinLength } from 'class-validator';
  * `push_token`), поэтому отдельного поля «device_id» не требуется.
  */
 export class RegisterDeviceDto {
+  /** Платформа устройства: FCM-токен (ANDROID) / APNs-токен (iOS) / веб-push (WEB). */
+  @ApiProperty({ enum: DevicePlatform })
   @IsEnum(DevicePlatform)
   platform!: DevicePlatform;
 
+  @ApiProperty({ minLength: 1, maxLength: 512 })
   @IsString()
   @MinLength(1)
   @MaxLength(512)

@@ -538,6 +538,26 @@
         }
       }
     },
+    "/api/v1/listings/{id}/call": {
+      "post": {
+        "operationId": "ListingsController_registerCall",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/listings/{id}/status": {
       "patch": {
         "operationId": "ListingsController_setStatus",
@@ -3410,7 +3430,12 @@
         "type": "object",
         "properties": {
           "platform": {
-            "type": "object"
+            "type": "string",
+            "enum": [
+              "ANDROID",
+              "IOS",
+              "WEB"
+            ]
           },
           "push_token": {
             "type": "string",

@@ -538,6 +538,26 @@
                 }
             }
         },
+        "/api/v1/listings/{id}/call": {
+            "post": {
+                "operationId": "ListingsController_registerCall",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/listings/{id}/status": {
             "patch": {
                 "operationId": "ListingsController_setStatus",
@@ -583,7 +603,7 @@
                         "name": "region_id",
                         "required": false,
                         "in": "query",
-                        "description": "UUID \u0440\u0435\u0433\u0438\u043e\u043d\u0430 \u0434\u043b\u044f \u0444\u0438\u043b\u044c\u0442\u0440\u0430\u0446\u0438\u0438; \u0431\u0435\u0437 \u043f\u0430\u0440\u0430\u043c\u0435\u0442\u0440\u0430 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u044e\u0442\u0441\u044f \u0432\u0441\u0435 \u0440\u0430\u0439\u043e\u043d\u044b",
+                        "description": "UUID региона для фильтрации; без параметра возвращаются все районы",
                         "schema": {
                             "type": "string"
                         }
@@ -2805,7 +2825,7 @@
     },
     "info": {
         "title": "Avino API",
-        "description": "API \u043f\u043e\u0440\u0442\u0430\u043b\u0430 \u043d\u0435\u0434\u0432\u0438\u0436\u0438\u043c\u043e\u0441\u0442\u0438 Avino. \u0410\u0443\u0442\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f: POST /auth/otp/request \u2192 /auth/otp/verify \u2192 { accessToken, refreshToken }; \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u2014 /auth/refresh; \u0432\u0445\u043e\u0434 \u0447\u0435\u0440\u0435\u0437 Google \u2014 /auth/google; \u0432\u0445\u043e\u0434 \u0447\u0435\u0440\u0435\u0437 Apple \u2014 /auth/apple. Bearer-\u0442\u043e\u043a\u0435\u043d \u043f\u0435\u0440\u0435\u0434\u0430\u0451\u0442\u0441\u044f \u0432 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043a\u0435 Authorization.",
+        "description": "API портала недвижимости Avino. Аутентификация: POST /auth/otp/request → /auth/otp/verify → { accessToken, refreshToken }; обновление — /auth/refresh; вход через Google — /auth/google; вход через Apple — /auth/apple. Bearer-токен передаётся в заголовке Authorization.",
         "version": "1",
         "contact": {}
     },
@@ -3285,15 +3305,15 @@
                 "properties": {
                     "from": {
                         "type": "number",
-                        "description": "\u041d\u0438\u0436\u043d\u044f\u044f \u0433\u0440\u0430\u043d\u0438\u0446\u0430 \u0431\u0430\u043a\u0435\u0442\u0430 (\u0432\u043a\u043b\u044e\u0447\u0438\u0442\u0435\u043b\u044c\u043d\u043e)"
+                        "description": "Нижняя граница бакета (включительно)"
                     },
                     "to": {
                         "type": "number",
-                        "description": "\u0412\u0435\u0440\u0445\u043d\u044f\u044f \u0433\u0440\u0430\u043d\u0438\u0446\u0430 \u0431\u0430\u043a\u0435\u0442\u0430 (\u0438\u0441\u043a\u043b\u044e\u0447\u0438\u0442\u0435\u043b\u044c\u043d\u043e)"
+                        "description": "Верхняя граница бакета (исключительно)"
                     },
                     "count": {
                         "type": "number",
-                        "description": "\u0427\u0438\u0441\u043b\u043e \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u0438\u0439 \u0432 \u0431\u0430\u043a\u0435\u0442\u0435"
+                        "description": "Число объявлений в бакете"
                     }
                 },
                 "required": [
@@ -3321,11 +3341,11 @@
                     },
                     "min": {
                         "type": "number",
-                        "description": "\u041d\u0438\u0436\u043d\u044f\u044f \u0433\u0440\u0430\u043d\u0438\u0446\u0430 \u0434\u043e\u043c\u0435\u043d\u0430 (\u0432\u0441\u0435\u0433\u0434\u0430 0)"
+                        "description": "Нижняя граница домена (всегда 0)"
                     },
                     "max": {
                         "type": "number",
-                        "description": "\u0412\u0435\u0440\u0445\u043d\u044f\u044f \u0433\u0440\u0430\u043d\u0438\u0446\u0430 \u0434\u043e\u043c\u0435\u043d\u0430 (\u043e\u043a\u0440\u0443\u0433\u043b\u0451\u043d\u043d\u044b\u0439 p99-\u043f\u043e\u0442\u043e\u043b\u043e\u043a)"
+                        "description": "Верхняя граница домена (округлённый p99-потолок)"
                     },
                     "buckets": {
                         "type": "array",
@@ -3335,7 +3355,7 @@
                     },
                     "overflow_count": {
                         "type": "number",
-                        "description": "\u0427\u0438\u0441\u043b\u043e \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u0438\u0439 \u0441\u0442\u0440\u043e\u0433\u043e \u0434\u043e\u0440\u043e\u0436\u0435 max"
+                        "description": "Число объявлений строго дороже max"
                     }
                 },
                 "required": [
@@ -3410,7 +3430,12 @@
                 "type": "object",
                 "properties": {
                     "platform": {
-                        "type": "object"
+                        "type": "string",
+                        "enum": [
+                            "ANDROID",
+                            "IOS",
+                            "WEB"
+                        ]
                     },
                     "push_token": {
                         "type": "string",
@@ -3489,12 +3514,12 @@
                     "field": {
                         "type": "string",
                         "example": "email",
-                        "description": "\u041f\u0443\u0442\u044c \u043a \u043f\u043e\u043b\u044e (\u0441 \u0442\u043e\u0447\u043a\u0430\u043c\u0438 \u0434\u043b\u044f \u0432\u043b\u043e\u0436\u0435\u043d\u043d\u044b\u0445 DTO)"
+                        "description": "Путь к полю (с точками для вложенных DTO)"
                     },
                     "issue": {
                         "type": "string",
                         "example": "must be an email",
-                        "description": "\u041f\u0440\u0438\u0447\u0438\u043d\u0430 \u043e\u0448\u0438\u0431\u043a\u0438 \u0432\u0430\u043b\u0438\u0434\u0430\u0446\u0438\u0438"
+                        "description": "Причина ошибки валидации"
                     }
                 },
                 "required": [
@@ -3508,15 +3533,15 @@
                     "code": {
                         "type": "string",
                         "example": "VALIDATION_ERROR",
-                        "description": "\u0421\u0442\u0430\u0431\u0438\u043b\u044c\u043d\u044b\u0439 \u043a\u043e\u0434 \u043e\u0448\u0438\u0431\u043a\u0438 (docs/API.md \u00a717)"
+                        "description": "Стабильный код ошибки (docs/API.md §17)"
                     },
                     "message": {
                         "type": "string",
                         "example": "Validation failed",
-                        "description": "\u0427\u0435\u043b\u043e\u0432\u0435\u043a\u043e\u0447\u0438\u0442\u0430\u0435\u043c\u043e\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 (\u044f\u0437\u044b\u043a \u043f\u043e Accept-Language)"
+                        "description": "Человекочитаемое сообщение (язык по Accept-Language)"
                     },
                     "details": {
-                        "description": "\u041f\u0435\u0440-\u043f\u043e\u043b\u0435\u0432\u044b\u0435 \u043e\u0448\u0438\u0431\u043a\u0438 \u0432\u0430\u043b\u0438\u0434\u0430\u0446\u0438\u0438",
+                        "description": "Пер-полевые ошибки валидации",
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/ErrorDetailDto"
@@ -3525,7 +3550,7 @@
                     "request_id": {
                         "type": "string",
                         "example": "0f9c1d3e-...",
-                        "description": "\u041a\u043e\u0440\u0440\u0435\u043b\u044f\u0446\u0438\u044f \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043d\u044b\u043c\u0438 \u043b\u043e\u0433\u0430\u043c\u0438"
+                        "description": "Корреляция с серверными логами"
                     }
                 },
                 "required": [
