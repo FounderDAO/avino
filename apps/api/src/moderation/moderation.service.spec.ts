@@ -41,7 +41,9 @@ describe('ModerationService', () => {
     price: new Prisma.Decimal('4500000.00'),
     currency: Currency.UZS,
     cityId: 'city-1',
-    districtId: null,
+    districtId: 'district-1',
+    rooms: 2,
+    viewsCount: 7,
     publishedAt: null,
     createdAt: new Date('2026-06-02T08:00:00.000Z'),
     translations: [{ language: Language.RU, title: '2-комн квартира' }],
@@ -77,6 +79,8 @@ describe('ModerationService', () => {
         update: jest.fn(),
       },
       moderationLog: { create: jest.fn(), findMany: jest.fn() },
+      // Батч имён районов для district_name (relation в схеме нет).
+      district: { findMany: jest.fn().mockResolvedValue([]) },
       auditLog: { create: jest.fn() },
       notification: { create: jest.fn() },
       listingTranslation: { findMany: jest.fn() },
@@ -107,6 +111,9 @@ describe('ModerationService', () => {
     it('returns a paginated snake_case list with owner_id and meta.total', async () => {
       prisma.listing.findMany.mockResolvedValue([dbListItem]);
       prisma.listing.count.mockResolvedValue(1);
+      prisma.district.findMany.mockResolvedValue([
+        { id: 'district-1', nameRu: 'Чиланзарский район' },
+      ]);
 
       const result = await service.listListings({ status: ListingStatus.NEW });
 
@@ -126,6 +133,14 @@ describe('ModerationService', () => {
         price: '4500000.00',
         title: '2-комн квартира',
         original_language: Language.RU,
+        rooms: 2,
+        views_count: 7,
+        district_name: 'Чиланзарский район',
+      });
+      // Имена районов — одним запросом по districtId строк страницы.
+      expect(prisma.district.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['district-1'] } },
+        select: { id: true, nameRu: true },
       });
     });
 

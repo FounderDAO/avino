@@ -2,13 +2,14 @@
  * Адаптеры: API DTO листингов → UI-модель моков (AdminListing / SourceListing).
  * Цикл 3: страницы остаются на тех же сигнатурах, источник данных — RTK Query.
  *
- * Список `GET /admin/listings` отдаёт компактную строку без фото/комнат/района/
- * агента/просмотров/промо — их показываем «—»/плейсхолдером. Детали
- * `GET /listings/:id` дают почти всё (media, площадь, комнаты, этаж, год, описание,
- * features_text, промо); имя автора/района (в API только id) и просмотры (нет в
- * API) — «—».
+ * Список `GET /admin/listings` отдаёт строку с комнатами/районом/просмотрами и
+ * инлайн-профилем автора (колонка «Агент» — имя из owner). Промо в списке нет —
+ * плейсхолдер. Детали `GET /listings/:id` дают почти всё (media, площадь,
+ * комнаты, этаж, год, описание, features_text, промо); имени района и
+ * просмотров в деталях нет — «—».
  */
 import type {
+  AdminListingOwner,
   AdminListingRow,
   ListingDetail,
   ListingStatus,
@@ -80,6 +81,19 @@ function fmtDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? DASH : dateFmt.format(d);
 }
 
+/** Имя автора для колонки «Агент»: display_name → имя+фамилия → email → phone → «—». */
+function ownerName(owner: AdminListingOwner | undefined): string {
+  if (!owner) return DASH;
+  const display = owner.display_name?.trim();
+  if (display) return display;
+  const full = [owner.first_name, owner.last_name]
+    .map((s) => s?.trim())
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  return full || owner.email || owner.phone || DASH;
+}
+
 /** features_text (одна строка) → массив особенностей. */
 function splitFeatures(text: string | null): string[] {
   if (!text) return [];
@@ -102,11 +116,11 @@ export function rowToAdminListing(r: AdminListingRow): AdminListing {
     price: r.price,
     currency: r.currency,
     area: null,
-    rooms: null,
+    rooms: r.rooms ?? null,
     floor: null,
     totalFloors: null,
     year: null,
-    district: DASH,
+    district: r.district_name ?? DASH,
     address: DASH,
     lat: null,
     lng: null,
@@ -114,7 +128,7 @@ export function rowToAdminListing(r: AdminListingRow): AdminListing {
     title: r.title,
     desc: '',
     features: [],
-    agent: { name: DASH, pro: false, agency: DASH },
+    agent: { name: ownerName(r.owner), pro: false, agency: DASH },
     created: fmtDate(r.created_at),
   };
   return {
@@ -129,11 +143,11 @@ export function rowToAdminListing(r: AdminListingRow): AdminListing {
     ),
     priceRaw: stub,
     type: PROPERTY_TYPES[r.property_type],
-    rooms: DASH,
-    district: DASH,
-    agent: DASH,
+    rooms: r.rooms ?? DASH,
+    district: r.district_name ?? DASH,
+    agent: ownerName(r.owner),
     status: apiToUiStatus(r.status),
-    views: DASH,
+    views: r.views_count ?? DASH,
     created: fmtDate(r.created_at),
     promo: 'NORMAL',
     tx: TX_LABEL[r.transaction_type] ?? r.transaction_type,

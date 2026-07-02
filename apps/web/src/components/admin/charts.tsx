@@ -65,7 +65,7 @@ export function Bars({ data, w = 320, h = 220 }: BarsProps) {
         return (
           <g key={d[0]}>
             <rect x={x - 18} y={h - 26 - bh} width="36" height={bh} rx="5" fill={i === 0 ? 'var(--red)' : 'var(--teal)'} opacity={i === 0 ? 1 : 0.82} />
-            <text x={x} y={h - 26 - bh - 5} fontSize="11" fontWeight="700" fill="var(--ink)" textAnchor="middle">{(d[1] / 1000).toFixed(1)}k</text>
+            <text x={x} y={h - 26 - bh - 5} fontSize="11" fontWeight="700" fill="var(--ink)" textAnchor="middle">{d[1] >= 1000 ? (d[1] / 1000).toFixed(1) + 'k' : d[1]}</text>
             <text x={x} y={h - 9} fontSize="10.5" fill="var(--muted)" textAnchor="middle">{d[0]}</text>
           </g>
         );

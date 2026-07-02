@@ -101,6 +101,15 @@ export interface AdminListingRow {
   currency: Currency;
   city_id: string | null;
   district_id: string | null;
+  /**
+   * Имя района (nameRu) для колонки «Район». `optional`: старый бэкенд поля
+   * не отдаёт — UI деградирует к «—».
+   */
+  district_name?: string | null;
+  /** Число комнат (null для участков). `optional` — мягкая деградация к «—». */
+  rooms?: number | null;
+  /** Счётчик просмотров. `optional` — мягкая деградация к «—». */
+  views_count?: number;
   owner_id: string;
   /**
    * Инлайн-профиль автора (ADR-0084) — чтобы карточка модерации показывала
@@ -245,6 +254,11 @@ export interface AdminUserRow {
   is_phone_verified: boolean;
   is_email_verified: boolean;
   roles: RoleCode[];
+  /**
+   * Число объявлений пользователя (без DELETED) — колонка «Объявл.».
+   * `optional`: старый бэкенд поля не отдаёт — UI деградирует к 0.
+   */
+  listings_count?: number;
   last_login_at: string | null;
   created_at: string;
 }
@@ -354,6 +368,44 @@ export interface CancelPromotionRequest {
  */
 export interface ExtendPromotionRequest {
   period_days: PromotionPeriodDays;
+}
+
+/**
+ * Строка глобальной истории промо (`GET /admin/promotions`, ADMIN-16) — зеркало
+ * `AdminPromotionRow` (`apps/api/src/admin/admin-promotions-overview.service.ts`).
+ * Расширяет per-listing `ListingPromotion` полями сводной таблицы:
+ * `listing_title` (на `original_language`), `user_id` (кто активировал),
+ * `price`/`currency` (Decimal-строка, ADR-002), `created_at`.
+ */
+export interface AdminPromotionRow {
+  id: string;
+  listing_id: string;
+  listing_title: string;
+  user_id: string | null;
+  type: PromotionType;
+  status: PromotionStatus;
+  period_days: number;
+  price: string | null;
+  currency: Currency | null;
+  starts_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+/**
+ * `GET /admin/promotions/summary` (ADMIN-16). Выручка — Decimal-строки
+ * (ADR-002); в MVP тарифы в единой валюте (UZS), без разбивки по валютам.
+ */
+export interface AdminPromotionsSummary {
+  active_count: number;
+  revenue_month: string;
+  revenue_total: string;
+}
+
+/** `GET /admin/promotions` (ADMIN-16). */
+export interface AdminPromotionFilters extends PageParams {
+  status?: PromotionStatus;
+  type?: ActivatablePromotionType;
 }
 
 // ─── DTO: жалобы (API.md §16) ───────────────────────────────────────────────
