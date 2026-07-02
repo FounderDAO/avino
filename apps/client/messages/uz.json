@@ -950,6 +950,12 @@
       "confirm": "Tasdiqlash",
       "decline": "Rad etish",
       "cancel": "Bekor qilish",
+      "modalTitle": "Tur so'rovi",
+      "message": "Xabar",
+      "noMessage": "Xabarsiz",
+      "openListing": "E'lonni ochish",
+      "close": "Yopish",
+      "actionError": "So'rovni yangilab bo'lmadi",
       "status": {
         "PENDING": "Kutilmoqda",
         "CONFIRMED": "Tasdiqlangan",

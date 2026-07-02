@@ -950,6 +950,12 @@
       "confirm": "Подтвердить",
       "decline": "Отклонить",
       "cancel": "Отменить",
+      "modalTitle": "Запрос на тур",
+      "message": "Сообщение",
+      "noMessage": "Без сообщения",
+      "openListing": "Открыть объявление",
+      "close": "Закрыть",
+      "actionError": "Не удалось обновить запрос",
       "status": {
         "PENDING": "Ожидает",
         "CONFIRMED": "Подтверждён",
