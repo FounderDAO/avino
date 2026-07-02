@@ -114,6 +114,9 @@ services:
         # Ключ Yandex JS API (карта + гео-подсказки). Значение — из корневого
         # .env (compose-подстановка); пусто → деградация без падения.
         NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${NEXT_PUBLIC_YANDEX_MAPS_API_KEY:-}
+        # Google Sign-In Client ID — из корневого .env; пусто → кнопка Google
+        # не рендерится. Должен совпадать с GOOGLE_CLIENT_ID на api.
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     image: avino-client
     container_name: avino-client
     profiles: ["app"]

@@ -25,6 +25,13 @@ ENV NEXT_PUBLIC_YANDEX_MAPS_API_KEY=$NEXT_PUBLIC_YANDEX_MAPS_API_KEY
 ARG NEXT_PUBLIC_SITE_URL=https://avino.uz
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
+# Google Sign-In Client ID — тоже NEXT_PUBLIC (инлайнится в бандл на этапе
+# `next build`). Пусто → кнопка Google просто не рендерится (GoogleSignInButton),
+# вход по OTP работает как прежде. Значение должно совпадать с GOOGLE_CLIENT_ID
+# на api, иначе верификация ID-token отдаёт 401 (docs/GUIDE_GOOGLE_AUTH_SETUP.md).
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
 COPY . .
 RUN pnpm install --frozen-lockfile \
  && pnpm --filter @avino/shared build \
