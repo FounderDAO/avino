@@ -865,4 +865,20 @@ describe('ListingsService', () => {
       await expectCode(service.registerView(LISTING_ID), ApiErrorCode.NOT_FOUND);
     });
   });
+
+  describe('registerCall', () => {
+    it('инкрементит calls_count raw-UPDATE, резолвится без ошибки', async () => {
+      prisma.$executeRaw.mockResolvedValue(1);
+
+      await expect(service.registerCall(LISTING_ID)).resolves.toBeUndefined();
+
+      expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    });
+
+    it('404 когда листинг не найден или не ACTIVE', async () => {
+      prisma.$executeRaw.mockResolvedValue(0);
+
+      await expectCode(service.registerCall(LISTING_ID), ApiErrorCode.NOT_FOUND);
+    });
+  });
 });

@@ -116,6 +116,19 @@ export class ListingsController {
     return this.listingsService.registerView(listingId);
   }
 
+  /**
+   * `POST /api/v1/listings/:id/call` — засчитать намерение позвонить (клик по
+   * tel:-ссылке). Публичный (гость тоже считается), 204 без тела;
+   * несуществующий/не-ACTIVE → 404.
+   */
+  @Post(':id/call')
+  @HttpCode(204)
+  registerCall(
+    @Param('id', ParseUUIDPipe) listingId: string,
+  ): Promise<void> {
+    return this.listingsService.registerCall(listingId);
+  }
+
   /** `PATCH /api/v1/listings/:id` — обновить собственное объявление. */
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
