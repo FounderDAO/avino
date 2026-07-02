@@ -28,6 +28,8 @@
     "help": "Help",
     "account": "Account",
     "favorites": "Favorites",
+    "messages": "Messages",
+    "notifications": "Notifications",
     "login": "Log in",
     "logout": "Log out",
     "postListing": "Post a listing",
@@ -939,6 +941,10 @@
           "title": "Promotions and offers",
           "text": "TOP/VIP discounts and Avino news."
         }
+      },
+      "notifSound": {
+        "title": "Notification sound",
+        "text": "Play a sound on a new message or notification"
       }
     },
     "tours": {

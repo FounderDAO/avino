@@ -15,6 +15,8 @@ import { CalendarDays, Home, Heart, Bell, MessageCircle, User, Settings as Setti
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
+import { CountBadge } from '@/components/ui/count-badge';
+import { useUnreadCounts } from '@/store/useUnreadCounts';
 
 /** Описание вкладки кабинета. */
 export interface AccountTab {
@@ -45,6 +47,14 @@ export interface AccountLayoutProps {
 export function AccountLayout({ tab, children }: AccountLayoutProps) {
   const t = useTranslations('account');
   const user = useAppSelector(selectCurrentUser);
+
+  // Счётчики без поллинга — читаем общий кэш (двигатель поллинга — шапка).
+  const { messages, notifications, tours } = useUnreadCounts();
+  const tabCounts: Record<string, number> = {
+    inbox: messages,
+    notifications,
+    tours,
+  };
 
   // Подпись аккаунта: display_name → имя → телефон → «Гость» (как в Header).
   const accountName =
@@ -90,6 +100,13 @@ export function AccountLayout({ tab, children }: AccountLayoutProps) {
                 >
                   <Icon size={19} strokeWidth={1.9} className="shrink-0" />{' '}
                   {t(`tabs.${item.labelKey}`)}
+                  {tabCounts[item.key] > 0 && (
+                    <CountBadge
+                      count={tabCounts[item.key]}
+                      max={99}
+                      className="ml-auto"
+                    />
+                  )}
                 </Link>
               );
             })}

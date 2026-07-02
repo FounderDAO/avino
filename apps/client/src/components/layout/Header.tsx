@@ -30,6 +30,10 @@ import {
   FAVORITE_MENU_LINKS,
 } from './ProfileMenu';
 import { useLogout } from './useLogout';
+import { UnreadIndicators } from './UnreadIndicators';
+import { CountBadge } from '@/components/ui/count-badge';
+import { useUnreadCounts } from '@/store/useUnreadCounts';
+import { useUnreadSound } from '@/lib/useUnreadSound';
 
 function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) {
   const t = useTranslations('nav');
@@ -40,6 +44,16 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
   const favCount = useFavoritesCount();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const { logout, isLoggingOut } = useLogout();
+
+  // Единый владелец фонового поллинга счётчиков (виден на всех страницах)
+  // и звука при появлении нового непрочитанного.
+  const {
+    messages: unreadMessages,
+    notifications: unreadNotifications,
+    total: unreadTotal,
+    ready: unreadReady,
+  } = useUnreadCounts({ pollingInterval: 20000 });
+  useUnreadSound(unreadTotal, unreadReady);
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -119,7 +133,13 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
             )}
           </Link>
           {isAuthenticated ? (
-            <ProfileMenu />
+            <>
+              <UnreadIndicators
+                messages={unreadMessages}
+                notifications={unreadNotifications}
+              />
+              <ProfileMenu />
+            </>
           ) : (
             <Button variant="ghost" onClick={() => setLogin(true)} className="text-[15px]">
               {t('login')}
@@ -171,7 +191,12 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
                 <>
                   {[...PROFILE_MENU_LINKS, ...FAVORITE_MENU_LINKS].map((it) => (
                     <Button key={it.key} size="lg" variant="outline" asChild>
-                      <Link href={it.href}>{t(it.labelKey)}</Link>
+                      <Link href={it.href} className="flex items-center justify-center gap-2">
+                        {t(it.labelKey)}
+                        {it.key === 'chat' && (
+                          <CountBadge count={unreadMessages} max={9} />
+                        )}
+                      </Link>
                     </Button>
                   ))}
                   <Button
