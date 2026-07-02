@@ -20,7 +20,11 @@ describe('SearchService.priceDistribution (unit)', () => {
   }
 
   beforeEach(() => {
-    prisma = { $queryRaw: jest.fn() };
+    prisma = {
+      $queryRaw: jest.fn(),
+      // По умолчанию курса нет → per-currency гистограмма (прежнее поведение).
+      exchangeRate: { findFirst: jest.fn().mockResolvedValue(null) },
+    };
     const districts = {} as unknown as DistrictsService;
     const uploads = {} as unknown as UploadsService;
     service = new SearchService(
@@ -73,5 +77,47 @@ describe('SearchService.priceDistribution (unit)', () => {
 
     const statsSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
     expect(sqlText(statsSql)).toContain("status = 'ACTIVE'");
+  });
+
+  it('без курса: per-currency гистограмма (currency-фильтр, raw-цена)', async () => {
+    prisma.exchangeRate.findFirst.mockResolvedValue(null);
+    prisma.$queryRaw
+      .mockResolvedValueOnce([{ ceiling: 95000, total: 10 }])
+      .mockResolvedValueOnce([{ b: 1, c: 3 }]);
+
+    await service.priceDistribution({
+      currency: Currency.USD,
+      transaction_type: TransactionType.SALE,
+    });
+
+    const statsSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+    const bucketSql = prisma.$queryRaw.mock.calls[1][0] as Prisma.Sql;
+    // Деградация: фильтр по валюте, без FX-CASE.
+    expect(sqlText(statsSql)).toContain('currency::text =');
+    expect(sqlText(statsSql)).not.toContain('CASE WHEN currency');
+    expect(sqlText(bucketSql)).toContain('currency::text =');
+    expect(statsSql.values).toEqual(expect.arrayContaining([Currency.USD]));
+  });
+
+  it('с курсом: FX-гистограмма по обеим валютам (цена приведена к currency)', async () => {
+    prisma.exchangeRate.findFirst.mockResolvedValue({ rate: '12000' });
+    prisma.$queryRaw
+      .mockResolvedValueOnce([{ ceiling: 95000, total: 10 }])
+      .mockResolvedValueOnce([{ b: 1, c: 3 }]);
+
+    await service.priceDistribution({
+      currency: Currency.USD,
+      transaction_type: TransactionType.SALE,
+    });
+
+    const statsSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+    const bucketSql = prisma.$queryRaw.mock.calls[1][0] as Prisma.Sql;
+    // FX-нормализация в percentile и в width_bucket.
+    expect(sqlText(statsSql)).toContain("CASE WHEN currency = 'UZS' THEN price /");
+    expect(sqlText(bucketSql)).toContain("CASE WHEN currency = 'UZS' THEN price /");
+    // Обе валюты: жёсткого равенства currency нет.
+    expect(sqlText(statsSql)).not.toContain('currency::text =');
+    expect(sqlText(bucketSql)).not.toContain('currency::text =');
+    expect(statsSql.values).toEqual(expect.arrayContaining(['12000']));
   });
 });
