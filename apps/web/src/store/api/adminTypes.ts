@@ -165,7 +165,9 @@ export interface ListingMedia {
  * MODERATOR/ADMIN видят непубличные статусы через тот же публичный эндпоинт
  * (`OptionalJwtAuthGuard`); `DELETED` → всегда `404`. Поправки vs первичный
  * черновик ADMIN-07: `area`/`city_id` nullable, отдельного `features[]` в
- * detail-ответе бэкенд не отдаёт (только `features_text`).
+ * detail-ответе бэкенд не отдаёт (только `features_text`). Поля
+ * `is_basement`/`living_area`/`non_living_area`/`views_count`/`likes_count` —
+ * добавлены по `LAST_CHANGED_API.md` §1.
  */
 export interface ListingDetail {
   id: string;
@@ -176,12 +178,18 @@ export interface ListingDetail {
   currency: Currency;
   area: string | null;
   lot_area: string | null;
+  /** Жилая площадь, м², Decimal-строка (`"95.00"`). */
+  living_area: string | null;
+  /** Нежилая площадь, м², Decimal-строка. */
+  non_living_area: string | null;
   rooms: number | null;
   bathrooms: number | null;
   parking_type: 'YARD' | 'COVERED' | 'GARAGE' | 'UNDERGROUND' | null;
   amenities: string[];
   floor: number | null;
   total_floors: number | null;
+  /** Цокольный этаж; `true` → `floor` отдаётся `null`. */
+  is_basement: boolean;
   year_built: number | null;
   city_id: string | null;
   district_id: string | null;
@@ -201,6 +209,12 @@ export interface ListingDetail {
   media: ListingMedia[];
   published_at: string | null;
   created_at: string;
+  /** Счётчик просмотров. `optional` — мягкая деградация к «—» на старом бэкенде. */
+  views_count?: number;
+  /** Сколько пользователей добавили в избранное. `optional` — мягкая деградация. */
+  likes_count?: number;
+  /** Счётчик звонков (намерений позвонить). `optional` — мягкая деградация. */
+  calls_count?: number;
 }
 
 /**

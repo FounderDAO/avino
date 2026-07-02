@@ -278,7 +278,8 @@
       "any": "Istalgan",
       "roomsExact": "Xonalar soni: {count}",
       "lotAreaTitle": "Yer uchastkasi",
-      "amenitiesTitle": "Qulayliklar"
+      "amenitiesTitle": "Qulayliklar",
+      "isBasement": "Yerto'la qavat"
     },
     "results": {
       "count": "{count, plural, other {# ta e'lon}}",
@@ -355,7 +356,10 @@
       "floorOf": "{floor} / {total}",
       "year": "Qurilgan yili",
       "parking": "Avtoturargoh",
-      "lotArea": "Uchastka"
+      "lotArea": "Uchastka",
+      "livingArea": "Turar-joy maydoni",
+      "nonLivingArea": "Noturar maydon",
+      "basementValue": "Yerto'la"
     },
     "contact": {
       "greeting": "Assalomu alaykum! E'lon hali dolzarbmi?",
@@ -376,7 +380,11 @@
       "title": "Qulayliklar"
     },
     "openFullPage": "Sahifani ochish",
-    "modalTitle": "E'lon"
+    "modalTitle": "E'lon",
+    "stats": {
+      "viewsAria": "Ko'rishlar soni: {count}",
+      "likesAria": "Sevimlilarga qo'shilgan: {count}"
+    }
   },
   "tourRequest": {
     "title": "Tur uchun ariza",
@@ -581,7 +589,16 @@
       },
       "amenities": {
         "label": "Qulayliklar"
-      }
+      },
+      "livingArea": {
+        "label": "Turar maydon, m²",
+        "placeholder": "masalan, 45"
+      },
+      "nonLivingArea": {
+        "label": "Notura joy maydoni, m²",
+        "placeholder": "masalan, 10"
+      },
+      "isBasement": "Yerto'la qavat"
     },
     "photoUploader": {
       "dropTitle": "Fotolarni shu yerga tashlang yoki tanlash uchun bosing",
@@ -827,6 +844,11 @@
           "markSold": "E'lon sotilgan deb belgilansinmi? U qidiruvdan yashiriladi (keyin qaytarish mumkin).",
           "markRented": "E'lon ijaraga berilgan deb belgilansinmi? U qidiruvdan yashiriladi (keyin qaytarish mumkin)."
         }
+      },
+      "stats": {
+        "views": "Ko'rishlar soni: {count}",
+        "likes": "Sevimlilarga qo'shilgan: {count}",
+        "calls": "Qo'ng'iroqlar: {count}"
       }
     },
     "notifications": {
@@ -1026,7 +1048,8 @@
       "ELEVATOR": "Lift",
       "BALCONY": "Balkon",
       "HEATING": "Isitish",
-      "SECURITY": "Videokuzatuv"
+      "SECURITY": "Videokuzatuv",
+      "POOL": "Basseyn"
     }
   },
   "breadcrumb": {

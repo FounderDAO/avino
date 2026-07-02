@@ -1,0 +1,3575 @@
+{
+    "openapi": "3.0.0",
+    "paths": {
+        "/api/v1/health": {
+            "get": {
+                "operationId": "HealthController_check",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/otp/request": {
+            "post": {
+                "operationId": "AuthController_requestOtp",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RequestOtpDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/otp/verify": {
+            "post": {
+                "operationId": "AuthController_verifyOtp",
+                "parameters": [
+                    {
+                        "name": "user-agent",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VerifyOtpDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/google": {
+            "post": {
+                "operationId": "AuthController_google",
+                "parameters": [
+                    {
+                        "name": "user-agent",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GoogleLoginDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/apple": {
+            "post": {
+                "operationId": "AuthController_apple",
+                "parameters": [
+                    {
+                        "name": "user-agent",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AppleLoginDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/me": {
+            "get": {
+                "operationId": "AuthController_me",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/refresh": {
+            "post": {
+                "operationId": "AuthController_refresh",
+                "parameters": [
+                    {
+                        "name": "user-agent",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RefreshTokenDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "operationId": "AuthController_logout",
+                "parameters": [
+                    {
+                        "name": "user-agent",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RefreshTokenDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me": {
+            "get": {
+                "operationId": "UsersController_getMe",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "UsersController_updateMe",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateUserDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/profile": {
+            "patch": {
+                "operationId": "UsersController_updateProfile",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProfileDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/legal-consent": {
+            "post": {
+                "operationId": "UsersController_acceptLegalConsent",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AcceptLegalConsentDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/public": {
+            "get": {
+                "operationId": "PublicSettingsController_get",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicSettingsView"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/listings/{listingId}/translations": {
+            "get": {
+                "operationId": "TranslationsController_list",
+                "parameters": [
+                    {
+                        "name": "listingId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/listings": {
+            "post": {
+                "operationId": "ListingsController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateListingDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/listings/mine": {
+            "get": {
+                "operationId": "ListingsController_findMine",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/listings/{id}": {
+            "get": {
+                "operationId": "ListingsController_findOne",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "lang",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "accept-language",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "ListingsController_update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateListingDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/listings/{id}/view": {
+            "post": {
+                "operationId": "ListingsController_registerView",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/listings/{id}/call": {
+            "post": {
+                "operationId": "ListingsController_registerCall",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/listings/{id}/status": {
+            "patch": {
+                "operationId": "ListingsController_setStatus",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OwnerStatusDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/geo/districts": {
+            "get": {
+                "operationId": "GeoController_listDistricts",
+                "parameters": [
+                    {
+                        "name": "region_id",
+                        "required": false,
+                        "in": "query",
+                        "description": "UUID региона для фильтрации; без параметра возвращаются все районы",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/geo/regions": {
+            "get": {
+                "operationId": "GeoController_listRegions",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/listings/{listingId}/media": {
+            "get": {
+                "operationId": "ListingMediaController_list",
+                "parameters": [
+                    {
+                        "name": "listingId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "ListingMediaController_upload",
+                "parameters": [
+                    {
+                        "name": "listingId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/listings/{listingId}/media/reorder": {
+            "patch": {
+                "operationId": "ListingMediaController_reorder",
+                "parameters": [
+                    {
+                        "name": "listingId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReorderMediaDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/listings/{listingId}/media/{mediaId}": {
+            "delete": {
+                "operationId": "ListingMediaController_remove",
+                "parameters": [
+                    {
+                        "name": "listingId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "mediaId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/search": {
+            "get": {
+                "operationId": "SearchController_search",
+                "parameters": [
+                    {
+                        "name": "price_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "pattern": "DECIMAL_2",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "price_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "pattern": "DECIMAL_2",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "city_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "region_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "district_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "date_desc",
+                                "price_asc",
+                                "price_desc",
+                                "area_desc"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maxLength": 200,
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "rooms",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "rooms_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "bathrooms_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "floor_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "floor_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "not_first_floor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "not_last_floor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "is_basement",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "total_floors_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "total_floors_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "year_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "year_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "listing_source",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "OWNER",
+                                "AGENCY"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tours_enabled",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "area_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "area_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lot_area_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lot_area_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lang",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "accept-language",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/search/radius": {
+            "get": {
+                "operationId": "SearchController_searchRadius",
+                "parameters": [
+                    {
+                        "name": "price_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "pattern": "DECIMAL_2",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "price_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "pattern": "DECIMAL_2",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "city_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "region_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "district_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "date_desc",
+                                "price_asc",
+                                "price_desc",
+                                "area_desc"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maxLength": 200,
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "rooms",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "rooms_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "bathrooms_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "floor_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "floor_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "not_first_floor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "not_last_floor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "is_basement",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "total_floors_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "total_floors_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "year_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "year_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "listing_source",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "OWNER",
+                                "AGENCY"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tours_enabled",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "area_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "area_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lot_area_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lot_area_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "radius_m",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 50000,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lat",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "minimum": -90,
+                            "maximum": 90,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lng",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "minimum": -180,
+                            "maximum": 180,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lang",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "accept-language",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/search/bounds": {
+            "get": {
+                "operationId": "SearchController_searchBounds",
+                "parameters": [
+                    {
+                        "name": "price_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "pattern": "DECIMAL_2",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "price_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "pattern": "DECIMAL_2",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "city_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "region_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "district_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "date_desc",
+                                "price_asc",
+                                "price_desc",
+                                "area_desc"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maxLength": 200,
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "rooms",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "rooms_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "bathrooms_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "floor_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "floor_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "not_first_floor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "not_last_floor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "is_basement",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "total_floors_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "total_floors_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "year_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "year_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "listing_source",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "OWNER",
+                                "AGENCY"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tours_enabled",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "area_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "area_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lot_area_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lot_area_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "sw_lat",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "minimum": -90,
+                            "maximum": 90,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "sw_lng",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "minimum": -180,
+                            "maximum": 180,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "ne_lat",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "minimum": -90,
+                            "maximum": 90,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "ne_lng",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "minimum": -180,
+                            "maximum": 180,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lang",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "accept-language",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/search/near-me": {
+            "get": {
+                "operationId": "SearchController_searchNearMe",
+                "parameters": [
+                    {
+                        "name": "price_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "pattern": "DECIMAL_2",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "price_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "pattern": "DECIMAL_2",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "city_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "region_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "district_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "date_desc",
+                                "price_asc",
+                                "price_desc",
+                                "area_desc"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maxLength": 200,
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "rooms",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "rooms_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "bathrooms_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "floor_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "floor_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "not_first_floor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "not_last_floor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "is_basement",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "total_floors_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "total_floors_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "year_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "year_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "listing_source",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "OWNER",
+                                "AGENCY"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tours_enabled",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "area_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "area_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lot_area_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lot_area_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lat",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "minimum": -90,
+                            "maximum": 90,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lng",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "minimum": -180,
+                            "maximum": 180,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lang",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "accept-language",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/search/price-distribution": {
+            "get": {
+                "operationId": "SearchController_priceDistribution",
+                "parameters": [
+                    {
+                        "name": "currency",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "UZS",
+                                "USD"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "transaction_type",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "SALE",
+                                "RENT"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceDistributionResponseDto"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/search/polygon": {
+            "get": {
+                "operationId": "SearchController_searchPolygon",
+                "parameters": [
+                    {
+                        "name": "price_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "pattern": "DECIMAL_2",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "price_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "pattern": "DECIMAL_2",
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "city_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "region_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "district_id",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "date_desc",
+                                "price_asc",
+                                "price_desc",
+                                "area_desc"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "maxLength": 200,
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "rooms",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "rooms_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "bathrooms_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "floor_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "floor_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "not_first_floor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "not_last_floor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "is_basement",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "total_floors_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "total_floors_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "year_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "year_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "listing_source",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "enum": [
+                                "OWNER",
+                                "AGENCY"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tours_enabled",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "area_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "area_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lot_area_min",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lot_area_max",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 0,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "points",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "lang",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "accept-language",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/favorites": {
+            "get": {
+                "operationId": "FavoritesController_list",
+                "parameters": [
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lang",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "accept-language",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "FavoritesController_add",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateFavoriteDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/favorites/{listingId}": {
+            "delete": {
+                "operationId": "FavoritesController_remove",
+                "parameters": [
+                    {
+                        "name": "listingId",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/saved-searches": {
+            "get": {
+                "operationId": "SavedSearchesController_list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "SavedSearchesController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateSavedSearchDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/saved-searches/{id}": {
+            "patch": {
+                "operationId": "SavedSearchesController_update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateSavedSearchDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "SavedSearchesController_remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications": {
+            "get": {
+                "operationId": "NotificationsController_list",
+                "parameters": [
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/read-all": {
+            "post": {
+                "operationId": "NotificationsController_readAll",
+                "parameters": [],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/devices": {
+            "post": {
+                "operationId": "NotificationsController_registerDevice",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterDeviceDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/devices/{id}": {
+            "delete": {
+                "operationId": "NotificationsController_removeDevice",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/{id}/read": {
+            "post": {
+                "operationId": "NotificationsController_read",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/promotions/plans": {
+            "get": {
+                "operationId": "PromotionsController_getPlans",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/exchange-rate": {
+            "get": {
+                "operationId": "ExchangeRateController_current",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chat/threads": {
+            "get": {
+                "operationId": "ChatController_listThreads",
+                "parameters": [
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lang",
+                        "required": true,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "accept-language",
+                        "required": true,
+                        "in": "header",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "ChatController_createThread",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateThreadDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chat/threads/{id}/messages": {
+            "get": {
+                "operationId": "ChatController_listMessages",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "schema": {
+                            "minimum": 1,
+                            "maximum": 100,
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "ChatController_sendMessage",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SendMessageDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chat/threads/{id}/read": {
+            "post": {
+                "operationId": "ChatController_read",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/complaints": {
+            "post": {
+                "operationId": "ComplaintsController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateComplaintDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "info": {
+        "title": "Avino API",
+        "description": "API портала недвижимости Avino. Аутентификация: POST /auth/otp/request → /auth/otp/verify → { accessToken, refreshToken }; обновление — /auth/refresh; вход через Google — /auth/google; вход через Apple — /auth/apple. Bearer-токен передаётся в заголовке Authorization.",
+        "version": "1",
+        "contact": {}
+    },
+    "tags": [],
+    "servers": [],
+    "components": {
+        "securitySchemes": {
+            "bearer": {
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "type": "http",
+                "in": "header"
+            }
+        },
+        "schemas": {
+            "RequestOtpDto": {
+                "type": "object",
+                "properties": {
+                    "channel": {
+                        "type": "object"
+                    },
+                    "destination": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "channel",
+                    "destination"
+                ]
+            },
+            "VerifyOtpDto": {
+                "type": "object",
+                "properties": {
+                    "channel": {
+                        "type": "object"
+                    },
+                    "destination": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "code": {
+                        "type": "string",
+                        "minLength": 6,
+                        "maxLength": 6
+                    }
+                },
+                "required": [
+                    "channel",
+                    "destination",
+                    "code"
+                ]
+            },
+            "GoogleLoginDto": {
+                "type": "object",
+                "properties": {
+                    "id_token": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id_token"
+                ]
+            },
+            "AppleLoginDto": {
+                "type": "object",
+                "properties": {
+                    "id_token": {
+                        "type": "string"
+                    },
+                    "first_name": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "maxLength": 100
+                    }
+                },
+                "required": [
+                    "id_token"
+                ]
+            },
+            "RefreshTokenDto": {
+                "type": "object",
+                "properties": {
+                    "refresh_token": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "refresh_token"
+                ]
+            },
+            "UpdateUserDto": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "default_language": {
+                        "type": "object"
+                    }
+                }
+            },
+            "UpdateProfileDto": {
+                "type": "object",
+                "properties": {
+                    "first_name": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "display_name": {
+                        "type": "string",
+                        "maxLength": 150
+                    },
+                    "avatar_url": {
+                        "type": "string",
+                        "maxLength": 2048
+                    },
+                    "contact_phone": {
+                        "type": "string",
+                        "maxLength": 20
+                    },
+                    "preferred_language": {
+                        "type": "object"
+                    }
+                }
+            },
+            "AcceptLegalConsentDto": {
+                "type": "object",
+                "properties": {
+                    "terms_accepted": {
+                        "type": "boolean"
+                    },
+                    "privacy_accepted": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "terms_accepted",
+                    "privacy_accepted"
+                ]
+            },
+            "PublicSettingsView": {
+                "type": "object",
+                "properties": {
+                    "promotionsEnabled": {
+                        "type": "boolean"
+                    },
+                    "mapHoverRecenter": {
+                        "type": "boolean"
+                    },
+                    "legalConsentRequired": {
+                        "type": "boolean"
+                    },
+                    "legalConsentVersion": {
+                        "type": "number"
+                    }
+                },
+                "required": [
+                    "promotionsEnabled",
+                    "mapHoverRecenter",
+                    "legalConsentRequired",
+                    "legalConsentVersion"
+                ]
+            },
+            "TourWindowDto": {
+                "type": "object",
+                "properties": {
+                    "start": {
+                        "type": "string",
+                        "pattern": "HHMM_RE"
+                    },
+                    "end": {
+                        "type": "string",
+                        "pattern": "HHMM_RE"
+                    }
+                },
+                "required": [
+                    "start",
+                    "end"
+                ]
+            },
+            "CreateListingTranslationDto": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "address_note": {
+                        "type": "string"
+                    },
+                    "features_text": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "title"
+                ]
+            },
+            "CreateListingDto": {
+                "type": "object",
+                "properties": {
+                    "transaction_type": {
+                        "type": "object"
+                    },
+                    "property_type": {
+                        "type": "object"
+                    },
+                    "original_language": {
+                        "type": "object"
+                    },
+                    "price": {
+                        "type": "string",
+                        "pattern": "DECIMAL_2"
+                    },
+                    "currency": {
+                        "type": "object"
+                    },
+                    "area": {
+                        "type": "string",
+                        "pattern": "DECIMAL_2"
+                    },
+                    "lot_area": {
+                        "type": "string",
+                        "pattern": "DECIMAL_2"
+                    },
+                    "living_area": {
+                        "type": "string",
+                        "pattern": "DECIMAL_2"
+                    },
+                    "non_living_area": {
+                        "type": "string",
+                        "pattern": "DECIMAL_2"
+                    },
+                    "rooms": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 32767
+                    },
+                    "bathrooms": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 99
+                    },
+                    "parking_type": {
+                        "type": "object"
+                    },
+                    "amenities": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "floor": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 32767
+                    },
+                    "is_basement": {
+                        "type": "boolean"
+                    },
+                    "total_floors": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 32767
+                    },
+                    "year_built": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 32767
+                    },
+                    "address": {
+                        "type": "string",
+                        "maxLength": 500
+                    },
+                    "city_id": {
+                        "type": "string"
+                    },
+                    "district_id": {
+                        "type": "string"
+                    },
+                    "agency_id": {
+                        "type": "string"
+                    },
+                    "latitude": {
+                        "type": "string"
+                    },
+                    "longitude": {
+                        "type": "string"
+                    },
+                    "tours_enabled": {
+                        "type": "boolean"
+                    },
+                    "tour_windows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TourWindowDto"
+                        }
+                    },
+                    "translation": {
+                        "$ref": "#/components/schemas/CreateListingTranslationDto"
+                    }
+                },
+                "required": [
+                    "transaction_type",
+                    "property_type",
+                    "original_language",
+                    "price",
+                    "currency",
+                    "translation"
+                ]
+            },
+            "UpdateListingTranslationDto": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "address_note": {
+                        "type": "string"
+                    },
+                    "features_text": {
+                        "type": "string"
+                    }
+                }
+            },
+            "UpdateListingDto": {
+                "type": "object",
+                "properties": {
+                    "transaction_type": {
+                        "type": "object"
+                    },
+                    "property_type": {
+                        "type": "object"
+                    },
+                    "price": {
+                        "type": "string",
+                        "pattern": "DECIMAL_2"
+                    },
+                    "currency": {
+                        "type": "object"
+                    },
+                    "area": {
+                        "type": "string",
+                        "pattern": "DECIMAL_2"
+                    },
+                    "lot_area": {
+                        "type": "string",
+                        "pattern": "DECIMAL_2"
+                    },
+                    "living_area": {
+                        "type": "string",
+                        "pattern": "DECIMAL_2"
+                    },
+                    "non_living_area": {
+                        "type": "string",
+                        "pattern": "DECIMAL_2"
+                    },
+                    "rooms": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 32767
+                    },
+                    "bathrooms": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 99
+                    },
+                    "parking_type": {
+                        "type": "object"
+                    },
+                    "amenities": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "floor": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 32767
+                    },
+                    "is_basement": {
+                        "type": "boolean"
+                    },
+                    "total_floors": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 32767
+                    },
+                    "year_built": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 32767
+                    },
+                    "address": {
+                        "type": "string",
+                        "maxLength": 500
+                    },
+                    "city_id": {
+                        "type": "string"
+                    },
+                    "district_id": {
+                        "type": "string"
+                    },
+                    "agency_id": {
+                        "type": "string"
+                    },
+                    "latitude": {
+                        "type": "string"
+                    },
+                    "longitude": {
+                        "type": "string"
+                    },
+                    "tours_enabled": {
+                        "type": "boolean"
+                    },
+                    "tour_windows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TourWindowDto"
+                        }
+                    },
+                    "translation": {
+                        "$ref": "#/components/schemas/UpdateListingTranslationDto"
+                    }
+                }
+            },
+            "OwnerStatusDto": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": [
+                            "HIDE",
+                            "MARK_SOLD",
+                            "MARK_RENTED",
+                            "REACTIVATE"
+                        ]
+                    }
+                },
+                "required": [
+                    "action"
+                ]
+            },
+            "ReorderMediaDto": {
+                "type": "object",
+                "properties": {
+                    "order": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "order"
+                ]
+            },
+            "PriceBucketDto": {
+                "type": "object",
+                "properties": {
+                    "from": {
+                        "type": "number",
+                        "description": "Нижняя граница бакета (включительно)"
+                    },
+                    "to": {
+                        "type": "number",
+                        "description": "Верхняя граница бакета (исключительно)"
+                    },
+                    "count": {
+                        "type": "number",
+                        "description": "Число объявлений в бакете"
+                    }
+                },
+                "required": [
+                    "from",
+                    "to",
+                    "count"
+                ]
+            },
+            "PriceDistributionResponseDto": {
+                "type": "object",
+                "properties": {
+                    "currency": {
+                        "type": "string",
+                        "enum": [
+                            "UZS",
+                            "USD"
+                        ]
+                    },
+                    "transaction_type": {
+                        "type": "string",
+                        "enum": [
+                            "SALE",
+                            "RENT"
+                        ]
+                    },
+                    "min": {
+                        "type": "number",
+                        "description": "Нижняя граница домена (всегда 0)"
+                    },
+                    "max": {
+                        "type": "number",
+                        "description": "Верхняя граница домена (округлённый p99-потолок)"
+                    },
+                    "buckets": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PriceBucketDto"
+                        }
+                    },
+                    "overflow_count": {
+                        "type": "number",
+                        "description": "Число объявлений строго дороже max"
+                    }
+                },
+                "required": [
+                    "currency",
+                    "transaction_type",
+                    "min",
+                    "max",
+                    "buckets",
+                    "overflow_count"
+                ]
+            },
+            "CreateFavoriteDto": {
+                "type": "object",
+                "properties": {
+                    "listing_id": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "listing_id"
+                ]
+            },
+            "FiltersJsonDto": {
+                "type": "object",
+                "properties": {
+                    "schemaVersion": {
+                        "type": "number"
+                    },
+                    "filters": {
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "schemaVersion",
+                    "filters"
+                ]
+            },
+            "CreateSavedSearchDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 150
+                    },
+                    "filters_json": {
+                        "$ref": "#/components/schemas/FiltersJsonDto"
+                    }
+                },
+                "required": [
+                    "name",
+                    "filters_json"
+                ]
+            },
+            "UpdateSavedSearchDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 150
+                    },
+                    "filters_json": {
+                        "$ref": "#/components/schemas/FiltersJsonDto"
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "RegisterDeviceDto": {
+                "type": "object",
+                "properties": {
+                    "platform": {
+                        "type": "string",
+                        "enum": [
+                            "ANDROID",
+                            "IOS",
+                            "WEB"
+                        ]
+                    },
+                    "push_token": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                    }
+                },
+                "required": [
+                    "platform",
+                    "push_token"
+                ]
+            },
+            "SetExchangeRateDto": {
+                "type": "object",
+                "properties": {
+                    "rate": {
+                        "type": "string",
+                        "pattern": "DECIMAL"
+                    }
+                },
+                "required": [
+                    "rate"
+                ]
+            },
+            "CreateThreadDto": {
+                "type": "object",
+                "properties": {
+                    "listing_id": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 5000
+                    }
+                },
+                "required": [
+                    "listing_id"
+                ]
+            },
+            "SendMessageDto": {
+                "type": "object",
+                "properties": {
+                    "body": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 5000
+                    }
+                },
+                "required": [
+                    "body"
+                ]
+            },
+            "CreateComplaintDto": {
+                "type": "object",
+                "properties": {
+                    "listing_id": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "details": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "listing_id",
+                    "reason"
+                ]
+            },
+            "ErrorDetailDto": {
+                "type": "object",
+                "properties": {
+                    "field": {
+                        "type": "string",
+                        "example": "email",
+                        "description": "Путь к полю (с точками для вложенных DTO)"
+                    },
+                    "issue": {
+                        "type": "string",
+                        "example": "must be an email",
+                        "description": "Причина ошибки валидации"
+                    }
+                },
+                "required": [
+                    "field",
+                    "issue"
+                ]
+            },
+            "ErrorBodyDto": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "example": "VALIDATION_ERROR",
+                        "description": "Стабильный код ошибки (docs/API.md §17)"
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Validation failed",
+                        "description": "Человекочитаемое сообщение (язык по Accept-Language)"
+                    },
+                    "details": {
+                        "description": "Пер-полевые ошибки валидации",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ErrorDetailDto"
+                        }
+                    },
+                    "request_id": {
+                        "type": "string",
+                        "example": "0f9c1d3e-...",
+                        "description": "Корреляция с серверными логами"
+                    }
+                },
+                "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                ]
+            },
+            "ErrorResponseDto": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "$ref": "#/components/schemas/ErrorBodyDto"
+                    }
+                },
+                "required": [
+                    "error"
+                ]
+            }
+        }
+    }
+}

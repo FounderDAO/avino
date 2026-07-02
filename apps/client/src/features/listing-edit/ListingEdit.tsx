@@ -62,7 +62,8 @@ import type { TourWindow, Region, District } from '@/lib/mock/types';
 import { RegionDistrictSelect } from '@/features/listing-new/RegionDistrictSelect';
 
 const ROOM_OPTIONS = ['studio', '1', '2', '3', '4', '5+'] as const;
-const BATHROOM_OPTIONS = ['1', '2', '3', '4+'] as const;
+/** Шаг 0.5 (LAST_CHANGED_API.md §1: `bathrooms` дробный, шаг 0.5, max 99). */
+const BATHROOM_OPTIONS = ['1', '1.5', '2', '2.5', '3', '3.5', '4+'] as const;
 
 const TYPE_ICONS: Record<PropertyType, typeof HomeIcon> = {
   APARTMENT: Building,
@@ -86,7 +87,13 @@ interface EditForm {
   parking: string;  // '' = Нет
   area: string;
   lotArea: string;
+  /** Жилая площадь, м² (Decimal-строка, LAST_CHANGED_API.md §1). */
+  livingArea: string;
+  /** Нежилая площадь, м² (Decimal-строка, LAST_CHANGED_API.md §1). */
+  nonLivingArea: string;
   floor: string;
+  /** Цокольный этаж; при true floor не задаётся (шлём null). */
+  isBasement: boolean;
   totalFloors: string;
   year: string;
   price: string;
@@ -125,7 +132,11 @@ export function detailToForm(d: EditListingDetail): EditForm {
     parking: d.parking_type ?? '',
     area: d.area != null && d.area !== '' ? String(Number(d.area)) : '',
     lotArea: d.lot_area != null && d.lot_area !== '' ? String(Number(d.lot_area)) : '',
+    livingArea: d.living_area != null && d.living_area !== '' ? String(Number(d.living_area)) : '',
+    nonLivingArea:
+      d.non_living_area != null && d.non_living_area !== '' ? String(Number(d.non_living_area)) : '',
     floor: d.floor != null ? String(d.floor) : '',
+    isBasement: d.is_basement ?? false,
     totalFloors: d.total_floors != null ? String(d.total_floors) : '',
     year: d.year_built != null ? String(d.year_built) : '',
     price: d.price ? String(Math.round(Number(d.price))) : '',
@@ -157,6 +168,8 @@ export function buildEditPatch(f: EditForm): UpdateListingPatch {
   };
   if (f.area) patch.area = toDecimal2(f.area);
   if (f.lotArea) patch.lot_area = toDecimal2(f.lotArea);
+  if (f.livingArea) patch.living_area = toDecimal2(f.livingArea);
+  if (f.nonLivingArea) patch.non_living_area = toDecimal2(f.nonLivingArea);
   const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
   if (!noRooms) {
     if (f.rooms) {
@@ -164,10 +177,18 @@ export function buildEditPatch(f: EditForm): UpdateListingPatch {
       if (Number.isFinite(n)) patch.rooms = n;
     }
     if (f.bathrooms) {
-      const b = f.bathrooms === '4+' ? 4 : Number.parseInt(f.bathrooms, 10);
+      // Дробный шаг 0.5 (LAST_CHANGED_API.md §1) — parseFloat, не parseInt.
+      const b = f.bathrooms === '4+' ? 4 : Number.parseFloat(f.bathrooms);
       if (Number.isFinite(b)) patch.bathrooms = b;
     }
-    if (f.floor) patch.floor = Number.parseInt(f.floor, 10);
+    // Всегда шлём (как tours_enabled/amenities ниже) — иначе снять «Цокольный
+    // этаж» на редактировании было бы невозможно (omit-empty не отправил бы false).
+    patch.is_basement = f.isBasement;
+    if (f.isBasement) {
+      patch.floor = null;
+    } else if (f.floor) {
+      patch.floor = Number.parseInt(f.floor, 10);
+    }
     if (f.totalFloors) patch.total_floors = Number.parseInt(f.totalFloors, 10);
   }
   if (f.year) patch.year_built = Number.parseInt(f.year, 10);
@@ -497,6 +518,26 @@ export function ListingEdit({
               onChange={(e) => set('area', e.target.value.replace(/[^\d.]/g, ''))}
             />
           </FormField>
+          {!noRooms && (
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label={tNew('fields.livingArea.label')}>
+                <Field
+                  placeholder={tNew('fields.livingArea.placeholder')}
+                  inputMode="decimal"
+                  value={f.livingArea}
+                  onChange={(e) => set('livingArea', e.target.value.replace(/[^\d.]/g, ''))}
+                />
+              </FormField>
+              <FormField label={tNew('fields.nonLivingArea.label')}>
+                <Field
+                  placeholder={tNew('fields.nonLivingArea.placeholder')}
+                  inputMode="decimal"
+                  value={f.nonLivingArea}
+                  onChange={(e) => set('nonLivingArea', e.target.value.replace(/[^\d.]/g, ''))}
+                />
+              </FormField>
+            </div>
+          )}
           {(f.type === 'HOUSE' || f.type === 'LAND') && (
             <FormField label={tNew('fields.lotArea.label')}>
               <Field
@@ -508,11 +549,27 @@ export function ListingEdit({
             </FormField>
           )}
           {!noRooms && (
+            <label className="flex items-center gap-2 text-[14px] font-semibold text-ink">
+              <input
+                type="checkbox"
+                checked={f.isBasement}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  set('isBasement', checked);
+                  if (checked) set('floor', '');
+                }}
+                className="h-4 w-4 rounded border-border accent-ink"
+              />
+              {tNew('fields.isBasement')}
+            </label>
+          )}
+          {!noRooms && (
             <div className="grid grid-cols-3 gap-3">
               <FormField label={tNew('fields.floor')}>
                 <Field
                   placeholder="8"
                   inputMode="numeric"
+                  disabled={f.isBasement}
                   value={f.floor}
                   onChange={(e) => set('floor', e.target.value.replace(/\D/g, ''))}
                 />

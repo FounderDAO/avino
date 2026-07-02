@@ -17,6 +17,7 @@ const msgs = {
       BALCONY: 'Балкон',
       HEATING: 'Отопление',
       SECURITY: 'Видеонаблюдение',
+      POOL: 'Бассейн',
     },
   },
   search: { filters: { deselectAll: 'Снять все' } },

@@ -37,6 +37,8 @@ export interface FiltersPanelValues {
   toursEnabled?: boolean;
   parkingTypes?: ParkingType[];
   amenities?: Amenity[];
+  /** Только цокольные этажи (`?is_basement=true`, LAST_CHANGED_API.md §1). */
+  isBasement?: boolean;
 }
 
 export interface FiltersPanelProps {
@@ -218,6 +220,15 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
           label={t('toursEnabled')}
           checked={draft.toursEnabled ?? false}
           onChange={(checked) => patch({ toursEnabled: checked || undefined })}
+        />
+      </Section>
+
+      {/* 8. Цокольный этаж */}
+      <Section title="">
+        <CheckboxRow
+          label={t('isBasement')}
+          checked={draft.isBasement ?? false}
+          onChange={(checked) => patch({ isBasement: checked || undefined })}
         />
       </Section>
 

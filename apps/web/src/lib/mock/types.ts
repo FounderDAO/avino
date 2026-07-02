@@ -53,9 +53,15 @@ export interface SourceListing {
   price: string;
   currency: 'UZS' | 'USD';
   area: string | null;
+  /** Жилая площадь, м² (только из API-детали; LAST_CHANGED_API.md §1). */
+  livingArea?: string | null;
+  /** Нежилая площадь, м² (только из API-детали). */
+  nonLivingArea?: string | null;
   rooms: number | null;
   floor: number | null;
   totalFloors: number | null;
+  /** Цокольный этаж (только из API-детали). */
+  isBasement?: boolean;
   year: number | null;
   district: string;
   address: string;
@@ -86,6 +92,10 @@ export interface AdminListing {
   status: AdminListingStatus;
   /** Число просмотров; «—», когда источник (API) не отдаёт метрику. */
   views: number | string;
+  /** Число «нравится» (только из API-детали); «—» без источника. */
+  likes?: number | string;
+  /** Число звонков (только из API-детали); «—» без источника. */
+  calls?: number | string;
   created: string;
   promo: PromotionType;
   /** «Аренда» / «Продажа». */
