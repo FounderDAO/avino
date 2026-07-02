@@ -37,6 +37,41 @@ Related ADR:
 
 ---
 
+## 2026-07-03
+
+### TASK — Счётчик звонков по объявлению (API) + DevicePlatform enum в OpenAPI
+
+Status: DONE
+Branch: feat/listing-calls-counter
+PR: #293 (https://github.com/FounderDAO/avino/pull/293)
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260703000000_add_listing_calls_count/migration.sql
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/listings.controller.ts
+- apps/api/src/listings/listings.service.spec.ts
+- apps/api/src/notifications/dto/register-device.dto.ts
+- apps/api/openapi.public.json
+- apps/api/openapi.internal.json
+- docs/openapi.json
+- docs/superpowers/specs/2026-07-03-calls-counter-design.md
+
+Summary:
+- **Счётчик звонков (API):** новое поле `Listing.callsCount` (`calls_count`) + миграция, метод `registerCall` и эндпоинт `POST /api/v1/listings/:id/call` (204, без тела/авторизации) — полное зеркало паттерна просмотров (`viewsCount` / `POST /listings/:id/view`). Инкремент только для `ACTIVE`; считаем намерение (клик по `tel:`-ссылке), без дедупликации. `calls_count` отдаётся в detail/list-ответах.
+- **Фикс OpenAPI для мобилки:** `RegisterDeviceDto.platform` выгружался как `type: object` — мобильный разработчик не видел допустимых значений. Добавлен `@ApiProperty({ enum: DevicePlatform })` → `platform: ANDROID | IOS | WEB`. Перевыгружены `openapi.public/internal.json` и `docs/openapi.json` (заодно подтянут `/listings/:id/call`, escaped-строки `\uXXXX` → raw UTF-8).
+- Клиент/админка (`ContactCard`, `MyListings`, admin detail) — отдельным PR (см. spec §apps/client, §apps/web).
+- Проверка: `pnpm --filter @avino/api jest src/notifications` → 147/147; `registerCall` тест в `listings.service.spec`.
+
+Commit messages:
+- docs(specs): дизайн счётчика звонков по объявлению
+- feat(api): поле listings.calls_count + миграция
+- feat(api): POST /listings/:id/call + отдача calls_count
+- fix(api): expose DevicePlatform enum in OpenAPI
+
+Related ADR:
+- docs/adr/ADR-0119-listing-calls-count.md
+
 ## 2026-07-01
 
 ### FIX — OG-image на staging указывал на нерабочий прод-хост (build-arg `NEXT_PUBLIC_SITE_URL`)
