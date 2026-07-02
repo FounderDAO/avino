@@ -21,6 +21,8 @@ import { AdminTelegramSettingsService } from './admin-telegram-settings.service'
 import { AdminLogsController } from './admin-logs.controller';
 import { AdminLogsService } from './admin-logs.service';
 import { AdminPromotionsController } from './admin-promotions.controller';
+import { AdminPromotionsOverviewController } from './admin-promotions-overview.controller';
+import { AdminPromotionsOverviewService } from './admin-promotions-overview.service';
 import { AdminAnalyticsController } from './admin-analytics.controller';
 import { AdminAnalyticsService } from './admin-analytics.service';
 import { AdminStatsController } from './admin-stats.controller';
@@ -56,6 +58,7 @@ import { AdminUsersService } from './admin-users.service';
   controllers: [
     AdminListingsController,
     AdminPromotionsController,
+    AdminPromotionsOverviewController,
     AdminListingPromotionsController,
     AdminPromotionPlansController,
     AdminPromotionSettingsController,
@@ -75,6 +78,7 @@ import { AdminUsersService } from './admin-users.service';
     AdminUsersService,
     AdminLogsService,
     AdminStatsService,
+    AdminPromotionsOverviewService,
     AdminAnalyticsService,
     AdminPromotionPlansService,
     AdminPromotionSettingsService,
