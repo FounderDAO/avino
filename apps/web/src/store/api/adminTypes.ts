@@ -370,6 +370,44 @@ export interface ExtendPromotionRequest {
   period_days: PromotionPeriodDays;
 }
 
+/**
+ * Строка глобальной истории промо (`GET /admin/promotions`, ADMIN-16) — зеркало
+ * `AdminPromotionRow` (`apps/api/src/admin/admin-promotions-overview.service.ts`).
+ * Расширяет per-listing `ListingPromotion` полями сводной таблицы:
+ * `listing_title` (на `original_language`), `user_id` (кто активировал),
+ * `price`/`currency` (Decimal-строка, ADR-002), `created_at`.
+ */
+export interface AdminPromotionRow {
+  id: string;
+  listing_id: string;
+  listing_title: string;
+  user_id: string | null;
+  type: PromotionType;
+  status: PromotionStatus;
+  period_days: number;
+  price: string | null;
+  currency: Currency | null;
+  starts_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+/**
+ * `GET /admin/promotions/summary` (ADMIN-16). Выручка — Decimal-строки
+ * (ADR-002); в MVP тарифы в единой валюте (UZS), без разбивки по валютам.
+ */
+export interface AdminPromotionsSummary {
+  active_count: number;
+  revenue_month: string;
+  revenue_total: string;
+}
+
+/** `GET /admin/promotions` (ADMIN-16). */
+export interface AdminPromotionFilters extends PageParams {
+  status?: PromotionStatus;
+  type?: ActivatablePromotionType;
+}
+
 // ─── DTO: жалобы (API.md §16) ───────────────────────────────────────────────
 
 /** Жалоба на листинг (`complaints`, §16). */

@@ -1,7 +1,12 @@
 import { adminApi } from './adminApi';
+import { toQueryParams } from './pagination';
+import type { Paginated } from './pagination';
 import type {
   ActivatePromotionRequest,
+  AdminPromotionFilters,
   AdminPromotionPlan,
+  AdminPromotionRow,
+  AdminPromotionsSummary,
   CancelPromotionRequest,
   ExtendPromotionRequest,
   ListingPromotion,
@@ -31,6 +36,10 @@ import type {
  * - `GET /admin/promotion-plans` → `AdminPromotionPlan[]` (тарифы VIP/TOP).
  * - `PATCH /admin/promotion-plans/:id` `{ price?, isActive? }` → обновлённый тариф.
  * - `GET/PATCH /admin/promotion-settings` → интервал проверки истечения (6|12 ч).
+ * - `GET /admin/promotions?status&type&page&limit` → page-based
+ *   `Paginated<AdminPromotionRow>` — глобальная история промо (ADMIN-16).
+ * - `GET /admin/promotions/summary` → `AdminPromotionsSummary` (активные,
+ *   выручка за месяц/всего) — KPI страницы «Продвижение».
  */
 export const adminPromotionsApi = adminApi.injectEndpoints({
   endpoints: (build) => ({
@@ -97,6 +106,20 @@ export const adminPromotionsApi = adminApi.injectEndpoints({
       }),
       invalidatesTags: ['Admin'],
     }),
+    listAdminPromotions: build.query<
+      Paginated<AdminPromotionRow>,
+      AdminPromotionFilters
+    >({
+      query: (filters) => ({
+        url: '/admin/promotions',
+        params: toQueryParams({ ...filters }),
+      }),
+      providesTags: ['Admin'],
+    }),
+    getPromotionsSummary: build.query<AdminPromotionsSummary, void>({
+      query: () => ({ url: '/admin/promotions/summary' }),
+      providesTags: ['Admin'],
+    }),
     getPromotionSettings: build.query<PromotionSettings, void>({
       query: () => ({ url: '/admin/promotion-settings' }),
       providesTags: ['Admin'],
@@ -123,6 +146,8 @@ export const {
   useExtendPromotionMutation,
   useGetPromotionPlansQuery,
   useUpdatePromotionPlanMutation,
+  useListAdminPromotionsQuery,
+  useGetPromotionsSummaryQuery,
   useGetPromotionSettingsQuery,
   useUpdatePromotionSettingsMutation,
 } = adminPromotionsApi;
