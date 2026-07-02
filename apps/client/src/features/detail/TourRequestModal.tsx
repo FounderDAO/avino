@@ -54,18 +54,21 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
   // ContactCard шлёт гостя в логин, поэтому Bearer-запрос безопасен).
   const { data: takenSlots, refetch: refetchTaken } = useGetTakenSlotsQuery(
     listing.id,
-    { skip: !open },
+    // refetchOnMountOrArgChange: свежая занятость при каждом открытии модалки
+    // (иначе повторное открытие в пределах TTL кэша покажет устаревшую).
+    { skip: !open, refetchOnMountOrArgChange: true },
   );
   const takenForDate = React.useMemo(
     () => takenWindowKeys(takenSlots, date),
     [takenSlots, date],
   );
 
-  // Если выбранное окно занято на выбранную дату — сдвигаем на первое свободное
-  // (findIndex → -1, когда всё занято: submit упрётся в windowRequired).
+  // Если выбранное окно занято на выбранную дату (или выбор сброшен в -1 датой,
+  // где всё было занято) — сдвигаем на первое свободное. findIndex → -1, когда
+  // всё занято: submit упрётся в windowRequired; повторный set(-1) — React bail-out.
   React.useEffect(() => {
     const w = windows[windowIdx];
-    if (w && takenForDate.has(windowKey(w))) {
+    if (!w || takenForDate.has(windowKey(w))) {
       setWindowIdx(windows.findIndex((x) => !takenForDate.has(windowKey(x))));
     }
   }, [takenForDate, windows, windowIdx]);
