@@ -90,6 +90,11 @@ describe('SearchService', () => {
       listing: {
         findMany: jest.fn().mockResolvedValue([]),
       },
+      // Курс ЦБУ для FX-нормализации ценового фильтра; по умолчанию нет курса
+      // (деградация к сравнению в пределах одной валюты). Тесты FX его переопределяют.
+      exchangeRate: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
     };
     // DistrictsService застаблен — резолв district_name проверяется в int-spec.
     const districts = {
@@ -178,7 +183,11 @@ describe('SearchService', () => {
     expect(text).toContain('DESC, (created_at) DESC, id DESC');
   });
 
-  it('builds basic filters and a currency-scoped price range as SQL params', async () => {
+  it('builds basic filters and an FX-normalized cross-currency price range', async () => {
+    // Курс есть → цена каждого листинга приводится к валюте фильтра (USD), а не
+    // отсекается равенством currency=USD (иначе UZS-объявления, показанные юзеру
+    // как «≈ $X», молча выпадали бы из выдачи).
+    prisma.exchangeRate.findFirst.mockResolvedValue({ rate: '12000' });
     mockQuery([], 0);
 
     await service.search({
@@ -192,19 +201,45 @@ describe('SearchService', () => {
     });
 
     const pageSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+    const text = sqlText(pageSql);
+    // FX-нормализация UZS→USD в самом условии диапазона.
+    expect(text).toContain("CASE WHEN currency = 'UZS' THEN price /");
+    // Валюта участвует только как курс/направление — БЕЗ жёсткого равенства,
+    // которое исключало бы вторую валюту.
+    expect(text).not.toContain('currency::text =');
     expect(pageSql.values).toEqual(
       expect.arrayContaining([
         TransactionType.RENT,
         PropertyType.HOUSE,
-        Currency.USD,
         CITY_ID,
         DISTRICT_ID,
+        '12000',
         '1000.00',
         '5000.00',
       ]),
     );
-    expect(sqlText(pageSql)).toContain('price >=');
-    expect(sqlText(pageSql)).toContain('price <=');
+  });
+
+  it('degrades a price range to a single-currency compare when no FX rate exists', async () => {
+    // Нет строки курса → безопасная деградация: сравнение в пределах одной валюты
+    // (кросс-валютное сравнение сырых чисел было бы бессмысленным).
+    prisma.exchangeRate.findFirst.mockResolvedValue(null);
+    mockQuery([], 0);
+
+    await service.search({
+      price_min: '1000.00',
+      price_max: '5000.00',
+      currency: Currency.USD,
+    });
+
+    const pageSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+    const text = sqlText(pageSql);
+    expect(text).toContain('currency::text =');
+    expect(text).toContain('price >=');
+    expect(text).toContain('price <=');
+    expect(pageSql.values).toEqual(
+      expect.arrayContaining([Currency.USD, '1000.00', '5000.00']),
+    );
   });
 
   it('filters by region_id using a districts sub-select', async () => {
