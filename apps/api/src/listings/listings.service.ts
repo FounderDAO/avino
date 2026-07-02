@@ -222,6 +222,7 @@ export interface ListingDetailResponse {
   tours_enabled: boolean;
   tour_windows: TourWindow[];
   views_count: number;
+  calls_count: number;
   likes_count: number;
   published_at: string | null;
   created_at: string;
@@ -278,6 +279,7 @@ const LISTING_DETAIL_SELECT = {
   toursEnabled: true,
   tourWindows: true,
   viewsCount: true,
+  callsCount: true,
   // Живой агрегат лайков (мобилка #8): COUNT по favorites, без денормализации.
   _count: { select: { favorites: true } },
   translations: {
@@ -334,6 +336,7 @@ export interface ListingListItem {
   title: string;
   thumbnail_url: string | null;
   views_count: number;
+  calls_count: number;
   likes_count: number;
   published_at: string | null;
   created_at: string;
@@ -369,6 +372,7 @@ const LISTING_LIST_SELECT = {
   publishedAt: true,
   createdAt: true,
   viewsCount: true,
+  callsCount: true,
   // Живой агрегат лайков (мобилка #8): COUNT по favorites, без денормализации.
   _count: { select: { favorites: true } },
   translations: {
@@ -785,6 +789,24 @@ export class ListingsService {
     }
   }
 
+  /**
+   * `POST /api/v1/listings/:id/call` — счётчик звонков по объявлению (клик по
+   * tel:-ссылке). Зеркалит `registerView`: raw UPDATE, только ACTIVE, без
+   * дедупликации; @updatedAt не бампается.
+   */
+  async registerCall(listingId: string): Promise<void> {
+    const count = await this.prisma.$executeRaw`
+      UPDATE listings SET calls_count = calls_count + 1
+      WHERE id = ${listingId}::uuid AND status = 'ACTIVE'
+    `;
+    if (count === 0) {
+      throw new NotFoundException({
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Listing not found',
+      });
+    }
+  }
+
   /** Владелец листинга или привилегированная роль (MODERATOR/ADMIN). */
   private canViewNonActive(
     ownerId: string,
@@ -911,6 +933,7 @@ export class ListingsService {
       title: translation?.title ?? '',
       thumbnail_url: thumbnailUrl,
       views_count: listing.viewsCount,
+      calls_count: listing.callsCount,
       likes_count: listing._count.favorites,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
@@ -1004,6 +1027,7 @@ export class ListingsService {
       tours_enabled: listing.toursEnabled,
       tour_windows: (listing.tourWindows as unknown as TourWindow[]) ?? [],
       views_count: listing.viewsCount,
+      calls_count: listing.callsCount,
       likes_count: listing._count.favorites,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
