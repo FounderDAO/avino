@@ -21,6 +21,10 @@ import {
   useUpdateUserMutation,
 } from '@/store/api/usersApi';
 import { getApiError } from '@/store/api/apiError';
+import {
+  isNotificationSoundEnabled,
+  setNotificationSoundEnabled,
+} from '@/lib/notificationSound';
 
 type LangChip = 'ru' | 'uz' | 'en';
 const LANG_UPPER: Record<LangChip, Language> = { ru: 'RU', uz: 'UZ', en: 'EN' };
@@ -75,6 +79,16 @@ export function Settings() {
     promo: false,
   });
   const toggle = (k: string) => setNotifs((p) => ({ ...p, [k]: !p[k] }));
+
+  // Реальный тумблер звука (в отличие от мок-настроек выше) — persist в localStorage.
+  const [soundOn, setSoundOn] = React.useState(true);
+  React.useEffect(() => setSoundOn(isNotificationSoundEnabled()), []);
+  const toggleSound = () =>
+    setSoundOn((prev) => {
+      const next = !prev;
+      setNotificationSoundEnabled(next);
+      return next;
+    });
 
   // Гидрация языка из текущего пользователя.
   React.useEffect(() => {
@@ -163,6 +177,17 @@ export function Settings() {
                 <Toggle on={!!notifs[key]} onClick={() => toggle(key)} />
               </div>
             ))}
+            <div className="flex items-center justify-between gap-4 py-3.5 last:pb-0">
+              <div className="min-w-0">
+                <div className="text-[15px] font-bold">
+                  {t('settings.notifSound.title')}
+                </div>
+                <div className="mt-0.5 text-[13.5px] text-muted-foreground">
+                  {t('settings.notifSound.text')}
+                </div>
+              </div>
+              <Toggle on={soundOn} onClick={toggleSound} />
+            </div>
           </div>
         </div>
       </div>

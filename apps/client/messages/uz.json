@@ -941,6 +941,10 @@
           "title": "Aksiyalar va ilgari surish",
           "text": "TOP/VIP chegirmalari va Avino yangiliklari."
         }
+      },
+      "notifSound": {
+        "title": "Bildirishnoma tovushi",
+        "text": "Yangi xabar yoki bildirishnoma kelganda signal chalinsin"
       }
     },
     "tours": {

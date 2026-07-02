@@ -941,6 +941,10 @@
           "title": "Promotions and offers",
           "text": "TOP/VIP discounts and Avino news."
         }
+      },
+      "notifSound": {
+        "title": "Notification sound",
+        "text": "Play a sound on a new message or notification"
       }
     },
     "tours": {
