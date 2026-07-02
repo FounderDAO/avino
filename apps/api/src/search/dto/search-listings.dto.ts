@@ -94,17 +94,22 @@ export class SearchListingsQueryDto {
   @IsEnum(PropertyType, { each: true })
   property_type?: PropertyType[];
 
-  /** Нижняя граница цены (включительно), в пределах `currency`, без FX. */
+  /** Нижняя граница цены (включительно), в валюте `currency` (цены FX-нормализуются к ней). */
   @IsOptional()
   @Matches(DECIMAL_2, { message: 'price_min must be a decimal with up to 2 fraction digits' })
   price_min?: string;
 
-  /** Верхняя граница цены (включительно), в пределах `currency`, без FX. */
+  /** Верхняя граница цены (включительно), в валюте `currency` (цены FX-нормализуются к ней). */
   @IsOptional()
   @Matches(DECIMAL_2, { message: 'price_max must be a decimal with up to 2 fraction digits' })
   price_max?: string;
 
-  /** Валюта диапазона цен (price_min/price_max сравниваются в её пределах). */
+  /**
+   * Валюта ценового диапазона. price_min/price_max трактуются в ней, а цены
+   * листингов в другой валюте приводятся к ней по текущему курсу ЦБУ (FX), чтобы
+   * фильтр совпадал с конвертированными ценами в выдаче. Нет курса → сравнение
+   * только с листингами этой же валюты.
+   */
   @IsOptional()
   @IsEnum(Currency)
   currency?: Currency;

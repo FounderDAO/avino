@@ -300,7 +300,7 @@ export class SearchService {
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const cursor = this.decodeCursor(query.cursor);
-    const filterSql = this.buildWhereSql(query);
+    const filterSql = this.buildWhereSql(query, await this.fxRateForFilter(query));
 
     // Явная сортировка → гибрид (закреплённое промо + строгий ключ + FX).
     if (query.sort !== undefined) {
@@ -482,6 +482,20 @@ export class SearchService {
   }
 
   /**
+   * Курс для FX-нормализации ценового фильтра ({@link buildWhereSql}): нужен
+   * только когда задан ценовой рубеж И валюта диапазона. Иначе не ходим в БД —
+   * `null` (buildWhereSql деградирует к сравнению в пределах одной валюты).
+   */
+  private async fxRateForFilter(
+    query: SearchListingsQueryDto,
+  ): Promise<string | null> {
+    const needsFx =
+      (query.price_min !== undefined || query.price_max !== undefined) &&
+      query.currency !== undefined;
+    return needsFx ? this.fxRate() : null;
+  }
+
+  /**
    * `GET /api/v1/search/radius` — ACTIVE-листинги в радиусе `radius_m` метров от
    * точки (`ST_DWithin` по GIST-индексу `idx_listings_location`). Порядок —
    * promotion-приоритетный, как у `/search` (keyset с тиром), каждый элемент
@@ -497,8 +511,9 @@ export class SearchService {
     const cfg = SORTS['date_desc'];
     const cursor = this.decodeCursor(query.cursor);
     const point = this.pointSql(query.lng, query.lat);
+    const fxRate = await this.fxRateForFilter(query);
     // ST_DWithin по GIST-индексу; NULL-location отсекается (NULL не проходит WHERE).
-    const filterSql = Prisma.sql`${this.buildWhereSql(query)} AND location IS NOT NULL AND ST_DWithin(location, ${point}, ${query.radius_m})`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND ST_DWithin(location, ${point}, ${query.radius_m})`;
     const pageWhere = cursor
       ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
@@ -548,8 +563,9 @@ export class SearchService {
     const cfg = SORTS['date_desc'];
     const cursor = this.decodeCursor(query.cursor);
     const envelope = this.envelopeSql(query);
+    const fxRate = await this.fxRateForFilter(query);
     // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
-    const filterSql = Prisma.sql`${this.buildWhereSql(query)} AND location IS NOT NULL AND location && ${envelope}::geography AND ST_Within(location::geometry, ${envelope})`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND location && ${envelope}::geography AND ST_Within(location::geometry, ${envelope})`;
     const pageWhere = cursor
       ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
@@ -606,8 +622,9 @@ export class SearchService {
     const cursor = this.decodeCursor(query.cursor);
     const vertices = parsePolygonRing(query.points);
     const polygon = this.polygonSql(vertices);
+    const fxRate = await this.fxRateForFilter(query);
     // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
-    const filterSql = Prisma.sql`${this.buildWhereSql(query)} AND location IS NOT NULL AND location && ${polygon}::geography AND ST_Within(location::geometry, ${polygon})`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND location && ${polygon}::geography AND ST_Within(location::geometry, ${polygon})`;
     const pageWhere = cursor
       ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
@@ -714,7 +731,8 @@ export class SearchService {
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const point = this.pointSql(query.lng, query.lat);
-    const filterSql = Prisma.sql`${this.buildWhereSql(query)} AND location IS NOT NULL`;
+    const fxRate = await this.fxRateForFilter(query);
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL`;
 
     const [rows, countRows] = await Promise.all([
       this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
@@ -934,8 +952,10 @@ export class SearchService {
     publishedUntil: Date,
     limit: number,
   ): Promise<SavedSearchMatch[]> {
+    const query = filters as unknown as SearchListingsQueryDto;
     const filterSql = this.buildWhereSql(
-      filters as unknown as SearchListingsQueryDto,
+      query,
+      await this.fxRateForFilter(query),
     );
 
     // Территория (saved-search-polygon): валидное кольцо → ST_Within; битое кольцо
@@ -977,8 +997,10 @@ export class SearchService {
    *   `listing_source` (OWNER/AGENCY), `tours_enabled`.
    *
    * Параметры биндятся через `Prisma.sql` (защита от инъекций). Enum-колонки
-   * сравниваются через `::text` (не зависит от имени PG-типа); диапазон цены —
-   * в пределах одной валюты (`currency`), FX-конвертации нет (API.md §9).
+   * сравниваются через `::text` (не зависит от имени PG-типа); ценовой диапазон
+   * FX-нормализуется в валюту `currency` по переданному `rate` (курс ЦБУ), чтобы
+   * фильтр совпадал с конвертированными ценами, которые видит пользователь;
+   * `rate=null` → деградация к сравнению в пределах одной валюты.
    *
    * `rooms` (TASK-207): 0..3 — точное совпадение; 4 = «4+» (rooms >= 4).
    * `rooms_min`: «N и более» (rooms >= N) — для кнопок 1+/2+/…/5+.
@@ -990,7 +1012,10 @@ export class SearchService {
    * не работал как wildcard. GIN-индексы (migration 20260613120000_*) ускоряют
    * запросы с term ≥ 3 символов; более короткие термы работают через seq scan.
    */
-  private buildWhereSql(query: SearchListingsQueryDto): Prisma.Sql {
+  private buildWhereSql(
+    query: SearchListingsQueryDto,
+    rate: string | null = null,
+  ): Prisma.Sql {
     const conds: Prisma.Sql[] = [Prisma.sql`status = 'ACTIVE'`];
 
     if (query.transaction_type !== undefined)
@@ -1001,8 +1026,6 @@ export class SearchService {
       conds.push(
         Prisma.sql`property_type::text IN (${Prisma.join(query.property_type)})`,
       );
-    if (query.currency !== undefined)
-      conds.push(Prisma.sql`currency::text = ${query.currency}`);
     if (query.city_id !== undefined)
       conds.push(Prisma.sql`city_id = ${query.city_id}::uuid`);
     if (query.district_id !== undefined)
@@ -1011,10 +1034,33 @@ export class SearchService {
       conds.push(
         Prisma.sql`district_id IN (SELECT id FROM districts WHERE region_id = ${query.region_id}::uuid)`,
       );
-    if (query.price_min !== undefined)
-      conds.push(Prisma.sql`price >= ${query.price_min}::numeric`);
-    if (query.price_max !== undefined)
-      conds.push(Prisma.sql`price <= ${query.price_max}::numeric`);
+
+    // Ценовой диапазон + валюта. Цену пользователь видит КОНВЕРТИРОВАННОЙ в
+    // выбранную валюту (usePriceFormatter «≈ $X»), поэтому и фильтр обязан
+    // сравнивать в той же валюте: цену каждого листинга приводим к `currency` по
+    // текущему курсу ЦБУ (FX), а не отсекаем другую валюту равенством — иначе
+    // объявления в иной валюте, визуально попадающие в диапазон, молча выпадают.
+    // Нет курса (`rate=null`) → безопасная деградация к сравнению в пределах одной
+    // валюты (кросс-валютное сравнение сырых чисел бессмысленно).
+    const hasPriceBound =
+      query.price_min !== undefined || query.price_max !== undefined;
+    if (hasPriceBound && query.currency !== undefined && rate) {
+      const priceInCurrency =
+        query.currency === Currency.USD
+          ? Prisma.sql`(CASE WHEN currency = 'UZS' THEN price / ${rate}::numeric ELSE price END)`
+          : Prisma.sql`(CASE WHEN currency = 'USD' THEN price * ${rate}::numeric ELSE price END)`;
+      if (query.price_min !== undefined)
+        conds.push(Prisma.sql`${priceInCurrency} >= ${query.price_min}::numeric`);
+      if (query.price_max !== undefined)
+        conds.push(Prisma.sql`${priceInCurrency} <= ${query.price_max}::numeric`);
+    } else {
+      if (query.currency !== undefined)
+        conds.push(Prisma.sql`currency::text = ${query.currency}`);
+      if (query.price_min !== undefined)
+        conds.push(Prisma.sql`price >= ${query.price_min}::numeric`);
+      if (query.price_max !== undefined)
+        conds.push(Prisma.sql`price <= ${query.price_max}::numeric`);
+    }
     if (query.rooms !== undefined)
       conds.push(
         query.rooms >= 4
