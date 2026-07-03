@@ -153,6 +153,8 @@ interface ApiListingDetail {
   views_count?: number;
   calls_count?: number;
   likes_count?: number;
+  /** История цены (ADR-0121): от старых к новым. Optional — старый бэкенд. */
+  price_history?: { price: string; currency: Currency; created_at: string }[];
 }
 
 /** Envelope поиска (API.md §9). Реиспользуется клиентским searchApi (TASK-152). */
@@ -309,6 +311,12 @@ export function mapListing(api: AnyApiListing): Listing {
     viewsCount: (api as ApiSearchItem | ApiListingDetail).views_count ?? undefined,
     callsCount: (api as ApiSearchItem | ApiListingDetail).calls_count ?? undefined,
     likesCount: (api as ApiSearchItem | ApiListingDetail).likes_count ?? undefined,
+
+    priceHistory: detail?.price_history?.map((h) => ({
+      price: h.price,
+      currency: h.currency,
+      createdAt: h.created_at,
+    })),
 
     title: api.title,
     desc: detail?.description ?? undefined,
