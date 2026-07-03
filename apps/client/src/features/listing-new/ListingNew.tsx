@@ -156,6 +156,9 @@ function reducer(state: FormState, action: Action): FormState {
 export function buildListingBody(
   f: FormState,
   noRooms: boolean,
+  // Поле «Заголовок» скрыто от пользователя (пока не нужно), а API требует
+  // непустой translation.title — поэтому визард передаёт автособранный фолбэк.
+  fallbackTitle = '',
 ): import('@/store/api/createListingApi').CreateListingBody {
   const cleanPrice = (raw: string) => raw.replace(/[^\d.]/g, '');
   const body: import('@/store/api/createListingApi').CreateListingBody = {
@@ -165,7 +168,7 @@ export function buildListingBody(
     price: cleanPrice(f.price),
     currency: f.currency,
     translation: {
-      title: f.title.trim(),
+      title: f.title.trim() || fallbackTitle,
       description: f.desc.trim() || undefined,
       address_note: f.address.trim() || undefined,
     },
@@ -291,8 +294,19 @@ export function ListingNew({
 
   const apiError = getApiError(createError);
 
+  // Автозаголовок вместо скрытого поля «Заголовок»: тип + площадь + адрес
+  // (адрес обязателен на шаге 2, поэтому строка всегда непустая).
+  const autoTitle = [
+    propertyTypeLabel(f.type, tEnums),
+    f.area ? tUnits('area', { value: f.area }) : null,
+    f.address.trim() || null,
+  ]
+    .filter(Boolean)
+    .join(', ')
+    .slice(0, 255);
+
   /** Собрать тело POST /listings из FormState. */
-  const buildBody = (): CreateListingBody => buildListingBody(f, noRooms);
+  const buildBody = (): CreateListingBody => buildListingBody(f, noRooms, autoTitle);
 
   /** Реальная публикация: создать объявление → загрузить фото по одному. */
   const handlePublish = async () => {
@@ -338,8 +352,7 @@ export function ListingNew({
         return Boolean(f.price);
       case 5:
         return f.photos.length > 0;
-      case 6:
-        return f.title.trim().length > 3;
+      // Шаг 6 всегда валиден: поле «Заголовок» скрыто, описание опционально.
       default:
         return true;
     }
@@ -391,7 +404,7 @@ export function ListingNew({
           </span>
         </div>
         <p className="mx-auto mb-7 max-w-[460px] text-base text-muted-foreground">
-          {t('success.body', { title: f.title })}
+          {t('success.body', { title: f.title.trim() || autoTitle })}
         </p>
         {mediaFailures > 0 && (
           <p className="mx-auto mb-6 max-w-[460px] rounded-input bg-red/5 px-4 py-3 text-[13.5px] text-red">
@@ -563,26 +576,8 @@ export function ListingNew({
                 onChange={(e) => set('area', e.target.value.replace(/\D/g, ''))}
               />
             </FormField>
-            {!noRooms && (
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label={t('fields.livingArea.label')}>
-                  <Field
-                    placeholder={t('fields.livingArea.placeholder')}
-                    inputMode="decimal"
-                    value={f.livingArea}
-                    onChange={(e) => set('livingArea', e.target.value.replace(/[^\d.]/g, ''))}
-                  />
-                </FormField>
-                <FormField label={t('fields.nonLivingArea.label')}>
-                  <Field
-                    placeholder={t('fields.nonLivingArea.placeholder')}
-                    inputMode="decimal"
-                    value={f.nonLivingArea}
-                    onChange={(e) => set('nonLivingArea', e.target.value.replace(/[^\d.]/g, ''))}
-                  />
-                </FormField>
-              </div>
-            )}
+            {/* Жилая/нежилая площадь скрыты (пока не нужны) — стейт и
+                buildListingBody сохранены для лёгкого возврата поля. */}
             {(f.type === 'HOUSE' || f.type === 'LAND') && (
               <FormField label={t('fields.lotArea.label')}>
                 <Field
@@ -694,14 +689,8 @@ export function ListingNew({
                 ))}
               </div>
             </FormField>
-            <FormField label={t('fields.title.label')}>
-              <Field
-                placeholder={t('fields.title.placeholder')}
-                maxLength={80}
-                value={f.title}
-                onChange={(e) => set('title', e.target.value)}
-              />
-            </FormField>
+            {/* Поле «Заголовок» скрыто (пока не нужно) — при публикации
+                отправляется autoTitle, т.к. API требует непустой title. */}
             <FormField label={t('fields.desc.label')}>
               <textarea
                 rows={5}
@@ -732,9 +721,7 @@ export function ListingNew({
                 {f.price ? formatMoney(f.price, f.currency, tUnits) : '—'}
                 {f.tx === 'RENT' && f.price ? tUnits('perMonth') : ''}
               </div>
-              <div className="mt-1 text-base font-bold text-ink">
-                {f.title || t('preview.noTitle')}
-              </div>
+              {/* Строка заголовка скрыта вместе с полем «Заголовок». */}
             </div>
             <div className="rounded-input bg-surface-2 px-4 py-1">
               <Row label={t('preview.rows.tx')} value={tEnums(`tx.${f.tx}`)} />

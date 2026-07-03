@@ -43,12 +43,7 @@ export function Facts({ listing, className }: FactsProps) {
   if (listing.area) {
     items.push(<Fact key="area" icon={Ruler} label={t('facts.area')} value={formatArea(listing.area, tUnits)} />);
   }
-  if (listing.livingArea) {
-    items.push(<Fact key="livingArea" icon={Ruler} label={t('facts.livingArea')} value={formatArea(listing.livingArea, tUnits)} />);
-  }
-  if (listing.nonLivingArea) {
-    items.push(<Fact key="nonLivingArea" icon={Ruler} label={t('facts.nonLivingArea')} value={formatArea(listing.nonLivingArea, tUnits)} />);
-  }
+  // Жилая/нежилая площадь скрыты на клиенте (пока не нужны).
   if (listing.isBasement) {
     // Цокольный этаж (LAST_CHANGED_API.md §1): floor при этом null, показываем «Цоколь».
     items.push(<Fact key="floor" icon={Layers} label={t('facts.floor')} value={t('facts.basementValue')} />);
