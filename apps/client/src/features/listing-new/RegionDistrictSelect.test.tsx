@@ -10,6 +10,7 @@ import { describe, it, expect, vi } from 'vitest';
 import ru from '../../../messages/ru.json';
 
 // Мок Dropdown: рендерим контент сразу, без Radix-портала и pointer-механики.
+// DropdownItem → кнопка с onClick=onSelect (Radix закрывает меню по onSelect).
 vi.mock('@/components/ui/dropdown', () => ({
   Dropdown: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownTrigger: ({ children, asChild: _a }: { children: React.ReactNode; asChild?: boolean }) => (
@@ -17,6 +18,23 @@ vi.mock('@/components/ui/dropdown', () => ({
   ),
   DropdownContent: ({ children }: { children: React.ReactNode; [k: string]: unknown }) => (
     <div>{children}</div>
+  ),
+  DropdownItem: ({
+    children,
+    onSelect,
+    selected: _s,
+    trailing: _tr,
+    ...props
+  }: {
+    children: React.ReactNode;
+    onSelect?: () => void;
+    selected?: boolean;
+    trailing?: React.ReactNode;
+    [k: string]: unknown;
+  }) => (
+    <button type="button" onClick={onSelect} {...props}>
+      {children}
+    </button>
   ),
 }));
 
