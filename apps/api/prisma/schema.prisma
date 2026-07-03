@@ -476,6 +476,7 @@ model Listing {
   chatThreads    ChatThread[]
   complaints     Complaint[]
   tourRequests   TourRequest[]
+  priceHistory   ListingPriceHistory[]
 
   @@index([status])
   @@index([propertyType])
@@ -521,6 +522,24 @@ model ListingTranslation {
   @@unique([listingId, language])
   @@index([listingId])
   @@map("listing_translations")
+}
+
+/// История изменений цены объявления (ADR-0121). Append-only лог: строка на
+/// каждое событие — цена создания + каждое реальное изменение (price, currency)
+/// в ListingsService.create()/update(). Публично отдаётся в detail-ответе
+/// (`price_history`), Zillow-style «Price history». ON DELETE CASCADE — история
+/// не переживает физическое удаление объявления.
+model ListingPriceHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  price     Decimal  @db.Decimal(14, 2)
+  currency  Currency
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@map("listing_price_history")
 }
 
 /// Медиа объявления (DB_SCHEMA.md §6, ADR-008). Файлы лежат в S3-совместимом
