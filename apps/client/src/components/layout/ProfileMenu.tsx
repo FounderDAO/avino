@@ -8,7 +8,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { User, ChevronDown } from 'lucide-react';
+import { User } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { useAppSelector } from '@/store/hooks';
 import {
@@ -85,11 +85,10 @@ export function ProfileMenu() {
       <DropdownTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1.5 rounded-pill px-3 py-2 text-[15px] font-semibold text-ink hover:bg-surface-2"
+          aria-label={t('profileMenu.trigger')}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-ink hover:bg-surface-2"
         >
           <User size={20} strokeWidth={1.9} />
-          <span>{t('profileMenu.trigger')}</span>
-          <ChevronDown size={16} strokeWidth={2} />
         </button>
       </DropdownTrigger>
 
