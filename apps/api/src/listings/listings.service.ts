@@ -555,6 +555,14 @@ export class ListingsService {
       };
     }
 
+    // Правка опубликованного (ACTIVE) объявления возвращает его на повторную
+    // модерацию (NEW): изменённый контент не должен оставаться в публичной
+    // выдаче без проверки (Team Lead decision, ADR-0120). published_at не
+    // сбрасываем — при повторном APPROVE он не перезаписывается
+    // (ModerationService.changeStatus), поэтому дата первой публикации сохранится.
+    if (existing.status === ListingStatus.ACTIVE) {
+      data.status = ListingStatus.NEW;
+    }
     // Smart-return: правка скрытого (ARCHIVED) листинга требует повторной
     // модерации при возврате в продажу.
     if (existing.status === ListingStatus.ARCHIVED) {

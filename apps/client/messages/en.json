@@ -752,8 +752,10 @@
     "save": "Save changes",
     "saving": "Saving…",
     "langImmutable": "The original language is set at creation and can't be changed.",
+    "fieldLocation": "region and district",
     "error": {
       "required": "Fill in the required fields: title, address, area, price and at least one photo.",
+      "missing": "To save, fill in the required fields: {fields}.",
       "saveFailed": "Couldn't save changes. Please try again."
     },
     "tours": {

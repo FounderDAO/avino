@@ -76,25 +76,28 @@ export interface UpdateListingPatch {
   price?: string;
   currency?: string;
   area?: string;
-  lot_area?: string;
+  /** `null` — очистить необязательное поле (бэкенд пишет null в nullable-колонку). */
+  lot_area?: string | null;
   rooms?: number;
-  /** Дробный, шаг 0.5 (не кратное 0.5 → 400). */
-  bathrooms?: number;
-  /** `null` — явно очистить (цокольный этаж, is_basement=true). */
+  /** Дробный, шаг 0.5 (не кратное 0.5 → 400). `null` — снять. */
+  bathrooms?: number | null;
+  /** `null` — явно очистить (цокольный этаж is_basement=true или снятый этаж). */
   floor?: number | null;
-  total_floors?: number;
-  year_built?: number;
+  total_floors?: number | null;
+  year_built?: number | null;
   address?: string;
   latitude?: string;
   longitude?: string;
   translation?: {
     title?: string;
-    description?: string;
-    address_note?: string;
+    /** `null` — стереть описание (undefined = не трогать). */
+    description?: string | null;
+    address_note?: string | null;
   };
   tours_enabled?: boolean;
   tour_windows?: { start: string; end: string }[];
-  parking_type?: ParkingType;
+  /** `null` — снять парковку. */
+  parking_type?: ParkingType | null;
   amenities?: Amenity[];
   city_id?: string;
   district_id?: string;
