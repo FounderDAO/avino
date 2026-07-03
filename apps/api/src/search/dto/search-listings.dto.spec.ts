@@ -77,14 +77,14 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(inst.amenities).toEqual(['ELEVATOR']);
   });
 
-  it('принимает bathrooms_min кратный 0.5', () => {
-    const { inst, errors } = dto({ bathrooms_min: '1.5' });
+  it.each(['1', '1.5', '2', '3', '4'])('принимает bathrooms_min=%s', (v) => {
+    const { inst, errors } = dto({ bathrooms_min: v });
     expect(errors).toHaveLength(0);
-    expect(inst.bathrooms_min).toBe(1.5);
+    expect(inst.bathrooms_min).toBe(Number(v));
   });
 
-  it('отклоняет bathrooms_min, не кратный 0.5', () => {
-    const { errors } = dto({ bathrooms_min: '1.3' });
+  it.each(['2.5', '3.5', '1.3', '0', '5'])('отклоняет bathrooms_min=%s (вне набора 1/1.5/2/3/4)', (v) => {
+    const { errors } = dto({ bathrooms_min: v });
     expect(errors.length).toBeGreaterThan(0);
   });
 });

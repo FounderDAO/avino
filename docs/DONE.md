@@ -37,6 +37,95 @@ Related ADR:
 
 ---
 
+## 2026-07-04
+
+### Фильтр «санузлы»: набор значений сужен до 1 / 1.5 / 2 / 3 / 4+ (API + client)
+
+Status: DONE
+Branch: fix/search-bathrooms-allowed-values (API), fix/client-bathrooms-filter-options (client)
+PR: #308 (API), #309 (client)
+
+Files changed:
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/search/dto/search-listings.dto.spec.ts
+- apps/api/openapi.public.json
+- apps/api/openapi.internal.json
+- apps/client/src/features/search/controls/BathroomsControl.tsx
+- apps/client/src/features/search/controls/BathroomsControl.test.tsx
+- apps/client/src/app/[locale]/search/page.tsx
+
+Summary:
+- `bathrooms_min` теперь принимает только `1 / 1.5 / 2 / 3 / 4` (`@IsIn(BATHROOMS_MIN_VALUES)` вместо произвольного шага 0.5); гео-DTO наследуют базовый → покрыты все эндпоинты поиска.
+- В `BathroomsControl` убраны пилюли `2.5+` и `3.5+`; `/search` (SSR) санитизирует `bathrooms_min` из URL по тому же набору — старые ссылки с `2.5`/`3.5` сбрасывают фильтр вместо 400.
+- Просьба Team Lead: убрать лишние промежуточные значения из фильтра.
+
+Commit messages:
+- fix(search): restrict bathrooms_min to 1/1.5/2/3/4 allowed values
+- fix(client): bathrooms filter options limited to 1/1.5/2/3/4+
+
+Related ADR:
+- docs/adr/ADR-0108-listing-bathrooms-count.md (обновлён)
+### TASK — История изменений цены объявления (API)
+
+Status: DONE
+Branch: feature/listing-price-history-api
+PR: #305 (https://github.com/FounderDAO/avino/pull/305)
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260704000000_add_listing_price_history/migration.sql
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/listings.service.spec.ts
+- docs/API.md
+- docs/adr/ADR-0121-listing-price-history.md
+- docs/superpowers/specs/2026-07-04-listing-price-history-design.md
+
+Summary:
+- **Append-only история цены:** таблица `listing_price_history` (price DECIMAL(14,2), currency, created_at; индекс (listing_id, created_at); FK ON DELETE CASCADE). Миграция бэкфиллит по строке на существующее объявление (текущая цена, дата = created_at объявления).
+- **Capture:** `create()` пишет первую строку (цена создания) в транзакции; `update()` — событие только при реальном изменении пары (price, currency), сравнение `Prisma.Decimal.equals` (без дублей «9800» vs «9800.00»).
+- **Отдача:** `GET /api/v1/listings/:id` → optional `price_history: [{ price, currency, created_at }]`, от старых к новым; non-breaking v1, без новых endpoints; публично (Zillow-style, решение Team Lead).
+- Проверка: `listings.service.spec` 49/49, полный прогон apps/api 806/806; openapi export без drift.
+
+Commit messages:
+- feat(listings): add ListingPriceHistory model and backfill migration
+- feat(listings): capture price changes and expose price_history in detail
+- test(listings): cover price-history capture and detail mapping
+- docs(adr): ADR-0121 listing price history + API.md detail field
+- docs(specs): дизайн истории цены объявления
+
+Related ADR:
+- docs/adr/ADR-0121-listing-price-history.md
+
+### TASK — Блок «История цены» на detail-странице (client)
+
+Status: DONE
+Branch: feature/client-price-history
+PR: #306 (https://github.com/FounderDAO/avino/pull/306)
+
+Files changed:
+- apps/client/src/lib/mock/types.ts
+- apps/client/src/lib/api/listings.ts
+- apps/client/src/features/detail/PriceHistory.tsx
+- apps/client/src/features/detail/PriceHistory.test.tsx
+- apps/client/src/features/detail/Detail.tsx
+- apps/client/messages/en.json
+- apps/client/messages/ru.json
+- apps/client/messages/uz.json
+
+Summary:
+- Маппинг optional `price_history` (PR #305, ADR-0121) в UI-модель (`Listing.priceHistory`); старый бэкенд без поля клиент не ломает.
+- Публичный блок «История цены» на detail: новые сверху, «Опубликовано» для первой записи, дельта % (↓ зелёный / ↑ красный, между валютами не считается), цена через usePriceFormatter (тоггл [сум|$]), дата UTC (без hydration mismatch).
+- i18n en/ru/uz (uz латиницей); Vitest 4/4, включая порядок строк.
+
+Commit messages:
+- feat(client): map price_history from listing detail API
+- feat(client): блок «История цены» на detail-странице
+- test(client): рендер-тесты блока «История цены»
+- fix(client): UTC-дата в истории цены + токен text-red + тест порядка строк
+
+Related ADR:
+- docs/adr/ADR-0121-listing-price-history.md
+
 ## 2026-07-03
 
 ### TASK-222 — Правка опубликованного объявления возвращает его на модерацию (API)
