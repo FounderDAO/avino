@@ -97,6 +97,15 @@ export interface TourWindow {
   end: string; // "10:00"
 }
 
+/** Событие истории цены (detail-only, ADR-0121). */
+export interface PriceHistoryEntry {
+  /** Цена — строка (деньги НЕ number). */
+  price: string;
+  currency: Currency;
+  /** ISO-дата события. */
+  createdAt: string;
+}
+
 /**
  * Объявление о недвижимости (UI-модель).
  *
@@ -146,6 +155,9 @@ export interface Listing {
   callsCount?: number;
   /** Кол-во добавлений в избранное (только в ответах API). */
   likesCount?: number;
+
+  /** История цены (detail-only, ADR-0121): от старых к новым. */
+  priceHistory?: PriceHistoryEntry[];
 
   /** Заголовок объявления. */
   title: string;

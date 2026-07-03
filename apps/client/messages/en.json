@@ -361,6 +361,11 @@
       "nonLivingArea": "Non-living area",
       "basementValue": "Basement"
     },
+    "priceHistory": {
+      "title": "Price history",
+      "listed": "Listed",
+      "changed": "Price change"
+    },
     "contact": {
       "greeting": "Hello! Is this listing still available?",
       "chatError": "Could not start the conversation",
