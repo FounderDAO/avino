@@ -37,6 +37,38 @@ Related ADR:
 
 ---
 
+## 2026-07-04
+
+### TASK — Блок «История цены» на detail-странице (client)
+
+Status: DONE
+Branch: feature/client-price-history
+PR: #306 (https://github.com/FounderDAO/avino/pull/306)
+
+Files changed:
+- apps/client/src/lib/mock/types.ts
+- apps/client/src/lib/api/listings.ts
+- apps/client/src/features/detail/PriceHistory.tsx
+- apps/client/src/features/detail/PriceHistory.test.tsx
+- apps/client/src/features/detail/Detail.tsx
+- apps/client/messages/en.json
+- apps/client/messages/ru.json
+- apps/client/messages/uz.json
+
+Summary:
+- Маппинг optional `price_history` (PR #305, ADR-0121) в UI-модель (`Listing.priceHistory`); старый бэкенд без поля клиент не ломает.
+- Публичный блок «История цены» на detail: новые сверху, «Опубликовано» для первой записи, дельта % (↓ зелёный / ↑ красный, между валютами не считается), цена через usePriceFormatter (тоггл [сум|$]), дата UTC (без hydration mismatch).
+- i18n en/ru/uz (uz латиницей); Vitest 4/4, включая порядок строк.
+
+Commit messages:
+- feat(client): map price_history from listing detail API
+- feat(client): блок «История цены» на detail-странице
+- test(client): рендер-тесты блока «История цены»
+- fix(client): UTC-дата в истории цены + токен text-red + тест порядка строк
+
+Related ADR:
+- docs/adr/ADR-0121-listing-price-history.md
+
 ## 2026-07-03
 
 ### TASK — Счётчик звонков по объявлению (API) + DevicePlatform enum в OpenAPI
