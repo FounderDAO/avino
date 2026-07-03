@@ -37,10 +37,13 @@ export function PriceHistory({ listing }: PriceHistoryProps) {
   const entries = listing.priceHistory ?? [];
   if (entries.length === 0) return null;
 
+  // timeZone: 'UTC' — SSR (сервер в UTC) и браузер (Asia/Tashkent) не должны
+  // расходиться по дате календарного дня → hydration mismatch.
   const dateFmt = new Intl.DateTimeFormat(DATE_LOCALES[locale] ?? 'ru-RU', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    timeZone: 'UTC',
   });
 
   // Новые сверху; label: первая (хронологически) запись — «Опубликовано».
@@ -72,7 +75,7 @@ export function PriceHistory({ listing }: PriceHistoryProps) {
                   {pct != null && (
                     <span
                       className={`inline-flex items-center gap-1 text-[13px] font-semibold ${
-                        pct < 0 ? 'text-green' : 'text-red-500'
+                        pct < 0 ? 'text-green' : 'text-red'
                       }`}
                     >
                       {pct < 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}

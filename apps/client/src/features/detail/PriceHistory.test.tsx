@@ -58,6 +58,11 @@ describe('PriceHistory', () => {
     );
     expect(screen.getByText('priceHistory.changed')).toBeInTheDocument();
     expect(screen.getByText(/−2\.0\s?%/)).toBeInTheDocument();
+
+    // Новые сверху: первая строка таблицы — свежая запись (9800), последняя — «Опубликовано».
+    const rows = screen.getAllByRole('row');
+    expect(rows[0]).toHaveTextContent('$9800.00');
+    expect(rows[rows.length - 1]).toHaveTextContent('priceHistory.listed');
   });
 
   it('смена валюты — дельта не считается', () => {
