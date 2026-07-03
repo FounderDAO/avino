@@ -65,6 +65,66 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0108-listing-bathrooms-count.md (обновлён)
+### TASK — История изменений цены объявления (API)
+
+Status: DONE
+Branch: feature/listing-price-history-api
+PR: #305 (https://github.com/FounderDAO/avino/pull/305)
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260704000000_add_listing_price_history/migration.sql
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/listings.service.spec.ts
+- docs/API.md
+- docs/adr/ADR-0121-listing-price-history.md
+- docs/superpowers/specs/2026-07-04-listing-price-history-design.md
+
+Summary:
+- **Append-only история цены:** таблица `listing_price_history` (price DECIMAL(14,2), currency, created_at; индекс (listing_id, created_at); FK ON DELETE CASCADE). Миграция бэкфиллит по строке на существующее объявление (текущая цена, дата = created_at объявления).
+- **Capture:** `create()` пишет первую строку (цена создания) в транзакции; `update()` — событие только при реальном изменении пары (price, currency), сравнение `Prisma.Decimal.equals` (без дублей «9800» vs «9800.00»).
+- **Отдача:** `GET /api/v1/listings/:id` → optional `price_history: [{ price, currency, created_at }]`, от старых к новым; non-breaking v1, без новых endpoints; публично (Zillow-style, решение Team Lead).
+- Проверка: `listings.service.spec` 49/49, полный прогон apps/api 806/806; openapi export без drift.
+
+Commit messages:
+- feat(listings): add ListingPriceHistory model and backfill migration
+- feat(listings): capture price changes and expose price_history in detail
+- test(listings): cover price-history capture and detail mapping
+- docs(adr): ADR-0121 listing price history + API.md detail field
+- docs(specs): дизайн истории цены объявления
+
+Related ADR:
+- docs/adr/ADR-0121-listing-price-history.md
+
+### TASK — Блок «История цены» на detail-странице (client)
+
+Status: DONE
+Branch: feature/client-price-history
+PR: #306 (https://github.com/FounderDAO/avino/pull/306)
+
+Files changed:
+- apps/client/src/lib/mock/types.ts
+- apps/client/src/lib/api/listings.ts
+- apps/client/src/features/detail/PriceHistory.tsx
+- apps/client/src/features/detail/PriceHistory.test.tsx
+- apps/client/src/features/detail/Detail.tsx
+- apps/client/messages/en.json
+- apps/client/messages/ru.json
+- apps/client/messages/uz.json
+
+Summary:
+- Маппинг optional `price_history` (PR #305, ADR-0121) в UI-модель (`Listing.priceHistory`); старый бэкенд без поля клиент не ломает.
+- Публичный блок «История цены» на detail: новые сверху, «Опубликовано» для первой записи, дельта % (↓ зелёный / ↑ красный, между валютами не считается), цена через usePriceFormatter (тоггл [сум|$]), дата UTC (без hydration mismatch).
+- i18n en/ru/uz (uz латиницей); Vitest 4/4, включая порядок строк.
+
+Commit messages:
+- feat(client): map price_history from listing detail API
+- feat(client): блок «История цены» на detail-странице
+- test(client): рендер-тесты блока «История цены»
+- fix(client): UTC-дата в истории цены + токен text-red + тест порядка строк
+
+Related ADR:
+- docs/adr/ADR-0121-listing-price-history.md
 
 ## 2026-07-03
 
