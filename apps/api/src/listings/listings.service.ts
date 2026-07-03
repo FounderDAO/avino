@@ -181,6 +181,13 @@ export interface ContactBlock {
   phone: string | null;
 }
 
+/** Одно событие истории цены (ADR-0121): значение на момент created_at. */
+export interface PriceHistoryEntry {
+  price: string;
+  currency: Currency;
+  created_at: string;
+}
+
 export interface ListingDetailResponse {
   id: string;
   status: ListingStatus;
@@ -223,6 +230,8 @@ export interface ListingDetailResponse {
   tour_windows: TourWindow[];
   views_count: number;
   calls_count: number;
+  /** История цены (ADR-0121): от старых к новым, первая строка — цена создания. */
+  price_history: PriceHistoryEntry[];
   likes_count: number;
   published_at: string | null;
   created_at: string;
@@ -282,6 +291,11 @@ const LISTING_DETAIL_SELECT = {
   callsCount: true,
   // Живой агрегат лайков (мобилка #8): COUNT по favorites, без денормализации.
   _count: { select: { favorites: true } },
+  // История цены (ADR-0121): от старых к новым для публичного блока detail.
+  priceHistory: {
+    select: { price: true, currency: true, createdAt: true },
+    orderBy: { createdAt: Prisma.SortOrder.asc },
+  },
   translations: {
     select: {
       language: true,
@@ -467,7 +481,12 @@ export class ListingsService {
     // «листинг создан, а роли нет».
     const listing = await this.prisma.$transaction(async (tx) => {
       await this.ensureSellerRole(tx, ownerId);
-      return tx.listing.create({ data, select: LISTING_SELECT });
+      const created = await tx.listing.create({ data, select: LISTING_SELECT });
+      // Первая строка истории цены — цена создания (ADR-0121).
+      await tx.listingPriceHistory.create({
+        data: { listingId: created.id, price: dto.price, currency: dto.currency },
+      });
+      return created;
     });
     return this.toResponse(listing);
   }
@@ -515,7 +534,7 @@ export class ListingsService {
   ): Promise<ListingResponse> {
     const existing = await this.prisma.listing.findFirst({
       where: { id: listingId, status: { not: ListingStatus.DELETED } },
-      select: { id: true, ownerId: true, originalLanguage: true, status: true, toursEnabled: true, tourWindows: true },
+      select: { id: true, ownerId: true, originalLanguage: true, status: true, toursEnabled: true, tourWindows: true, price: true, currency: true },
     });
     if (!existing) {
       throw new NotFoundException({
@@ -569,10 +588,28 @@ export class ListingsService {
       data.editedSinceHidden = true;
     }
 
-    const updated = await this.prisma.listing.update({
-      where: { id: listingId },
-      data,
-      select: LISTING_SELECT,
+    // История цены (ADR-0121): событие пишем, только если итоговая пара
+    // (price, currency) реально отличается — платный no-op не логируем.
+    const priceTouched = dto.price !== undefined || dto.currency !== undefined;
+    const nextPrice = dto.price ?? existing.price.toFixed(2);
+    const nextCurrency = dto.currency ?? existing.currency;
+    const priceChanged =
+      priceTouched &&
+      (!existing.price.equals(new Prisma.Decimal(nextPrice)) ||
+        nextCurrency !== existing.currency);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.listing.update({
+        where: { id: listingId },
+        data,
+        select: LISTING_SELECT,
+      });
+      if (priceChanged) {
+        await tx.listingPriceHistory.create({
+          data: { listingId, price: nextPrice, currency: nextCurrency },
+        });
+      }
+      return row;
     });
     return this.toResponse(updated);
   }
@@ -1036,6 +1073,11 @@ export class ListingsService {
       tour_windows: (listing.tourWindows as unknown as TourWindow[]) ?? [],
       views_count: listing.viewsCount,
       calls_count: listing.callsCount,
+      price_history: listing.priceHistory.map((h) => ({
+        price: h.price.toFixed(2),
+        currency: h.currency,
+        created_at: h.createdAt.toISOString(),
+      })),
       likes_count: listing._count.favorites,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
