@@ -37,6 +37,40 @@ Related ADR:
 
 ---
 
+## 2026-07-04
+
+### TASK — История изменений цены объявления (API)
+
+Status: DONE
+Branch: feature/listing-price-history-api
+PR: #305 (https://github.com/FounderDAO/avino/pull/305)
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260704000000_add_listing_price_history/migration.sql
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/listings.service.spec.ts
+- docs/API.md
+- docs/adr/ADR-0121-listing-price-history.md
+- docs/superpowers/specs/2026-07-04-listing-price-history-design.md
+
+Summary:
+- **Append-only история цены:** таблица `listing_price_history` (price DECIMAL(14,2), currency, created_at; индекс (listing_id, created_at); FK ON DELETE CASCADE). Миграция бэкфиллит по строке на существующее объявление (текущая цена, дата = created_at объявления).
+- **Capture:** `create()` пишет первую строку (цена создания) в транзакции; `update()` — событие только при реальном изменении пары (price, currency), сравнение `Prisma.Decimal.equals` (без дублей «9800» vs «9800.00»).
+- **Отдача:** `GET /api/v1/listings/:id` → optional `price_history: [{ price, currency, created_at }]`, от старых к новым; non-breaking v1, без новых endpoints; публично (Zillow-style, решение Team Lead).
+- Проверка: `listings.service.spec` 49/49, полный прогон apps/api 806/806; openapi export без drift.
+- Клиентский блок «История цены» — отдельный PR (apps/client).
+
+Commit messages:
+- feat(listings): add ListingPriceHistory model and backfill migration
+- feat(listings): capture price changes and expose price_history in detail
+- test(listings): cover price-history capture and detail mapping
+- docs(adr): ADR-0121 listing price history + API.md detail field
+- docs(specs): дизайн истории цены объявления
+
+Related ADR:
+- docs/adr/ADR-0121-listing-price-history.md
+
 ## 2026-07-03
 
 ### TASK — Счётчик звонков по объявлению (API) + DevicePlatform enum в OpenAPI
