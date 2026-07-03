@@ -894,7 +894,13 @@
             "required": false,
             "in": "query",
             "schema": {
-              "minimum": 0,
+              "enum": [
+                1,
+                1.5,
+                2,
+                3,
+                4
+              ],
               "type": "number"
             }
           },
@@ -1164,7 +1170,13 @@
             "required": false,
             "in": "query",
             "schema": {
-              "minimum": 0,
+              "enum": [
+                1,
+                1.5,
+                2,
+                3,
+                4
+              ],
               "type": "number"
             }
           },
@@ -1464,7 +1476,13 @@
             "required": false,
             "in": "query",
             "schema": {
-              "minimum": 0,
+              "enum": [
+                1,
+                1.5,
+                2,
+                3,
+                4
+              ],
               "type": "number"
             }
           },
@@ -1774,7 +1792,13 @@
             "required": false,
             "in": "query",
             "schema": {
-              "minimum": 0,
+              "enum": [
+                1,
+                1.5,
+                2,
+                3,
+                4
+              ],
               "type": "number"
             }
           },
@@ -2107,7 +2131,13 @@
             "required": false,
             "in": "query",
             "schema": {
-              "minimum": 0,
+              "enum": [
+                1,
+                1.5,
+                2,
+                3,
+                4
+              ],
               "type": "number"
             }
           },
