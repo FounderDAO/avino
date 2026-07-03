@@ -155,6 +155,17 @@ export function detailToForm(d: EditListingDetail): EditForm {
  * Вынесена из компонента для юнит-тестирования (Task C3).
  */
 export function buildEditPatch(f: EditForm): UpdateListingPatch {
+  const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
+  // Необязательные числовые/decimal-поля шлём ЯВНО: значение или `null` при
+  // очистке. Omit-empty (как было) не давал стереть этаж/год/площадь на бэке —
+  // из-за этого «убрал значение и сохранил» не срабатывало. null пишется в
+  // nullable-колонку (schema.prisma), затем правка ACTIVE уходит в NEW (ADR-0120).
+  const dec = (v: string): string | null => (v ? toDecimal2(v) : null);
+  const int = (v: string): number | null => {
+    const n = Number.parseInt(v, 10);
+    return v && Number.isFinite(n) ? n : null;
+  };
+
   const patch: UpdateListingPatch = {
     transaction_type: f.tx,
     property_type: f.type,
@@ -162,50 +173,75 @@ export function buildEditPatch(f: EditForm): UpdateListingPatch {
     currency: f.currency,
     translation: {
       title: f.title.trim(),
-      description: f.desc.trim() || undefined,
-      address_note: f.address.trim() || undefined,
+      // null — стереть описание/примечание (undefined = не трогать).
+      description: f.desc.trim() || null,
+      address_note: f.address.trim() || null,
     },
+    // area обязательна (canSave), остальные площади — очищаемые.
+    area: toDecimal2(f.area),
+    lot_area: dec(f.lotArea),
+    living_area: dec(f.livingArea),
+    non_living_area: dec(f.nonLivingArea),
+    year_built: int(f.year),
+    tours_enabled: f.toursEnabled,
+    tour_windows: f.tourWindows,
+    // Всегда шлём массив/парковку — чтобы «снять всё → сохранить» реально очищал.
+    amenities: f.amenities,
+    parking_type: f.parking ? (f.parking as ParkingType) : null,
   };
-  if (f.area) patch.area = toDecimal2(f.area);
-  if (f.lotArea) patch.lot_area = toDecimal2(f.lotArea);
-  if (f.livingArea) patch.living_area = toDecimal2(f.livingArea);
-  if (f.nonLivingArea) patch.non_living_area = toDecimal2(f.nonLivingArea);
-  const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
+
   if (!noRooms) {
     if (f.rooms) {
       const n = f.rooms === 'studio' ? 0 : Number.parseInt(f.rooms, 10);
       if (Number.isFinite(n)) patch.rooms = n;
     }
-    if (f.bathrooms) {
-      // Дробный шаг 0.5 (LAST_CHANGED_API.md §1) — parseFloat, не parseInt.
-      const b = f.bathrooms === '4+' ? 4 : Number.parseFloat(f.bathrooms);
-      if (Number.isFinite(b)) patch.bathrooms = b;
-    }
-    // Всегда шлём (как tours_enabled/amenities ниже) — иначе снять «Цокольный
-    // этаж» на редактировании было бы невозможно (omit-empty не отправил бы false).
+    // Санузлы: значение или null (можно снять). Дробный шаг 0.5 → parseFloat.
+    patch.bathrooms = f.bathrooms
+      ? f.bathrooms === '4+'
+        ? 4
+        : Number.parseFloat(f.bathrooms)
+      : null;
     patch.is_basement = f.isBasement;
-    if (f.isBasement) {
-      patch.floor = null;
-    } else if (f.floor) {
-      patch.floor = Number.parseInt(f.floor, 10);
-    }
-    if (f.totalFloors) patch.total_floors = Number.parseInt(f.totalFloors, 10);
+    // Цоколь → floor null; иначе значение или null (пустой этаж реально стирается).
+    patch.floor = f.isBasement ? null : int(f.floor);
+    patch.total_floors = int(f.totalFloors);
   }
-  if (f.year) patch.year_built = Number.parseInt(f.year, 10);
   if (f.address.trim()) patch.address = f.address.trim();
   if (f.coords) {
     patch.latitude = String(f.coords[0]);
     patch.longitude = String(f.coords[1]);
   }
-  patch.tours_enabled = f.toursEnabled;
-  patch.tour_windows = f.tourWindows;
-  if (f.parking) patch.parking_type = f.parking as ParkingType;
-  // Всегда шлём массив (как tour_windows) — чтобы «снять все удобства → сохранить»
-  // реально очищал их (omit-empty не дал бы отправить пустой массив на бэк).
-  patch.amenities = f.amenities;
   if (f.regionId) patch.city_id = f.regionId;
   if (f.districtId) patch.district_id = f.districtId;
   return patch;
+}
+
+/** Обязательные поля формы редактирования (для гейта «Сохранить» и подсказки). */
+export type RequiredField =
+  | 'title'
+  | 'address'
+  | 'location'
+  | 'area'
+  | 'rooms'
+  | 'price'
+  | 'photos';
+
+/**
+ * Какие обязательные поля ещё не заполнены. Пусто → можно сохранять. Вынесено
+ * из компонента (как buildEditPatch) ради юнит-тестов и чтобы «Сохранить» не была
+ * немой серой кнопкой: список отдаёт форме имена конкретных незаполненных полей.
+ */
+export function missingRequiredFields(f: EditForm, photoCount: number): RequiredField[] {
+  const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
+  const missing: RequiredField[] = [];
+  if (f.title.trim().length <= 3) missing.push('title');
+  if (!f.address.trim()) missing.push('address');
+  if (!f.regionId || !f.districtId) missing.push('location');
+  if (!f.area) missing.push('area');
+  if (!noRooms && !f.rooms) missing.push('rooms');
+  if (!f.price) missing.push('price');
+  if (photoCount === 0) missing.push('photos');
+  return missing;
 }
 
 /** Существующие медиа → UploadPhoto[] (без `file`, id = mediaId). */
@@ -315,15 +351,20 @@ export function ListingEdit({
   }
 
   const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
-  const canSave =
-    f.title.trim().length > 3 &&
-    Boolean(f.price) &&
-    Boolean(f.address.trim()) &&
-    Boolean(f.area) &&
-    Boolean(f.regionId) &&
-    Boolean(f.districtId) &&
-    (noRooms || Boolean(f.rooms)) &&
-    photos.length > 0;
+  // Список незаполненных обязательных полей → и гейт «Сохранить», и подсказка,
+  // ЧТО именно мешает сохранить (иначе кнопка серая без объяснения — баг, из-за
+  // которого правку этажа/удобств «нельзя было сохранить» на неполном объявлении).
+  const missing = missingRequiredFields(f, photos.length);
+  const canSave = missing.length === 0;
+  const fieldLabel: Record<RequiredField, string> = {
+    title: tNew('fields.title.label'),
+    address: tNew('steps.address'),
+    location: t('fieldLocation'),
+    area: tNew('fields.area.label'),
+    rooms: tNew('fields.rooms.label'),
+    price: tNew('fields.price.label'),
+    photos: tNew('fields.photos'),
+  };
 
   const handleSave = async () => {
     setSubmitError(null);
@@ -679,6 +720,11 @@ export function ListingEdit({
 
       {submitError && (
         <p className="mt-4 rounded-input bg-red/5 px-4 py-3 text-[13.5px] text-red">{submitError}</p>
+      )}
+      {!canSave && (
+        <p className="mt-4 rounded-input border border-border bg-surface px-4 py-3 text-[13.5px] text-muted-foreground">
+          {t('error.missing', { fields: missing.map((k) => fieldLabel[k]).join(', ') })}
+        </p>
       )}
 
       {/* Действия */}
