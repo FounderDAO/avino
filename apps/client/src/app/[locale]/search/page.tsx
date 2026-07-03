@@ -154,8 +154,13 @@ export default async function SearchPage({
   const roomsMinParsed = toNum(first(sp.rooms_min));
   const roomsMin = roomsMinParsed !== undefined && roomsMinParsed > 0 ? roomsMinParsed : undefined;
 
+  // Зеркалит кнопки BathroomsControl и валидацию API (@IsIn); старые URL с 2.5/3.5 молча сбрасываются.
+  const BATHROOMS_MIN_VALUES = [1, 1.5, 2, 3, 4];
   const bathroomsMinParsed = toNum(first(sp.bathrooms_min));
-  const bathroomsMin = bathroomsMinParsed !== undefined && bathroomsMinParsed > 0 ? bathroomsMinParsed : undefined;
+  const bathroomsMin =
+    bathroomsMinParsed !== undefined && BATHROOMS_MIN_VALUES.includes(bathroomsMinParsed)
+      ? bathroomsMinParsed
+      : undefined;
 
   const priceMinRaw = first(sp.priceMin);
   const priceMaxRaw = first(sp.priceMax);
