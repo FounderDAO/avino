@@ -80,6 +80,11 @@ describe('ListingsService', () => {
       role: {
         findUnique: jest.fn().mockResolvedValue({ id: 'role-owner' }),
       },
+      // История цены (ADR-0121): create()/update() пишут строку в той же
+      // транзакции — мок нужен во всех сценариях, не только в price-history тестах.
+      listingPriceHistory: {
+        create: jest.fn().mockResolvedValue({}),
+      },
     };
     // create() оборачивает апгрейд роли + запись листинга в один $transaction;
     // мок прокидывает тот же prisma как tx-клиент (callback-форма).
@@ -266,6 +271,20 @@ describe('ListingsService', () => {
       const data = prisma.listing.create.mock.calls[0][0].data;
       expect(data.isBasement).toBe(true);
     });
+
+    it('writes the initial price-history row inside the create transaction', async () => {
+      prisma.listing.create.mockResolvedValue(dbListing);
+
+      await service.create(OWNER_ID, validCreate as any);
+
+      expect(prisma.listingPriceHistory.create).toHaveBeenCalledWith({
+        data: {
+          listingId: LISTING_ID,
+          price: '4500000.00',
+          currency: Currency.UZS,
+        },
+      });
+    });
   });
 
   describe('update', () => {
@@ -274,6 +293,8 @@ describe('ListingsService', () => {
         id: LISTING_ID,
         ownerId: OWNER_ID,
         originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
       });
       prisma.listing.update.mockResolvedValue({
         ...dbListing,
@@ -313,6 +334,8 @@ describe('ListingsService', () => {
         ownerId: OWNER_ID,
         originalLanguage: Language.RU,
         status: ListingStatus.ACTIVE,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
       });
       prisma.listing.update.mockResolvedValue(dbListing);
 
@@ -330,6 +353,8 @@ describe('ListingsService', () => {
         ownerId: OWNER_ID,
         originalLanguage: Language.RU,
         status: ListingStatus.DRAFT,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
       });
       prisma.listing.update.mockResolvedValue(dbListing);
 
@@ -344,6 +369,8 @@ describe('ListingsService', () => {
         id: LISTING_ID,
         ownerId: OWNER_ID,
         originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
       });
       prisma.listing.update.mockResolvedValue(dbListing);
 
@@ -359,6 +386,8 @@ describe('ListingsService', () => {
         id: LISTING_ID,
         ownerId: OWNER_ID,
         originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
       });
       prisma.listing.update.mockResolvedValue(dbListing);
 
@@ -373,6 +402,8 @@ describe('ListingsService', () => {
         id: LISTING_ID,
         ownerId: OWNER_ID,
         originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
       });
       prisma.listing.update.mockResolvedValue(dbListing);
 
@@ -387,6 +418,8 @@ describe('ListingsService', () => {
         id: LISTING_ID,
         ownerId: OWNER_ID,
         originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
       });
       prisma.listing.update.mockResolvedValue(dbListing);
 
@@ -394,6 +427,70 @@ describe('ListingsService', () => {
 
       const data = prisma.listing.update.mock.calls[0][0].data;
       expect(data.lotArea).toBe('7.00');
+    });
+
+    it('appends a price-history row when the price actually changes', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+      await service.update(OWNER_ID, LISTING_ID, { price: '4200000.00' } as any);
+      expect(prisma.listingPriceHistory.create).toHaveBeenCalledWith({
+        data: {
+          listingId: LISTING_ID,
+          price: '4200000.00',
+          currency: Currency.UZS,
+        },
+      });
+    });
+
+    it('appends a price-history row when only the currency changes', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+      await service.update(OWNER_ID, LISTING_ID, { currency: Currency.USD } as any);
+      expect(prisma.listingPriceHistory.create).toHaveBeenCalledWith({
+        data: {
+          listingId: LISTING_ID,
+          price: '4500000.00',
+          currency: Currency.USD,
+        },
+      });
+    });
+
+    it('does not append history when the submitted price equals the current one', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+      await service.update(OWNER_ID, LISTING_ID, { price: '4500000.00' } as any);
+      expect(prisma.listingPriceHistory.create).not.toHaveBeenCalled();
+    });
+
+    it('does not append history when price/currency are not in the dto', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+      await service.update(OWNER_ID, LISTING_ID, { rooms: 3 } as any);
+      expect(prisma.listingPriceHistory.create).not.toHaveBeenCalled();
     });
 
     it('throws 403 FORBIDDEN when the listing belongs to another user', async () => {
@@ -475,6 +572,8 @@ describe('ListingsService', () => {
       createdAt: new Date('2026-05-30T09:00:00.000Z'),
       viewsCount: 12,
       _count: { favorites: 3 },
+      // История цены (ADR-0121): пустая по умолчанию, порядок проверяется отдельным тестом.
+      priceHistory: [],
       translations: [
         {
           language: Language.RU,
@@ -680,6 +779,39 @@ describe('ListingsService', () => {
 
       expect(result.amenities).toEqual([]);
     });
+
+    it('returns price_history in chronological order', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        priceHistory: [
+          {
+            price: new Prisma.Decimal('4500000.00'),
+            currency: Currency.UZS,
+            createdAt: new Date('2026-06-02T08:00:00.000Z'),
+          },
+          {
+            price: new Prisma.Decimal('4200000.00'),
+            currency: Currency.UZS,
+            createdAt: new Date('2026-07-01T08:00:00.000Z'),
+          },
+        ],
+      });
+
+      const res = await service.findOne(LISTING_ID, undefined);
+
+      expect(res.price_history).toEqual([
+        {
+          price: '4500000.00',
+          currency: Currency.UZS,
+          created_at: '2026-06-02T08:00:00.000Z',
+        },
+        {
+          price: '4200000.00',
+          currency: Currency.UZS,
+          created_at: '2026-07-01T08:00:00.000Z',
+        },
+      ]);
+    });
   });
 
   describe('amenities', () => {
@@ -700,6 +832,8 @@ describe('ListingsService', () => {
         id: LISTING_ID,
         ownerId: OWNER_ID,
         originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
       });
       prisma.listing.update.mockResolvedValue(dbListing);
 
