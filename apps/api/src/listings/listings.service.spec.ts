@@ -307,6 +307,38 @@ describe('ListingsService', () => {
       expect(result.price).toBe('4300000.00');
     });
 
+    it('sends an edited ACTIVE listing back to moderation (NEW)', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.ACTIVE,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, {
+        price: '5000000.00',
+      } as any);
+
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.status).toBe(ListingStatus.NEW);
+    });
+
+    it('does not change status when editing a non-ACTIVE listing', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.DRAFT,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, { rooms: 4 } as any);
+
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.status).toBeUndefined();
+    });
+
     it('does not touch translations when none provided', async () => {
       prisma.listing.findFirst.mockResolvedValue({
         id: LISTING_ID,
