@@ -410,6 +410,10 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`.
 `type` (`owner`/`agent`/`agency`, выведен из ролей владельца), `is_pro`
 (MVP-эвристика: agent/agency), `phone` (`contact_phone` профиля → телефон
 аккаунта). Телефон **публичен** на `ACTIVE`-объявлениях.
+`price_history` — массив событий изменения цены (ADR-0121, append-only), от старых
+к новым: `[{ "price": "<decimal>", "currency": "<UZS|USD>", "created_at": "<ISO8601>" }]`.
+Первая запись — цена при создании объявления. Используется для отображения динамики
+цены на клиенте.
 
 200:
 ```json
@@ -432,7 +436,8 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`.
   "media": [ { "id": "m1", "url": "https://cdn.avino.uz/l1/1.webp",
                "thumbnail_url": "https://cdn.avino.uz/l1/1_thumb.webp",
                "sort_order": 0, "type": "IMAGE" } ],
-  "published_at": "2026-06-01T10:00:00Z", "created_at": "2026-05-30T09:00:00Z"
+  "published_at": "2026-06-01T10:00:00Z", "created_at": "2026-05-30T09:00:00Z",
+  "price_history": [ { "price": "4500000.00", "currency": "UZS", "created_at": "2026-05-30T09:00:00Z" } ]
 }
 ```
 Errors: `404 NOT_FOUND`.
