@@ -30,3 +30,12 @@ it('повторный клик по выбранному снимает выб�
   fireEvent.click(screen.getByText('2+'));
   expect(onChange).toHaveBeenCalledWith(undefined);
 });
+
+it('рендерит только набор 1+/1.5+/2+/3+/4+ (без 2.5+/3.5+)', () => {
+  render(<BathroomsControl value={undefined} onChange={vi.fn()} />);
+  for (const label of ['1+', '1.5+', '2+', '3+', '4+']) {
+    expect(screen.getByText(label)).toBeInTheDocument();
+  }
+  expect(screen.queryByText('2.5+')).toBeNull();
+  expect(screen.queryByText('3.5+')).toBeNull();
+});
