@@ -44,3 +44,6 @@ apps/client_old/
 apps/web_old/
 apps/claudeDesign/
 apps/design_handoff_avino/
+
+# Firebase service-account ключи (секрет)
+deploy/*firebase-adminsdk*.json
