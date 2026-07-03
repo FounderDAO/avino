@@ -172,7 +172,9 @@ export function buildEditPatch(f: EditForm): UpdateListingPatch {
     price: toDecimal2(f.price),
     currency: f.currency,
     translation: {
-      title: f.title.trim(),
+      // Поле «Заголовок» скрыто (пока не нужно): непустой title из префилла
+      // шлём как есть, пустой не трогаем (undefined = PATCH-семантика).
+      title: f.title.trim() || undefined,
       // null — стереть описание/примечание (undefined = не трогать).
       description: f.desc.trim() || null,
       address_note: f.address.trim() || null,
@@ -218,7 +220,6 @@ export function buildEditPatch(f: EditForm): UpdateListingPatch {
 
 /** Обязательные поля формы редактирования (для гейта «Сохранить» и подсказки). */
 export type RequiredField =
-  | 'title'
   | 'address'
   | 'location'
   | 'area'
@@ -234,7 +235,7 @@ export type RequiredField =
 export function missingRequiredFields(f: EditForm, photoCount: number): RequiredField[] {
   const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
   const missing: RequiredField[] = [];
-  if (f.title.trim().length <= 3) missing.push('title');
+  // Заголовок скрыт от пользователя (пока не нужен) и больше не обязателен.
   if (!f.address.trim()) missing.push('address');
   if (!f.regionId || !f.districtId) missing.push('location');
   if (!f.area) missing.push('area');
@@ -357,7 +358,6 @@ export function ListingEdit({
   const missing = missingRequiredFields(f, photos.length);
   const canSave = missing.length === 0;
   const fieldLabel: Record<RequiredField, string> = {
-    title: tNew('fields.title.label'),
     address: tNew('steps.address'),
     location: t('fieldLocation'),
     area: tNew('fields.area.label'),
@@ -559,26 +559,8 @@ export function ListingEdit({
               onChange={(e) => set('area', e.target.value.replace(/[^\d.]/g, ''))}
             />
           </FormField>
-          {!noRooms && (
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label={tNew('fields.livingArea.label')}>
-                <Field
-                  placeholder={tNew('fields.livingArea.placeholder')}
-                  inputMode="decimal"
-                  value={f.livingArea}
-                  onChange={(e) => set('livingArea', e.target.value.replace(/[^\d.]/g, ''))}
-                />
-              </FormField>
-              <FormField label={tNew('fields.nonLivingArea.label')}>
-                <Field
-                  placeholder={tNew('fields.nonLivingArea.placeholder')}
-                  inputMode="decimal"
-                  value={f.nonLivingArea}
-                  onChange={(e) => set('nonLivingArea', e.target.value.replace(/[^\d.]/g, ''))}
-                />
-              </FormField>
-            </div>
-          )}
+          {/* Жилая/нежилая площадь скрыты (пока не нужны) — стейт и
+              buildEditPatch сохранены для лёгкого возврата поля. */}
           {(f.type === 'HOUSE' || f.type === 'LAND') && (
             <FormField label={tNew('fields.lotArea.label')}>
               <Field
@@ -689,14 +671,8 @@ export function ListingEdit({
               ))}
             </div>
           </FormField>
-          <FormField label={tNew('fields.title.label')}>
-            <Field
-              placeholder={tNew('fields.title.placeholder')}
-              maxLength={80}
-              value={f.title}
-              onChange={(e) => set('title', e.target.value)}
-            />
-          </FormField>
+          {/* Поле «Заголовок» скрыто (пока не нужно) — существующий title
+              сохраняется как есть через buildEditPatch. */}
           <FormField label={tNew('fields.desc.label')}>
             <textarea
               rows={5}
