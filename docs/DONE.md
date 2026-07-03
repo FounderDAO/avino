@@ -39,6 +39,76 @@ Related ADR:
 
 ## 2026-07-03
 
+### TASK-222 — Правка опубликованного объявления возвращает его на модерацию (API)
+
+Status: DONE
+Branch: fix/edit-active-listing-re-moderation
+PR: #298 (https://github.com/FounderDAO/avino/pull/298)
+
+Files changed:
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/listings.service.spec.ts
+- apps/api/src/listings/dto/update-listing.dto.ts
+- docs/adr/ADR-0120-edit-active-listing-re-moderation.md
+
+Summary:
+- В `ListingsService.update` добавлена ветка: правка листинга в статусе `ACTIVE` переводит его в `NEW` (повторная модерация). Изменённый владельцем контент (текст/цена) больше не остаётся в публичной выдаче без проверки — раньше модерация обходилась правкой уже опубликованного объявления.
+- `published_at` не сбрасывается: при повторном `APPROVE → ACTIVE` `ModerationService.changeStatus` сохраняет дату первой публикации. Прочие статусы (`NEW/DRAFT/REJECTED`) и `ARCHIVED` (`edited_since_hidden`) не затронуты.
+- Обновлён устаревший комментарий `UpdateListingDto` (часть про «возврат в модерацию после правки ACTIVE» реализована).
+- Проверка: `jest src/listings/listings.service.spec.ts` → 43/43 (в т.ч. 2 новых кейса ACTIVE→NEW / non-ACTIVE).
+
+Commit messages:
+- fix(listings): return ACTIVE listing to moderation on owner edit
+
+Related ADR:
+- docs/adr/ADR-0120-edit-active-listing-re-moderation.md
+
+### TASK-223 — Форма редактирования: понятная блокировка сохранения и очистка полей (client)
+
+Status: DONE
+Branch: fix/listing-edit-required-fields-hint
+PR: #299 (https://github.com/FounderDAO/avino/pull/299)
+
+Files changed:
+- apps/client/src/features/listing-edit/ListingEdit.tsx
+- apps/client/src/features/listing-edit/ListingEdit.test.tsx
+- apps/client/src/store/api/listingEditApi.ts
+- apps/client/messages/ru.json
+- apps/client/messages/en.json
+- apps/client/messages/uz.json
+
+Summary:
+- **Дефект 1:** кнопка «Сохранить» была серой без объяснения, если у объявления пусто одно из обязательных полей (район/площадь/фото и т.п.) — правку этажа/удобств нельзя было сохранить. Теперь под кнопкой показывается список конкретных незаполненных полей (`missingRequiredFields`, i18n `listingEdit.error.missing` + `fieldLocation`).
+- **Дефект 2:** `buildEditPatch` выкидывал пустые опциональные поля — очистить этаж/год/санузлы/парковку/доп. площади/описание было нельзя. Теперь они шлются явно: значение или `null` при очистке; тип `UpdateListingPatch` расширен `| null`. Бэкенд менять не пришлось (`toScalarData` принимает `null`, колонки nullable).
+- Вместе с TASK-222: клиент меняет/чистит что хочет → сохраняет → правка ACTIVE уходит в NEW на модерацию.
+- Проверка: `vitest run src/features/listing-edit/ListingEdit.test.tsx` → 12/12.
+
+Commit messages:
+- fix(listing-edit): explain blocked save and allow clearing optional fields
+
+Related ADR:
+- Нет (UX/контрактная правка клиента без архитектурного решения).
+
+### TASK-224 — Правило §9: перевод генерирует модератор вручную (docs)
+
+Status: DONE
+Branch: docs/moderation-manual-translation
+PR: #300 (https://github.com/FounderDAO/avino/pull/300)
+
+Files changed:
+- docs/CLAUDE.md
+
+Summary:
+- Исправлено §0 и §9 `docs/CLAUDE.md`: убрано ложное «система автоматически переводит на остальные языки». Перевод генерирует модератор вручную в очереди модерации (кнопка «Сгенерировать переводы» + правка), публикация (APPROVE→ACTIVE) заблокирована до наличия всех uz/ru/en. Отражает уже принятый ADR-0091 (заменил ADR-0025).
+- Причина: правило противоречило реализации, из-за чего модерация выглядела «сломанной».
+- Примечание: корневой `CLAUDE.md` имеет отдельный крупный незакоммиченный rewrite (не из этой сессии) — намеренно не включён.
+
+Commit messages:
+- docs(moderation): manual moderator-driven translation, not auto
+
+Related ADR:
+- docs/adr/ADR-0091-moderator-translation-review.md (существующий; подтверждён)
+
 ### TASK — Счётчик звонков по объявлению (API) + DevicePlatform enum в OpenAPI
 
 Status: DONE
@@ -71,6 +141,26 @@ Commit messages:
 
 Related ADR:
 - docs/adr/ADR-0119-listing-calls-count.md
+
+### TASK-224 — Триггер профиля в шапке публичного портала — только иконка (client)
+
+Status: DONE
+Branch: fix/profile-menu-trigger-icon-only
+PR: #302 (https://github.com/FounderDAO/avino/pull/302)
+
+Files changed:
+- apps/client/src/components/layout/ProfileMenu.tsx
+
+Summary:
+- Триггер выпадающего меню профиля в шапке (`apps/client`) теперь показывает только круглую иконку `User` — убраны текст «Ваш профиль» (`profileMenu.trigger`) и стрелка `ChevronDown`. Стиль OLX-компактный, решение Team Lead — оставить иконку без подписи окончательно.
+- Доступность сохранена через `aria-label={t('profileMenu.trigger')}` на кнопке; выпадающее меню и его пункты не изменены.
+- Правка была сделана локально в прошлой сессии, но не была закоммичена — доведена до PR и смержена.
+
+Commit messages:
+- fix(client): profile header trigger — icon only, remove label + chevron
+
+Related ADR:
+- нет (UI-правка в рамках существующего компонента, без архитектурного решения)
 
 ## 2026-07-01
 
