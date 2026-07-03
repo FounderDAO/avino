@@ -45,7 +45,7 @@ vi.mock('@/features/listing-new/RegionDistrictSelect', () => ({
 }));
 
 // Импорт ПОСЛЕ моков
-import { detailToForm, buildEditPatch } from './ListingEdit';
+import { detailToForm, buildEditPatch, missingRequiredFields } from './ListingEdit';
 import type { EditListingDetail } from '@/store/api/listingEditApi';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -151,5 +151,98 @@ describe('buildEditPatch', () => {
     const patch = buildEditPatch({ ...BASE_FORM, regionId: '', districtId: '' });
     expect(patch.city_id).toBeUndefined();
     expect(patch.district_id).toBeUndefined();
+  });
+
+  it('шлёт null для очищенных необязательных полей (их можно стереть)', () => {
+    const patch = buildEditPatch({
+      ...BASE_FORM,
+      floor: '',
+      totalFloors: '',
+      year: '',
+      bathrooms: '',
+      lotArea: '',
+      parking: '',
+      desc: '',
+    });
+    expect(patch.floor).toBeNull();
+    expect(patch.total_floors).toBeNull();
+    expect(patch.year_built).toBeNull();
+    expect(patch.bathrooms).toBeNull();
+    expect(patch.lot_area).toBeNull();
+    expect(patch.parking_type).toBeNull();
+    expect(patch.translation?.description).toBeNull();
+  });
+
+  it('шлёт значения когда необязательные поля заполнены', () => {
+    const patch = buildEditPatch({
+      ...BASE_FORM,
+      floor: '5',
+      totalFloors: '9',
+      year: '2020',
+      bathrooms: '2',
+      parking: 'YARD',
+    });
+    expect(patch.floor).toBe(5);
+    expect(patch.total_floors).toBe(9);
+    expect(patch.year_built).toBe(2020);
+    expect(patch.bathrooms).toBe(2);
+    expect(patch.parking_type).toBe('YARD');
+  });
+
+  it('цоколь: floor = null даже если этаж введён', () => {
+    const patch = buildEditPatch({ ...BASE_FORM, isBasement: true, floor: '3' });
+    expect(patch.floor).toBeNull();
+    expect(patch.is_basement).toBe(true);
+  });
+});
+
+// ── Тесты missingRequiredFields ──────────────────────────────────────────────
+describe('missingRequiredFields', () => {
+  const FULL_FORM = {
+    tx: 'SALE' as const,
+    type: 'APARTMENT' as const,
+    address: 'ул. Тестовая, 1',
+    coords: null,
+    regionId: 'region-uuid',
+    districtId: 'district-uuid',
+    rooms: '2',
+    bathrooms: '',
+    parking: '',
+    area: '60',
+    lotArea: '',
+    livingArea: '',
+    nonLivingArea: '',
+    floor: '',
+    isBasement: false,
+    totalFloors: '',
+    year: '',
+    price: '100000',
+    currency: 'USD' as const,
+    lang: 'RU' as const,
+    title: 'Нормальный заголовок',
+    desc: '',
+    toursEnabled: false,
+    tourWindows: [],
+    amenities: [],
+  };
+
+  it('пусто, когда все обязательные поля заполнены и есть фото', () => {
+    expect(missingRequiredFields(FULL_FORM, 1)).toEqual([]);
+  });
+
+  it('сообщает про район, когда district пуст (правку этажа сохранить нельзя)', () => {
+    const missing = missingRequiredFields({ ...FULL_FORM, districtId: '' }, 1);
+    expect(missing).toContain('location');
+  });
+
+  it('сообщает про площадь и фото, когда их нет', () => {
+    const missing = missingRequiredFields({ ...FULL_FORM, area: '' }, 0);
+    expect(missing).toContain('area');
+    expect(missing).toContain('photos');
+  });
+
+  it('не требует комнаты для участка (LAND)', () => {
+    const missing = missingRequiredFields({ ...FULL_FORM, type: 'LAND', rooms: '' }, 1);
+    expect(missing).not.toContain('rooms');
   });
 });

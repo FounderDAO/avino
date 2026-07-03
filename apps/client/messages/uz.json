@@ -752,8 +752,10 @@
     "save": "O'zgarishlarni saqlash",
     "saving": "Saqlanmoqda…",
     "langImmutable": "Asl til yaratishda belgilanadi va o'zgartirilmaydi.",
+    "fieldLocation": "viloyat va tuman",
     "error": {
       "required": "Majburiy maydonlarni to'ldiring: sarlavha, manzil, maydon, narx va kamida bitta rasm.",
+      "missing": "Saqlash uchun majburiy maydonlarni to'ldiring: {fields}.",
       "saveFailed": "O'zgarishlarni saqlab bo'lmadi. Yana urinib ko'ring."
     },
     "tours": {
