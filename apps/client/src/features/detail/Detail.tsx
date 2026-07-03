@@ -39,6 +39,7 @@ import { getSimilarListings } from '@/lib/api/listings';
 import type { Listing } from '@/lib/mock/types';
 import { PropertyCard } from '@/features/search/PropertyCard';
 import { Facts } from './Facts';
+import { PriceHistory } from './PriceHistory';
 import { ContactCard } from './ContactCard';
 import { DetailMap } from './DetailMap';
 import { DetailPrice } from './DetailPrice';
@@ -193,6 +194,9 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
 
           {/* Ключевые факты */}
           <Facts listing={listing} className="mt-6" />
+
+          {/* История цены (ADR-0121) */}
+          <PriceHistory listing={listing} />
 
           {/* Описание */}
           {listing.desc && (

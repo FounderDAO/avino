@@ -361,6 +361,11 @@
       "nonLivingArea": "Noturar maydon",
       "basementValue": "Yerto'la"
     },
+    "priceHistory": {
+      "title": "Narx tarixi",
+      "listed": "E'lon qilingan",
+      "changed": "Narx o'zgarishi"
+    },
     "contact": {
       "greeting": "Assalomu alaykum! E'lon hali dolzarbmi?",
       "chatError": "Suhbatni boshlab bo'lmadi",
