@@ -22,8 +22,6 @@ import {
   PropertyType,
   TransactionType,
 } from '@prisma/client';
-import { IsHalfStep } from '../../common/validation/is-half-step';
-
 /**
  * Допустимые значения параметра `sort` (TASK-207, API.md §9).
  * `date_desc` — умолчание (promotion-приоритетный ORDER BY тир→created_at DESC→id DESC).
@@ -36,6 +34,9 @@ export const SORT_MODES = [
   'area_desc',
 ] as const;
 export type SortMode = (typeof SORT_MODES)[number];
+
+/** Допустимые значения `bathrooms_min` — кнопки фильтра «1+ / 1.5+ / 2+ / 3+ / 4+». */
+export const BATHROOMS_MIN_VALUES = [1, 1.5, 2, 3, 4];
 
 /** Источник объявления для фильтра «от собственника / агентства». */
 export const LISTING_SOURCES = ['OWNER', 'AGENCY'] as const;
@@ -170,12 +171,10 @@ export class SearchListingsQueryDto {
   @Min(0)
   rooms_min?: number;
 
-  /** «N+ санузлов» (bathrooms >= N), дробный шаг 0.5 — например 1.5. */
+  /** «N+ санузлов» (bathrooms >= N) — только 1 / 1.5 / 2 / 3 / 4 (кнопки фильтра). */
   @IsOptional()
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 1 })
-  @IsHalfStep()
-  @Min(0)
+  @IsIn(BATHROOMS_MIN_VALUES)
   bathrooms_min?: number;
 
   /** Тип парковки — мультивыбор (IN), Zillow Phase 2. NULL-листинги исключаются. */

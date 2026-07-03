@@ -39,6 +39,32 @@ Related ADR:
 
 ## 2026-07-04
 
+### Фильтр «санузлы»: набор значений сужен до 1 / 1.5 / 2 / 3 / 4+ (API + client)
+
+Status: DONE
+Branch: fix/search-bathrooms-allowed-values (API), fix/client-bathrooms-filter-options (client)
+PR: #308 (API), #309 (client)
+
+Files changed:
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/search/dto/search-listings.dto.spec.ts
+- apps/api/openapi.public.json
+- apps/api/openapi.internal.json
+- apps/client/src/features/search/controls/BathroomsControl.tsx
+- apps/client/src/features/search/controls/BathroomsControl.test.tsx
+- apps/client/src/app/[locale]/search/page.tsx
+
+Summary:
+- `bathrooms_min` теперь принимает только `1 / 1.5 / 2 / 3 / 4` (`@IsIn(BATHROOMS_MIN_VALUES)` вместо произвольного шага 0.5); гео-DTO наследуют базовый → покрыты все эндпоинты поиска.
+- В `BathroomsControl` убраны пилюли `2.5+` и `3.5+`; `/search` (SSR) санитизирует `bathrooms_min` из URL по тому же набору — старые ссылки с `2.5`/`3.5` сбрасывают фильтр вместо 400.
+- Просьба Team Lead: убрать лишние промежуточные значения из фильтра.
+
+Commit messages:
+- fix(search): restrict bathrooms_min to 1/1.5/2/3/4 allowed values
+- fix(client): bathrooms filter options limited to 1/1.5/2/3/4+
+
+Related ADR:
+- docs/adr/ADR-0108-listing-bathrooms-count.md (обновлён)
 ### TASK — История изменений цены объявления (API)
 
 Status: DONE
