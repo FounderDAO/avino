@@ -9,8 +9,8 @@
  *    зажал → обвёл → отпустил → `onPolygonComplete`), оверлей территории
  *    (`polygon`) и отчёт о видимой области (`onBoundsChange`, debounce).
  *
- * Маркеры — кластеризуются (ymaps.Clusterer). Пины брендовые (ADR-0060): VIP
- * золотой, TOP красный, активный — тёмный (ink). Клик по пину → `onSelect`,
+ * Маркеры — кластеризуются (ymaps.Clusterer). Пины брендовые (ADR-0060): все
+ * красные, активный — тёмный (ink). Клик по пину → `onSelect`,
  * наведение → `onHover`; активный пин подсвечивается, центрирование карты —
  * опционально (admin-флаг recenterOnHover).
  *
@@ -97,31 +97,10 @@ const OVERLAY_STYLE = {
   fillOpacity: 0.08,
 } as const;
 
-/** HTML ценового пина: продажа — красный, аренда: VIP — золотой, TOP — красный; активный — тёмный. */
-function pinHTML(listing: Pick<Listing, 'promo' | 'tx'>, active: boolean, priceText: string): string {
-  const price = priceText;
-  let bg = '#fff';
-  let fg = 'var(--ink, #282218)';
-  let bd = '1.5px solid var(--border, #e7e2d8)';
-  if (listing.tx === 'SALE') {
-    bg = 'var(--red, #e03c42)';
-    fg = '#fff';
-    bd = 'none';
-  } else if (listing.promo === 'VIP') {
-    bg = 'linear-gradient(135deg,#D9A53C,#B8862A)';
-    fg = '#fff';
-    bd = 'none';
-  } else if (listing.promo === 'TOP') {
-    bg = 'var(--red, #e03c42)';
-    fg = '#fff';
-    bd = 'none';
-  }
-  if (active) {
-    bg = 'var(--ink, #282218)';
-    fg = '#fff';
-    bd = 'none';
-  }
-  return `<div class="av-ypin ${active ? 'active' : ''}" style="background:${bg};color:${fg};border:${bd}">${price}</div>`;
+/** HTML ценового пина: все пины красные; активный — тёмный. */
+function pinHTML(active: boolean, priceText: string): string {
+  const bg = active ? 'var(--ink, #282218)' : 'var(--red, #e03c42)';
+  return `<div class="av-ypin ${active ? 'active' : ''}" style="background:${bg};color:#fff;border:none">${priceText}</div>`;
 }
 
 /** Стили пинов (инжектим один раз — это сырой HTML внутри iconLayout, не Tailwind). */
@@ -334,7 +313,7 @@ export function MapView({
         [l.lat, l.lng],
         { listingId: l.id },
         {
-          iconLayout: makeIconLayout(ymaps, pinHTML(l, l.id === activeId, priceText)),
+          iconLayout: makeIconLayout(ymaps, pinHTML(l.id === activeId, priceText)),
           iconShape: { type: 'Rectangle', coordinates: [[-46, -16], [46, 16]] },
         },
       );
@@ -366,7 +345,7 @@ export function MapView({
     listings.forEach((l) => {
       const pm = placemarksRef.current[l.id];
       if (!pm) return;
-      pm.options.set('iconLayout', makeIconLayout(ymaps, pinHTML(l, l.id === activeId, fmtRef.current.pin(l))));
+      pm.options.set('iconLayout', makeIconLayout(ymaps, pinHTML(l.id === activeId, fmtRef.current.pin(l))));
       pm.options.set('zIndex', l.id === activeId ? 1000 : 0);
     });
     if (recenterOnHover && activeId) {
