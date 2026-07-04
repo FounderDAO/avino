@@ -252,6 +252,7 @@ export function SearchResults({
                 }
               : null
           }
+          onPreviewClose={vp.closePreview}
         />
 
         {/* ---- Управление территорией (поверх карты, как на /map) ---- */}
