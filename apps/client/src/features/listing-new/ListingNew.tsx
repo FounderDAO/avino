@@ -502,6 +502,8 @@ export function ListingNew({
               coords={f.coords}
               onAddressChange={(v) => set('address', v)}
               onCoordsChange={(c) => set('coords', c)}
+              regionName={regions.find((r) => r.id === f.regionId)?.name}
+              districtName={districts.find((d) => d.id === f.districtId)?.name}
               locale={locale}
             />
           </div>

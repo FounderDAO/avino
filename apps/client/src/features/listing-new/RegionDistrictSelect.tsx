@@ -13,9 +13,9 @@ import {
   Dropdown,
   DropdownTrigger,
   DropdownContent,
+  DropdownItem,
 } from '@/components/ui/dropdown';
 import { TriggerButton } from '@/features/search/TriggerButton';
-import { cn } from '@/lib/utils';
 import type { Region, District } from '@/lib/mock/types';
 
 export interface RegionDistrictSelectProps {
@@ -61,29 +61,24 @@ export function RegionDistrictSelect({
           />
         </DropdownTrigger>
         <DropdownContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto p-2">
-          <button
-            type="button"
-            onClick={() => onChange({ regionId: undefined, districtId: undefined })}
-            className={cn(
-              'flex w-full items-center rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-              !regionId && 'bg-mint',
-            )}
+          {/* DropdownItem (Radix Item): меню закрывается по выбору — сырой <button> не закрывал. */}
+          <DropdownItem
+            onSelect={() => onChange({ regionId: undefined, districtId: undefined })}
+            selected={!regionId}
+            className="text-[14.5px]"
           >
             {t('filters.allRegions')}
-          </button>
+          </DropdownItem>
           {regions.map((r) => (
-            <button
+            <DropdownItem
               key={r.id}
-              type="button"
-              onClick={() => onChange({ regionId: r.id, districtId: undefined })}
-              className={cn(
-                'flex w-full items-center rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-                regionId === r.id && 'bg-mint',
-              )}
+              onSelect={() => onChange({ regionId: r.id, districtId: undefined })}
+              selected={regionId === r.id}
+              className="text-[14.5px]"
               data-testid={`region-option-${r.id}`}
             >
-              <span className="truncate">{r.name}</span>
-            </button>
+              {r.name}
+            </DropdownItem>
           ))}
         </DropdownContent>
       </Dropdown>
@@ -100,29 +95,23 @@ export function RegionDistrictSelect({
           />
         </DropdownTrigger>
         <DropdownContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto p-2">
-          <button
-            type="button"
-            onClick={() => onChange({ regionId, districtId: undefined })}
-            className={cn(
-              'flex w-full items-center rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-              !districtId && 'bg-mint',
-            )}
+          <DropdownItem
+            onSelect={() => onChange({ regionId, districtId: undefined })}
+            selected={!districtId}
+            className="text-[14.5px]"
           >
             {t('filters.allDistricts')}
-          </button>
+          </DropdownItem>
           {regionDistricts.map((d) => (
-            <button
+            <DropdownItem
               key={d.id}
-              type="button"
-              onClick={() => onChange({ regionId, districtId: d.id })}
-              className={cn(
-                'flex w-full items-center rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-                districtId === d.id && 'bg-mint',
-              )}
+              onSelect={() => onChange({ regionId, districtId: d.id })}
+              selected={districtId === d.id}
+              className="text-[14.5px]"
               data-testid={`district-option-${d.id}`}
             >
-              <span className="truncate">{d.name}</span>
-            </button>
+              {d.name}
+            </DropdownItem>
           ))}
         </DropdownContent>
       </Dropdown>

@@ -19,11 +19,19 @@ import { reverseGeocode } from '@/features/map/geocode';
 /** Координаты [lat, lng]. */
 export type Coords = [number, number];
 
+/** Мягкий фокус карты (выбор региона/района): центр + zoom, БЕЗ установки метки. */
+export interface MapFocus {
+  coords: Coords;
+  zoom: number;
+}
+
 export interface PickMapProps {
   value: Coords | null;
   onChange: (coords: Coords) => void;
   /** Обратный геокод точки → строка адреса (синхронизация с инпутом). */
   onAddressResolve?: (address: string) => void;
+  /** Внешнее перецентрирование карты (метка и value не меняются). */
+  focus?: MapFocus | null;
   locale?: string;
 }
 
@@ -36,7 +44,7 @@ const EPS = 1e-6;
 const sameCoords = (a: Coords | null, b: Coords | null): boolean =>
   !!a && !!b && Math.abs(a[0] - b[0]) < EPS && Math.abs(a[1] - b[1]) < EPS;
 
-export function PickMap({ value, onChange, onAddressResolve, locale }: PickMapProps) {
+export function PickMap({ value, onChange, onAddressResolve, focus, locale }: PickMapProps) {
   const t = useTranslations('listingNew');
   const { ymaps, status } = useYmaps(locale);
 
@@ -50,6 +58,9 @@ export function PickMap({ value, onChange, onAddressResolve, locale }: PickMapPr
   // Свежие колбэки без пересоздания карты (карта строится один раз).
   const cbRef = React.useRef({ onChange, onAddressResolve, locale });
   cbRef.current = { onChange, onAddressResolve, locale };
+  // Актуальный focus для инициализации (карта могла ещё грузиться при выборе региона).
+  const focusRef = React.useRef(focus);
+  focusRef.current = focus;
 
   // Инициализация карты — один раз, когда SDK готов.
   React.useEffect(() => {
@@ -65,10 +76,11 @@ export function PickMap({ value, onChange, onAddressResolve, locale }: PickMapPr
       }
     };
 
-    const start = value ?? TASHKENT_CENTER;
+    const start = value ?? focusRef.current?.coords ?? TASHKENT_CENTER;
+    const startZoom = value ? PLACED_ZOOM : (focusRef.current?.zoom ?? DEFAULT_ZOOM);
     const map = new ymaps.Map(
       elRef.current,
-      { center: start, zoom: value ? PLACED_ZOOM : DEFAULT_ZOOM, controls: ['zoomControl', 'geolocationControl'] },
+      { center: start, zoom: startZoom, controls: ['zoomControl', 'geolocationControl'] },
       { suppressMapOpenBlock: true },
     );
     mapRef.current = map;
@@ -108,6 +120,12 @@ export function PickMap({ value, onChange, onAddressResolve, locale }: PickMapPr
     // value читаем только при инициализации; дальнейшую синхронизацию ведёт эффект ниже.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, ymaps]);
+
+  // Мягкий фокус (выбор региона/района): центрируем карту, метку не трогаем.
+  React.useEffect(() => {
+    if (!focus || !mapRef.current) return;
+    mapRef.current.setCenter(focus.coords, focus.zoom, { duration: 200 });
+  }, [focus]);
 
   // Внешнее изменение точки (выбор подсказки → геокод): двигаем метку и центрируем.
   React.useEffect(() => {
