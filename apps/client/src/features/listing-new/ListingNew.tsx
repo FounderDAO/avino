@@ -12,7 +12,8 @@
 import { useEffect, useReducer, useState } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useAppSelector } from '@/store/hooks';
-import { selectIsAuthenticated } from '@/store/slices/authSlice';
+import { selectCurrentUser, selectIsAuthenticated } from '@/store/slices/authSlice';
+import { isProfileCompleteForListing } from '@/lib/profile-complete';
 import {
   useCreateListingMutation,
   useUploadListingMediaMutation,
@@ -48,6 +49,7 @@ import {
   type TransactionType,
 } from '@/lib/mock';
 import { LoginModal } from '@/components/layout/LoginModal';
+import { ContactDetailsGate } from './ContactDetailsGate';
 import { Progress } from './Progress';
 import { type Coords } from './PickMap';
 import { AddressStep } from './AddressStep';
@@ -275,6 +277,8 @@ export function ListingNew({
   const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
 
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const currentUser = useAppSelector(selectCurrentUser);
+  const profileComplete = isProfileCompleteForListing(currentUser);
   // Гейт авторизации: /sell/new доступна только вошедшим. Гостю сразу открываем
   // модалку входа — но через эффект (после монтирования), чтобы не было SSR/
   // гидрационного мелькания модалки у уже залогиненных пользователей.
@@ -294,6 +298,11 @@ export function ListingNew({
   const [mediaFailures, setMediaFailures] = useState(0);
 
   const apiError = getApiError(createError);
+  // Страховочный 422 PROFILE_INCOMPLETE от createListing: гейт выше уже должен
+  // был перехватить неполный профиль, но getMe мог не успеть перечитаться —
+  // показываем тот же текст, что и на гейте.
+  const apiErrorMessage =
+    apiError?.code === 'PROFILE_INCOMPLETE' ? t('errors.profileIncomplete') : apiError?.message;
 
   // Автозаголовок вместо скрытого поля «Заголовок»: тип + площадь + адрес
   // (адрес обязателен на шаге 2, поэтому строка всегда непустая).
@@ -389,6 +398,13 @@ export function ListingNew({
         />
       </>
     );
+  }
+
+  // ---- Гейт полноты профиля (ADR-0125) ----
+  // Вошёл, но Имя/Фамилия/Телефон не заполнены → форма контактных данных
+  // вместо шагов. После сохранения getMe перечитывается и гейт исчезает.
+  if (!profileComplete) {
+    return <ContactDetailsGate />;
   }
 
   // ---- Экран успеха ----
@@ -772,7 +788,7 @@ export function ListingNew({
       {/* Ошибки публикации (валидация 400 / доступ 403 / гость / прочее) */}
       {step === TOTAL && (apiError || submitError) && (
         <p className="mt-4 rounded-input bg-red/5 px-4 py-3 text-[13.5px] text-red">
-          {apiError?.message ?? submitError}
+          {apiErrorMessage ?? submitError}
         </p>
       )}
       {step === TOTAL && !isAuthenticated && !submitError && !apiError && (

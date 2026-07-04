@@ -644,7 +644,8 @@
     },
     "errors": {
       "loginRequired": "E'lonni chop etish uchun tizimga kiring.",
-      "guestHint": "E'lonni chop etish uchun hisobingizga kiring (kirish tugmasi — sahifa yuqorisida)."
+      "guestHint": "E'lonni chop etish uchun hisobingizga kiring (kirish tugmasi — sahifa yuqorisida).",
+      "profileIncomplete": "E'lon joylash uchun profilda ism, familiya va telefonni to'ldiring."
     },
     "auth": {
       "title": "E'lon joylash uchun tizimga kiring",

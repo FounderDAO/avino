@@ -644,7 +644,8 @@
     },
     "errors": {
       "loginRequired": "Sign in to publish your listing.",
-      "guestHint": "To publish a listing, sign in to your account (the sign-in button is in the header)."
+      "guestHint": "To publish a listing, sign in to your account (the sign-in button is in the header).",
+      "profileIncomplete": "Fill in your first name, last name and phone in your profile to post a listing."
     },
     "auth": {
       "title": "Sign in to post a listing",
