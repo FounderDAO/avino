@@ -75,10 +75,10 @@ const ROOM_OPTIONS = ['studio', '1', '2', '3', '4', '5+'] as const;
 
 /**
  * Варианты «количество санузлов» (пусто = не выбрано, опционально).
- * 2.5/3.5 скрыты — зеркалит набор BathroomsControl фильтра поиска;
+ * 3.5 скрыт — зеркалит набор BathroomsControl фильтра поиска;
  * API по-прежнему принимает шаг 0.5 (LAST_CHANGED_API.md §1).
  */
-const BATHROOM_OPTIONS = ['1', '1.5', '2', '3', '4+'] as const;
+const BATHROOM_OPTIONS = ['1', '1.5', '2', '2.5', '3', '4+'] as const;
 
 /** Язык оригинала объявления. */
 type Lang = 'RU' | 'UZ' | 'EN';
