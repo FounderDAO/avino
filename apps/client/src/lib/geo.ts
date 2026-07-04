@@ -176,3 +176,46 @@ export function serializePolygonRing(
   if (ring.length < 3) return null;
   return ring.map(([lat, lng]) => `${roundCoord(lat)},${roundCoord(lng)}`).join(';');
 }
+
+// ─── bbox видимой области в URL /search (viewport-режим, Zillow) ───
+//
+// Область карты зеркалится в query (?sw_lat=&sw_lng=&ne_lat=&ne_lng=) shallow
+// history.replaceState — refresh/шеринг ссылки сохраняют вид. Имена совпадают
+// с параметрами GET /api/v1/search/bounds.
+
+/** Ключи bbox-параметров URL (для записи/очистки одним списком). */
+export const BBOX_PARAM_KEYS = ['sw_lat', 'sw_lng', 'ne_lat', 'ne_lng'] as const;
+
+/**
+ * Query-параметры `?sw_lat=&sw_lng=&ne_lat=&ne_lng=` → {@link LatLngBounds} | null.
+ * Невалидные/неполные/вырожденные значения → null (страница молча падает на
+ * обычную выдачу по фильтрам — как parseCircleParams выше).
+ */
+export function parseBoundsParams(
+  swLat: string | undefined,
+  swLng: string | undefined,
+  neLat: string | undefined,
+  neLng: string | undefined,
+): LatLngBounds | null {
+  if (!swLat || !swLng || !neLat || !neLng) return null;
+  const b: LatLngBounds = {
+    swLat: Number(swLat),
+    swLng: Number(swLng),
+    neLat: Number(neLat),
+    neLng: Number(neLng),
+  };
+  return isValidBounds(b) ? b : null;
+}
+
+/** Координата bbox для URL: 5 знаков (~1 м) без хвостовых нулей. */
+function roundBboxCoord(v: number): string {
+  return String(Math.round(v * 1e5) / 1e5);
+}
+
+/** Пишет bbox в query-параметры (мутирует переданный URLSearchParams). */
+export function setBoundsParams(params: URLSearchParams, b: LatLngBounds): void {
+  params.set('sw_lat', roundBboxCoord(b.swLat));
+  params.set('sw_lng', roundBboxCoord(b.swLng));
+  params.set('ne_lat', roundBboxCoord(b.neLat));
+  params.set('ne_lng', roundBboxCoord(b.neLng));
+}
