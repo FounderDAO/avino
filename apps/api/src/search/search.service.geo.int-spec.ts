@@ -633,4 +633,14 @@ describe('SearchService.searchClusters (integration, live PostGIS)', () => {
     });
     expect(result.data.reduce((s, c) => s + c.count, 0)).toBe(4);
   });
+
+  it('bbox with no matching listings returns empty data array (contract)', async () => {
+    // Контракт для мобилки: пустая ячейка сетки → { data: [], currency }, не 500.
+    const result = await service.searchClusters({
+      sw_lat: -10.0, sw_lng: 10.0, ne_lat: -9.0, ne_lng: 11.0, // пустой океан
+      zoom: 10, city_id: CITY_ID,
+    });
+    expect(result.data).toEqual([]);
+    expect(result.currency).toBe(Currency.USD);
+  });
 });
