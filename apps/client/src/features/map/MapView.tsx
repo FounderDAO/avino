@@ -354,7 +354,10 @@ export function MapView({
     });
     if (recenterOnHover && activeId) {
       const a = listings.find((l) => l.id === activeId);
-      if (a?.lat != null && a?.lng != null) map.panTo([a.lat, a.lng], { flying: true });
+      if (a?.lat != null && a?.lng != null) {
+        userGestureRef.current = false; // программное панорамирование к пину — не жест
+        map.panTo([a.lat, a.lng], { flying: true });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, ymaps, recenterOnHover]);

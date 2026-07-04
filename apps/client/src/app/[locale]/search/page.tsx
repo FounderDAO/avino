@@ -15,7 +15,8 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { getDistricts, getRegions } from '@/lib/api/geo';
-import { searchListingsPage } from '@/lib/api/listings';
+import { searchListingsPage, searchListingsByBounds, type SearchListingsPage } from '@/lib/api/listings';
+import { parseBoundsParams } from '@/lib/geo';
 import type {
   Amenity,
   ListingFilter,
@@ -47,6 +48,7 @@ export async function generateMetadata({
 
   // Флаг «длиннохвостой» комбинации фильтров — цена, комнаты или расширенные фильтры.
   const isLongTail = Boolean(
+    sp.sw_lat ||
     sp.priceMin || sp.priceMax || sp.rooms ||
     sp.rooms_min || sp.bathrooms_min || sp.area_min || sp.area_max ||
     sp.floor_min || sp.floor_max ||
@@ -248,8 +250,29 @@ export default async function SearchPage({
     amenities: amenities.length > 0 ? amenities : undefined,
     isBasement,
   };
+
+  // Viewport-режим (Zillow): bbox из URL восстанавливает область карты и выдачу.
+  // Явный гео-фильтр главнее bbox (bbox игнорируется — как boundary у Zillow).
+  const initialBounds =
+    !districtId && !regionId
+      ? parseBoundsParams(
+          first(sp.sw_lat),
+          first(sp.sw_lng),
+          first(sp.ne_lat),
+          first(sp.ne_lng),
+        )
+      : null;
+
   const [page, districts, regions] = await Promise.all([
-    searchListingsPage(filter, locale),
+    initialBounds
+      ? searchListingsByBounds(filter, initialBounds, locale, 100).then(
+          (listings): SearchListingsPage => ({
+            listings,
+            total: listings.length,
+            nextCursor: null,
+          }),
+        )
+      : searchListingsPage(filter, locale),
     getDistricts(locale),
     getRegions(locale),
   ]);
@@ -312,6 +335,7 @@ export default async function SearchPage({
         view={view}
         heading={heading}
         filter={filter}
+        initialBounds={initialBounds}
       />
     </div>
   );
