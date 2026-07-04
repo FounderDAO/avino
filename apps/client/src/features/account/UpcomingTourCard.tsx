@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { Link } from '@/i18n/navigation';
 import { PhotoImg } from '@/components/ui/photo-img';
 import {
@@ -8,6 +9,7 @@ import {
   type TourAction,
   type TourRequestItem,
 } from '@/store/api/tourRequestsApi';
+import { tourToastKey } from './Tours';
 import type { TourRole } from './tour-agenda';
 
 /**
@@ -18,6 +20,7 @@ import type { TourRole } from './tour-agenda';
  */
 export function UpcomingTourCard({ item, role }: { item: TourRequestItem; role: TourRole }) {
   const t = useTranslations('account');
+  const tToasts = useTranslations('toasts');
   const [update, { isLoading }] = useUpdateTourStatusMutation();
 
   const counterpart =
@@ -76,9 +79,11 @@ export function UpcomingTourCard({ item, role }: { item: TourRequestItem; role: 
         type="button"
         disabled={isLoading}
         onClick={() => {
+          // updateTourStatus в suppress-list middleware — тостим вручную.
           void update({ id: item.id, action: cancelAction })
             .unwrap()
-            .catch(() => {});
+            .then(() => toast.success(tToasts(tourToastKey(cancelAction))))
+            .catch(() => toast.error(tToasts('tourActionFailed')));
         }}
         className="rounded-pill border border-border px-3 py-1.5 text-[13px] font-semibold hover:bg-bg disabled:opacity-50"
       >

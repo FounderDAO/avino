@@ -8,6 +8,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { Pill } from '@/components/ui/pill';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
@@ -60,6 +61,7 @@ const NOTIF_SETTINGS = ['searches', 'messages', 'moderation', 'promo'] as const;
 
 export function Settings() {
   const t = useTranslations('account');
+  const tToasts = useTranslations('toasts');
   const isAuthed = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectCurrentUser);
 
@@ -104,6 +106,7 @@ export function Settings() {
     try {
       await updateUser({ default_language: nextLang }).unwrap();
       await updateProfile({ preferred_language: nextLang }).unwrap();
+      toast.success(tToasts('settingsSaved'));
     } catch (err) {
       setLang(prev); // откат при ошибке
       const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);

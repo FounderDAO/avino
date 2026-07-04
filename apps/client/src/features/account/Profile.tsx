@@ -8,6 +8,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { Link } from '@/i18n/navigation';
 import { Field } from '@/components/ui/field';
 import { Pill } from '@/components/ui/pill';
@@ -50,6 +51,7 @@ interface ProfileForm {
 
 export function Profile() {
   const t = useTranslations('account');
+  const tToasts = useTranslations('toasts');
   const isAuthed = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectCurrentUser);
 
@@ -62,7 +64,6 @@ export function Profile() {
     email: '',
     lang: 'ru',
   });
-  const [saved, setSaved] = React.useState(false);
   const [emailError, setEmailError] = React.useState<string | null>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
 
@@ -79,7 +80,6 @@ export function Profile() {
 
   const set = <K extends keyof ProfileForm>(k: K, v: ProfileForm[K]) => {
     setForm((p) => ({ ...p, [k]: v }));
-    setSaved(false);
     setEmailError(null);
     setFormError(null);
   };
@@ -107,7 +107,6 @@ export function Profile() {
   const avatarChar = (form.name.trim()[0] ?? 'A').toUpperCase();
 
   const onSave = async () => {
-    setSaved(false);
     setEmailError(null);
     setFormError(null);
 
@@ -134,7 +133,7 @@ export function Profile() {
         await updateUser(userPatch).unwrap();
       }
 
-      setSaved(true);
+      toast.success(tToasts('profileSaved'));
     } catch (err) {
       const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);
       if (apiErr?.code === 'CONTACT_TAKEN') {
@@ -195,10 +194,6 @@ export function Profile() {
           {formError && (
             <p className="text-[13px] font-semibold text-red">{formError}</p>
           )}
-          {saved && (
-            <p className="text-[13px] font-semibold text-teal">{t('profile.saved')}</p>
-          )}
-
           <Button
             type="button"
             className="mt-1.5 self-start"

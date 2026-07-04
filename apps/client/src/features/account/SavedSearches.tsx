@@ -11,6 +11,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { Link } from '@/i18n/navigation';
 import { Bell, BookmarkX, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -91,6 +92,7 @@ export function SavedSearches() {
 function SavedSearchRow({ item }: { item: SavedSearch }) {
   const t = useTranslations();
   const tAccount = useTranslations('account');
+  const tToasts = useTranslations('toasts');
   const [updateSearch, { isLoading: isUpdating }] = useUpdateSavedSearchMutation();
   const [deleteSearch, { isLoading: isDeleting }] = useDeleteSavedSearchMutation();
 
@@ -126,7 +128,13 @@ function SavedSearchRow({ item }: { item: SavedSearch }) {
         <button
           type="button"
           disabled={isDeleting}
-          onClick={() => deleteSearch(item.id)}
+          onClick={() =>
+            // Ошибку тостит apiErrorToastMiddleware (endpoint не в suppress-list).
+            void deleteSearch(item.id)
+              .unwrap()
+              .then(() => toast.success(tToasts('savedSearchDeleted')))
+              .catch(() => {})
+          }
           aria-label={tAccount('savedSearches.deleteAria')}
           className="p-1 text-muted-foreground hover:text-ink disabled:opacity-50"
         >

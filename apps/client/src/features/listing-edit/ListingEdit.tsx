@@ -17,6 +17,7 @@
 import * as React from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
+import { toast } from 'sonner';
 import {
   Building,
   ChevronLeft,
@@ -291,6 +292,7 @@ export function ListingEdit({
   districts: District[];
 }) {
   const t = useTranslations('listingEdit');
+  const tToasts = useTranslations('toasts');
   const tNew = useTranslations('listingNew');
   const tEnums = useTranslations('enums');
   const tUnits = useTranslations('units');
@@ -413,6 +415,7 @@ export function ListingEdit({
         }
       }
 
+      toast.success(tToasts('listingSaved'));
       router.push('/account/my-listings');
     } catch (e) {
       const apiErr = getApiError(e as Parameters<typeof getApiError>[0]);

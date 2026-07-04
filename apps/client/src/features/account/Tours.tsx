@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import {
@@ -29,6 +30,13 @@ function StatusBadge({ status }: { status: TourRequestItem['status'] }) {
   );
 }
 
+/** Ключ success-тоста (`toasts.*`) по действию над туром. */
+export function tourToastKey(action: TourAction): string {
+  if (action === 'CONFIRM') return 'tourConfirmed';
+  if (action === 'DECLINE') return 'tourDeclined';
+  return 'tourCancelled';
+}
+
 /** Класс заливки для цветных действий: CONFIRM — зелёный, DECLINE — красный, иначе обводка. */
 function actionClass(action: TourAction): string {
   if (action === 'CONFIRM') return 'bg-green text-white hover:brightness-95';
@@ -49,6 +57,7 @@ function Row({
   onOpen?: () => void;
 }) {
   const t = useTranslations('account');
+  const tToasts = useTranslations('toasts');
   const [update, { isLoading }] = useUpdateTourStatusMutation();
   const clickable = Boolean(onOpen);
   return (
@@ -103,9 +112,11 @@ function Row({
             onClick={(e) => {
               // Клик по кнопке действия не должен открывать модалку/переход строки.
               e.stopPropagation();
+              // updateTourStatus в suppress-list middleware — тостим вручную.
               void update({ id: item.id, action: a.action })
                 .unwrap()
-                .catch(() => {});
+                .then(() => toast.success(tToasts(tourToastKey(a.action))))
+                .catch(() => toast.error(tToasts('tourActionFailed')));
             }}
             className={cn(
               'rounded-pill px-3 py-1.5 text-[13px] font-semibold disabled:opacity-50',

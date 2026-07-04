@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Dialog } from 'radix-ui';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import {
@@ -20,6 +21,7 @@ export interface IncomingTourModalProps {
 /** Модалка входящего запроса на тур: детали + подтвердить/отклонить (только PENDING). */
 export function IncomingTourModal({ item, onClose }: IncomingTourModalProps) {
   const t = useTranslations('account');
+  const tToasts = useTranslations('toasts');
   const [update, { isLoading }] = useUpdateTourStatusMutation();
   const [error, setError] = React.useState<string | null>(null);
 
@@ -34,13 +36,16 @@ export function IncomingTourModal({ item, onClose }: IncomingTourModalProps) {
       setError(null);
       try {
         await update({ id: item.id, action }).unwrap();
+        toast.success(
+          tToasts(action === 'CONFIRM' ? 'tourConfirmed' : 'tourDeclined'),
+        );
         onClose();
       } catch (err) {
         const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);
         setError(apiErr?.message ?? t('tours.actionError'));
       }
     },
-    [item, update, onClose, t],
+    [item, update, onClose, t, tToasts],
   );
 
   const open = item != null;
