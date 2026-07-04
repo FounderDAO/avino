@@ -5,6 +5,8 @@ import {
 import { ListingStatus, Prisma, TourRequestStatus } from '@prisma/client';
 import { PrismaService } from '../prisma';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TranslationsService } from '../translations';
+import { UploadsService } from '../uploads';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { TourWindow, windowOffered } from '../listings/tour-window';
 import { CreateTourRequestDto } from './dto/create-tour-request.dto';
@@ -19,6 +21,34 @@ const TOUR_REQUEST_SELECT = {
 } satisfies Prisma.TourRequestSelect;
 
 type TourRequestRow = Prisma.TourRequestGetPayload<{ select: typeof TOUR_REQUEST_SELECT }>;
+
+// Строка списка: заявка + контекст объявления (title по языку ответа, первое фото,
+// владелец для outgoing) — spec 2026-07-04-tour-agenda-design.
+const TOUR_LIST_SELECT = {
+  ...TOUR_REQUEST_SELECT,
+  listing: {
+    select: {
+      id: true,
+      originalLanguage: true,
+      translations: { select: { language: true, title: true } },
+      media: {
+        select: { url: true, storageKey: true },
+        orderBy: { sortOrder: Prisma.SortOrder.asc },
+        take: 1,
+      },
+      owner: {
+        select: {
+          phone: true,
+          profile: {
+            select: { displayName: true, firstName: true, lastName: true, contactPhone: true },
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.TourRequestSelect;
+
+type TourListRow = Prisma.TourRequestGetPayload<{ select: typeof TOUR_LIST_SELECT }>;
 
 export interface TourRequestResponse {
   id: string;
@@ -35,13 +65,33 @@ export interface TourRequestResponse {
 }
 
 export interface TourRequestListResponse {
-  data: TourRequestResponse[];
+  data: TourRequestListItem[];
   meta: { limit: number; total: number; next_cursor: string | null };
 }
 
 export interface TourRequestListQuery {
   limit?: number;
   cursor?: string;
+  status?: TourRequestStatus;
+  upcoming?: boolean;
+}
+
+/** Контекст объявления в списках туров (spec 2026-07-04). */
+export interface TourRequestListingBlock {
+  id: string;
+  title: string;
+  photo_url: string | null;
+}
+
+/** «Кто принимает» для outgoing-списка; телефон — только после CONFIRMED. */
+export interface TourRequestOwnerBlock {
+  name: string | null;
+  phone: string | null;
+}
+
+export interface TourRequestListItem extends TourRequestResponse {
+  listing: TourRequestListingBlock;
+  owner?: TourRequestOwnerBlock;
 }
 
 /** Занятый слот тура для UI (без личных данных заявителя, spec 2026-07-02). */
@@ -60,7 +110,15 @@ export class TourRequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly translations: TranslationsService,
+    private readonly uploads: UploadsService,
   ) {}
+
+  /** UTC-полночь текущего дня — нижняя граница «сегодня» всего тур-домена. */
+  private todayUtc(): Date {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  }
 
   async create(requesterId: string, dto: CreateTourRequestDto): Promise<TourRequestResponse> {
     const listing = await this.prisma.listing.findFirst({
@@ -147,8 +205,7 @@ export class TourRequestsService {
     if (!listing) {
       throw new NotFoundException({ code: ApiErrorCode.NOT_FOUND, message: 'Listing not found' });
     }
-    const now = new Date();
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const today = this.todayUtc();
     const horizon = new Date(today);
     horizon.setUTCDate(horizon.getUTCDate() + TOUR_HORIZON_DAYS);
     const rows = await this.prisma.tourRequest.findMany({
@@ -222,16 +279,53 @@ export class TourRequestsService {
     return this.toResponse(updated);
   }
 
-  async listOutgoing(userId: string, query: TourRequestListQuery): Promise<TourRequestListResponse> {
-    return this.listBy({ requesterId: userId }, query);
+  async listOutgoing(
+    userId: string,
+    query: TourRequestListQuery,
+    acceptLanguage?: string,
+  ): Promise<TourRequestListResponse> {
+    return this.listBy({ requesterId: userId }, query, acceptLanguage, true);
   }
 
-  async listIncoming(userId: string, query: TourRequestListQuery): Promise<TourRequestListResponse> {
-    return this.listBy({ listing: { ownerId: userId } }, query);
+  async listIncoming(
+    userId: string,
+    query: TourRequestListQuery,
+    acceptLanguage?: string,
+  ): Promise<TourRequestListResponse> {
+    return this.listBy({ listing: { ownerId: userId } }, query, acceptLanguage, false);
   }
 
-  private async listBy(where: Prisma.TourRequestWhereInput, query: TourRequestListQuery): Promise<TourRequestListResponse> {
+  private async listBy(
+    base: Prisma.TourRequestWhereInput,
+    query: TourRequestListQuery,
+    acceptLanguage: string | undefined,
+    includeOwner: boolean,
+  ): Promise<TourRequestListResponse> {
     const limit = Math.min(Math.max(query.limit ?? 20, 1), 50);
+    const filters: Prisma.TourRequestWhereInput[] = [base];
+    if (query.status) filters.push({ status: query.status });
+    if (query.upcoming) filters.push({ requestedDate: { gte: this.todayUtc() } });
+    const where: Prisma.TourRequestWhereInput =
+      filters.length > 1 ? { AND: filters } : base;
+
+    if (query.upcoming) {
+      // Агенда: сортировка по дате тура; keyset-cursor не поддерживается —
+      // предстоящих туров мало, отдаём первые `limit` (spec 2026-07-04).
+      const [rows, total] = await this.prisma.$transaction([
+        this.prisma.tourRequest.findMany({
+          where,
+          orderBy: [{ requestedDate: 'asc' }, { windowStart: 'asc' }, { id: 'asc' }],
+          take: limit,
+          select: TOUR_LIST_SELECT,
+        }),
+        this.prisma.tourRequest.count({ where }),
+      ]);
+      return {
+        data: await this.toListItems(rows, acceptLanguage, includeOwner),
+        meta: { limit, total, next_cursor: null },
+      };
+    }
+
     const cursor = this.decodeCursor(query.cursor);
     const cursorWhere: Prisma.TourRequestWhereInput | undefined = cursor
       ? { OR: [{ createdAt: { lt: new Date(cursor.createdAt) } }, { createdAt: new Date(cursor.createdAt), id: { lt: cursor.id } }] }
@@ -240,19 +334,22 @@ export class TourRequestsService {
       this.prisma.tourRequest.findMany({
         where: cursorWhere ? { AND: [where, cursorWhere] } : where,
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: limit, select: TOUR_REQUEST_SELECT,
+        take: limit,
+        select: TOUR_LIST_SELECT,
       }),
       this.prisma.tourRequest.count({ where }),
     ]);
     const last = rows.length === limit ? rows[rows.length - 1] : null;
     const next = last ? this.encodeCursor(last.createdAt.toISOString(), last.id) : null;
-    return { data: rows.map((r) => this.toResponse(r)), meta: { limit, total, next_cursor: next } };
+    return {
+      data: await this.toListItems(rows, acceptLanguage, includeOwner),
+      meta: { limit, total, next_cursor: next },
+    };
   }
 
   private parseRequestedDate(value: string): Date {
     const date = new Date(`${value}T00:00:00.000Z`);
-    const now = new Date();
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const today = this.todayUtc();
     const horizon = new Date(today);
     horizon.setUTCDate(horizon.getUTCDate() + TOUR_HORIZON_DAYS);
     if (Number.isNaN(date.getTime()) || date < today || date > horizon) {
@@ -284,6 +381,58 @@ export class TourRequestsService {
     } catch {
       return null;
     }
+  }
+
+  /** Обогащённые элементы списка: title по языку ответа + свежий photo_url (ADR-0086). */
+  private async toListItems(
+    rows: TourListRow[],
+    acceptLanguage: string | undefined,
+    includeOwner: boolean,
+  ): Promise<TourRequestListItem[]> {
+    return Promise.all(
+      rows.map(async (row) => {
+        const language = this.translations.resolveLanguage(
+          row.listing.translations,
+          row.listing.originalLanguage,
+          undefined,
+          acceptLanguage,
+        );
+        const translation = row.listing.translations.find((t) => t.language === language);
+        const photo = row.listing.media[0];
+        const item: TourRequestListItem = {
+          ...this.toResponse(row),
+          listing: {
+            id: row.listing.id,
+            title: translation?.title ?? '',
+            photo_url: photo
+              ? await this.uploads.resolveMediaUrl(photo.storageKey, photo.url)
+              : null,
+          },
+        };
+        if (includeOwner) {
+          item.owner = this.buildOwnerBlock(row.listing.owner, row.status);
+        }
+        return item;
+      }),
+    );
+  }
+
+  /** Имя — как в ContactBlock листинга (displayName → first+last); телефон только после CONFIRMED. */
+  private buildOwnerBlock(
+    owner: TourListRow['listing']['owner'],
+    status: TourRequestStatus,
+  ): TourRequestOwnerBlock {
+    const profile = owner.profile;
+    const fullName = [profile?.firstName, profile?.lastName]
+      .filter((part): part is string => Boolean(part))
+      .join(' ');
+    return {
+      name: profile?.displayName ?? (fullName.length > 0 ? fullName : null),
+      phone:
+        status === TourRequestStatus.CONFIRMED
+          ? (profile?.contactPhone ?? owner.phone ?? null)
+          : null,
+    };
   }
 
   private toResponse(row: TourRequestRow): TourRequestResponse {

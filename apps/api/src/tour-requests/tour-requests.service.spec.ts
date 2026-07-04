@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import { TourRequestsService } from './tour-requests.service';
 import { PrismaService } from '../prisma';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TranslationsService } from '../translations';
+import { UploadsService } from '../uploads';
 import { TourRequestAction } from './dto/tour-request-status.dto';
 
 const future = (days: number): string => {
@@ -16,10 +18,29 @@ const ACTIVE_LISTING = {
   tourWindows: [{ start: '07:00', end: '10:00' }],
 };
 
+const LIST_ROW = {
+  id: 'TR1', listingId: 'L1', requesterId: 'U2', status: 'PENDING',
+  requestedDate: new Date('2026-07-10T00:00:00.000Z'),
+  windowStart: '07:00', windowEnd: '10:00',
+  requesterName: 'Tap Links', requesterPhone: '+998901112233',
+  message: null, createdAt: new Date('2026-07-04T00:00:00.000Z'),
+  listing: {
+    id: 'L1', originalLanguage: 'RU',
+    translations: [{ language: 'RU', title: 'Квартира у метро' }],
+    media: [{ url: 'https://r2.example/raw.jpg', storageKey: 'listings/L1/1.jpg' }],
+    owner: {
+      phone: '+998900000000',
+      profile: { displayName: 'Акмаль', firstName: null, lastName: null, contactPhone: null },
+    },
+  },
+};
+
 describe('TourRequestsService', () => {
   let service: TourRequestsService;
   let prisma: any;
   let notifications: any;
+  let translations: any;
+  let uploads: any;
 
   beforeEach(async () => {
     prisma = {
@@ -28,11 +49,15 @@ describe('TourRequestsService', () => {
       $transaction: jest.fn().mockImplementation(async (cb: any) => cb(prisma)),
     };
     notifications = { queueTourRequest: jest.fn(), queueTourStatusChanged: jest.fn() };
+    translations = { resolveLanguage: jest.fn().mockReturnValue('RU') };
+    uploads = { resolveMediaUrl: jest.fn().mockResolvedValue('https://signed.example/1.jpg') };
     const mod = await Test.createTestingModule({
       providers: [
         TourRequestsService,
         { provide: PrismaService, useValue: prisma },
         { provide: NotificationsService, useValue: notifications },
+        { provide: TranslationsService, useValue: translations },
+        { provide: UploadsService, useValue: uploads },
       ],
     }).compile();
     service = mod.get(TourRequestsService);
@@ -224,5 +249,69 @@ describe('TourRequestsService', () => {
     const err = await service.setStatus('OWNER1', 'TR1', TourRequestAction.CONFIRM).catch((e) => e);
     expect(err.getStatus()).toBe(409);
     expect(err.getResponse()).toMatchObject({ code: 'TOUR_SLOT_TAKEN' });
+  });
+
+  describe('list: обогащение и фильтры', () => {
+    beforeEach(() => {
+      prisma.$transaction.mockImplementation(async (arg: any) =>
+        Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+      prisma.tourRequest.count.mockResolvedValue(1);
+    });
+
+    it('outgoing: включает listing {id,title,photo_url} и owner без телефона (PENDING)', async () => {
+      prisma.tourRequest.findMany.mockResolvedValue([LIST_ROW]);
+      const res = await service.listOutgoing('U2', {}, 'ru');
+      expect(res.data[0].listing).toEqual({
+        id: 'L1', title: 'Квартира у метро', photo_url: 'https://signed.example/1.jpg',
+      });
+      expect(res.data[0].owner).toEqual({ name: 'Акмаль', phone: null });
+      expect(uploads.resolveMediaUrl).toHaveBeenCalledWith('listings/L1/1.jpg', 'https://r2.example/raw.jpg');
+    });
+
+    it('outgoing: телефон владельца раскрывается только при CONFIRMED', async () => {
+      prisma.tourRequest.findMany.mockResolvedValue([{ ...LIST_ROW, status: 'CONFIRMED' }]);
+      const res = await service.listOutgoing('U2', {});
+      expect(res.data[0].owner).toEqual({ name: 'Акмаль', phone: '+998900000000' });
+    });
+
+    it('incoming: owner-блока нет, listing есть', async () => {
+      prisma.tourRequest.findMany.mockResolvedValue([LIST_ROW]);
+      const res = await service.listIncoming('OWNER1', {});
+      expect(res.data[0].owner).toBeUndefined();
+      expect(res.data[0].listing.title).toBe('Квартира у метро');
+    });
+
+    it('фильтр status попадает в where', async () => {
+      prisma.tourRequest.findMany.mockResolvedValue([]);
+      prisma.tourRequest.count.mockResolvedValue(0);
+      await service.listIncoming('OWNER1', { status: 'PENDING' as any });
+      expect(prisma.tourRequest.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { AND: [{ listing: { ownerId: 'OWNER1' } }, { status: 'PENDING' }] },
+        }),
+      );
+    });
+
+    it('upcoming: requestedDate >= сегодня, сортировка по дате тура, cursor не используется', async () => {
+      prisma.tourRequest.findMany.mockResolvedValue([LIST_ROW]);
+      const res = await service.listOutgoing('U2', { upcoming: true, cursor: 'whatever' });
+      const now = new Date();
+      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      expect(prisma.tourRequest.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { AND: [{ requesterId: 'U2' }, { requestedDate: { gte: today } }] },
+          orderBy: [{ requestedDate: 'asc' }, { windowStart: 'asc' }, { id: 'asc' }],
+        }),
+      );
+      expect(res.meta.next_cursor).toBeNull();
+    });
+
+    it('листинг без фото → photo_url null; без перевода → title пустая строка', async () => {
+      prisma.tourRequest.findMany.mockResolvedValue([
+        { ...LIST_ROW, listing: { ...LIST_ROW.listing, media: [], translations: [] } },
+      ]);
+      const res = await service.listOutgoing('U2', {});
+      expect(res.data[0].listing).toEqual({ id: 'L1', title: '', photo_url: null });
+    });
   });
 });

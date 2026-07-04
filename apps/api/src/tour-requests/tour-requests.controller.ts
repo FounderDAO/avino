@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { TourRequestStatus } from '@prisma/client';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
 import { CreateTourRequestDto } from './dto/create-tour-request.dto';
@@ -20,6 +21,13 @@ export class TourRequestsController {
     return Number.isFinite(n) ? n : undefined;
   }
 
+  /** Валидный enum-статус или undefined (мусор игнорируем, как parseLimit). */
+  private parseStatus(status?: string): TourRequestStatus | undefined {
+    return status && Object.values(TourRequestStatus).includes(status as TourRequestStatus)
+      ? (status as TourRequestStatus)
+      : undefined;
+  }
+
   @Post()
   create(
     @CurrentUser('id') userId: string,
@@ -39,19 +47,33 @@ export class TourRequestsController {
   @Get('outgoing')
   outgoing(
     @CurrentUser('id') userId: string,
+    @Headers('accept-language') acceptLanguage?: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
+    @Query('status') status?: string,
+    @Query('upcoming') upcoming?: string,
   ): Promise<TourRequestListResponse> {
-    return this.service.listOutgoing(userId, { limit: this.parseLimit(limit), cursor });
+    return this.service.listOutgoing(
+      userId,
+      { limit: this.parseLimit(limit), cursor, status: this.parseStatus(status), upcoming: upcoming === 'true' },
+      acceptLanguage,
+    );
   }
 
   @Get('incoming')
   incoming(
     @CurrentUser('id') userId: string,
+    @Headers('accept-language') acceptLanguage?: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
+    @Query('status') status?: string,
+    @Query('upcoming') upcoming?: string,
   ): Promise<TourRequestListResponse> {
-    return this.service.listIncoming(userId, { limit: this.parseLimit(limit), cursor });
+    return this.service.listIncoming(
+      userId,
+      { limit: this.parseLimit(limit), cursor, status: this.parseStatus(status), upcoming: upcoming === 'true' },
+      acceptLanguage,
+    );
   }
 
   @Patch(':id/status')
