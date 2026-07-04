@@ -242,6 +242,8 @@ export function MapView({
     // ── Детект жеста: drag (pointerdown+move>3px), wheel, клик по контролам
     // карты (зум/дабл-клик). Клик по ценовому пину (.av-ypin) жестом НЕ считается
     // — это onSelect, области не меняет. Capture-фаза: ymaps глушит bubbling.
+    // На сенсорах браузер может прервать последовательность pointercancel'ом —
+    // сбрасываем незавершённое нажатие, иначе downXY зависает и ломает жест.
     const gestureEl = elRef.current;
     let downXY: [number, number] | null = null;
     const onPointerDown = (e: PointerEvent) => {
@@ -267,6 +269,7 @@ export function MapView({
     gestureEl?.addEventListener('pointerdown', onPointerDown, true);
     gestureEl?.addEventListener('pointermove', onPointerMove, true);
     gestureEl?.addEventListener('pointerup', onPointerUp, true);
+    gestureEl?.addEventListener('pointercancel', onPointerUp, true);
     gestureEl?.addEventListener('wheel', onWheel, { capture: true, passive: true });
     gestureEl?.addEventListener('click', onContainerClick, true);
 
@@ -282,6 +285,7 @@ export function MapView({
       gestureEl?.removeEventListener('pointerdown', onPointerDown, true);
       gestureEl?.removeEventListener('pointermove', onPointerMove, true);
       gestureEl?.removeEventListener('pointerup', onPointerUp, true);
+      gestureEl?.removeEventListener('pointercancel', onPointerUp, true);
       gestureEl?.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions);
       gestureEl?.removeEventListener('click', onContainerClick, true);
       map.destroy();
