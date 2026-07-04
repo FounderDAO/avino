@@ -12,7 +12,13 @@ import {
   type TourAction,
 } from '@/store/api/tourRequestsApi';
 import { cn } from '@/lib/utils';
+import { useRouter } from '@/i18n/navigation';
+import { PhotoImg } from '@/components/ui/photo-img';
 import { IncomingTourModal } from './IncomingTourModal';
+import { UpcomingTourCard } from './UpcomingTourCard';
+import { mergeUpcoming } from './tour-agenda';
+
+const UPCOMING_PARAMS = { status: 'CONFIRMED', upcoming: true } as const;
 
 function StatusBadge({ status }: { status: TourRequestItem['status'] }) {
   const t = useTranslations('account');
@@ -32,10 +38,13 @@ function actionClass(action: TourAction): string {
 
 function Row({
   item,
+  kind,
   actions,
   onOpen,
 }: {
   item: TourRequestItem;
+  /** incoming — первая строка про гостя; outgoing — про объявление. */
+  kind: 'incoming' | 'outgoing';
   actions: { label: string; action: TourAction }[];
   onOpen?: () => void;
 }) {
@@ -58,15 +67,28 @@ function Row({
           : undefined
       }
       className={cn(
-        'flex items-center justify-between gap-3 rounded-card border border-border bg-surface p-4',
+        'flex items-center gap-3 rounded-card border border-border bg-surface p-4',
         clickable && 'cursor-pointer hover:border-teal/60',
       )}
     >
-      <div className="min-w-0">
+      {/* item.listing может отсутствовать в окне рассинхрона деплоя (клиент раньше API #312) — страховка, не меняет контракт типов */}
+      <div className="relative h-[56px] w-[76px] shrink-0 overflow-hidden rounded-[10px]">
+        <PhotoImg src={item.listing?.photo_url ?? ''} alt={item.listing?.title ?? ''} sizes="76px" />
+      </div>
+      <div className="min-w-0 flex-1">
         <div className="truncate text-[15px] font-semibold">
-          <span>{item.requester_name}</span>
-          <span className="text-muted-foreground"> · {item.requester_phone}</span>
+          {kind === 'incoming' ? (
+            <>
+              <span>{item.requester_name}</span>
+              <span className="text-muted-foreground"> · {item.requester_phone}</span>
+            </>
+          ) : (
+            item.listing?.title ?? ''
+          )}
         </div>
+        {kind === 'incoming' && (
+          <div className="truncate text-[13px]">{item.listing?.title ?? ''}</div>
+        )}
         <div className="text-[13px] text-muted-foreground">
           {item.requested_date} {t('tours.on')} {item.window_start}–{item.window_end}
         </div>
@@ -79,7 +101,7 @@ function Row({
             type="button"
             disabled={isLoading}
             onClick={(e) => {
-              // Клик по кнопке действия не должен открывать модалку строки.
+              // Клик по кнопке действия не должен открывать модалку/переход строки.
               e.stopPropagation();
               void update({ id: item.id, action: a.action })
                 .unwrap()
@@ -100,20 +122,36 @@ function Row({
 
 export default function Tours() {
   const t = useTranslations('account');
+  const router = useRouter();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const { data: outgoing } = useGetOutgoingToursQuery(undefined, { skip: !isAuthenticated });
   const { data: incoming } = useGetIncomingToursQuery(undefined, { skip: !isAuthenticated });
+  const { data: upcomingOut } = useGetOutgoingToursQuery(UPCOMING_PARAMS, { skip: !isAuthenticated });
+  const { data: upcomingIn } = useGetIncomingToursQuery(UPCOMING_PARAMS, { skip: !isAuthenticated });
   const [selected, setSelected] = React.useState<TourRequestItem | null>(null);
+
+  const upcoming = React.useMemo(
+    () => mergeUpcoming(upcomingIn, upcomingOut),
+    [upcomingIn, upcomingOut],
+  );
 
   if (!isAuthenticated) return <p className="text-muted-foreground">{t('tours.guest')}</p>;
 
   const out = outgoing ?? [];
   const inc = incoming ?? [];
-  if (out.length === 0 && inc.length === 0)
+  if (out.length === 0 && inc.length === 0 && upcoming.length === 0)
     return <p className="text-muted-foreground">{t('tours.empty')}</p>;
 
   return (
     <div className="flex flex-col gap-6">
+      {upcoming.length > 0 && (
+        <section className="flex flex-col gap-2.5">
+          <h2 className="text-base font-bold">{t('tours.upcoming')}</h2>
+          {upcoming.map((entry) => (
+            <UpcomingTourCard key={`${entry.role}-${entry.item.id}`} item={entry.item} role={entry.role} />
+          ))}
+        </section>
+      )}
       {inc.length > 0 && (
         <section className="flex flex-col gap-2.5">
           <h2 className="text-base font-bold">{t('tours.incoming')}</h2>
@@ -121,6 +159,7 @@ export default function Tours() {
             <Row
               key={it.id}
               item={it}
+              kind="incoming"
               onOpen={() => setSelected(it)}
               actions={
                 it.status === 'PENDING'
@@ -141,6 +180,8 @@ export default function Tours() {
             <Row
               key={it.id}
               item={it}
+              kind="outgoing"
+              onOpen={it.listing?.id ? () => router.push(`/listing/${it.listing.id}`) : undefined}
               actions={
                 it.status === 'PENDING' || it.status === 'CONFIRMED'
                   ? [{ label: t('tours.cancel'), action: 'CANCEL' }]

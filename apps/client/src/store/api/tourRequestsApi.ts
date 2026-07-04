@@ -12,6 +12,19 @@ import { baseApi } from './baseApi';
 export type TourRequestStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED' | 'CANCELLED';
 export type TourAction = 'CONFIRM' | 'DECLINE' | 'CANCEL';
 
+/** Контекст объявления в списках туров (spec 2026-07-04). */
+export interface TourListingInfo {
+  id: string;
+  title: string;
+  photo_url: string | null;
+}
+
+/** «Кто принимает» (только outgoing); phone приходит только при CONFIRMED. */
+export interface TourOwnerInfo {
+  name: string | null;
+  phone: string | null;
+}
+
 /** Объект заявки (snake_case контракт бэкенда). */
 export interface TourRequestItem {
   id: string;
@@ -25,6 +38,9 @@ export interface TourRequestItem {
   requester_phone: string;
   message: string | null;
   created_at: string;
+  listing: TourListingInfo;
+  /** Только в outgoing-ответах. */
+  owner?: TourOwnerInfo;
 }
 
 /** Тело POST /tour-requests. */
@@ -54,6 +70,19 @@ interface TakenSlotsEnvelope {
   data: TakenSlot[];
 }
 
+/** Фильтры списков туров; upcoming=true — агенда (сортировка по дате тура). */
+export interface TourListParams {
+  status?: TourRequestStatus;
+  upcoming?: boolean;
+}
+
+const tourListUrl = (base: string, params?: TourListParams | void): string => {
+  const sp = new URLSearchParams({ limit: '50' });
+  if (params?.status) sp.set('status', params.status);
+  if (params?.upcoming) sp.set('upcoming', 'true');
+  return `${base}?${sp.toString()}`;
+};
+
 const OUTGOING_TAG = { type: 'TourRequest' as const, id: 'OUTGOING' };
 const INCOMING_TAG = { type: 'TourRequest' as const, id: 'INCOMING' };
 
@@ -66,13 +95,13 @@ export const tourRequestsApi = baseApi.injectEndpoints({
         { type: 'TourTakenSlots' as const, id: body.listing_id },
       ],
     }),
-    getOutgoingTours: build.query<TourRequestItem[], void>({
-      query: () => '/tour-requests/outgoing?limit=50',
+    getOutgoingTours: build.query<TourRequestItem[], TourListParams | void>({
+      query: (params) => tourListUrl('/tour-requests/outgoing', params),
       transformResponse: (env: TourListEnvelope) => env.data,
       providesTags: [OUTGOING_TAG],
     }),
-    getIncomingTours: build.query<TourRequestItem[], void>({
-      query: () => '/tour-requests/incoming?limit=50',
+    getIncomingTours: build.query<TourRequestItem[], TourListParams | void>({
+      query: (params) => tourListUrl('/tour-requests/incoming', params),
       transformResponse: (env: TourListEnvelope) => env.data,
       providesTags: [INCOMING_TAG],
     }),

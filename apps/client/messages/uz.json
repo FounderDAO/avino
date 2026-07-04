@@ -977,6 +977,9 @@
       }
     },
     "tours": {
+      "upcoming": "Rejalashtirilgan turlar",
+      "roleHost": "Siz qabul qilasiz",
+      "roleGuest": "Siz borasiz",
       "outgoing": "Mening so'rovlarim",
       "incoming": "Menga so'rovlar",
       "empty": "Hozircha tur arizalari yo'q",
