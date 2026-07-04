@@ -703,24 +703,44 @@ promotion-приоритетный keyset, что и `/search/bounds` (`date_des
 Errors: `400 VALIDATION_ERROR`.
 
 ### GET /api/v1/search/clusters
-> ⏳ **Planned — не реализовано в коде** (нет роута в `search.controller.ts`). На карте
-> сейчас доступны `GET /search/bounds` и `GET /search/polygon` (§10).
+Агрегаты кластерной сетки карты для широких зумов (схема Zillow/Airbnb,
+TASK-225, ADR-0126) — вместо страницы листингов отдаёт ячейки сетки с числом
+объявлений и ценовыми агрегатами; клиент рисует кластерные кружки и при
+< ~200 объектов в боксе переключается на обычные пины `/search/bounds`.
+Auth: **public**.
 
-Кластеризация маркеров для зума карты. Auth: **public**.
-Query: `sw_lat`, `sw_lng`, `ne_lat`, `ne_lng`, `zoom` + фильтры.
+Query: `sw_lat`, `sw_lng`, `ne_lat`, `ne_lng`, `zoom` (0..22, обязателен),
+`currency` (валюта ценовых агрегатов, default `USD`) + любые фильтры из §9.
+`limit`/`cursor`/`sort` наследуются DTO, но игнорируются
+— ответ не пагинируется (агрегат, не список).
+
+```text
+GET /api/v1/search/clusters?sw_lat=41.0&sw_lng=69.0&ne_lat=41.6&ne_lng=69.5&zoom=5
+```
+
+**Сетка.** `GROUP BY ST_SnapToGrid(location::geometry, cell, cell)`, где
+`cell = 360 / 2^zoom / 8` градусов (~8 ячеек на тайл 256px — плотность
+supercluster). Координата ячейки в ответе — центроид (avg) координат её
+листингов, а не угол/узел сетки. bbox-фильтр — как у `/search/bounds`:
+чанкованный geography-префильтр (TASK-226, широкие bbox режутся на куски
+≤ 90° по долготе) + точный `ST_Within`.
+
 200:
 ```json
 {
-  "clusters": [
-    { "lat": 41.32, "lng": 69.27, "count": 42, "bbox": [69.25,41.30,69.30,41.34] }
+  "data": [
+    { "latitude": 41.315, "longitude": 69.281, "count": 42,
+      "min_price": 45000.5, "avg_price": 78250.0 }
   ],
-  "points": [
-    { "id": "l9", "lat": 41.311, "lng": 69.281, "price": "950000000.00",
-      "currency": "UZS", "promotion_type": "VIP" }
-  ]
+  "currency": "USD"
 }
 ```
-`clusters` — агрегаты при дальнем зуме; `points` — одиночные маркеры при ближнем.
+`min_price`/`avg_price` FX-нормализуются к `currency` (query-параметр,
+default `USD`) по текущему курсу ЦБУ — та же логика, что и ценовой фильтр §9
+(`priceInCurrencySql`); если строки курса нет, цены отдаются сырыми, без
+конвертации (деградация как в ADR-0117). Ответ не пагинируется; guard
+`LIMIT 2000` ячеек по `count DESC` защищает от патологического bbox×zoom
+(вся планета на максимальном зуме).
 Errors: `400 VALIDATION_ERROR`.
 
 ---
