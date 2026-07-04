@@ -196,7 +196,11 @@ export function SearchResults({
     setDrawing(true);
   };
   const cancelDraw = () => setDrawing(false);
-  const clearTerritory = () => setPolygon(null);
+  const clearTerritory = () => {
+    setPolygon(null);
+    // сброс территории → рефетч последней области (симметрия с /map)
+    vp.refetchLastBounds();
+  };
   const handlePolygonComplete = React.useCallback((pts: LatLng[]) => {
     setDrawing(false);
     // Невалидное кольцо (< 3 вершин / вне WGS84) → территорию не ставим.
