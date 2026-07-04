@@ -85,13 +85,17 @@ const OVERLAY_STYLE = {
   fillOpacity: 0.08,
 } as const;
 
-/** HTML ценового пина: VIP — золотой, TOP — красный, активный — тёмный. */
-function pinHTML(listing: Pick<Listing, 'promo'>, active: boolean, priceText: string): string {
+/** HTML ценового пина: продажа — красный, аренда: VIP — золотой, TOP — красный; активный — тёмный. */
+function pinHTML(listing: Pick<Listing, 'promo' | 'tx'>, active: boolean, priceText: string): string {
   const price = priceText;
   let bg = '#fff';
   let fg = 'var(--ink, #282218)';
   let bd = '1.5px solid var(--border, #e7e2d8)';
-  if (listing.promo === 'VIP') {
+  if (listing.tx === 'SALE') {
+    bg = 'var(--red, #e03c42)';
+    fg = '#fff';
+    bd = 'none';
+  } else if (listing.promo === 'VIP') {
     bg = 'linear-gradient(135deg,#D9A53C,#B8862A)';
     fg = '#fff';
     bd = 'none';
