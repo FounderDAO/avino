@@ -25,7 +25,7 @@ function FavoritesHydrator() {
 
 /**
  * Гидратация предпочтения валюты из localStorage после монтирования на клиенте.
- * На сервере не выполняется — initialState остаётся 'UZS' (нет рассинхрона SSR).
+ * На сервере не выполняется — initialState остаётся 'USD' (нет рассинхрона SSR).
  */
 function CurrencyHydrator() {
   const dispatch = useAppDispatch();

@@ -13,12 +13,12 @@ const STORAGE_KEY = 'avino.displayCurrency';
 
 /** Чтение предпочтения валюты из localStorage (только на клиенте). */
 export function readCurrencyFromStorage(): DisplayCurrency {
-  if (typeof window === 'undefined') return 'UZS';
+  if (typeof window === 'undefined') return 'USD';
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw === 'USD' ? 'USD' : 'UZS';
+    return raw === 'UZS' ? 'UZS' : 'USD';
   } catch {
-    return 'UZS';
+    return 'USD';
   }
 }
 
@@ -35,7 +35,7 @@ function persist(value: DisplayCurrency): void {
 interface CurrencyState {
   displayCurrency: DisplayCurrency;
 }
-const initialState: CurrencyState = { displayCurrency: 'UZS' };
+const initialState: CurrencyState = { displayCurrency: 'USD' };
 
 const currencySlice = createSlice({
   name: 'currency',
