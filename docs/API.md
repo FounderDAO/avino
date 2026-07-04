@@ -399,7 +399,8 @@ Body:
   "original_language": "RU", "price": "4500000.00", "currency": "UZS",
   "created_at": "2026-06-02T08:00:00Z" }
 ```
-Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`.
+Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `422 PROFILE_INCOMPLETE`
+(профиль автора без имени, фамилии или телефона, ADR-0125).
 
 ### GET /api/v1/listings/:id
 Детали листинга. Auth: **public** для `ACTIVE`; владелец/AGENCY/MODERATOR/ADMIN
