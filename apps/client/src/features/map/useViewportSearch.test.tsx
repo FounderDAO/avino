@@ -131,6 +131,39 @@ describe('useViewportSearch (always, /map)', () => {
     });
   });
 
+  it('устаревший ответ не перезаписывает свежий (гонка bounds-запросов)', async () => {
+    let resolveFirst: (v: Listing[]) => void = () => {};
+    let resolveSecond: (v: Listing[]) => void = () => {};
+    const firstPromise = new Promise<Listing[]>((res) => {
+      resolveFirst = res;
+    });
+    const secondPromise = new Promise<Listing[]>((res) => {
+      resolveSecond = res;
+    });
+    trigger.mockImplementationOnce(() => ({ unwrap: () => firstPromise }));
+    trigger.mockImplementationOnce(() => ({ unwrap: () => secondPromise }));
+
+    const { result } = renderHook(() =>
+      useViewportSearch({ mode: 'always', filter: {} }),
+    );
+    const B1 = B;
+    const B2 = { ...B, neLat: 41.5 };
+    act(() => result.current.handleBoundsChange(B1, { user: false }));
+    act(() => result.current.handleBoundsChange(B2, { user: false }));
+
+    // Резолвим в обратном порядке: сначала свежий (второй) запрос, потом устаревший (первый).
+    await act(async () => {
+      resolveSecond([{ id: 'fresh' } as unknown as Listing]);
+      await secondPromise;
+    });
+    await act(async () => {
+      resolveFirst([{ id: 'stale' } as unknown as Listing]);
+      await firstPromise;
+    });
+
+    expect(result.current.listings).toEqual([{ id: 'fresh' }]);
+  });
+
   it('превью: openPreview/closePreview', () => {
     const { result } = renderHook(() => useViewportSearch({ mode: 'always', filter: {} }));
     act(() => result.current.openPreview('l9'));

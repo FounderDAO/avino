@@ -93,6 +93,9 @@ export function useViewportSearch({
       trigger({ bounds: b, filter: filterRef.current, limit: 100 })
         .unwrap()
         .then((res) => {
+          // Защита от гонки: свежее панорамирование инвалидирует ответ старого
+          // запроса — если это уже не последняя область, ответ устарел.
+          if (lastBoundsRef.current !== b) return;
           setListings(res);
           if (syncUrl && typeof window !== 'undefined') {
             const url = new URL(window.location.href);
