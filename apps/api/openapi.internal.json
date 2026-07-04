@@ -4347,6 +4347,14 @@
         "operationId": "TourRequestsController_outgoing",
         "parameters": [
           {
+            "name": "accept-language",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "limit",
             "required": true,
             "in": "query",
@@ -4356,6 +4364,22 @@
           },
           {
             "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "upcoming",
             "required": true,
             "in": "query",
             "schema": {
@@ -4382,6 +4406,14 @@
         "operationId": "TourRequestsController_incoming",
         "parameters": [
           {
+            "name": "accept-language",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "limit",
             "required": true,
             "in": "query",
@@ -4391,6 +4423,22 @@
           },
           {
             "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "upcoming",
             "required": true,
             "in": "query",
             "schema": {
