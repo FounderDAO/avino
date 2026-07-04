@@ -269,7 +269,7 @@ export class EnvironmentVariables {
   @IsOptional()
   JWT_REFRESH_TTL?: number;
 
-  // ── Google Sign-In (опционально на старте) ──
+  // ── Google Sign-In (опционально на старте; CSV разрешённых audience) ──
   @IsString()
   @IsOptional()
   GOOGLE_CLIENT_ID?: string;

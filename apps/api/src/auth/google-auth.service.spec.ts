@@ -5,9 +5,12 @@ jest.mock('google-auth-library', () => ({
   OAuth2Client: jest.fn().mockImplementation(() => ({ verifyIdToken })),
 }));
 
-function makeService(clientId: string | undefined, prismaOverrides: object = {}) {
+function makeService(
+  clientIds: string[] | undefined,
+  prismaOverrides: object = {},
+) {
   const config = {
-    get: (k: string) => (k === 'google.clientId' ? clientId : undefined),
+    get: (k: string) => (k === 'google.clientIds' ? clientIds : undefined),
   };
   const prisma: any = {
     user: {
@@ -58,9 +61,33 @@ describe('GoogleAuthService', () => {
     });
   });
 
+  it('503 when GOOGLE_CLIENT_ID is empty (no audiences)', async () => {
+    const { service } = makeService([]);
+    await expect(service.login({ id_token: 't' })).rejects.toMatchObject({
+      response: { code: 'AUTH_PROVIDER_UNAVAILABLE' },
+    });
+  });
+
+  // CSV multi-audience (мобильный клиент): id_token с iOS имеет aud = web-клиент
+  // Firebase-проекта (или iOS-клиент), а не web-клиент сайта. Сервер обязан
+  // передавать в verifyIdToken ВСЕ настроенные audience, а не только первый.
+  it('passes all configured audiences (CSV) to verifyIdToken', async () => {
+    verifyIdToken.mockResolvedValue({
+      getPayload: () => ({ email: 'a@b.com', sub: 's', email_verified: true }),
+    });
+    const { service, prisma } = makeService(['WEB_CID', 'FIREBASE_CID', 'IOS_CID']);
+    prisma.user.findFirst.mockResolvedValue(EXISTING_USER);
+    prisma.user.update.mockResolvedValue(EXISTING_USER);
+    await service.login({ id_token: 't' });
+    expect(verifyIdToken).toHaveBeenCalledWith({
+      idToken: 't',
+      audience: ['WEB_CID', 'FIREBASE_CID', 'IOS_CID'],
+    });
+  });
+
   it('401 when token invalid', async () => {
     verifyIdToken.mockRejectedValue(new Error('bad'));
-    const { service } = makeService('CID');
+    const { service } = makeService(['CID']);
     await expect(service.login({ id_token: 't' })).rejects.toMatchObject({
       response: { code: 'UNAUTHORIZED' },
     });
@@ -74,7 +101,7 @@ describe('GoogleAuthService', () => {
     verifyIdToken.mockResolvedValue({
       getPayload: () => ({ email: 'a@b.com', sub: 's', email_verified: false }),
     });
-    const { service, prisma, tokenService } = makeService('CID');
+    const { service, prisma, tokenService } = makeService(['CID']);
     prisma.user.findFirst.mockResolvedValue(EXISTING_USER);
     const promise = service.login({ id_token: 't' });
     await expect(promise).rejects.toMatchObject({
@@ -96,7 +123,7 @@ describe('GoogleAuthService', () => {
         name: 'New User',
       }),
     });
-    const { service, prisma, tokenService } = makeService('CID');
+    const { service, prisma, tokenService } = makeService(['CID']);
     prisma.user.findFirst.mockResolvedValue(null);
     const promise = service.login({ id_token: 't' });
     await expect(promise).rejects.toMatchObject({
@@ -116,7 +143,7 @@ describe('GoogleAuthService', () => {
         name: 'A B',
       }),
     });
-    const { service, prisma, tokenService } = makeService('CID');
+    const { service, prisma, tokenService } = makeService(['CID']);
     prisma.user.findFirst.mockResolvedValue(EXISTING_USER);
     prisma.user.update.mockResolvedValue(EXISTING_USER);
     const res = await service.login({ id_token: 't' }, '1.1.1.1', 'UA');
@@ -129,7 +156,7 @@ describe('GoogleAuthService', () => {
     verifyIdToken.mockResolvedValue({
       getPayload: () => ({ email: 'a@b.com', sub: 's', email_verified: true }),
     });
-    const { service, prisma } = makeService('CID');
+    const { service, prisma } = makeService(['CID']);
     prisma.user.findFirst.mockResolvedValue(EXISTING_USER);
     prisma.user.update.mockResolvedValue(EXISTING_USER);
     await service.login({ id_token: 't' });
@@ -148,7 +175,7 @@ describe('GoogleAuthService', () => {
         picture: 'p',
       }),
     });
-    const { service, prisma } = makeService('CID');
+    const { service, prisma } = makeService(['CID']);
     prisma.user.findFirst.mockResolvedValue(null);
     prisma.user.create.mockResolvedValue({ id: 'u2' });
     prisma.user.findUniqueOrThrow.mockResolvedValue({
