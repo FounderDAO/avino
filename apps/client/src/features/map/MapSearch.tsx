@@ -11,7 +11,9 @@
  *  - наведение на карточку → панорам/подсветка пина; клик по пину → превью
  *    карточки (PropertyCard) и выбор в списке.
  *
- * Пины брендовые (ADR-0060) задаёт MapView. Только apps/client.
+ * Пины брендовые (ADR-0060) задаёт MapView. Bounds-выдачей владеет общий
+ * useViewportSearch (mode='always' — стартовый эмит MapView грузит первую
+ * область); превью пина — общий MapPreviewCard. Только apps/client.
  */
 'use client';
 
@@ -20,17 +22,11 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { Pencil, X, Trash2 } from 'lucide-react';
 import { PropertyCard } from '@/features/search/PropertyCard';
+import { MapPreviewCard } from '@/features/map/MapPreviewCard';
+import { useViewportSearch } from '@/features/map/useViewportSearch';
 import { cn } from '@/lib/utils';
-import {
-  serializePolygonRing,
-  isValidBounds,
-  type LatLng,
-  type LatLngBounds,
-} from '@/lib/geo';
-import {
-  useLazySearchByBoundsQuery,
-  useLazySearchByPolygonQuery,
-} from '@/store/api/searchApi';
+import { serializePolygonRing, type LatLng } from '@/lib/geo';
+import { useLazySearchByPolygonQuery } from '@/store/api/searchApi';
 import type { Listing, ListingFilter, TransactionType } from '@/lib/mock/types';
 
 // Карта — только на клиенте (Yandex JS API требует window).
@@ -55,42 +51,24 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
   const t = useTranslations('search');
   const filter: ListingFilter = React.useMemo(() => (tx ? { tx } : {}), [tx]);
 
+  // raw — выдача территории (polygon); bounds-выдачей владеет useViewportSearch.
   const [raw, setRaw] = React.useState<Listing[]>(initialListings);
   const [activeId, setActiveId] = React.useState<string | null>(null);
-  const [previewId, setPreviewId] = React.useState<string | null>(null);
   const [drawing, setDrawing] = React.useState(false);
   const [polygon, setPolygon] = React.useState<LatLng[] | null>(null);
   const [mobView, setMobView] = React.useState<'list' | 'map'>('list');
 
-  const [triggerBounds, { isFetching: fetchingBounds }] = useLazySearchByBoundsQuery();
   const [triggerPolygon, { isFetching: fetchingPolygon }] = useLazySearchByPolygonQuery();
-  const isFetching = fetchingBounds || fetchingPolygon;
 
-  // Последняя видимая область — чтобы восстановить выдачу при сбросе территории.
-  const lastBoundsRef = React.useRef<LatLngBounds | null>(null);
-
-  const runBounds = React.useCallback(
-    (bounds: LatLngBounds) => {
-      if (!isValidBounds(bounds)) return;
-      triggerBounds({ bounds, filter, limit: 100 })
-        .unwrap()
-        .then(setRaw)
-        .catch(() => {
-          /* сеть/5xx — оставляем прежнюю выдачу */
-        });
-    },
-    [triggerBounds, filter],
-  );
-
-  // Видимая область (без активной территории) → подгрузка листингов.
-  const handleBoundsChange = React.useCallback(
-    (b: LatLngBounds) => {
-      lastBoundsRef.current = b;
-      if (polygon) return;
-      runBounds(b);
-    },
-    [polygon, runBounds],
-  );
+  // Viewport-режим /map: всегда активен (стартовый эмит MapView грузит первую
+  // область), территория приоритетнее bounds.
+  const vp = useViewportSearch({
+    mode: 'always',
+    filter,
+    polygonActive: Boolean(polygon),
+  });
+  const { closePreview: vpClosePreview } = vp;
+  const isFetching = fetchingPolygon || vp.isFetching;
 
   // Территория замкнута: отправляем кольцо в /search/polygon (ST_Within на сервере).
   const handlePolygonComplete = React.useCallback(
@@ -102,7 +80,7 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
         return;
       }
       setPolygon(pts);
-      setPreviewId(null);
+      vpClosePreview();
       triggerPolygon({ points, filter, limit: 100 })
         .unwrap()
         .then(setRaw)
@@ -110,30 +88,33 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
           /* сеть/5xx — оставляем прежнюю выдачу */
         });
     },
-    [triggerPolygon, filter],
+    [triggerPolygon, filter, vpClosePreview],
   );
 
-  // Серверная фильтрация (ST_Within / bbox) — клиентского отсечения больше нет.
-  const displayed = raw;
+  // Серверная фильтрация (ST_Within / bbox): территория — raw, иначе выдача
+  // видимой области из хука (до первого ответа — SSR-стартовая).
+  const displayed = polygon ? raw : vp.listings ?? initialListings;
 
   const startDraw = () => {
     setPolygon(null);
-    setPreviewId(null);
+    vpClosePreview();
     setDrawing(true);
   };
   const cancelDraw = () => setDrawing(false);
   // Сброс территории → возвращаемся к выдаче текущей видимой области.
   const clearTerritory = () => {
     setPolygon(null);
-    if (lastBoundsRef.current) runBounds(lastBoundsRef.current);
+    vp.refetchLastBounds();
   };
 
   const handleSelect = (id: string) => {
     setActiveId(id);
-    setPreviewId(id);
+    vp.openPreview(id);
   };
 
-  const preview = previewId ? displayed.find((l) => l.id === previewId) ?? raw.find((l) => l.id === previewId) : null;
+  const preview = vp.previewId
+    ? displayed.find((l) => l.id === vp.previewId) ?? raw.find((l) => l.id === vp.previewId) ?? null
+    : null;
   const total = displayed.length;
 
   return (
@@ -156,7 +137,7 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
           polygon={polygon}
           drawMode={drawing ? 'polygon' : null}
           onPolygonComplete={handlePolygonComplete}
-          onBoundsChange={handleBoundsChange}
+          onBoundsChange={vp.handleBoundsChange}
           autoFit={false}
         />
 
@@ -204,21 +185,7 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
         </div>
 
         {/* ---- Превью карточки по клику на пин ---- */}
-        {preview && (
-          <div className="absolute bottom-4 left-3 right-3 z-[1000] mx-auto max-w-sm sm:left-4 sm:right-auto">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setPreviewId(null)}
-                aria-label={t('map.preview.close')}
-                className="absolute -right-2 -top-2 z-[1] grid h-7 w-7 place-items-center rounded-full bg-ink text-white shadow-raised"
-              >
-                <X size={15} strokeWidth={2.4} />
-              </button>
-              <PropertyCard listing={preview} className="bg-surface shadow-raised" />
-            </div>
-          </div>
-        )}
+        {preview && <MapPreviewCard listing={preview} onClose={vpClosePreview} />}
       </div>
 
       {/* ---- Список (справа, свой скролл) ---- */}

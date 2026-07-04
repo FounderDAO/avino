@@ -24,7 +24,7 @@ import { SortControl } from '@/features/search/SortControl';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { serializePolygonRing, type LatLng } from '@/lib/geo';
+import { serializePolygonRing, type LatLng, type LatLngBounds } from '@/lib/geo';
 import {
   useSearchByPolygonQuery,
   useLazySearchPageQuery,
@@ -32,6 +32,8 @@ import {
 import type { Listing, ListingFilter } from '@/lib/mock/types';
 import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
 import { useMapHoverRecenter } from '@/lib/useMapHoverRecenter';
+import { MapPreviewCard } from '@/features/map/MapPreviewCard';
+import { useViewportSearch } from '@/features/map/useViewportSearch';
 import { useAppDispatch } from '@/store/hooks';
 import {
   setTerritory,
@@ -62,6 +64,8 @@ export interface SearchResultsProps {
   filter: ListingFilter;
   /** Состояние загрузки (скелетоны). */
   loading?: boolean;
+  /** SSR-восстановленная область карты (?sw_lat=…) — стартуем в viewport-режиме. */
+  initialBounds?: LatLngBounds | null;
 }
 
 export function SearchResults({
@@ -72,6 +76,7 @@ export function SearchResults({
   heading,
   filter,
   loading,
+  initialBounds = null,
 }: SearchResultsProps) {
   const t = useTranslations('search');
   const tCommon = useTranslations('common');
@@ -98,6 +103,19 @@ export function SearchResults({
     () => (polygon ? serializePolygonRing(polygon) : null),
     [polygon],
   );
+
+  // ── Viewport-режим (Zillow): список = видимая область карты ──
+  // Активен только без явного гео-фильтра и территории; активация — жестом
+  // пользователя на карте (или сразу, если SSR восстановил bbox из URL).
+  const geoFilterActive = Boolean(filter.districtId || filter.regionId);
+  const vp = useViewportSearch({
+    mode: 'gesture',
+    filter: filterWithCurrency,
+    geoFilterActive,
+    polygonActive: Boolean(points),
+    syncUrl: true,
+    initialBounds,
+  });
 
   // Зеркалим нарисованное кольцо в Redux, чтобы кнопка «Сохранить поиск» в FilterBar
   // (соседний компонент) могла положить territory в сохранённый поиск.
@@ -142,21 +160,47 @@ export function SearchResults({
     }
   }, [cursor, loadingMore, loadPage, filterWithCurrency]);
 
-  // Выдача по фильтрам = SSR-страница + докуданные; по территории — отдельный набор.
+  // Выдача по фильтрам = SSR-страница + докуданные; по территории — полигон;
+  // в viewport-режиме — bounds-выдача (до первого ответа — SSR-страница:
+  // при SSR-восстановлении bbox она уже посчитана по bounds).
   const paged = React.useMemo(() => [...listings, ...extra], [listings, extra]);
-  const displayed = points ? polygonData ?? [] : paged;
-  const shownCount = displayed.length;
-  // Счётчик: под территорией — число в области, иначе meta.total (все под фильтром).
-  const totalCount = points ? shownCount : totalAll;
-  const hasMore = !points && cursor != null;
+  const displayed = points
+    ? polygonData ?? []
+    : vp.active
+      ? vp.listings ?? paged
+      : paged;
+
+  // Viewport-режим: один запрос (limit=100), список раскрывается локальными
+  // батчами по 24 без сети (маркеры при этом видят весь набор).
+  const [visibleCount, setVisibleCount] = React.useState(24);
+  React.useEffect(() => {
+    setVisibleCount(24);
+  }, [vp.listings]);
+  const listShown = vp.active && !points ? displayed.slice(0, visibleCount) : displayed;
+
+  const shownCount = listShown.length;
+  const totalCount = points || vp.active ? displayed.length : totalAll;
+  const hasMore = points
+    ? false
+    : vp.active
+      ? visibleCount < displayed.length
+      : cursor != null;
   const busy = Boolean(loading) || isFetching;
+  const onShowMore = vp.active
+    ? () => setVisibleCount((c) => c + 24)
+    : loadMore;
 
   const startDraw = () => {
     setPolygon(null);
+    vp.closePreview();
     setDrawing(true);
   };
   const cancelDraw = () => setDrawing(false);
-  const clearTerritory = () => setPolygon(null);
+  const clearTerritory = () => {
+    setPolygon(null);
+    // сброс территории → рефетч последней области (симметрия с /map)
+    vp.refetchLastBounds();
+  };
   const handlePolygonComplete = React.useCallback((pts: LatLng[]) => {
     setDrawing(false);
     // Невалидное кольцо (< 3 вершин / вне WGS84) → территорию не ставим.
@@ -181,13 +225,18 @@ export function SearchResults({
         <MapView
           listings={displayed}
           activeId={activeId}
-          onSelect={setActiveId}
+          onSelect={(id) => {
+            setActiveId(id);
+            vp.openPreview(id);
+          }}
           onHover={setActiveId}
           locale={locale}
           polygon={polygon}
           drawMode={drawing ? 'polygon' : null}
           onPolygonComplete={handlePolygonComplete}
-          autoFit
+          onBoundsChange={vp.handleBoundsChange}
+          initialBounds={initialBounds}
+          autoFit={!vp.active}
           recenterOnHover={recenterOnHover}
         />
 
@@ -233,6 +282,16 @@ export function SearchResults({
             </>
           )}
         </div>
+
+        {/* ---- Превью карточки по клику на пин (Zillow) ---- */}
+        {(() => {
+          const preview = vp.previewId
+            ? displayed.find((l) => l.id === vp.previewId) ?? null
+            : null;
+          return preview ? (
+            <MapPreviewCard listing={preview} onClose={vp.closePreview} />
+          ) : null;
+        })()}
       </div>
 
       {/* ---- Колонка со списком (справа, свой скролл) ---- */}
@@ -254,7 +313,9 @@ export function SearchResults({
                 ? tCommon('loading')
                 : polygon
                   ? t('map.areaCount', { count: shownCount })
-                  : t('results.count', { count: totalCount })}
+                  : vp.active && vp.isFetching
+                    ? tCommon('loading')
+                    : t('results.count', { count: totalCount })}
             </p>
           </div>
           {/* Сортировка рядом со счётчиком (Zillow-стиль); применяется и под территорией */}
@@ -277,6 +338,8 @@ export function SearchResults({
                 </Button>
               }
             />
+          ) : vp.active ? (
+            <EmptyState title={t('map.emptyArea')} />
           ) : (
             <EmptyState
               title={t('results.emptyTitle')}
@@ -290,7 +353,7 @@ export function SearchResults({
           )
         ) : (
           <div className="grid grid-cols-1 gap-4 px-4 pb-5 sm:grid-cols-2">
-            {displayed.map((l) => (
+            {listShown.map((l) => (
               <div
                 key={l.id}
                 onMouseEnter={() => setActiveId(l.id)}
@@ -313,7 +376,7 @@ export function SearchResults({
           <div className="flex flex-col items-center gap-2 px-5 pb-8">
             <Button
               variant="outline"
-              onClick={loadMore}
+              onClick={onShowMore}
               disabled={loadingMore}
               aria-busy={loadingMore}
             >

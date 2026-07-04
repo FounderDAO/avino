@@ -17,7 +17,9 @@
 import { baseApi } from './baseApi';
 import {
   mapListing,
-  toApiSort,
+  boundsSearchPath,
+  polygonSearchPath,
+  searchPagePath,
   type SearchEnvelope,
   type SearchListingsPage,
 } from '@/lib/api/listings';
@@ -49,54 +51,20 @@ export interface SearchPageArgs {
   limit?: number;
 }
 
-/** Общие фильтры §9 (tx/тип/цена/комнаты/q/sort/район) → query-параметры. */
-function filterParams(filter: ListingFilter): Record<string, string | number> {
-  const params: Record<string, string | number> = {};
-  if (filter.tx) params.transaction_type = filter.tx;
-  if (filter.type) params.property_type = filter.type;
-  if (filter.districtId) params.district_id = filter.districtId;
-  if (filter.priceMin != null) params.price_min = filter.priceMin;
-  if (filter.priceMax != null) params.price_max = filter.priceMax;
-  // Валюта ценового диапазона (Task 14): передаём только когда есть рубеж цены.
-  if (filter.currency && (filter.priceMin != null || filter.priceMax != null)) {
-    params.currency = filter.currency;
-  }
-  if (filter.rooms != null) params.rooms = filter.rooms;
-  if (filter.query) params.q = filter.query;
-  const sort = toApiSort(filter.sort);
-  if (sort) params.sort = sort;
-  return params;
-}
-
-/** Углы bbox + фильтры §9 → query-параметры `/search/bounds`. */
-function boundsParams({ bounds, filter = {}, limit = 100 }: BoundsSearchArgs) {
-  return {
-    sw_lat: bounds.swLat,
-    sw_lng: bounds.swLng,
-    ne_lat: bounds.neLat,
-    ne_lng: bounds.neLng,
-    limit,
-    ...filterParams(filter),
-  };
-}
-
-/** Кольцо `points` + фильтры §9 → query-параметры `/search/polygon`. */
-function polygonParams({ points, filter = {}, limit = 100 }: PolygonSearchArgs) {
-  return { points, limit, ...filterParams(filter) };
-}
-
 export const searchApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    /** Листинги внутри видимой области карты (bbox). */
+    /** Листинги внутри видимой области карты (bbox), полный набор фильтров §9. */
     searchByBounds: build.query<Listing[], BoundsSearchArgs>({
-      query: (args) => ({ url: '/search/bounds', params: boundsParams(args) }),
+      query: ({ bounds, filter = {}, limit = 100 }) =>
+        boundsSearchPath(filter, bounds, limit),
       transformResponse: (env: SearchEnvelope) => env.data.map(mapListing),
       providesTags: ['Search'],
     }),
 
     /** Листинги внутри нарисованной территории (ST_Within, TASK-193). */
     searchByPolygon: build.query<Listing[], PolygonSearchArgs>({
-      query: (args) => ({ url: '/search/polygon', params: polygonParams(args) }),
+      query: ({ points, filter = {}, limit = 100 }) =>
+        polygonSearchPath(filter, points, limit),
       transformResponse: (env: SearchEnvelope) => env.data.map(mapListing),
       providesTags: ['Search'],
     }),
@@ -108,10 +76,8 @@ export const searchApi = baseApi.injectEndpoints({
      * чтобы знать следующий курсор и общий total.
      */
     searchPage: build.query<SearchListingsPage, SearchPageArgs>({
-      query: ({ cursor, filter = {}, limit = 24 }) => ({
-        url: '/search',
-        params: { limit, cursor, ...filterParams(filter) },
-      }),
+      query: ({ cursor, filter = {}, limit = 24 }) =>
+        searchPagePath(filter, limit, cursor),
       transformResponse: (env: SearchEnvelope) => ({
         listings: env.data.map(mapListing),
         total: env.meta.total,

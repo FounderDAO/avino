@@ -52,8 +52,14 @@ export interface MapViewProps {
   onPolygonComplete?: (points: LatLng[]) => void;
   /** Прогресс freehand-рисования (число точек обводки; 0 — рисование сброшено). */
   onPolygonProgress?: (count: number) => void;
-  /** Видимая область карты (debounce). Эмитится только без активного draw/polygon. */
-  onBoundsChange?: (bounds: LatLngBounds) => void;
+  /** Видимая область карты (debounce). Эмитится только без активного draw/polygon.
+   *  meta.user=true — изменению предшествовал жест пользователя (drag/wheel/зум-контролы),
+   *  false — программный setBounds (autoFit, initialBounds, оверлеи). */
+  onBoundsChange?: (bounds: LatLngBounds, meta: { user: boolean }) => void;
+
+  /** Начальная область (SSR-восстановление ?sw_lat=…): map.setBounds после
+   *  создания вместо center/zoom. Читается один раз. */
+  initialBounds?: LatLngBounds | null;
 
   /** Текущий режим рисования. */
   drawMode?: DrawMode;
@@ -142,6 +148,7 @@ export function MapView({
   onPolygonComplete,
   onPolygonProgress,
   onBoundsChange,
+  initialBounds = null,
   drawMode = null,
   autoFit = false,
   recenterOnHover = false,
@@ -169,6 +176,11 @@ export function MapView({
   circleRef.current = circle;
   polygonRef.current = polygon;
   drawModeRef.current = drawMode;
+  // Жест пользователя: взводится DOM-событиями контейнера, потребляется на
+  // каждом эмите bounds и сбрасывается перед программными setBounds.
+  const userGestureRef = React.useRef(false);
+  // Начальная область — только на создание карты.
+  const initialBoundsRef = React.useRef(initialBounds ?? null);
 
   // ── Инициализация карты (один раз, когда ymaps готов) ──
   React.useEffect(() => {
@@ -190,6 +202,20 @@ export function MapView({
     mapRef.current = map;
     clustererRef.current = clusterer;
 
+    // SSR-восстановление области (?sw_lat=…): вид по bbox вместо center/zoom.
+    if (initialBoundsRef.current) {
+      const ib = initialBoundsRef.current;
+      userGestureRef.current = false;
+      try {
+        map.setBounds(
+          [[ib.swLat, ib.swLng], [ib.neLat, ib.neLng]],
+          { checkZoomRange: true },
+        );
+      } catch {
+        /* некорректный bbox — остаёмся на center/zoom */
+      }
+    }
+
     // Эмит текущей видимой области карты в onBoundsChange (с защитой от режима
     // рисования / зафиксированной территории — тогда область считает MapSearch
     // по полигону, а не по bbox).
@@ -197,9 +223,12 @@ export function MapView({
       if (drawModeRef.current || polygonRef.current) return;
       const b = map.getBounds(); // [[swLat,swLng],[neLat,neLng]]
       if (!b) return;
-      cb.current.onBoundsChange?.({
-        swLat: b[0][0], swLng: b[0][1], neLat: b[1][0], neLng: b[1][1],
-      });
+      const user = userGestureRef.current;
+      userGestureRef.current = false; // флаг одноразовый — потребляем на эмите
+      cb.current.onBoundsChange?.(
+        { swLat: b[0][0], swLng: b[0][1], neLat: b[1][0], neLng: b[1][1] },
+        { user },
+      );
     };
 
     // Сдвиг/зум пользователя → подгрузка листингов видимой области (debounce).
@@ -210,6 +239,40 @@ export function MapView({
       timer = setTimeout(emitBounds, BOUNDS_DEBOUNCE_MS);
     });
 
+    // ── Детект жеста: drag (pointerdown+move>3px), wheel, клик по контролам
+    // карты (зум/дабл-клик). Клик по ценовому пину (.av-ypin) жестом НЕ считается
+    // — это onSelect, области не меняет. Capture-фаза: ymaps глушит bubbling.
+    // На сенсорах браузер может прервать последовательность pointercancel'ом —
+    // сбрасываем незавершённое нажатие, иначе downXY зависает и ломает жест.
+    const gestureEl = elRef.current;
+    let downXY: [number, number] | null = null;
+    const onPointerDown = (e: PointerEvent) => {
+      downXY = [e.clientX, e.clientY];
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (!downXY) return;
+      if (Math.abs(e.clientX - downXY[0]) + Math.abs(e.clientY - downXY[1]) > 3) {
+        userGestureRef.current = true;
+      }
+    };
+    const onPointerUp = () => {
+      downXY = null;
+    };
+    const onWheel = () => {
+      userGestureRef.current = true;
+    };
+    const onContainerClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement | null)?.closest?.('.av-ypin')) {
+        userGestureRef.current = true;
+      }
+    };
+    gestureEl?.addEventListener('pointerdown', onPointerDown, true);
+    gestureEl?.addEventListener('pointermove', onPointerMove, true);
+    gestureEl?.addEventListener('pointerup', onPointerUp, true);
+    gestureEl?.addEventListener('pointercancel', onPointerUp, true);
+    gestureEl?.addEventListener('wheel', onWheel, { capture: true, passive: true });
+    gestureEl?.addEventListener('click', onContainerClick, true);
+
     // Стартовая выдача: один раз эмитим текущую (по умолчанию — Ташкент) область
     // сразу на загрузке, чтобы список не был пустым и пины появились без действий
     // пользователя. setTimeout(0) — даём контейнеру разложиться, чтобы getBounds()
@@ -219,6 +282,12 @@ export function MapView({
     return () => {
       if (timer) clearTimeout(timer);
       clearTimeout(initTimer);
+      gestureEl?.removeEventListener('pointerdown', onPointerDown, true);
+      gestureEl?.removeEventListener('pointermove', onPointerMove, true);
+      gestureEl?.removeEventListener('pointerup', onPointerUp, true);
+      gestureEl?.removeEventListener('pointercancel', onPointerUp, true);
+      gestureEl?.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions);
+      gestureEl?.removeEventListener('click', onContainerClick, true);
       map.destroy();
       mapRef.current = null;
       clustererRef.current = null;
@@ -263,6 +332,7 @@ export function MapView({
     // Автоподгон вида: только на /search и только без активного оверлея.
     if (autoFit && !circleRef.current && !polygonRef.current && placemarks.length) {
       try {
+        userGestureRef.current = false; // программный автоподгон — не жест
         map.setBounds(clusterer.getBounds(), { checkZoomRange: true, zoomMargin: 48 });
       } catch {
         /* пустые границы — оставляем текущий вид */
@@ -284,7 +354,10 @@ export function MapView({
     });
     if (recenterOnHover && activeId) {
       const a = listings.find((l) => l.id === activeId);
-      if (a?.lat != null && a?.lng != null) map.panTo([a.lat, a.lng], { flying: true });
+      if (a?.lat != null && a?.lng != null) {
+        userGestureRef.current = false; // программное панорамирование к пину — не жест
+        map.panTo([a.lat, a.lng], { flying: true });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, ymaps, recenterOnHover]);
@@ -307,6 +380,7 @@ export function MapView({
       map.geoObjects.add(c);
       overlayRef.current = c;
       try {
+        userGestureRef.current = false;
         map.setBounds(c.geometry.getBounds(), { checkZoomRange: true, zoomMargin: 40 });
       } catch {
         /* no-op */
@@ -316,6 +390,7 @@ export function MapView({
       map.geoObjects.add(p);
       overlayRef.current = p;
       try {
+        userGestureRef.current = false;
         map.setBounds(p.geometry.getBounds(), { checkZoomRange: true, zoomMargin: 48 });
       } catch {
         /* no-op */
