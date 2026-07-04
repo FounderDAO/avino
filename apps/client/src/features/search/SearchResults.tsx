@@ -30,6 +30,7 @@ import {
   useLazySearchPageQuery,
 } from '@/store/api/searchApi';
 import type { Listing, ListingFilter } from '@/lib/mock/types';
+import { SEARCH_PAGE_SIZE } from '@/lib/api/listings';
 import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
 import { useMapHoverRecenter } from '@/lib/useMapHoverRecenter';
 import { MapPreviewCard } from '@/features/map/MapPreviewCard';
@@ -50,7 +51,7 @@ const MapView = dynamic(
 );
 
 export interface SearchResultsProps {
-  /** Первая страница выдачи из SSR (limit=24). */
+  /** Первая страница выдачи из SSR (limit=SEARCH_PAGE_SIZE). */
   listings: Listing[];
   /** meta.total — общее число объявлений под фильтром (для счётчика). */
   total: number;
@@ -134,7 +135,7 @@ export function SearchResults({
   );
 
   // ── Пагинация по keyset-курсору (TASK-199) ──
-  // SSR отдаёт первую страницу (limit=24) + курсор; докуданные страницы храним
+  // SSR отдаёт первую страницу (limit=SEARCH_PAGE_SIZE) + курсор; докуданные страницы храним
   // отдельно и дотягиваем по кнопке «Показать ещё» через RTK Query (CLAUDE.md §4).
   // Сбрасываем при смене фильтров: и сигнатура фильтра, и первый курсор приходят
   // новой SSR-выдачей одновременно.
@@ -150,7 +151,7 @@ export function SearchResults({
   const loadMore = React.useCallback(async () => {
     if (!cursor || loadingMore) return;
     try {
-      const res = await loadPage({ cursor, filter: filterWithCurrency, limit: 24 }).unwrap();
+      const res = await loadPage({ cursor, filter: filterWithCurrency, limit: SEARCH_PAGE_SIZE }).unwrap();
       // Append: набор листингов растёт → MapView перестраивает пины, а подсветка
       // activeId живёт отдельным эффектом, поэтому активный hover не сбрасывается.
       setExtra((prev) => [...prev, ...res.listings]);
@@ -171,10 +172,10 @@ export function SearchResults({
       : paged;
 
   // Viewport-режим: один запрос (limit=100), список раскрывается локальными
-  // батчами по 24 без сети (маркеры при этом видят весь набор).
-  const [visibleCount, setVisibleCount] = React.useState(24);
+  // батчами по SEARCH_PAGE_SIZE без сети (маркеры при этом видят весь набор).
+  const [visibleCount, setVisibleCount] = React.useState(SEARCH_PAGE_SIZE);
   React.useEffect(() => {
-    setVisibleCount(24);
+    setVisibleCount(SEARCH_PAGE_SIZE);
   }, [vp.listings]);
   const listShown = vp.active && !points ? displayed.slice(0, visibleCount) : displayed;
 
@@ -187,7 +188,7 @@ export function SearchResults({
       : cursor != null;
   const busy = Boolean(loading) || isFetching;
   const onShowMore = vp.active
-    ? () => setVisibleCount((c) => c + 24)
+    ? () => setVisibleCount((c) => c + SEARCH_PAGE_SIZE)
     : loadMore;
 
   const startDraw = () => {
@@ -206,6 +207,11 @@ export function SearchResults({
     // Невалидное кольцо (< 3 вершин / вне WGS84) → территорию не ставим.
     setPolygon(serializePolygonRing(pts) ? pts : null);
   }, []);
+
+  // Превью по клику на пин (Zillow): MapView позиционирует карточку у пина.
+  const preview = vp.previewId
+    ? displayed.find((l) => l.id === vp.previewId) ?? null
+    : null;
 
   return (
     // Рабочая область сплита занимает высоту вьюпорта под хедером и фильтр-баром.
@@ -238,6 +244,14 @@ export function SearchResults({
           initialBounds={initialBounds}
           autoFit={!vp.active}
           recenterOnHover={recenterOnHover}
+          preview={
+            preview
+              ? {
+                  listingId: preview.id,
+                  node: <MapPreviewCard listing={preview} onClose={vp.closePreview} />,
+                }
+              : null
+          }
         />
 
         {/* ---- Управление территорией (поверх карты, как на /map) ---- */}
@@ -283,15 +297,6 @@ export function SearchResults({
           )}
         </div>
 
-        {/* ---- Превью карточки по клику на пин (Zillow) ---- */}
-        {(() => {
-          const preview = vp.previewId
-            ? displayed.find((l) => l.id === vp.previewId) ?? null
-            : null;
-          return preview ? (
-            <MapPreviewCard listing={preview} onClose={vp.closePreview} />
-          ) : null;
-        })()}
       </div>
 
       {/* ---- Колонка со списком (справа, свой скролл) ---- */}

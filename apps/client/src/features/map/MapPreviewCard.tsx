@@ -4,8 +4,8 @@
  *
  * Сама карточка — обычный PropertyCard (= Link на /listing/[id]): клик по ней
  * перехватывается слотом @modal и открывает ListingModal поверх выдачи.
- * Позиционируется absolute у нижнего края ближайшего relative-родителя
- * (контейнер карты).
+ * Позиционирует её MapView: якорь у кликнутого пина (проп `preview`), позиция
+ * пересчитывается при драге/зуме; здесь — только размер и оболочка.
  */
 'use client';
 
@@ -23,7 +23,7 @@ export interface MapPreviewCardProps {
 export function MapPreviewCard({ listing, onClose }: MapPreviewCardProps) {
   const t = useTranslations('search');
   return (
-    <div className="absolute bottom-4 left-3 right-3 z-[1000] mx-auto max-w-sm sm:left-4 sm:right-auto">
+    <div className="w-[min(360px,calc(100vw-32px))]">
       <div className="relative">
         <button
           type="button"
