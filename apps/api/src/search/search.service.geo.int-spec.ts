@@ -486,3 +486,151 @@ describe('SearchService.searchPolygon (integration, live PostGIS)', () => {
     expect(collected).not.toContain(POLY_ID.noGeo);
   });
 });
+
+// ─── SearchService.searchClusters integration tests ───────────────────────────
+
+/**
+ * Integration-тесты `searchClusters` на живом PostgreSQL+PostGIS (TASK-225,
+ * ADR-0126). Проверяет:
+ *   - низкий zoom сливает все гео-листинги в одну ячейку (агрегаты count/цена);
+ *   - высокий zoom разносит тройку близких листингов и дальний листинг по
+ *     разным ячейкам (инвариант: дальний — всегда отдельно, сумма count = 4);
+ *   - применяются фильтры §9 (price_max);
+ *   - full-extent bbox работает через чанкованный префильтр (TASK-226).
+ *
+ * НЕ ассертить точные значения min_price/avg_price — в стендовой БД может
+ * существовать строка курса ЦБУ (FX-конвертация в USD изменит числа); ассерты
+ * только на count/геометрию/инварианты.
+ *
+ * Уникальный `city_id` изолирует данные от остальных тестов. Данные очищаются в
+ * `afterAll`.
+ */
+describe('SearchService.searchClusters (integration, live PostGIS)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  // Уникальный city_id для изоляции.
+  const CITY_ID = '11111111-2222-4333-8444-777777777777';
+
+  const ID = {
+    c1: 'c1111111-0000-4000-8000-000000000083',
+    c2: 'c2222222-0000-4000-8000-000000000083',
+    c3: 'c3333333-0000-4000-8000-000000000083',
+    far: 'c4444444-0000-4000-8000-000000000083',
+    noGeo: 'c5555555-0000-4000-8000-000000000083',
+  };
+
+  let ownerId: string;
+
+  async function createListing(params: {
+    id: string;
+    latitude: string | null;
+    longitude: string | null;
+    price: string;
+  }): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id: params.id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: params.price,
+        currency: Currency.UZS,
+        cityId: CITY_ID,
+        latitude: params.latitude,
+        longitude: params.longitude,
+        promotionType: PromotionType.NORMAL,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `cluster-${params.id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID } });
+
+    const owner = await prisma.user.create({
+      data: { phone: '+998900000083' },
+    });
+    ownerId = owner.id;
+
+    // Тройка в одной ячейке любого разумного зума (≤ 0.002° разброса) + дальний.
+    await createListing({ id: ID.c1, latitude: '41.311000', longitude: '69.280000', price: '100000.00' });
+    await createListing({ id: ID.c2, latitude: '41.311500', longitude: '69.280500', price: '200000.00' });
+    await createListing({ id: ID.c3, latitude: '41.312000', longitude: '69.281000', price: '300000.00' });
+    await createListing({ id: ID.far, latitude: '41.490000', longitude: '69.280000', price: '900000.00' });
+    await createListing({ id: ID.noGeo, latitude: null, longitude: null, price: '100000.00' });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('low zoom merges everything into one cell with count and price aggregates', async () => {
+    const result = await service.searchClusters({
+      sw_lat: 41.0, sw_lng: 69.0, ne_lat: 41.6, ne_lng: 69.5,
+      zoom: 4, city_id: CITY_ID,
+    });
+    // cell(zoom 4) = 360/16/8 = 2.8125°. zoom 5 (1.40625°) технически тоже
+    // «в одной ячейке» по размеру, но ST_SnapToGrid округляет К БЛИЖАЙШЕМУ
+    // узлу абсолютной сетки (не относительно данных) — far (41.49) попадает
+    // ровно у границы бина на zoom 5 и уезжает в соседнюю ячейку; zoom 4 даёт
+    // запас и надёжно сливает все 4 гео-листинга в одну ячейку.
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].count).toBe(4);
+    expect(result.data[0].min_price).toBeLessThanOrEqual(result.data[0].avg_price);
+    // Центроид — внутри разброса фикстур.
+    expect(result.data[0].latitude).toBeGreaterThan(41.3);
+    expect(result.data[0].latitude).toBeLessThan(41.5);
+  });
+
+  it('high zoom splits near-triple and far listing into separate cells', async () => {
+    const result = await service.searchClusters({
+      sw_lat: 41.0, sw_lng: 69.0, ne_lat: 41.6, ne_lng: 69.5,
+      zoom: 12, city_id: CITY_ID,
+    });
+    // cell(zoom 12) ≈ 0.011° — тройка (разброс ≤0.002°) может лечь в 1-2 смежные
+    // ячейки в зависимости от выравнивания сетки; far — всегда отдельно.
+    const total = result.data.reduce((s, c) => s + c.count, 0);
+    expect(total).toBe(4);
+    expect(result.data.length).toBeGreaterThanOrEqual(2);
+    const farCell = result.data.find((c) => Math.abs(c.latitude - 41.49) < 0.01);
+    expect(farCell?.count).toBe(1);
+  });
+
+  it('applies §9 filters (price_max drops the expensive far listing)', async () => {
+    const result = await service.searchClusters({
+      sw_lat: 41.0, sw_lng: 69.0, ne_lat: 41.6, ne_lng: 69.5,
+      zoom: 5, city_id: CITY_ID, price_max: '500000',
+    });
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].count).toBe(3); // far (900000) отфильтрован
+  });
+
+  it('full-extent bbox works (chunked prefilter from TASK-226)', async () => {
+    const result = await service.searchClusters({
+      sw_lat: -85, sw_lng: -180, ne_lat: 85, ne_lng: 180,
+      zoom: 2, city_id: CITY_ID,
+    });
+    expect(result.data.reduce((s, c) => s + c.count, 0)).toBe(4);
+  });
+});

@@ -12,7 +12,7 @@ import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { DistrictsService } from '../geo';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
-import { SearchService } from './search.service';
+import { clusterCellSizeDeg, SearchService } from './search.service';
 
 /**
  * Юнит-тесты SearchService (TASK-080 + TASK-081). Prisma мокается.
@@ -547,5 +547,16 @@ describe('SearchService', () => {
       expect(pageSql.values).not.toContain(6);
       expect(sqlText(pageSql)).not.toContain('ST_DWithin');
     });
+  });
+});
+
+describe('clusterCellSizeDeg (TASK-225)', () => {
+  it('is ~8 cells per 256px tile and halves with each zoom step', () => {
+    expect(clusterCellSizeDeg(0)).toBeCloseTo(45); // 360 / 1 / 8
+    expect(clusterCellSizeDeg(1)).toBeCloseTo(22.5);
+    expect(clusterCellSizeDeg(5)).toBeCloseTo(360 / 32 / 8);
+    for (let z = 0; z < 22; z += 1) {
+      expect(clusterCellSizeDeg(z + 1)).toBeCloseTo(clusterCellSizeDeg(z) / 2);
+    }
   });
 });

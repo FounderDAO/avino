@@ -1700,6 +1700,324 @@
         }
       }
     },
+    "/api/v1/search/clusters": {
+      "get": {
+        "operationId": "SearchController_searchClusters",
+        "parameters": [
+          {
+            "name": "zoom",
+            "required": true,
+            "in": "query",
+            "description": "Зум карты (web-mercator); задаёт шаг кластерной сетки",
+            "schema": {
+              "minimum": 0,
+              "maximum": 22,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sw_lat",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minimum": -90,
+              "maximum": 90,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sw_lng",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minimum": -180,
+              "maximum": 180,
+              "type": "number"
+            }
+          },
+          {
+            "name": "ne_lat",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minimum": -90,
+              "maximum": 90,
+              "type": "number"
+            }
+          },
+          {
+            "name": "ne_lng",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minimum": -180,
+              "maximum": 180,
+              "type": "number"
+            }
+          },
+          {
+            "name": "price_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "DECIMAL_2",
+              "type": "string"
+            }
+          },
+          {
+            "name": "price_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "DECIMAL_2",
+              "type": "string"
+            }
+          },
+          {
+            "name": "city_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "region_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "district_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "date_desc",
+                "price_asc",
+                "price_desc",
+                "area_desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "name": "rooms",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "rooms_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "bathrooms_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                1,
+                1.5,
+                2,
+                3,
+                4
+              ],
+              "type": "number"
+            }
+          },
+          {
+            "name": "floor_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "floor_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "not_first_floor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "not_last_floor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "is_basement",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "total_floors_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "total_floors_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "year_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "year_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "listing_source",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "OWNER",
+                "AGENCY"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "tours_enabled",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "area_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "area_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lot_area_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lot_area_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClustersResponseDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/search/near-me": {
       "get": {
         "operationId": "SearchController_searchNearMe",
@@ -4973,6 +5291,61 @@
         },
         "required": [
           "order"
+        ]
+      },
+      "ClusterCellDto": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "description": "Широта центроида листингов ячейки (WGS84)"
+          },
+          "longitude": {
+            "type": "number",
+            "description": "Долгота центроида листингов ячейки (WGS84)"
+          },
+          "count": {
+            "type": "number",
+            "description": "Число объявлений в ячейке"
+          },
+          "min_price": {
+            "type": "number",
+            "description": "Минимальная цена в ячейке (в валюте ответа)"
+          },
+          "avg_price": {
+            "type": "number",
+            "description": "Средняя цена в ячейке (в валюте ответа)"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "count",
+          "min_price",
+          "avg_price"
+        ]
+      },
+      "ClustersResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClusterCellDto"
+            }
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "UZS",
+              "USD"
+            ],
+            "description": "Валюта ценовых агрегатов"
+          }
+        },
+        "required": [
+          "data",
+          "currency"
         ]
       },
       "PriceBucketDto": {
