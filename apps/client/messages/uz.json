@@ -653,6 +653,17 @@
       "login": "Kirish",
       "home": "Bosh sahifa"
     },
+    "contactGate": {
+      "title": "Aloqa ma'lumotlari",
+      "text": "E'lon joylash uchun ism, familiya va telefon raqamini kiriting — ular e'lon kartochkasida xaridorlarga ko'rinadi.",
+      "firstName": "Ism",
+      "lastName": "Familiya",
+      "phone": "Telefon",
+      "phonePlaceholder": "+998 90 123-45-67",
+      "submit": "Davom etish",
+      "saving": "Saqlanmoqda…",
+      "error": "Ma'lumotlarni saqlab bo'lmadi. Yana urinib ko'ring."
+    },
     "success": {
       "title": "E'lon moderatsiyaga\nyuborildi",
       "status": "Holat: NEW · Tekshiruvda",

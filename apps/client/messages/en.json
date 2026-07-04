@@ -653,6 +653,17 @@
       "login": "Sign in",
       "home": "Go home"
     },
+    "contactGate": {
+      "title": "Contact details",
+      "text": "To post a listing, add your first name, last name and phone — buyers will see them on the listing card.",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Phone",
+      "phonePlaceholder": "+998 90 123-45-67",
+      "submit": "Continue",
+      "saving": "Saving…",
+      "error": "Could not save your details. Please try again."
+    },
     "success": {
       "title": "Your listing has been\nsent for moderation",
       "status": "Status: NEW · Under review",
