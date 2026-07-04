@@ -12,6 +12,10 @@ import {
   PriceDistributionResponseDto,
 } from './dto/price-distribution.dto';
 import {
+  ClustersResponseDto,
+  ClustersSearchQueryDto,
+} from './dto/clusters.dto';
+import {
   CursorPaginatedResponse,
   SearchListItem,
   SearchService,
@@ -64,6 +68,19 @@ export class SearchController {
     @Headers('accept-language') acceptLanguage?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     return this.searchService.searchBounds(query, lang, acceptLanguage);
+  }
+
+  /**
+   * `GET /api/v1/search/clusters` — агрегаты кластерной сетки для широких зумов
+   * карты (TASK-225, ADR-0126): ячейки с count/min_price/avg_price вместо
+   * страницы листингов. bbox + zoom + все фильтры §9. Auth: public.
+   */
+  @Get('clusters')
+  @ApiOkResponse({ type: ClustersResponseDto })
+  searchClusters(
+    @Query() query: ClustersSearchQueryDto,
+  ): Promise<ClustersResponseDto> {
+    return this.searchService.searchClusters(query);
   }
 
   /**

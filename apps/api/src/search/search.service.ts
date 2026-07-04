@@ -30,6 +30,10 @@ import {
   PriceDistributionQueryDto,
   PriceDistributionResponseDto,
 } from './dto/price-distribution.dto';
+import {
+  ClustersResponseDto,
+  ClustersSearchQueryDto,
+} from './dto/clusters.dto';
 
 /**
  * Округляет «вверх» до красивого числа (1/2/2.5/5/10 × 10^k) — потолок домена
@@ -43,9 +47,20 @@ function niceCeil(v: number): number {
   return nice * mag;
 }
 
+/**
+ * Размер ячейки кластерной сетки в градусах для зума web-mercator (TASK-225,
+ * ADR-0126): ~8 ячеек на тайл 256px (~32px на экране — плотность supercluster).
+ * Экспортирована как чистая функция для юнит-тестов.
+ */
+export function clusterCellSizeDeg(zoom: number): number {
+  return 360 / Math.pow(2, zoom) / 8;
+}
+
 /** Дефолт/максимум размера страницы (API.md §4: default 20, max 100). */
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+/** Максимум ячеек в ответе кластеризации — защита от «bbox × высокий zoom». */
+const MAX_CLUSTER_CELLS = 2000;
 
 /**
  * Сколько промо-объявлений закрепляется в начале выдачи при ЯВНОМ выборе
@@ -605,6 +620,77 @@ export class SearchService {
       langParam,
       acceptLanguage,
     );
+  }
+
+  /**
+   * `GET /api/v1/search/clusters` — агрегаты кластерной сетки для широких зумов
+   * карты (TASK-225, ADR-0126, схема Zillow/Airbnb): вместо страницы листингов —
+   * ячейки `ST_SnapToGrid` с числом объявлений и ценовыми агрегатами. Клиент
+   * рисует кластерные кружки; при < ~200 объектов в боксе переключается на
+   * обычные пины `/search/bounds`.
+   *
+   * bbox-фильтр — как у {@link searchBounds}: GIST-префильтр
+   * ({@link boundsPrefilterSql}, широкие bbox чанкуются — TASK-226) + точный
+   * `ST_Within`. Применяются ВСЕ фильтры §9 ({@link buildWhereSql}).
+   *
+   * Координата кластера — центроид точек ячейки (avg по listing-координатам,
+   * кружок стоит на реальных данных, не в углу пустой ячейки). `min_price`/
+   * `avg_price` FX-нормализуются к `currency` (default USD) по курсу ЦБУ
+   * ({@link priceInCurrencySql}); нет курса → сырые цены (деградация ADR-0117).
+   * Ответ не пагинируется; guard `LIMIT {@link MAX_CLUSTER_CELLS}` по count DESC
+   * (крупнейшие кластеры выживают при патологическом bbox×zoom).
+   */
+  async searchClusters(
+    query: ClustersSearchQueryDto,
+  ): Promise<ClustersResponseDto> {
+    const cell = clusterCellSizeDeg(query.zoom);
+    const envelope = this.envelopeSql(query);
+    const currency = query.currency ?? Currency.USD;
+    const rate = await this.fxRate();
+    const priceExpr = rate
+      ? this.priceInCurrencySql(currency, rate)
+      : Prisma.sql`price`;
+    // Курс для ценового ФИЛЬТРА — тот же rate, но только если фильтр задан
+    // (семантика fxRateForFilter, без второго похода в БД).
+    const filterRate =
+      (query.price_min !== undefined || query.price_max !== undefined) &&
+      query.currency !== undefined
+        ? rate
+        : null;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, filterRate)} AND location IS NOT NULL AND ${this.boundsPrefilterSql(query)} AND ST_Within(location::geometry, ${envelope})`;
+
+    const rows = await this.prisma.$queryRaw<
+      {
+        latitude: number;
+        longitude: number;
+        count: number;
+        min_price: number;
+        avg_price: number;
+      }[]
+    >(Prisma.sql`
+      SELECT
+        avg(ST_Y(location::geometry))::float8 AS latitude,
+        avg(ST_X(location::geometry))::float8 AS longitude,
+        count(*)::int AS count,
+        min(${priceExpr})::float8 AS min_price,
+        avg(${priceExpr})::float8 AS avg_price
+      FROM listings
+      WHERE ${filterSql}
+      GROUP BY ST_SnapToGrid(location::geometry, ${cell}, ${cell})
+      ORDER BY count DESC
+      LIMIT ${MAX_CLUSTER_CELLS}
+    `);
+
+    return {
+      data: rows.map((r) => ({
+        latitude: Number(r.latitude),
+        longitude: Number(r.longitude),
+        count: Number(r.count),
+        min_price: Number(r.min_price),
+        avg_price: Number(r.avg_price),
+      })),
+      currency,
+    };
   }
 
   /**
