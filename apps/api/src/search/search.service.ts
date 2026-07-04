@@ -578,7 +578,7 @@ export class SearchService {
     const envelope = this.envelopeSql(query);
     const fxRate = await this.fxRateForFilter(query);
     // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
-    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND location && ${envelope}::geography AND ST_Within(location::geometry, ${envelope})`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND ${this.boundsPrefilterSql(query)} AND ST_Within(location::geometry, ${envelope})`;
     const pageWhere = cursor
       ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
@@ -796,9 +796,45 @@ export class SearchService {
    * `ST_MakeEnvelope(xmin, ymin, xmax, ymax, srid)` — порядок аргументов
    * (долгота, широта): `xmin=sw_lng, ymin=sw_lat, xmax=ne_lng, ymax=ne_lat`.
    * Перевёрнутый/вырожденный bbox (`sw > ne`) даёт пустую выдачу, а не ошибку.
+   * Для GIST-префильтра по geography использовать {@link boundsPrefilterSql}
+   * (каст к geography при ширине ≥ 180° по долготе вырождается, TASK-226).
    */
   private envelopeSql(query: BoundsSearchQueryDto): Prisma.Sql {
     return Prisma.sql`ST_MakeEnvelope(${query.sw_lng}, ${query.sw_lat}, ${query.ne_lng}, ${query.ne_lat}, 4326)`;
+  }
+
+  /**
+   * GIST-префильтр bbox по geography-колонке `location`. При касте planar-envelope
+   * к geography рёбра становятся дугами больших кругов «коротким путём»: при ширине
+   * bbox ≥ 180° по долготе полигон вырождается/инвертируется (при 360° горизонтальные
+   * рёбра — нулевой длины), и `&&` отбрасывает всё (баг мобилки 2026-07-04, TASK-226).
+   * Поэтому широкий bbox режется на куски ≤ 90° по долготе (запас от граничных 180°),
+   * префильтр — OR по кускам (GIST bitmap-OR, индекс работает). Для кусков < 180°
+   * geography-полигон — надмножество planar-прямоугольника (дуги выгибаются к полюсам),
+   * т.е. префильтр остаётся корректным надмножеством; точность гарантирует ST_Within.
+   */
+  private boundsPrefilterSql(query: {
+    sw_lat: number;
+    sw_lng: number;
+    ne_lat: number;
+    ne_lng: number;
+  }): Prisma.Sql {
+    const span = query.ne_lng - query.sw_lng;
+    if (span < 180) {
+      const envelope = Prisma.sql`ST_MakeEnvelope(${query.sw_lng}, ${query.sw_lat}, ${query.ne_lng}, ${query.ne_lat}, 4326)`;
+      return Prisma.sql`location && ${envelope}::geography`;
+    }
+    const chunks = Math.ceil(span / 90);
+    const step = span / chunks;
+    const parts: Prisma.Sql[] = [];
+    for (let i = 0; i < chunks; i += 1) {
+      const west = query.sw_lng + i * step;
+      const east = i === chunks - 1 ? query.ne_lng : query.sw_lng + (i + 1) * step;
+      parts.push(
+        Prisma.sql`location && ST_MakeEnvelope(${west}, ${query.sw_lat}, ${east}, ${query.ne_lat}, 4326)::geography`,
+      );
+    }
+    return Prisma.sql`(${Prisma.join(parts, ' OR ')})`;
   }
 
   /**

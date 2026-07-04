@@ -231,6 +231,58 @@ describe('SearchService geo (integration, live PostGIS)', () => {
     expect(collected).not.toContain(ID.noGeo);
   });
 
+  it('bounds full-extent bbox (whole world) returns all geo listings (mobile bug 2026-07-04)', async () => {
+    // Регресс: geography-каст envelope шириной 360° вырождается (рёбра (-180,lat)→(180,lat)
+    // — одна точка сферы) → GIST-префильтр && отбрасывал всё, total: 0.
+    const result = await service.searchBounds({
+      sw_lat: -85,
+      sw_lng: -180,
+      ne_lat: 85,
+      ne_lng: 180,
+      city_id: CITY_ID,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toEqual(new Set([ID.near, ID.mid, ID.far, ID.outside]));
+    expect(result.meta.total).toBe(4);
+    expect(ids.has(ID.noGeo)).toBe(false);
+  });
+
+  it('bounds bbox wider than 180° of longitude still matches listings inside', async () => {
+    // span 200° ≥ 180°: «короткий путь» дуг инвертирует полигон в geography —
+    // без чанкинга префильтр либо пуст, либо покрывает комплемент.
+    const result = await service.searchBounds({
+      sw_lat: -85,
+      sw_lng: -100,
+      ne_lat: 85,
+      ne_lng: 100, // Ташкент (69.28) внутри
+      city_id: CITY_ID,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toEqual(new Set([ID.near, ID.mid, ID.far, ID.outside]));
+    expect(result.meta.total).toBe(4);
+  });
+
+  it('bounds bbox of exactly 180° of longitude still matches listings inside', async () => {
+    // Ровно 180°: Δlng=180° на одной широте — дуга «короткого пути» неоднозначна
+    // (через полюс), одиночный geography-каст ненадёжен → тоже путь чанкинга.
+    const result = await service.searchBounds({
+      sw_lat: -85,
+      sw_lng: -90,
+      ne_lat: 85,
+      ne_lng: 90, // span ровно 180; Ташкент (69.28) внутри
+      city_id: CITY_ID,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toEqual(new Set([ID.near, ID.mid, ID.far, ID.outside]));
+    expect(result.meta.total).toBe(4);
+  });
+
   it('radius keeps a stable keyset across pages with no gaps or duplicates', async () => {
     const collected: string[] = [];
     let cursor: string | null | undefined;
