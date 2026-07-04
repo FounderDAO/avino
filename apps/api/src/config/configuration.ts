@@ -240,10 +240,15 @@ export const jwtConfig = registerAs('jwt', () => ({
   refreshTtl: parseInt(process.env.JWT_REFRESH_TTL ?? '2592000', 10),
 }));
 
-// Google Sign-In (passwordless вход публичного портала). clientId опционален на
-// старте — без него /auth/google отдаёт 503 AUTH_PROVIDER_UNAVAILABLE.
+// Google Sign-In (passwordless вход публичного портала). clientIds опциональны
+// на старте — без них /auth/google отдаёт 503 AUTH_PROVIDER_UNAVAILABLE. CSV
+// разрешённых audience (web-клиент сайта; web-/iOS-клиенты Firebase-проекта
+// мобильного приложения — aud мобильных id_token отличается от клиента сайта).
 export const googleConfig = registerAs('google', () => ({
-  clientId: process.env.GOOGLE_CLIENT_ID,
+  clientIds: (process.env.GOOGLE_CLIENT_ID ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
 }));
 
 // Sign in with Apple (passwordless вход публичного портала). clientIds опциональны

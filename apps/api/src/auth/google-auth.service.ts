@@ -39,7 +39,9 @@ interface ResolvedGoogleUser {
  * GoogleAuthService — passwordless вход через Google ID-token.
  *
  * Верификация токена офлайн через google-auth-library (проверка подписи/aud/
- * iss/exp). Связывание аккаунта (account-linking hardening, H-2): авто-привязка
+ * iss/exp); `aud` матчится с ЛЮБЫМ из настроенных clientIds (CSV в
+ * GOOGLE_CLIENT_ID: web-клиент сайта + web-/iOS-клиенты Firebase-проекта
+ * мобильного приложения). Связывание аккаунта (account-linking hardening, H-2): авто-привязка
  * к СУЩЕСТВУЮЩЕМУ аккаунту разрешена только когда провайдер утверждает
  * email_verified=true; при наличии аккаунта на этот email с непроверенным флагом
  * молчаливый мерж запрещён → 409 ACCOUNT_LINK_REQUIRED. Новый пользователь
@@ -66,8 +68,8 @@ export class GoogleAuthService {
     ip?: string,
     userAgent?: string,
   ): Promise<VerifyOtpResult> {
-    const clientId = this.config.get<string>('google.clientId');
-    if (!clientId) {
+    const clientIds = this.config.get<string[]>('google.clientIds');
+    if (!clientIds || clientIds.length === 0) {
       throw new HttpException(
         {
           code: ApiErrorCode.AUTH_PROVIDER_UNAVAILABLE,
@@ -77,7 +79,7 @@ export class GoogleAuthService {
       );
     }
 
-    const payload = await this.verifyToken(dto.id_token, clientId);
+    const payload = await this.verifyToken(dto.id_token, clientIds);
 
     // Гейт verified переехал в resolveByEmail (account-linking, H-2): непроверенный
     // email больше НЕ блокирует вход глобально — новый пользователь создаётся с
@@ -134,15 +136,15 @@ export class GoogleAuthService {
 
   private async verifyToken(
     idToken: string,
-    clientId: string,
+    clientIds: string[],
   ): Promise<GooglePayload> {
     if (!this.client) {
-      this.client = new OAuth2Client(clientId);
+      this.client = new OAuth2Client();
     }
     try {
       const ticket = await this.client.verifyIdToken({
         idToken,
-        audience: clientId,
+        audience: clientIds,
       });
       const p = ticket.getPayload();
       if (!p?.email || !p.sub) {
