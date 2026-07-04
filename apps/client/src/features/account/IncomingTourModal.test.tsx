@@ -19,6 +19,7 @@ const base = {
   requested_date: '2099-02-02', window_start: '18:00', window_end: '20:00',
   requester_name: 'Buyer', requester_phone: '+998900000000',
   message: 'Хочу посмотреть вечером', created_at: '',
+  listing: { id: 'L2', title: 'Тестовый листинг', photo_url: null },
 };
 
 describe('IncomingTourModal', () => {
