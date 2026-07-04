@@ -53,4 +53,33 @@ describe('ContactDetailsGate', () => {
       }),
     );
   });
+
+  it('пересинхронизирует поля при догрузке user (getMe асинхронен)', () => {
+    mockUser = null;
+    const { rerender } = render(<ContactDetailsGate />);
+
+    mockUser = {
+      phone: null,
+      profile: { first_name: 'Ali', last_name: 'Valiev', contact_phone: '+998901234567' },
+    };
+    rerender(<ContactDetailsGate />);
+
+    expect(screen.getByLabelText('contactGate.firstName')).toHaveValue('Ali');
+    expect(screen.getByLabelText('contactGate.lastName')).toHaveValue('Valiev');
+    expect(screen.getByLabelText('contactGate.phone')).toHaveValue('+998901234567');
+  });
+
+  it('показывает текст ошибки, если PATCH реджектится', async () => {
+    mockUser = {
+      phone: '+998901234567',
+      profile: { first_name: 'Ali', last_name: 'Valiev', contact_phone: null },
+    };
+    updateProfile.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({ status: 500, data: { error: { code: 'INTERNAL', message: 'boom' } } }),
+    });
+    render(<ContactDetailsGate />);
+    fireEvent.click(screen.getByRole('button', { name: 'contactGate.submit' }));
+    await waitFor(() => expect(screen.getByText('boom')).toBeInTheDocument());
+  });
 });

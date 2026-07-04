@@ -31,6 +31,15 @@ export function ContactDetailsGate() {
   );
   const [error, setError] = React.useState<string | null>(null);
 
+  // Ре-синк при догрузке getMe: гейт монтируется до прихода user
+  // (isAuthenticated из токена синхронен, getMe асинхронен).
+  React.useEffect(() => {
+    if (!user) return;
+    setFirstName(user.profile?.first_name ?? '');
+    setLastName(user.profile?.last_name ?? '');
+    setPhone(user.profile?.contact_phone ?? user.phone ?? '');
+  }, [user]);
+
   const canSubmit =
     Boolean(firstName.trim()) && Boolean(lastName.trim()) && Boolean(phone.trim());
 
