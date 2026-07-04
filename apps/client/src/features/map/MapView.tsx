@@ -80,6 +80,9 @@ export interface MapViewProps {
   /** Превью кликнутого пина: карточка рисуется НАД пином (Zillow), позиция
    *  пересчитывается при драге/зуме и клампится в границах контейнера карты. */
   preview?: MapPreviewAnchor | null;
+  /** Закрытие превью кликом вне карточки (Zillow). Клик по пину не закрывает
+   *  (им управляет onSelect), драг карты — тоже не закрывает. */
+  onPreviewClose?: () => void;
 }
 
 /** Центр карты по умолчанию — Ташкент. */
@@ -148,6 +151,7 @@ export function MapView({
   autoFit = false,
   recenterOnHover = false,
   preview = null,
+  onPreviewClose,
 }: MapViewProps) {
   const fmt = usePriceFormatter();
   const tSearch = useTranslations('search');
@@ -161,8 +165,8 @@ export function MapView({
   const drawTmpRef = React.useRef<any>(null); // временная геометрия рисования
 
   // Свежие колбэки/значения в ref — не пересоздаём карту/маркеры зря.
-  const cb = React.useRef({ onSelect, onHover, onDrawComplete, onPolygonComplete, onPolygonProgress, onBoundsChange });
-  cb.current = { onSelect, onHover, onDrawComplete, onPolygonComplete, onPolygonProgress, onBoundsChange };
+  const cb = React.useRef({ onSelect, onHover, onDrawComplete, onPolygonComplete, onPolygonProgress, onBoundsChange, onPreviewClose });
+  cb.current = { onSelect, onHover, onDrawComplete, onPolygonComplete, onPolygonProgress, onBoundsChange, onPreviewClose };
   // Форматтер цены в ref: effects используют актуальный display/rate без пересборки маркеров.
   const fmtRef = React.useRef(fmt);
   fmtRef.current = fmt;
@@ -417,6 +421,46 @@ export function MapView({
     // Пересчёт при смене пина/готовности карты; координаты — из ref.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview?.listingId, hasPreview, ymaps]);
+
+  // ── Закрытие превью кликом вне карточки (Zillow) ──
+  // Слушаем document (закрывает и клик по списку/фильтрам, не только по карте).
+  // «Клик» = pointerdown+pointerup без сдвига >3px — драг карты не закрывает
+  // (карточка едет за пином через actiontick). Нажатие, начатое внутри карточки
+  // (стрелки карусели, сердце, X), и клик по ценовому пину не закрывают:
+  // пином управляет onSelect (переключение превью на другой листинг).
+  React.useEffect(() => {
+    if (!hasPreview) return;
+    let down: { x: number; y: number; ignore: boolean } | null = null;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null;
+      down = {
+        x: e.clientX,
+        y: e.clientY,
+        ignore: Boolean(
+          (previewWrapRef.current && t && previewWrapRef.current.contains(t)) ||
+            t?.closest?.('.av-ypin'),
+        ),
+      };
+    };
+    const onUp = (e: PointerEvent) => {
+      const d = down;
+      down = null;
+      if (!d || d.ignore) return;
+      if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 3) return;
+      cb.current.onPreviewClose?.();
+    };
+    const onCancel = () => {
+      down = null;
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('pointerup', onUp, true);
+    document.addEventListener('pointercancel', onCancel, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('pointerup', onUp, true);
+      document.removeEventListener('pointercancel', onCancel, true);
+    };
+  }, [hasPreview]);
 
   // ── Оверлей: круг радиуса (/search) или территория (/map) ──
   const overlayKey = circle

@@ -147,6 +147,7 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
                 }
               : null
           }
+          onPreviewClose={vpClosePreview}
         />
 
         {/* ---- Управление территорией (поверх карты) ---- */}
