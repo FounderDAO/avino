@@ -644,7 +644,8 @@
     },
     "errors": {
       "loginRequired": "E'lonni chop etish uchun tizimga kiring.",
-      "guestHint": "E'lonni chop etish uchun hisobingizga kiring (kirish tugmasi — sahifa yuqorisida)."
+      "guestHint": "E'lonni chop etish uchun hisobingizga kiring (kirish tugmasi — sahifa yuqorisida).",
+      "profileIncomplete": "E'lon joylash uchun profilda ism, familiya va telefonni to'ldiring."
     },
     "auth": {
       "title": "E'lon joylash uchun tizimga kiring",
@@ -652,6 +653,17 @@
       "context": "E'lon joylash uchun tizimga kiring",
       "login": "Kirish",
       "home": "Bosh sahifa"
+    },
+    "contactGate": {
+      "title": "Aloqa ma'lumotlari",
+      "text": "E'lon joylash uchun ism, familiya va telefon raqamini kiriting — ular e'lon kartochkasida xaridorlarga ko'rinadi.",
+      "firstName": "Ism",
+      "lastName": "Familiya",
+      "phone": "Telefon",
+      "phonePlaceholder": "+998 90 123-45-67",
+      "submit": "Davom etish",
+      "saving": "Saqlanmoqda…",
+      "error": "Ma'lumotlarni saqlab bo'lmadi. Yana urinib ko'ring."
     },
     "success": {
       "title": "E'lon moderatsiyaga\nyuborildi",
@@ -919,7 +931,8 @@
       "authText": "Profilni ko'rish va tahrirlash uchun Avino tizimiga kiring.",
       "login": "Kirish",
       "changePhoto": "Suratni almashtirish",
-      "name": "Ism",
+      "firstName": "Ism",
+      "lastName": "Familiya",
       "phone": "Telefon",
       "email": "Email",
       "language": "Interfeys tili",

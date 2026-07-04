@@ -644,7 +644,8 @@
     },
     "errors": {
       "loginRequired": "Sign in to publish your listing.",
-      "guestHint": "To publish a listing, sign in to your account (the sign-in button is in the header)."
+      "guestHint": "To publish a listing, sign in to your account (the sign-in button is in the header).",
+      "profileIncomplete": "Fill in your first name, last name and phone in your profile to post a listing."
     },
     "auth": {
       "title": "Sign in to post a listing",
@@ -652,6 +653,17 @@
       "context": "Sign in to post a listing",
       "login": "Sign in",
       "home": "Go home"
+    },
+    "contactGate": {
+      "title": "Contact details",
+      "text": "To post a listing, add your first name, last name and phone — buyers will see them on the listing card.",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Phone",
+      "phonePlaceholder": "+998 90 123-45-67",
+      "submit": "Continue",
+      "saving": "Saving…",
+      "error": "Could not save your details. Please try again."
     },
     "success": {
       "title": "Your listing has been\nsent for moderation",
@@ -919,7 +931,8 @@
       "authText": "Sign in to Avino to view and edit your profile.",
       "login": "Sign in",
       "changePhoto": "Change photo",
-      "name": "Name",
+      "firstName": "First name",
+      "lastName": "Last name",
       "phone": "Phone",
       "email": "Email",
       "language": "Interface language",

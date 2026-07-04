@@ -43,7 +43,8 @@ function toChip(lang: Language | undefined): LangChip {
 
 /** Состояние формы профиля. */
 interface ProfileForm {
-  name: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   email: string;
   lang: LangChip;
@@ -59,7 +60,8 @@ export function Profile() {
   const [updateUser, userState] = useUpdateUserMutation();
 
   const [form, setForm] = React.useState<ProfileForm>({
-    name: '',
+    firstName: '',
+    lastName: '',
     phone: '',
     email: '',
     lang: 'ru',
@@ -71,7 +73,8 @@ export function Profile() {
   React.useEffect(() => {
     if (!user) return;
     setForm({
-      name: user.profile.display_name ?? user.profile.first_name ?? '',
+      firstName: user.profile.first_name ?? '',
+      lastName: user.profile.last_name ?? '',
       phone: user.profile.contact_phone ?? user.phone ?? '',
       email: user.email ?? '',
       lang: toChip(user.default_language),
@@ -104,7 +107,7 @@ export function Profile() {
   }
 
   const pending = profileState.isLoading || userState.isLoading;
-  const avatarChar = (form.name.trim()[0] ?? 'A').toUpperCase();
+  const avatarChar = (form.firstName.trim()[0] ?? 'A').toUpperCase();
 
   const onSave = async () => {
     setEmailError(null);
@@ -116,7 +119,12 @@ export function Profile() {
     try {
       // Профиль: имя/телефон/язык — всегда.
       await updateProfile({
-        display_name: form.name.trim() || null,
+        first_name: form.firstName.trim() || null,
+        last_name: form.lastName.trim() || null,
+        // Публичное имя становится производным «Имя Фамилия» (buildContact
+        // на бэке: displayName ?? first+last) — иначе display_name из Google
+        // навсегда перекрывал бы отредактированные Имя/Фамилию.
+        display_name: null,
         contact_phone: form.phone.trim() || null,
         preferred_language: nextLang,
       }).unwrap();
@@ -161,8 +169,12 @@ export function Profile() {
 
         <div className="flex flex-col gap-4">
           <div>
-            <label className="mb-[7px] block text-[13px] font-bold">{t('profile.name')}</label>
-            <Field value={form.name} onChange={(e) => set('name', e.target.value)} />
+            <label className="mb-[7px] block text-[13px] font-bold">{t('profile.firstName')}</label>
+            <Field value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-[7px] block text-[13px] font-bold">{t('profile.lastName')}</label>
+            <Field value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />
           </div>
           <div>
             <label className="mb-[7px] block text-[13px] font-bold">{t('profile.phone')}</label>

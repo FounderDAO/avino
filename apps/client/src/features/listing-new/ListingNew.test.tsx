@@ -1,12 +1,38 @@
 import * as React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ru from '../../../messages/ru.json';
 
-vi.mock('@/store/hooks', () => ({ useAppSelector: () => true }));
+/**
+ * Профиль пользователя, отдаваемый мок-стором. По умолчанию — полный
+ * (Имя/Фамилия/Телефон заполнены), т.к. большинство тестов этого файла
+ * проверяют шаги визарда, а не гейт контактных данных (ADR-0125).
+ * Отдельные тесты переопределяют перед рендером.
+ */
+let mockUser: unknown = {
+  phone: '+998901234567',
+  profile: { first_name: 'Ali', last_name: 'Valiev', contact_phone: '+998901234567' },
+};
+
+beforeEach(() => {
+  mockUser = {
+    phone: '+998901234567',
+    profile: { first_name: 'Ali', last_name: 'Valiev', contact_phone: '+998901234567' },
+  };
+});
+
+vi.mock('@/store/hooks', () => ({
+  useAppSelector: (sel: unknown) =>
+    (sel as (s: unknown) => unknown)({
+      auth: { accessToken: 'token', refreshToken: 'token', user: mockUser, status: 'authenticated' },
+    }),
+}));
 vi.mock('@/store/api/createListingApi', () => ({
   useCreateListingMutation: () => [vi.fn(), { isLoading: false }],
   useUploadListingMediaMutation: () => [vi.fn(), { isLoading: false }],
+}));
+vi.mock('@/store/api/usersApi', () => ({
+  useUpdateProfileMutation: () => [vi.fn(), { isLoading: false }],
 }));
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
@@ -159,5 +185,26 @@ describe('ListingNew wizard (variant B)', () => {
 
     expect(body.district_id).toBeUndefined();
     expect(body.city_id).toBeUndefined();
+  });
+
+  it('(в) авторизован, профиль неполный → гейт «Контактные данные» вместо шагов визарда (ADR-0125)', () => {
+    mockUser = {
+      phone: null,
+      profile: { first_name: null, last_name: null, contact_phone: null },
+    };
+    render(<ListingNew {...emptyProps} />);
+
+    expect(screen.getByText('Контактные данные')).toBeInTheDocument();
+    // Шаги визарда (прогресс-бар, кнопка «Далее») не рендерятся.
+    expect(screen.queryByRole('button', { name: /далее/i })).toBeNull();
+    expect(screen.queryByText('Тип сделки')).toBeNull();
+  });
+
+  it('(в) авторизован, профиль полный → рендерится шаг 1 визарда', () => {
+    render(<ListingNew {...emptyProps} />);
+
+    expect(screen.queryByText('Контактные данные')).toBeNull();
+    expect(screen.getByText('Тип сделки')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /далее/i })).toBeInTheDocument();
   });
 });
