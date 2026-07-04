@@ -977,6 +977,9 @@
       }
     },
     "tours": {
+      "upcoming": "Upcoming tours",
+      "roleHost": "You're hosting",
+      "roleGuest": "You're going",
       "outgoing": "My requests",
       "incoming": "Requests to me",
       "empty": "No tour requests yet",
