@@ -85,6 +85,14 @@ describe('ListingsService', () => {
       listingPriceHistory: {
         create: jest.fn().mockResolvedValue({}),
       },
+      // Гейт полноты профиля (ADR-0125): create() читает автора с профилем.
+      // Дефолт — полный профиль, чтобы остальные create-тесты не задевало.
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          phone: '+998901234567',
+          profile: { firstName: 'Али', lastName: 'Валиев', contactPhone: null },
+        }),
+      },
     };
     // create() оборачивает апгрейд роли + запись листинга в один $transaction;
     // мок прокидывает тот же prisma как tx-клиент (callback-форма).
@@ -284,6 +292,71 @@ describe('ListingsService', () => {
           currency: Currency.UZS,
         },
       });
+    });
+  });
+
+  describe('create — profile completeness gate (ADR-0125)', () => {
+    it('rejects with 422 PROFILE_INCOMPLETE when first_name is missing', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        phone: '+998901234567',
+        profile: { firstName: null, lastName: 'Валиев', contactPhone: null },
+      });
+      await expectCode(
+        service.create(OWNER_ID, validCreate as any),
+        ApiErrorCode.PROFILE_INCOMPLETE,
+      );
+      expect(prisma.listing.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects with 422 PROFILE_INCOMPLETE when last_name is blank', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        phone: '+998901234567',
+        profile: { firstName: 'Али', lastName: '   ', contactPhone: null },
+      });
+      await expectCode(
+        service.create(OWNER_ID, validCreate as any),
+        ApiErrorCode.PROFILE_INCOMPLETE,
+      );
+    });
+
+    it('rejects with 422 PROFILE_INCOMPLETE when both phones are missing (Google user)', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        phone: null,
+        profile: { firstName: 'Али', lastName: 'Валиев', contactPhone: null },
+      });
+      await expectCode(
+        service.create(OWNER_ID, validCreate as any),
+        ApiErrorCode.PROFILE_INCOMPLETE,
+      );
+    });
+
+    it('rejects with 422 PROFILE_INCOMPLETE when the profile row is absent', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        phone: '+998901234567',
+        profile: null,
+      });
+      await expectCode(
+        service.create(OWNER_ID, validCreate as any),
+        ApiErrorCode.PROFILE_INCOMPLETE,
+      );
+    });
+
+    it('creates when names are set and only account phone exists (phone-login user)', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        phone: '+998901234567',
+        profile: { firstName: 'Али', lastName: 'Валиев', contactPhone: null },
+      });
+      prisma.listing.create.mockResolvedValue(dbListing);
+      await expect(service.create(OWNER_ID, validCreate as any)).resolves.toBeDefined();
+    });
+
+    it('creates when contact_phone is set and account phone is null (Google user)', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        phone: null,
+        profile: { firstName: 'Али', lastName: 'Валиев', contactPhone: '+998907654321' },
+      });
+      prisma.listing.create.mockResolvedValue(dbListing);
+      await expect(service.create(OWNER_ID, validCreate as any)).resolves.toBeDefined();
     });
   });
 

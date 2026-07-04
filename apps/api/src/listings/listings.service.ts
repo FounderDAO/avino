@@ -454,6 +454,7 @@ export class ListingsService {
     ownerId: string,
     dto: CreateListingDto,
   ): Promise<ListingResponse> {
+    await this.ensureProfileComplete(ownerId);
     validateToursInput(dto.tours_enabled ?? false, (dto.tour_windows as TourWindow[]) ?? []);
     // Optional-поля даёт toScalarData; required (после спреда) выставляются явно,
     // чтобы их типы оставались non-undefined. ownerId + nested translations.create
@@ -521,6 +522,37 @@ export class ListingsService {
       create: { userId, roleId: ownerRole.id },
       update: {},
     });
+  }
+
+  /**
+   * Создавать объявление можно только с заполненными Имя/Фамилия/Телефон
+   * (ADR-0125): контакт-блок карточки строится из профиля (buildContact),
+   * без них объявление публикуется «безымянным». Телефон — contact_phone
+   * профиля или телефон аккаунта (та же логика, что buildContact).
+   */
+  private async ensureProfileComplete(ownerId: string): Promise<void> {
+    const owner = await this.prisma.user.findUnique({
+      where: { id: ownerId },
+      select: {
+        phone: true,
+        profile: {
+          select: { firstName: true, lastName: true, contactPhone: true },
+        },
+      },
+    });
+    const firstName = owner?.profile?.firstName?.trim();
+    const lastName = owner?.profile?.lastName?.trim();
+    const phone = owner?.profile?.contactPhone?.trim() || owner?.phone?.trim();
+    if (!firstName || !lastName || !phone) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.PROFILE_INCOMPLETE,
+          message:
+            'First name, last name and phone are required to create a listing',
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
   }
 
   /**
