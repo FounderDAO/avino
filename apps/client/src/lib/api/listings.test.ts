@@ -6,6 +6,7 @@ import {
   prioritizePhotos,
   searchListings,
   searchListingsPage,
+  SEARCH_PAGE_SIZE,
   type ApiSearchItem,
 } from './listings';
 import type { Listing } from '@/lib/mock/types';
@@ -322,12 +323,12 @@ describe('searchListingsPage — keyset-пагинация (TASK-199)', () => {
     expect(page.listings[0].id).toBe('s1');
   });
 
-  it('первая страница не шлёт cursor; limit по умолчанию 24', async () => {
-    mockEnvelope({ data: [], meta: { limit: 24, total: 0, next_cursor: null } });
+  it('первая страница не шлёт cursor; limit по умолчанию SEARCH_PAGE_SIZE', async () => {
+    mockEnvelope({ data: [], meta: { limit: SEARCH_PAGE_SIZE, total: 0, next_cursor: null } });
     await searchListingsPage({ tx: 'SALE' }, 'ru');
     const url = calledUrl();
     expect(url).not.toContain('cursor=');
-    expect(url).toContain('limit=24');
+    expect(url).toContain(`limit=${SEARCH_PAGE_SIZE}`);
   });
 
   it('следующая страница шлёт cursor=<token>', async () => {

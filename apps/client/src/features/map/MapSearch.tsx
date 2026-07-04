@@ -139,6 +139,14 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
           onPolygonComplete={handlePolygonComplete}
           onBoundsChange={vp.handleBoundsChange}
           autoFit={false}
+          preview={
+            preview
+              ? {
+                  listingId: preview.id,
+                  node: <MapPreviewCard listing={preview} onClose={vpClosePreview} />,
+                }
+              : null
+          }
         />
 
         {/* ---- Управление территорией (поверх карты) ---- */}
@@ -183,9 +191,6 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
             </>
           )}
         </div>
-
-        {/* ---- Превью карточки по клику на пин ---- */}
-        {preview && <MapPreviewCard listing={preview} onClose={vpClosePreview} />}
       </div>
 
       {/* ---- Список (справа, свой скролл) ---- */}

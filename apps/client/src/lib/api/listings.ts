@@ -407,6 +407,9 @@ async function safeSearchPage(path: string, lang: string): Promise<SearchListing
 
 // ─── Публичные селекторы (контракт мок-слоя) ───
 
+/** Размер страницы выдачи /search (SSR + «Показать ещё»). API допускает max 100. */
+export const SEARCH_PAGE_SIZE = 60;
+
 /**
  * Базовые query-параметры поиска (общие для /search и /search/radius).
  * Район фильтруется по `district_id` (UUID из GET /geo/districts, ADR-0068);
@@ -482,7 +485,7 @@ export async function searchListings(
 export async function searchListingsPage(
   filter: ListingFilter = {},
   lang = 'ru',
-  limit = 24,
+  limit = SEARCH_PAGE_SIZE,
   cursor?: string,
 ): Promise<SearchListingsPage> {
   return safeSearchPage(searchPagePath(filter, limit, cursor), lang);

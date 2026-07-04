@@ -28,6 +28,14 @@ import { useYmaps, type Ymaps, type YmapsStatus } from './useYmaps';
 
 export type DrawMode = 'radius' | 'polygon' | null;
 
+/** Превью пина (Zillow): карточка позиционируется у кликнутого пина. */
+export interface MapPreviewAnchor {
+  /** id листинга, к чьему пину крепится карточка (координаты берём из listings). */
+  listingId: string;
+  /** Содержимое карточки (обычно MapPreviewCard). */
+  node: React.ReactNode;
+}
+
 export interface MapViewProps {
   listings: Listing[];
   /** id подсвеченного листинга (связь со списком). */
@@ -68,6 +76,10 @@ export interface MapViewProps {
   /** Центрировать карту к активному пину при наведении/выборе. Default false
    *  (карта стоит на месте — Zillow-режим). Управляется admin-флагом. */
   recenterOnHover?: boolean;
+
+  /** Превью кликнутого пина: карточка рисуется НАД пином (Zillow), позиция
+   *  пересчитывается при драге/зуме и клампится в границах контейнера карты. */
+  preview?: MapPreviewAnchor | null;
 }
 
 /** Центр карты по умолчанию — Ташкент. */
@@ -156,6 +168,7 @@ export function MapView({
   drawMode = null,
   autoFit = false,
   recenterOnHover = false,
+  preview = null,
 }: MapViewProps) {
   const fmt = usePriceFormatter();
   const tSearch = useTranslations('search');
@@ -366,6 +379,66 @@ export function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, ymaps, recenterOnHover]);
 
+  // ── Превью пина: карточка у кликнутого пина (Zillow) ──
+  // Позиция считается в пикселях контейнера (globalPixels − центр карты) и
+  // обновляется прямой мутацией style (actiontick во время драга/зума —
+  // без React-рендеров). Карточка ставится над пином; не влезла — под ним;
+  // по горизонтали и вертикали клампится в границах карты.
+  const previewWrapRef = React.useRef<HTMLDivElement | null>(null);
+  const previewListing = preview
+    ? listings.find((l) => l.id === preview.listingId) ?? null
+    : null;
+  const previewCoords: LatLng | null =
+    previewListing?.lat != null && previewListing?.lng != null
+      ? [previewListing.lat, previewListing.lng]
+      : null;
+  const previewCoordsRef = React.useRef(previewCoords);
+  previewCoordsRef.current = previewCoords;
+  const hasPreview = Boolean(preview && previewCoords);
+
+  React.useEffect(() => {
+    const map = mapRef.current;
+    const el = previewWrapRef.current;
+    if (!map || !ymaps || !el || !hasPreview) return;
+
+    const PIN_GAP = 22; // от центра пина до карточки (пин ~32px высотой)
+    const PAD = 8; // мин. отступ карточки от краёв карты
+
+    const reposition = (tick?: { globalPixelCenter: [number, number]; zoom: number }) => {
+      const coords = previewCoordsRef.current;
+      if (!coords) return;
+      const zoom = tick?.zoom ?? map.getZoom();
+      const centerPx = tick?.globalPixelCenter ?? map.getGlobalPixelCenter();
+      const projection = map.options.get('projection');
+      const g = projection.toGlobalPixels(coords, zoom);
+      const [w, h] = map.container.getSize();
+      const x = g[0] - centerPx[0] + w / 2;
+      const y = g[1] - centerPx[1] + h / 2;
+      const cw = el.offsetWidth;
+      const ch = el.offsetHeight;
+      const left = Math.min(Math.max(x - cw / 2, PAD), Math.max(w - cw - PAD, PAD));
+      let top = y - ch - PIN_GAP; // над пином
+      if (top < PAD) top = y + PIN_GAP; // не влезла сверху — под пином
+      top = Math.min(Math.max(top, PAD), Math.max(h - ch - PAD, PAD));
+      el.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+      el.style.visibility = 'visible';
+    };
+
+    reposition();
+    const onTick = (e: any) => reposition(e.get('tick'));
+    const onChange = () => reposition();
+    map.events.add('actiontick', onTick);
+    map.events.add('boundschange', onChange);
+    map.container.events.add('sizechange', onChange);
+    return () => {
+      map.events.remove('actiontick', onTick);
+      map.events.remove('boundschange', onChange);
+      map.container.events.remove('sizechange', onChange);
+    };
+    // Пересчёт при смене пина/готовности карты; координаты — из ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preview?.listingId, hasPreview, ymaps]);
+
   // ── Оверлей: круг радиуса (/search) или территория (/map) ──
   const overlayKey = circle
     ? `c:${circle.lat},${circle.lng},${circle.radiusM}`
@@ -533,12 +606,25 @@ export function MapView({
   }
 
   return (
-    <div
-      ref={elRef}
-      className="h-full w-full bg-[#e8ede9]"
-      role="img"
-      aria-label={tSearch('map.ariaLabel')}
-    />
+    <>
+      <div
+        ref={elRef}
+        className="h-full w-full bg-[#e8ede9]"
+        role="img"
+        aria-label={tSearch('map.ariaLabel')}
+      />
+      {/* Якорь превью: absolute относительно relative-контейнера карты у родителя;
+          позицию (transform) ставит эффект выше, до первого расчёта скрыт. */}
+      {hasPreview && preview && (
+        <div
+          ref={previewWrapRef}
+          className="absolute left-0 top-0 z-[1000]"
+          style={{ visibility: 'hidden', willChange: 'transform' }}
+        >
+          {preview.node}
+        </div>
+      )}
+    </>
   );
 }
 

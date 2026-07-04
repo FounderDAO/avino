@@ -216,7 +216,7 @@ export default async function SearchPage({
     rawSource === 'OWNER' || rawSource === 'AGENCY' ? rawSource : undefined;
 
   // ----- Данные из реального API -----
-  // Первая страница (limit=24) + meta (total/next_cursor): курсор прокидываем в
+  // Первая страница (limit=SEARCH_PAGE_SIZE) + meta (total/next_cursor): курсор прокидываем в
   // клиентскую дозагрузку «Показать ещё» (TASK-199).
   const filter: ListingFilter = {
     tx,
