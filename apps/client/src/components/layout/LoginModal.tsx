@@ -8,6 +8,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { Dialog } from 'radix-ui';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -66,6 +67,7 @@ function isValidEmail(raw: string): boolean {
 
 export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
   const t = useTranslations('auth');
+  const tToasts = useTranslations('toasts');
   const [step, setStep] = React.useState<1 | 2>(1);
   /** Канал входа: телефон (SMS) или email (EMAIL). */
   const [method, setMethod] = React.useState<'phone' | 'email'>('phone');
@@ -136,6 +138,7 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
     try {
       await verifyOtp({ channel, destination, code }).unwrap();
       // setCredentials выставляется в onQueryStarted хука.
+      toast.success(tToasts('loggedIn'));
       onOpenChange(false);
     } catch {
       /* ошибка показывается через verifyErrorMessage */
@@ -244,10 +247,18 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
                 {t('or')}
                 <span className="h-px flex-1 bg-border" />
               </div>
-              <GoogleSignInButton onSuccess={() => onOpenChange(false)} />
+              <GoogleSignInButton
+                onSuccess={() => {
+                  toast.success(tToasts('loggedIn'));
+                  onOpenChange(false);
+                }}
+              />
               <AppleSignInButton
                 label={t('continueWithApple')}
-                onSuccess={() => onOpenChange(false)}
+                onSuccess={() => {
+                  toast.success(tToasts('loggedIn'));
+                  onOpenChange(false);
+                }}
               />
             </>
           ) : (

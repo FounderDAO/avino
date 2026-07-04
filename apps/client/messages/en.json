@@ -925,7 +925,6 @@
       "language": "Interface language",
       "emailTaken": "This email is already used by another account.",
       "saveError": "Couldn't save changes. Please try again.",
-      "saved": "Changes saved.",
       "saving": "Saving…",
       "save": "Save changes"
     },
@@ -1105,5 +1104,21 @@
       "incomplete": "Please accept both documents.",
       "network": "Couldn't reach the server. Check your connection and try again."
     }
+  },
+  "toasts": {
+    "genericError": "Something went wrong. Please try again.",
+    "networkError": "No connection to the server. Check your internet.",
+    "rateLimited": "Too many requests. Please wait a moment.",
+    "loggedIn": "You are signed in",
+    "profileSaved": "Profile saved",
+    "settingsSaved": "Settings saved",
+    "listingSaved": "Listing saved",
+    "statusUpdated": "Listing status updated",
+    "tourConfirmed": "Tour confirmed",
+    "tourDeclined": "Tour declined",
+    "tourCancelled": "Tour request cancelled",
+    "tourActionFailed": "Could not update the tour. Please try again.",
+    "savedSearchCreated": "Search saved",
+    "savedSearchDeleted": "Saved search deleted"
   }
 }

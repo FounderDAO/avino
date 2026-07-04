@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import type { Listing, ListingStatus } from '@/lib/mock/types';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { usePriceFormatter } from '@/lib/usePriceFormatter';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { PromoBadge } from '@/components/ui/promo-badge';
@@ -91,6 +92,7 @@ function StatusPill({ s }: { s: ListingStatus | undefined }) {
 /** Строка объявления в кабинете. */
 function ListingRow({ l, promotionsEnabled }: { l: Listing; promotionsEnabled: boolean }) {
   const t = useTranslations('account');
+  const tToasts = useTranslations('toasts');
   const fmt = usePriceFormatter();
   const [setStatus, { isLoading }] = useSetMyListingStatusMutation();
   const actions = ownerActionsFor(l.status, l.tx);
@@ -103,7 +105,11 @@ function ListingRow({ l, promotionsEnabled }: { l: Listing; promotionsEnabled: b
           : 'myListings.actions.confirm.markRented';
       if (!window.confirm(t(key))) return;
     }
-    void setStatus({ id: l.id, action: a.action });
+    // Ошибку тостит apiErrorToastMiddleware (endpoint не в suppress-list).
+    void setStatus({ id: l.id, action: a.action })
+      .unwrap()
+      .then(() => toast.success(tToasts('statusUpdated')))
+      .catch(() => {});
   };
 
   return (

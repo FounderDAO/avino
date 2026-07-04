@@ -2,12 +2,14 @@
 
 import { useEffect, useRef } from 'react';
 import { Provider } from 'react-redux';
+import { Toaster } from 'sonner';
 import { makeStore, type AppStore } from './store';
 import { hydrateFavorites, readFavoritesFromStorage } from './favoritesSlice';
 import { hydrateCurrency, readCurrencyFromStorage } from './currencySlice';
 import { useAppDispatch } from './hooks';
 import { SessionBootstrap } from '@/components/SessionBootstrap';
 import { LegalConsentGate } from '@/components/LegalConsentGate';
+import { ApiErrorToasts } from '@/components/ApiErrorToasts';
 
 /**
  * Гидратация избранного из localStorage после монтирования на клиенте.
@@ -50,6 +52,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       <CurrencyHydrator />
       <SessionBootstrap />
       <LegalConsentGate />
+      <ApiErrorToasts />
+      {/* Тосты выше модалок (z-[81] у Dialog) — иначе фидбэк из модалки не виден. */}
+      <Toaster
+        position="top-center"
+        duration={4000}
+        className="!z-[90]"
+        toastOptions={{
+          classNames: {
+            toast:
+              '!rounded-[14px] !border-border !bg-surface !text-ink !shadow-raised !text-[13.5px] !font-semibold',
+            success: '[&_[data-icon]]:!text-teal',
+            error: '[&_[data-icon]]:!text-red',
+          },
+        }}
+      />
       {children}
     </Provider>
   );

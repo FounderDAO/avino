@@ -925,7 +925,6 @@
       "language": "Interfeys tili",
       "emailTaken": "Bu email allaqachon boshqa akkauntda ishlatilmoqda.",
       "saveError": "O'zgarishlarni saqlab bo'lmadi. Yana bir bor urinib ko'ring.",
-      "saved": "O'zgarishlar saqlandi.",
       "saving": "Saqlanmoqda…",
       "save": "O'zgarishlarni saqlash"
     },
@@ -1105,5 +1104,21 @@
       "incomplete": "Ikkala hujjatni ham qabul qilish kerak.",
       "network": "Server bilan bog'lanib bo'lmadi. Internet aloqasini tekshiring va qayta urinib ko'ring."
     }
+  },
+  "toasts": {
+    "genericError": "Nimadir xato ketdi. Yana urinib ko'ring.",
+    "networkError": "Server bilan aloqa yo'q. Internetni tekshiring.",
+    "rateLimited": "So'rovlar juda ko'p. Biroz kuting.",
+    "loggedIn": "Hisobingizga kirdingiz",
+    "profileSaved": "Profil saqlandi",
+    "settingsSaved": "Sozlamalar saqlandi",
+    "listingSaved": "E'lon saqlandi",
+    "statusUpdated": "E'lon holati yangilandi",
+    "tourConfirmed": "Tur tasdiqlandi",
+    "tourDeclined": "Tur rad etildi",
+    "tourCancelled": "Tur so'rovi bekor qilindi",
+    "tourActionFailed": "Turni yangilab bo'lmadi. Yana urinib ko'ring.",
+    "savedSearchCreated": "Qidiruv saqlandi",
+    "savedSearchDeleted": "Saqlangan qidiruv o'chirildi"
   }
 }
