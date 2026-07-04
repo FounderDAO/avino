@@ -187,6 +187,23 @@ describe('TourRequestsService', () => {
     await expect(service.setStatus('OWNER1', 'TR1', TourRequestAction.CONFIRM)).rejects.toMatchObject({ status: 422 });
   });
 
+  it('владелец отклоняет CONFIRMED → DECLINED (отмена подтверждённого тура) + уведомление', async () => {
+    prisma.tourRequest.findUnique.mockResolvedValue({ id: 'TR1', requesterId: 'U2', status: 'CONFIRMED', listing: { ownerId: 'OWNER1' } });
+    prisma.tourRequest.update.mockResolvedValue({
+      id: 'TR1', listingId: 'L1', requesterId: 'U2', status: 'DECLINED',
+      requestedDate: new Date('2026-07-10T00:00:00.000Z'), windowStart: '07:00', windowEnd: '10:00',
+      requesterName: 'Tap Links', requesterPhone: '+998901112233', message: null, createdAt: new Date(),
+    });
+    const res = await service.setStatus('OWNER1', 'TR1', TourRequestAction.DECLINE);
+    expect(res.status).toBe('DECLINED');
+    expect(notifications.queueTourStatusChanged).toHaveBeenCalledWith(prisma, 'U2', expect.objectContaining({ status: 'DECLINED' }));
+  });
+
+  it('422 при CONFIRM из CONFIRMED (подтверждать можно только PENDING)', async () => {
+    prisma.tourRequest.findUnique.mockResolvedValue({ id: 'TR1', requesterId: 'U2', status: 'CONFIRMED', listing: { ownerId: 'OWNER1' } });
+    await expect(service.setStatus('OWNER1', 'TR1', TourRequestAction.CONFIRM)).rejects.toMatchObject({ status: 422 });
+  });
+
   it('покупатель отменяет CONFIRMED → CANCELLED + уведомление владельцу', async () => {
     prisma.tourRequest.findUnique.mockResolvedValue({ id: 'TR1', requesterId: 'U2', status: 'CONFIRMED', listing: { ownerId: 'OWNER1' } });
     prisma.tourRequest.update.mockResolvedValue({

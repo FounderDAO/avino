@@ -244,8 +244,18 @@ export class TourRequestsService {
       if (!isOwner) {
         throw new ForbiddenException({ code: ApiErrorCode.FORBIDDEN, message: 'Only the listing owner can confirm or decline' });
       }
-      if (tr.status !== TourRequestStatus.PENDING) throw this.invalidTransition(action, tr.status);
-      nextStatus = action === TourRequestAction.CONFIRM ? TourRequestStatus.CONFIRMED : TourRequestStatus.DECLINED;
+      if (action === TourRequestAction.CONFIRM) {
+        if (tr.status !== TourRequestStatus.PENDING) throw this.invalidTransition(action, tr.status);
+        nextStatus = TourRequestStatus.CONFIRMED;
+      } else {
+        // DECLINE: из PENDING (отказ) или из CONFIRMED — владелец отменяет уже
+        // подтверждённый тур (spec 2026-07-04); слот освобождается автоматически,
+        // т.к. partial unique index покрывает только PENDING/CONFIRMED.
+        if (tr.status !== TourRequestStatus.PENDING && tr.status !== TourRequestStatus.CONFIRMED) {
+          throw this.invalidTransition(action, tr.status);
+        }
+        nextStatus = TourRequestStatus.DECLINED;
+      }
       notifyUserId = tr.requesterId;
     } else {
       // CANCEL
