@@ -33,6 +33,7 @@ import type {
   SortOption,
   TransactionType,
 } from '@/lib/mock/types';
+import type { LatLngBounds } from '@/lib/geo';
 
 import { resolveApiBase } from './base';
 
@@ -484,9 +485,62 @@ export async function searchListingsPage(
   limit = 24,
   cursor?: string,
 ): Promise<SearchListingsPage> {
+  return safeSearchPage(searchPagePath(filter, limit, cursor), lang);
+}
+
+// ─── Пути гео-поиска (общие для RTK Query и серверного fetch) ───
+//
+// buildSearchParams даёт ПОЛНЫЙ набор фильтров §9 — /search/bounds и
+// /search/polygon наследуют те же фильтры, что и /search (Фаза 2 включительно).
+
+/** Путь GET /search/bounds: bbox видимой области + все фильтры §9. */
+export function boundsSearchPath(
+  filter: ListingFilter,
+  bounds: LatLngBounds,
+  limit: number,
+): string {
+  const params = buildSearchParams(filter, limit);
+  params.set('sw_lat', String(bounds.swLat));
+  params.set('sw_lng', String(bounds.swLng));
+  params.set('ne_lat', String(bounds.neLat));
+  params.set('ne_lng', String(bounds.neLng));
+  return `/search/bounds?${params.toString()}`;
+}
+
+/** Путь GET /search/polygon: сериализованное кольцо + все фильтры §9. */
+export function polygonSearchPath(
+  filter: ListingFilter,
+  points: string,
+  limit: number,
+): string {
+  const params = buildSearchParams(filter, limit);
+  params.set('points', points);
+  return `/search/polygon?${params.toString()}`;
+}
+
+/** Путь GET /search: keyset-страница + все фильтры §9. */
+export function searchPagePath(
+  filter: ListingFilter,
+  limit: number,
+  cursor?: string,
+): string {
   const params = buildSearchParams(filter, limit);
   if (cursor) params.set('cursor', cursor);
-  return safeSearchPage(`/search?${params.toString()}`, lang);
+  return `/search?${params.toString()}`;
+}
+
+/**
+ * Выдача внутри bbox для SSR /search (viewport-режим, Zillow): восстановление
+ * области из URL (?sw_lat=…). GET /api/v1/search/bounds, деградация как у
+ * safeSearch (ошибка → пустой список).
+ */
+export async function searchListingsByBounds(
+  filter: ListingFilter,
+  bounds: LatLngBounds,
+  lang = 'ru',
+  limit = 100,
+): Promise<Listing[]> {
+  return safeSearch(boundsSearchPath(filter, bounds, limit), lang);
 }
 
 /**
