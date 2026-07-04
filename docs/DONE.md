@@ -39,6 +39,137 @@ Related ADR:
 
 ## 2026-07-04
 
+### TASK — Toast-уведомления клиента: sonner + глобальный перехват ошибок мутаций (client)
+
+Status: DONE
+Branch: feature/client-toast-notifications
+PR: #314 (https://github.com/FounderDAO/avino/pull/314)
+
+Files changed:
+- apps/client/src/store/apiErrorToastMiddleware.ts (+ test)
+- apps/client/src/lib/apiErrorToastBus.ts
+- apps/client/src/components/ApiErrorToasts.tsx (+ test)
+- apps/client/src/store/StoreProvider.tsx
+- apps/client/src/store/store.ts
+- apps/client/src/components/layout/LoginModal.tsx
+- apps/client/src/features/account/{Profile,Settings,MyListings,Tours,UpcomingTourCard,IncomingTourModal,SavedSearches}.tsx
+- apps/client/src/features/listing-edit/ListingEdit.tsx
+- apps/client/messages/{ru,uz,en}.json
+- apps/client/package.json, pnpm-lock.yaml
+- docs/adr/ADR-0123-client-toast-notifications.md
+- docs/superpowers/plans/2026-07-04-client-toast-notifications.md
+
+Summary:
+- **sonner** (`<Toaster position="top-center">` в StoreProvider, токены проекта, z-[90] выше модалок).
+- **Авто-ошибки:** `apiErrorToastMiddleware` (isRejectedWithValue, только мутации) → bus → `ApiErrorToasts` маппит код на `toasts.*` (RATE_LIMITED, сетевой сбой, generic). `SUPPRESSED_ENDPOINTS` — эндпоинты с инлайн-обработкой и фоновые; queries не тостятся.
+- **Ручные успехи:** вход (OTP/Google/Apple), профиль/настройки/объявление сохранены, статус объявления, тур подтверждён/отклонён/отменён, сохранённый поиск удалён. Инлайн «Сохранено» в Profile заменён тостом; молчаливые `.catch(() => {})` в турах теперь тостят ошибку.
+- **Правило для нового кода:** мутация с инлайн-ошибкой ОБЯЗАНА попасть в suppress-list, иначе двойной показ.
+
+Commit messages:
+- feat(client): toast notifications via sonner with global mutation error interception
+
+Related ADR:
+- docs/adr/ADR-0123-client-toast-notifications.md
+
+### TASK — Агенда «Предстоящие туры» + listing-контекст в списках туров (client)
+
+Status: DONE
+Branch: feat/account-tours-agenda
+PR: #313 (https://github.com/FounderDAO/avino/pull/313)
+
+Files changed:
+- apps/client/src/features/account/Tours.tsx (+ test)
+- apps/client/src/features/account/UpcomingTourCard.tsx (+ test)
+- apps/client/src/features/account/tour-agenda.ts (+ test)
+- apps/client/src/features/account/IncomingTourModal.test.tsx
+- apps/client/src/store/api/tourRequestsApi.ts
+- apps/client/messages/{ru,uz,en}.json
+
+Summary:
+- Секция «Предстоящие туры» на /account/tours: merge входящих (роль host) и исходящих (роль guest) CONFIRMED-туров (`mergeUpcoming`), сортировка по дате.
+- Карточка тура: фото/название объявления (ссылка), окно времени, роль-бейдж, контрагент (телефон владельца — только после CONFIRMED), «Отменить» (host → DECLINE, guest → CANCEL).
+- `tourRequestsApi` принимает `status`/`upcoming`-параметры и новый listing/owner-контракт (#312); guard `listing?.` на окно рассинхрона деплоя.
+
+Commit messages:
+- feat(client): tour list params and listing/owner contract in tourRequestsApi
+- feat(client): upcoming tours agenda and listing context on /account/tours
+
+Related ADR:
+- docs/adr/ADR-0122-tour-agenda-listing-context.md
+
+### TASK — Tour-requests: listing-контекст, фильтры списков, owner cancel (API)
+
+Status: DONE
+Branch: feat/tour-requests-listing-context
+PR: #312 (https://github.com/FounderDAO/avino/pull/312)
+
+Files changed:
+- apps/api/src/tour-requests/tour-requests.service.ts (+ spec)
+- apps/api/src/tour-requests/tour-requests.controller.ts (+ spec)
+- apps/api/src/tour-requests/tour-requests.module.ts
+- apps/api/openapi.internal.json
+- docs/adr/ADR-0122-tour-agenda-listing-context.md
+- docs/superpowers/specs/2026-07-04-tour-agenda-design.md (+ plans api/client)
+
+Summary:
+- Списки туров (incoming/outgoing) обогащены `listing` (id/title/photo_url sign-on-read) и `owner` (телефон — только для CONFIRMED).
+- Параметры `status` и `upcoming=true` для выборки агенды; владельцу разрешён DECLINE из CONFIRMED (отмена подтверждённого тура).
+- Гоча: `in`-оператор на Prisma-enum ходит по prototype chain → 500; фикс — явные whitelist-проверки значений query-параметров (prototype pollution).
+
+Commit messages:
+- feat(tour-requests): listing context, owner block and status/upcoming filters
+- feat(tour-requests): allow owner DECLINE from CONFIRMED
+- docs(tour-requests): openapi regen, ADR-0122 and tour agenda spec/plans
+
+Related ADR:
+- docs/adr/ADR-0122-tour-agenda-listing-context.md
+
+### TASK — Фикс UX визарда: дропдауны Регион/Район + рецентр карты (client)
+
+Status: DONE
+Branch: fix/client-wizard-region-district-ux
+PR: #311 (https://github.com/FounderDAO/avino/pull/311)
+
+Files changed:
+- apps/client/src/features/listing-new/RegionDistrictSelect.tsx (+ test)
+- apps/client/src/features/listing-new/AddressStep.tsx
+- apps/client/src/features/listing-new/PickMap.tsx
+- apps/client/src/features/listing-new/ListingNew.tsx
+- apps/client/src/features/listing-edit/ListingEdit.tsx
+
+Summary:
+- Дропдауны «Регион»/«Район» в визарде закрываются после выбора значения (раньше оставались открытыми).
+- Карта выбора точки рецентрируется на выбранный регион/район.
+- Побочный итог сессии: два варианта мультиязычного reverse-геокодинга адреса задокументированы как backlog TASK-BL-007 в docs/TASKS.md (HTTP Геокодер Яндекса не поддерживает uz — решение за Team Lead).
+
+Commit messages:
+- fix(client): close region/district dropdowns on select and recenter wizard map
+
+Related ADR:
+- нет (UI-фикс без архитектурного решения)
+
+### TASK — Скрыть заголовок и жилую/нежилую площадь (client)
+
+Status: DONE
+Branch: feat/client-hide-title-living-area
+PR: #310 (https://github.com/FounderDAO/avino/pull/310)
+
+Files changed:
+- apps/client/src/features/listing-new/ListingNew.tsx
+- apps/client/src/features/listing-edit/ListingEdit.tsx
+- apps/client/src/features/detail/Detail.tsx
+- apps/client/src/features/detail/Facts.tsx
+
+Summary:
+- Поля «Заголовок», «Жилая площадь», «Нежилая площадь» скрыты в визарде создания, форме редактирования и на detail-странице (просьба Team Lead — пока не нужны).
+- Визард шлёт autoTitle (API требует title); стейт полей сохранён для лёгкого возврата.
+
+Commit messages:
+- feat(client): hide title and living/non-living area fields
+
+Related ADR:
+- нет (UI-изменение без архитектурного решения)
+
 ### Фильтр «санузлы»: набор значений сужен до 1 / 1.5 / 2 / 3 / 4+ (API + client)
 
 Status: DONE
