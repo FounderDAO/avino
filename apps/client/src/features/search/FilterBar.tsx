@@ -21,6 +21,7 @@ import {
   Dropdown,
   DropdownTrigger,
   DropdownContent,
+  DropdownItem,
 } from '@/components/ui/dropdown';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
@@ -427,26 +428,21 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
               />
             </DropdownTrigger>
             <DropdownContent align="start" className="w-[160px] p-1">
-              <button
-                type="button"
-                onClick={() => setParams({ tx: 'SALE' })}
-                className={cn(
-                  'flex w-full items-center rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-                  values.tx === 'SALE' && 'bg-mint',
-                )}
+              {/* DropdownItem (Radix Item): меню закрывается по выбору — сырой <button> не закрывал. */}
+              <DropdownItem
+                onSelect={() => setParams({ tx: 'SALE' })}
+                selected={values.tx === 'SALE'}
+                className="text-[14.5px]"
               >
                 {tSearch('filters.buy')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setParams({ tx: 'RENT' })}
-                className={cn(
-                  'flex w-full items-center rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-                  values.tx === 'RENT' && 'bg-mint',
-                )}
+              </DropdownItem>
+              <DropdownItem
+                onSelect={() => setParams({ tx: 'RENT' })}
+                selected={values.tx === 'RENT'}
+                className="text-[14.5px]"
               >
                 {tSearch('filters.rent')}
-              </button>
+              </DropdownItem>
             </DropdownContent>
           </Dropdown>
 
@@ -521,33 +517,28 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
               />
             </DropdownTrigger>
             <DropdownContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto p-2">
-              <button
-                type="button"
-                onClick={() => setParams({ region_id: undefined, district_id: undefined })}
-                className={cn(
-                  'flex w-full items-center justify-between rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-                  !values.regionId && 'bg-mint',
-                )}
+              {/* DropdownItem (Radix Item): меню закрывается по выбору — сырой <button> не закрывал. */}
+              <DropdownItem
+                onSelect={() => setParams({ region_id: undefined, district_id: undefined })}
+                selected={!values.regionId}
+                className="text-[14.5px]"
               >
                 {tSearch('filters.allRegions')}
-              </button>
+              </DropdownItem>
               {regions.map((r) => (
-                <button
+                <DropdownItem
                   key={r.id}
-                  type="button"
-                  onClick={() =>
+                  onSelect={() =>
                     setParams({
                       region_id: values.regionId === r.id ? undefined : r.id,
                       district_id: undefined,
                     })
                   }
-                  className={cn(
-                    'flex w-full items-center rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-                    values.regionId === r.id && 'bg-mint',
-                  )}
+                  selected={values.regionId === r.id}
+                  className="text-[14.5px]"
                 >
-                  <span className="truncate">{r.name}</span>
-                </button>
+                  {r.name}
+                </DropdownItem>
               ))}
             </DropdownContent>
           </Dropdown>
@@ -564,32 +555,26 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
               />
             </DropdownTrigger>
             <DropdownContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto p-2">
-              <button
-                type="button"
-                onClick={() => setParams({ district_id: undefined })}
-                className={cn(
-                  'flex w-full items-center justify-between rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-                  !values.districtId && 'bg-mint',
-                )}
+              <DropdownItem
+                onSelect={() => setParams({ district_id: undefined })}
+                selected={!values.districtId}
+                className="text-[14.5px]"
               >
                 {tSearch('filters.allDistricts')}
-              </button>
+              </DropdownItem>
               {regionDistricts.map((d) => (
-                <button
+                <DropdownItem
                   key={d.id}
-                  type="button"
-                  onClick={() =>
+                  onSelect={() =>
                     setParams({
                       district_id: values.districtId === d.id ? undefined : d.id,
                     })
                   }
-                  className={cn(
-                    'flex w-full items-center rounded-lg px-3 py-[9px] text-left text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-                    values.districtId === d.id && 'bg-mint',
-                  )}
+                  selected={values.districtId === d.id}
+                  className="text-[14.5px]"
                 >
-                  <span className="truncate">{d.name}</span>
-                </button>
+                  {d.name}
+                </DropdownItem>
               ))}
             </DropdownContent>
           </Dropdown>
