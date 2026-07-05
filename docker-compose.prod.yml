@@ -32,6 +32,17 @@ services:
     # Не публикуем БД на хост — доступ только из compose-сети по имени `postgres`.
     ports: !reset []
     logging: *default-logging
+    # PG-тюнинг под размер хоста. Значения считает deploy/compute-limits.sh
+    # (PG-first: горячая выборка в RAM → быстрые гео-запросы). Дефолты — под
+    # 24 GB; на другом боксе deploy.sh пересчитает через `source`.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-6GB}
+      - -c
+      - effective_cache_size=${PG_EFFECTIVE_CACHE:-16GB}
+      - -c
+      - maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-512MB}
     environment:
       # Жёстко требуем сильный пароль в проде (никаких dev-дефолтов `avino`).
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set a strong POSTGRES_PASSWORD in .env}
@@ -48,15 +59,15 @@ services:
   # Лимиты ресурсов на Node-сервисах (api/web/client): mem_limit — жёсткий
   # потолок, чтобы прожорливый Next SSR под пиком трафика/утечкой не выдавил
   # postgres и ОС на одном боксе (docker compose up читает mem_limit/cpus без
-  # swarm). Ориентиры — docs/SERVER_TO_DEPLOY.md §3 (под нагрузкой api/client
-  # 300–600 MB, web 200–400 MB); потолки заданы с запасом над рантаймом
-  # standalone-образов (сборки в контейнере нет). postgres/redis/caddy НЕ
-  # ограничиваем — БД должна свободно бёрстить на гео-запросах.
+  # swarm). Значения параметризованы — их считает deploy/compute-limits.sh под
+  # размер хоста (формула — docs/adr/ADR-0132); дефолты в ${VAR:-...} рассчитаны
+  # на 24 GB / 8 vCPU и едут разумно, даже если скрипт не запускали.
+  # postgres/redis/caddy НЕ ограничиваем — БД должна свободно бёрстить.
   api:
     ports: !reset []
     logging: *default-logging
-    mem_limit: 1g
-    cpus: 2.0
+    mem_limit: ${API_MEM_LIMIT:-2g}
+    cpus: ${API_CPUS:-2.0}
     environment:
       NODE_ENV: production
       # Реальные origin'ы браузерных клиентов (админка + публичный портал).
@@ -69,8 +80,8 @@ services:
         NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN_API}
     ports: !reset []
     logging: *default-logging
-    mem_limit: 768m
-    cpus: 1.0
+    mem_limit: ${WEB_MEM_LIMIT:-768m}
+    cpus: ${WEB_CPUS:-1.0}
     environment:
       NODE_ENV: production
 
@@ -85,8 +96,8 @@ services:
     ports: !reset []
     logging: *default-logging
     # Публичный портал — самый нагруженный SSR-сервис, потому потолок выше web.
-    mem_limit: 2g
-    cpus: 2.0
+    mem_limit: ${CLIENT_MEM_LIMIT:-4g}
+    cpus: ${CLIENT_CPUS:-3.0}
     environment:
       NODE_ENV: production
 
