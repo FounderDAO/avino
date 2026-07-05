@@ -13,6 +13,8 @@ TLS. Стек: PostgreSQL+PostGIS, Redis, API (NestJS), две Next.js-витр�
 | `prod.env.example` | шаблон прод-переменных (домены, секреты, SMTP, S3) |
 | `deploy.sh` | разворачивание одной командой (валидация → сборка → up → health-check) |
 | `backup.sh` | дамп БД (`pg_dump -Fc`) + ротация + опц. off-site выгрузка в S3/R2 |
+| `install-docker.sh` | установка Docker Engine + Compose plugin + ротация docker-логов |
+| `harden-server.sh` | firewall (ufw) + отключение парольного SSH-входа (opt-in) |
 
 ## Требования к серверу
 
@@ -83,6 +85,34 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app lo
 # остановить стек
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app down
 ```
+
+## Firewall и SSH hardening
+
+Базовый hardening сервера — отдельный **opt-in** скрипт (не входит в
+`install-docker.sh`, чтобы не отключить парольный вход неожиданно):
+
+```bash
+# сначала заведите SSH-ключ и проверьте вход по нему:
+ssh-copy-id user@server
+sudo bash deploy/harden-server.sh
+```
+
+Что делает `harden-server.sh` (идемпотентно):
+
+- **ufw**: `allow 22,80,443/tcp` → `default deny incoming` / `allow outgoing`
+  → `enable`. Наружу остаются только SSH и Caddy (HTTP/HTTPS).
+- **sshd**: `PasswordAuthentication no` + `PermitRootLogin prohibit-password`
+  через drop-in `/etc/ssh/sshd_config.d/99-avino-hardening.conf`.
+  **Анти-локаут**: этот шаг выполняется только если в `authorized_keys` найден
+  хотя бы один ключ; иначе пропускается с предупреждением.
+
+> ⚠ **Docker публикует порты в обход ufw.** Docker вписывает свои правила в
+> iptables **до** цепочек ufw, поэтому `deny incoming` не закроет порты,
+> которые опубликовал контейнер. Отсюда правило: на сервере **никогда не
+> поднимать базовый `docker-compose.yml` без прод-overlay** — только
+> `-f docker-compose.yml -f docker-compose.prod.yml`. В overlay `ports: !reset`
+> снимает публикацию `postgres/redis/api/web/client`, и наружу смотрит только
+> Caddy. Без overlay БД/Redis окажутся открыты в интернет, и ufw их не спасёт.
 
 ## Что делает прод-overlay
 
