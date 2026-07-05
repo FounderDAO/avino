@@ -13,6 +13,7 @@
   "dependencies": {
     "@avino/shared": "workspace:*",
     "@reduxjs/toolkit": "^2.5.0",
+    "@sentry/nextjs": "^10.63.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0",

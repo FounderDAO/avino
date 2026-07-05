@@ -64,6 +64,9 @@ Negative / trade-offs:
 - apps/api/src/instrument.ts
 - apps/api/src/main.ts
 - apps/api/src/common/filters/all-exceptions.filter.ts
+- apps/client/sentry.server.config.ts, apps/client/sentry.edge.config.ts
+- apps/client/src/instrumentation.ts, apps/client/src/instrumentation-client.ts
+- apps/client/Dockerfile, docker-compose.yml (build-args NEXT_PUBLIC_SENTRY_*)
 - .env.example, deploy/prod.env.example
 
 ## Related task
