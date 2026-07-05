@@ -67,6 +67,8 @@ vi.mock('@/store/api/authApi', () => ({
   useVerifyOtpMutation: () => [verifySpy, idleState],
   // GoogleSignInButton дёргает этот хук при рендере (вернёт null без client_id).
   useGoogleLoginMutation: () => [vi.fn(), idleState],
+  // AppleSignInButton так же дёргает свой хук при рендере.
+  useAppleLoginMutation: () => [vi.fn(), idleState],
 }));
 
 describe('LoginModal — выбор канала входа', () => {
