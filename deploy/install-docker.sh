@@ -55,6 +55,21 @@ $SUDO apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plu
 log "Включаю и запускаю docker"
 $SUDO systemctl enable --now docker
 
+# 5b. Ротация логов контейнеров (json-file, 20m × 5 файлов) — без неё логи растут
+#     неограниченно и забивают диск. Пишем daemon.json только если файла нет;
+#     существующий с log-driver не трогаем (не затирать чужие настройки).
+#     Применяется к контейнерам, созданным ПОСЛЕ рестарта демона; уже запущенные
+#     нужно пересоздать (следующий деплой это делает).
+if [[ ! -f /etc/docker/daemon.json ]]; then
+  log "Настраиваю ротацию docker-логов (/etc/docker/daemon.json)"
+  printf '{\n  "log-driver": "json-file",\n  "log-opts": { "max-size": "20m", "max-file": "5" }\n}\n' | $SUDO tee /etc/docker/daemon.json > /dev/null
+  $SUDO systemctl restart docker
+elif ! grep -q '"log-driver"' /etc/docker/daemon.json; then
+  echo "⚠ /etc/docker/daemon.json уже существует, но не задаёт log-driver — добавьте ротацию логов вручную (max-size/max-file)." >&2
+else
+  log "Ротация docker-логов уже настроена — пропускаю"
+fi
+
 # 6. (опционально) запускать docker без sudo — добавить юзера в группу docker.
 #    Нужен ПЕРЕЛОГин (или `newgrp docker`), чтобы группа применилась.
 TARGET_USER="${SUDO_USER:-$USER}"
