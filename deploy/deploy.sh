@@ -59,6 +59,14 @@ if [[ $DO_PULL -eq 1 ]]; then
   fi
 fi
 
+# ── 2.5 Авторасчёт лимитов ресурсов под размер хоста (PG-first) ───────────────
+# compute-limits.sh печатает `export VAR=...` (лимиты Node + PG-тюнинг) в stdout
+# и сводку в stderr. Экспортированные переменные наследует `docker compose up`
+# и подставляет в ${VAR:-default}. Если скрипта нет — работают дефолты compose.
+if [[ -x deploy/compute-limits.sh ]]; then
+  source <(deploy/compute-limits.sh)
+fi
+
 # ── 3. Сборка и запуск ───────────────────────────────────────────────────────
 log "Собираю образы и поднимаю стек"
 "${COMPOSE[@]}" up -d --build --remove-orphans

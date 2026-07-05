@@ -83,3 +83,4 @@ log "Версии:"
 docker --version
 docker compose version   # ожидается >= 2.24
 log "Готово. Дымовой тест: ${SUDO:+$SUDO }docker run --rm hello-world"
+log "Опционально для прода (firewall + SSH): ${SUDO:+$SUDO }bash deploy/harden-server.sh"
