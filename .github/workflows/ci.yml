@@ -58,7 +58,7 @@ jobs:
         run: pnpm --filter @avino/api test
 
   web:
-    name: web + client (lint + build)
+    name: web + client (lint + build + test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,6 +81,66 @@ jobs:
       - name: Lint
         run: pnpm --filter @avino/web --filter @avino/client lint
 
+      # Юнит/компонентные тесты client (Vitest+RTL). У web тестов пока нет.
+      - name: Test (client vitest)
+        run: pnpm --filter @avino/client test
+
       # next build выполняет типизацию (tsc) — это и есть tsc-гейт для web/client.
       - name: Build (tsc + next build)
         run: pnpm --filter @avino/web --filter @avino/client build
+
+  integration:
+    name: api (migrations + int-spec)
+    runs-on: ubuntu-latest
+    services:
+      # PostGIS-контейнер зеркалит прод/compose (postgis/postgis:16-3.4): миграции
+      # создают расширение postgis и гео-индексы — обычный postgres тут не подходит.
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: avino
+          POSTGRES_PASSWORD: avino
+          POSTGRES_DB: avino
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U avino"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://avino:avino@localhost:5432/avino?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # int-spec'и импортят сервисы @avino/api, которые тянут @avino/shared из dist.
+      - name: Build shared package
+        run: pnpm --filter @avino/shared build
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @avino/api exec prisma generate
+
+      # Гейт миграций: все миграции должны примениться начисто на живом PostGIS
+      # (включая сид-районы из 20260613130000, на которые опираются int-spec'и).
+      - name: Apply migrations (gate)
+        run: pnpm --filter @avino/api exec prisma migrate deploy
+
+      # int-spec'и делят одну БД и содержат пересекающиеся гео-фикстуры → при
+      # параллельном прогоне контаминируют друг друга. Гоняем ПО ОДНОМУ файлу.
+      - name: Integration tests (one file at a time)
+        run: |
+          for f in $(cd apps/api && find src -name '*.int-spec.ts' | sort); do
+            echo "::group::$f"
+            pnpm --filter @avino/api exec jest --config jest.int.config.js "$f" --runInBand
+            echo "::endgroup::"
+          done
