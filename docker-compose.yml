@@ -123,6 +123,11 @@ services:
         # Google Sign-In Client ID — из корневого .env; пусто → кнопка Google
         # не рендерится. Должен совпадать с GOOGLE_CLIENT_ID на api.
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+        # Sentry портала (ADR-0129): отдельный Sentry-проект avino-client, поэтому
+        # в .env переменная с суффиксом _CLIENT; здесь маппится в имя, которое
+        # читает код. Пусто → Sentry выключен.
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN_CLIENT:-}
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-}
     image: avino-client
     container_name: avino-client
     profiles: ["app"]
