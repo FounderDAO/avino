@@ -35,8 +35,8 @@ export const SORT_MODES = [
 ] as const;
 export type SortMode = (typeof SORT_MODES)[number];
 
-/** Допустимые значения `bathrooms_min` — кнопки фильтра «1+ / 1.5+ / 2+ / 3+ / 4+». */
-export const BATHROOMS_MIN_VALUES = [1, 1.5, 2, 3, 4];
+/** Допустимые значения `bathrooms_min` — кнопки фильтра «1+ / 1.5+ / 2+ / 2.5+ / 3+ / 4+». */
+export const BATHROOMS_MIN_VALUES = [1, 1.5, 2, 2.5, 3, 4];
 
 /** Источник объявления для фильтра «от собственника / агентства». */
 export const LISTING_SOURCES = ['OWNER', 'AGENCY'] as const;
@@ -171,7 +171,7 @@ export class SearchListingsQueryDto {
   @Min(0)
   rooms_min?: number;
 
-  /** «N+ санузлов» (bathrooms >= N) — только 1 / 1.5 / 2 / 3 / 4 (кнопки фильтра). */
+  /** «N+ санузлов» (bathrooms >= N) — только 1 / 1.5 / 2 / 2.5 / 3 / 4 (кнопки фильтра). */
   @IsOptional()
   @Type(() => Number)
   @IsIn(BATHROOMS_MIN_VALUES)
