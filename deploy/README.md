@@ -229,11 +229,10 @@ $dc up -d
 
 ## На заметку (вне этих файлов)
 
-- За прокси для корректного rate-limit по IP добавьте
-  `app.set('trust proxy', 1)` в `apps/api/src/main.ts`.
 - Сервис `migrate` в проде дополнительно гоняет `prisma db seed` +
   `seed-admin.cjs` (создаёт локального ADMIN). Для первого деплоя ок; если не
   нужно — переопределите `command` сервиса `migrate`.
-- Yandex Maps key (`NEXT_PUBLIC_YANDEX_MAPS_API_KEY`) пока не прокидывается
-  build-арг'ом в Dockerfile `web`/`client` — добавьте по аналогии с
-  `NEXT_PUBLIC_API_BASE_URL`, если карта на этих витринах нужна.
+- Yandex Maps key (`NEXT_PUBLIC_YANDEX_MAPS_API_KEY`) прокидывается build-арг'ом
+  только в `apps/client/Dockerfile` (+ compose). Для `apps/web` (админка) он НЕ
+  прокинут — добавьте по аналогии с `NEXT_PUBLIC_API_BASE_URL`, если карта нужна
+  и там.

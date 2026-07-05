@@ -1,0 +1,40 @@
+# Dependabot — автоматические PR на обновление зависимостей (DevOps-аудит §P1 п.11).
+# Три экосистемы: npm (pnpm-workspace, один корневой lockfile), сами GitHub
+# Actions в ci.yml и базовые образы в трёх Dockerfile'ах.
+version: 2
+updates:
+  # ── npm / pnpm-workspace ────────────────────────────────────────────────────
+  # directory "/" покрывает весь workspace через корневой pnpm-lock.yaml.
+  # Минор/патч группируем в один PR, чтобы не плодить шум; мажоры — отдельными PR.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # ── GitHub Actions (.github/workflows/*.yml) ───────────────────────────────
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+
+  # ── Docker базовые образы (FROM в Dockerfile'ах) ───────────────────────────
+  # Dependabot docker-экосистема сканирует Dockerfile, но НЕ image: в compose —
+  # версии образов compose (postgis/redis/caddy) пинуются и обновляются вручную.
+  - package-ecosystem: docker
+    directory: "/apps/api"
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: "/apps/web"
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: "/apps/client"
+    schedule:
+      interval: weekly
