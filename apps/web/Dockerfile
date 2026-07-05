@@ -12,6 +12,14 @@ WORKDIR /repo
 ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 
+# Sentry DSN админки — NEXT_PUBLIC (инлайнится на build, ADR-0129).
+# Пусто → Sentry полностью выключен. DSN — публичный ключ, не секрет;
+# смена DSN/окружения = пересборка образа (как у остальных NEXT_PUBLIC_*).
+ARG NEXT_PUBLIC_SENTRY_DSN=
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT=
+ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
+
 COPY . .
 RUN pnpm install --frozen-lockfile \
  && pnpm --filter @avino/shared build \

@@ -94,6 +94,11 @@ services:
       args:
         # Инлайнится в бандл и используется БРАУЗЕРОМ → host-порт api, не сервис-имя.
         NEXT_PUBLIC_API_BASE_URL: http://localhost:${API_PORT:-4000}
+        # Sentry админки (ADR-0129): отдельный Sentry-проект avino-web, поэтому
+        # в .env переменная с суффиксом _WEB; здесь маппится в имя, которое
+        # читает код. Пусто → Sentry выключен.
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN_WEB:-}
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-}
     image: avino-web
     container_name: avino-web
     profiles: ["app"]
