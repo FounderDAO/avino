@@ -3,7 +3,14 @@
 #   docker build -f apps/client/Dockerfile -t avino-client .
 # NEXT_PUBLIC_API_BASE_URL инлайнится на этапе сборки и используется БРАУЗЕРОМ,
 # поэтому указывает на host-порт api (http://localhost:4000), а не на сервис-имя.
-FROM node:20-slim AS base
+#
+# Два стейджа: build (полный workspace + devDeps → `next build`) и runtime —
+# только standalone-бандл Next (output: 'standalone', next.config.mjs) под
+# USER node; рантайм = `node server.js`, без pnpm и node_modules workspace'а.
+# Рантайм-переменные (API_INTERNAL_URL для SSR) читаются standalone-сервером
+# как раньше — из environment контейнера.
+
+FROM node:20-slim AS build
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=1 NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable
 WORKDIR /repo
@@ -40,11 +47,32 @@ ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT=
 ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
 
+# Сначала только манифесты — слой pnpm install кешируется, пока не меняются
+# зависимости (правки исходников не приводят к переустановке node_modules).
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY apps/client/package.json apps/client/
+COPY packages/shared/package.json packages/shared/
+COPY packages/config/package.json packages/config/
+RUN pnpm install --frozen-lockfile
+
 COPY . .
-RUN pnpm install --frozen-lockfile \
- && pnpm --filter @avino/shared build \
+RUN pnpm --filter @avino/shared build \
  && pnpm --filter @avino/client build
 
-WORKDIR /repo/apps/client
+# ── Runtime: standalone-бандл, non-root ──────────────────────────────────────
+FROM node:20-slim AS runtime
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3001 HOSTNAME=0.0.0.0
+WORKDIR /app
+# standalone-бандл сохраняет структуру монорепо: server.js лежит в apps/client/.
+# Статику и public Next в standalone не копирует — добираем их руками.
+COPY --from=build --chown=node:node /repo/apps/client/.next/standalone /app
+COPY --from=build --chown=node:node /repo/apps/client/.next/static /app/apps/client/.next/static
+COPY --from=build --chown=node:node /repo/apps/client/public /app/apps/client/public
+USER node
 EXPOSE 3001
-CMD ["pnpm", "start"]
+# Зеркало compose-healthcheck (docker-compose.yml → services.client.healthcheck).
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=20s \
+  CMD ["node", "-e", "fetch('http://localhost:3001/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+CMD ["node", "apps/client/server.js"]
