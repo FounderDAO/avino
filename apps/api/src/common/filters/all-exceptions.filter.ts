@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import { randomUUID } from 'node:crypto';
 import {
   ApiErrorBody,
@@ -87,6 +88,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
         `${request.method ?? '-'} ${request.url ?? '-'} → ${status} [${requestId}]`,
         exception instanceof Error ? exception.stack : String(exception),
       );
+      // В Sentry — тот же критерий, что и для error-лога: только подлинные
+      // внутренние сбои. Доменные 5xx (осознанный ответ) и 4xx не шумят.
+      // Без SENTRY_DSN (см. instrument.ts) вызов — безопасный no-op.
+      Sentry.captureException(exception, {
+        tags: { request_id: requestId },
+        extra: { method: request.method, url: request.url },
+      });
     }
 
     response.setHeader(REQUEST_ID_HEADER, requestId);
