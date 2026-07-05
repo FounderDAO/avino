@@ -41,7 +41,10 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    image: avino-api
+      # build-стейдж (полный workspace): рантайм-образ api больше не содержит
+      # prisma CLI / ts-node / seed-скрипты — миграции и сиды гоняем отсюда.
+      target: build
+    image: avino-api-build
     profiles: ["app"]
     depends_on:
       postgres:
