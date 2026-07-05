@@ -63,8 +63,8 @@ import type { TourWindow, Region, District } from '@/lib/mock/types';
 import { RegionDistrictSelect } from '@/features/listing-new/RegionDistrictSelect';
 
 const ROOM_OPTIONS = ['studio', '1', '2', '3', '4', '5+'] as const;
-/** 2.5/3.5 скрыты — зеркалит BathroomsControl; API принимает шаг 0.5 (LAST_CHANGED_API.md §1). */
-const BATHROOM_OPTIONS = ['1', '1.5', '2', '3', '4+'] as const;
+/** 3.5 скрыт — зеркалит BathroomsControl; API принимает шаг 0.5 (LAST_CHANGED_API.md §1). */
+const BATHROOM_OPTIONS = ['1', '1.5', '2', '2.5', '3', '4+'] as const;
 
 const TYPE_ICONS: Record<PropertyType, typeof HomeIcon> = {
   APARTMENT: Building,

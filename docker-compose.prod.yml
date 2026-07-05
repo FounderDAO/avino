@@ -17,23 +17,37 @@
 #   POSTGRES_PASSWORD, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Ротация docker-логов: дефолтный json-file без ограничений постепенно забивает
+# диск VPS. Anchor вешается на все сервисы prod-overlay (staging наследует его),
+# поэтому ротация работает даже если /etc/docker/daemon.json на сервере не
+# настроен (для новых серверов его пишет deploy/install-docker.sh).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   postgres:
     # Не публикуем БД на хост — доступ только из compose-сети по имени `postgres`.
     ports: !reset []
+    logging: *default-logging
     environment:
       # Жёстко требуем сильный пароль в проде (никаких dev-дефолтов `avino`).
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set a strong POSTGRES_PASSWORD in .env}
 
   redis:
     ports: !reset []
+    logging: *default-logging
 
   migrate:
+    logging: *default-logging
     environment:
       NODE_ENV: production
 
   api:
     ports: !reset []
+    logging: *default-logging
     environment:
       NODE_ENV: production
       # Реальные origin'ы браузерных клиентов (админка + публичный портал).
@@ -45,6 +59,7 @@ services:
         # Браузер ходит в API по публичному https-домену, не по localhost.
         NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN_API}
     ports: !reset []
+    logging: *default-logging
     environment:
       NODE_ENV: production
 
@@ -57,6 +72,7 @@ services:
         # avino.uz, и на staging превью-картинка тянется с нерабочего прод-хоста.
         NEXT_PUBLIC_SITE_URL: https://${DOMAIN_CLIENT}
     ports: !reset []
+    logging: *default-logging
     environment:
       NODE_ENV: production
 
@@ -66,6 +82,7 @@ services:
     container_name: avino-caddy
     profiles: ["app"]
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       - api
       - web
