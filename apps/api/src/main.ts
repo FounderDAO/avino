@@ -1,3 +1,5 @@
+// Sentry ДОЛЖЕН инициализироваться до Nest/express (ADR-0129) — не переносить ниже.
+import './instrument';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
