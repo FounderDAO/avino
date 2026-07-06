@@ -111,6 +111,12 @@ vi.mock('./FiltersPanel', () => ({
   FiltersPanel: () => <div data-testid="filters-panel-stub" />,
 }));
 
+// LoginModal тянет authApi/Google/Apple — заглушка (как в ContactCard.test).
+vi.mock('@/components/layout/LoginModal', () => ({
+  LoginModal: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="login-modal-stub" /> : null,
+}));
+
 // Импорт ПОСЛЕ моков
 import { FilterBar } from './FilterBar';
 
@@ -193,12 +199,14 @@ describe('FilterBar (Zillow-раскладка)', () => {
     expect(screen.queryByRole('combobox')).toBeNull();
   });
 
-  it('НЕ показывает кнопку сохранения поиска для гостя', () => {
+  it('показывает кнопку сохранения поиска гостю и открывает вход по клику', async () => {
     render(<FilterBar values={baseValues} districts={districts} regions={[]} />);
-    // useAppSelector вернёт false → isAuthenticated=false → кнопки нет
-    expect(
-      screen.queryByRole('button', { name: /search\.filters\.saveSearch/i }),
-    ).toBeNull();
+    // useAppSelector вернёт false → гость, но кнопка теперь видна всегда.
+    const btn = screen.getByRole('button', { name: /search\.filters\.saveSearch/i });
+    expect(btn).toBeInTheDocument();
+    // Клик гостя открывает LoginModal (заглушка рендерится при open).
+    await userEvent.click(btn);
+    expect(screen.getByTestId('login-modal-stub')).toBeInTheDocument();
   });
 
   it('триггер Купить отражает tx=RENT корректным лейблом', () => {

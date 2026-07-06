@@ -254,6 +254,7 @@
       "saving": "Saqlanmoqda…",
       "saved": "Saqlandi",
       "saveError": "Xatolik",
+      "saveSearchLoginPrompt": "Qidiruvni saqlash va yangi e'lonlar haqida xabar olish uchun tizimga kiring.",
       "listView": "Ro'yxat",
       "mapView": "Xarita",
       "homeType": "Uy-joy turi",

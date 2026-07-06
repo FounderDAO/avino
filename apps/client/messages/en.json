@@ -254,6 +254,7 @@
       "saving": "Saving…",
       "saved": "Saved",
       "saveError": "Error",
+      "saveSearchLoginPrompt": "Sign in to save this search and get alerts about new listings.",
       "listView": "List",
       "mapView": "Map",
       "homeType": "Home type",
