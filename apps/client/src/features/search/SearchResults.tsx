@@ -40,6 +40,7 @@ import {
   setTerritory,
   clearTerritory as clearTerritoryRedux,
 } from '@/store/territorySlice';
+import { setResultPrices, clearResultPrices } from '@/store/resultPricesSlice';
 
 // Карта — только на клиенте (Yandex JS API требует window). next/dynamic ssr:false.
 const MapView = dynamic(
@@ -165,11 +166,26 @@ export function SearchResults({
   // в viewport-режиме — bounds-выдача (до первого ответа — SSR-страница:
   // при SSR-восстановлении bbox она уже посчитана по bounds).
   const paged = React.useMemo(() => [...listings, ...extra], [listings, extra]);
-  const displayed = points
-    ? polygonData ?? []
-    : vp.active
-      ? vp.listings ?? paged
-      : paged;
+  const displayed = React.useMemo(
+    () =>
+      points
+        ? polygonData ?? []
+        : vp.active
+          ? vp.listings ?? paged
+          : paged,
+    [points, polygonData, vp.active, vp.listings, paged],
+  );
+
+  // Зеркалим цены текущей выдачи в Redux: PriceFilter (соседний компонент)
+  // строит по ним домен слайдера и гистограмму (спека 2026-07-06).
+  React.useEffect(() => {
+    dispatch(
+      setResultPrices(
+        displayed.map((l) => ({ price: Number(l.price), currency: l.currency })),
+      ),
+    );
+  }, [displayed, dispatch]);
+  React.useEffect(() => () => void dispatch(clearResultPrices()), [dispatch]);
 
   // Viewport-режим: один запрос (limit=100), список раскрывается локальными
   // батчами по SEARCH_PAGE_SIZE без сети (маркеры при этом видят весь набор).
