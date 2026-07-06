@@ -368,6 +368,26 @@
         }
       }
     },
+    "/api/v1/users/me/avatar": {
+      "post": {
+        "operationId": "UsersController_uploadAvatar",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "operationId": "UsersController_deleteAvatar",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/settings/public": {
       "get": {
         "operationId": "PublicSettingsController_get",
@@ -877,7 +897,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -1035,6 +1058,14 @@
             "schema": {
               "minimum": 0,
               "type": "number"
+            }
+          },
+          {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -1154,7 +1185,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -1312,6 +1346,14 @@
             "schema": {
               "minimum": 0,
               "type": "number"
+            }
+          },
+          {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -1461,7 +1503,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -1619,6 +1664,14 @@
             "schema": {
               "minimum": 0,
               "type": "number"
+            }
+          },
+          {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -1829,7 +1882,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -1987,6 +2043,14 @@
             "schema": {
               "minimum": 0,
               "type": "number"
+            }
+          },
+          {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -2097,7 +2161,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -2255,6 +2322,14 @@
             "schema": {
               "minimum": 0,
               "type": "number"
+            }
+          },
+          {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -2437,7 +2512,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -2598,6 +2676,14 @@
             }
           },
           {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "cursor",
             "required": false,
             "in": "query",
@@ -2613,14 +2699,6 @@
               "minimum": 1,
               "maximum": 100,
               "type": "number"
-            }
-          },
-          {
-            "name": "points",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
             }
           },
           {

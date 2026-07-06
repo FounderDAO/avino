@@ -22,6 +22,7 @@ import {
   PropertyType,
   TransactionType,
 } from '@prisma/client';
+import { IsPolygonRingOptional } from './polygon-ring.util';
 /**
  * Допустимые значения параметра `sort` (TASK-207, API.md §9).
  * `date_desc` — умолчание (promotion-приоритетный ORDER BY тир→created_at DESC→id DESC).
@@ -45,6 +46,18 @@ export type ListingSource = (typeof LISTING_SOURCES)[number];
 /** query-строка → массив (single или повторяющийся параметр). */
 const toArray = ({ value }: { value: unknown }) =>
   value === undefined ? undefined : Array.isArray(value) ? value : [value];
+
+/**
+ * query-строка → массив ЧИСЕЛ (single или повторяющийся параметр, TASK-247).
+ * Зеркалит {@link toArray}, но дополнительно приводит каждый элемент к `Number`
+ * — `@IsInt({ each: true })` затем валидирует результат (нечисловой элемент →
+ * `NaN`, не является `int`, 400 VALIDATION_ERROR).
+ */
+const toNumberArray = ({ value }: { value: unknown }) => {
+  if (value === undefined) return undefined;
+  const arr = Array.isArray(value) ? value : [value];
+  return arr.map((v) => Number(v));
+};
 
 /**
  * query-строка 'true' → true, 'false' → false; иначе value as-is (→ @IsBoolean
@@ -155,14 +168,23 @@ export class SearchListingsQueryDto {
   q?: string;
 
   /**
-   * Число комнат (TASK-207). 0..3 — точное совпадение; 4 = «4 и более».
+   * Число комнат (TASK-207/TASK-247, ADR-0133). Повторяющийся query-параметр
+   * (`rooms=2&rooms=3&rooms=5`) → массив, семантика OR/IN; одиночное значение
+   * (обратная совместимость) заворачивается в массив из 1 элемента той же
+   * `toNumberArray`-трансформацией, что и одиночный `property_type`/`amenities`.
+   *
+   * Семантика КАЖДОГО значения: 0..4 — ТОЧНОЕ совпадение (`rooms = N`), 5 —
+   * «5 и более» (`rooms >= 5`). BREAKING (ADR-0133): раньше `rooms=4`
+   * трактовался как «4 и более» (схлопывал 4/5/6 в одну выдачу) — теперь `rooms=4`
+   * это РОВНО 4; для «4+» см. `rooms_min=4` либо явный список `rooms=4&rooms=5`.
    * Применяется во всех эндпоинтах поиска (включая гео-варианты).
    */
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  rooms?: number;
+  @Transform(toNumberArray)
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  rooms?: number[];
 
   /** «N+ комнат» (rooms >= N) — кнопки 1+/2+/…/5+. */
   @IsOptional()
@@ -232,6 +254,19 @@ export class SearchListingsQueryDto {
   /** Площадь участка, соток (Zillow Phase 2). */
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) lot_area_min?: number;
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) lot_area_max?: number;
+
+  /**
+   * Полигон нарисованной территории (freehand-лассо, TASK-249) — та же строка
+   * `lat,lng;...`, что у `/search/polygon` (`PolygonSearchQueryDto.points`), но
+   * НЕОБЯЗАТЕЛЬНАЯ: если задана, пересечение с контуром (`ST_Within`)
+   * подмешивается к остальным фильтрам в `/search` и `/search/bounds`
+   * (SearchService.search/searchBounds), а не только к bbox/скалярам.
+   * `@IsPolygonRingOptional()` (не `@IsOptional() + @IsPolygonRing()`) — см.
+   * комментарий у декоратора в `polygon-ring.util.ts` про гочу наследования
+   * class-validator с `PolygonSearchQueryDto` (там `points` обязателен).
+   */
+  @IsPolygonRingOptional()
+  points?: string;
 
   /** Фильтр по типу промо. Пока игнорируется. */
   @IsOptional()

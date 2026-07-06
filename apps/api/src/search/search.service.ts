@@ -307,6 +307,10 @@ export class SearchService {
    * PINNED_PROMO_COUNT} промо закреплены в начале, остальное строго по выбранному
    * ключу; для `price_*` ключ нормализуется в USD по текущему курсу ЦБУ
    * ({@link SearchService.searchExplicitSort}).
+   *
+   * `points` (TASK-249, ADR-0133): необязательная нарисованная территория —
+   * если задана, пересечение с контуром ({@link pointsFilterSql}) подмешивается
+   * к остальным фильтрам (`ST_Within`, зеркало `/search/polygon`).
    */
   async search(
     query: SearchListingsQueryDto,
@@ -315,7 +319,7 @@ export class SearchService {
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const cursor = this.decodeCursor(query.cursor);
-    const filterSql = this.buildWhereSql(query, await this.fxRateForFilter(query));
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, await this.fxRateForFilter(query))} ${this.pointsFilterSql(query.points)}`;
 
     // Явная сортировка → гибрид (закреплённое промо + строгий ключ + FX).
     if (query.sort !== undefined) {
@@ -581,6 +585,9 @@ export class SearchService {
    * по осевому прямоугольнику уже эквивалентен «точка внутри», но `ST_Within`
    * оставлен явно (контракт API.md §10, комментарий миграции idx_listings_location).
    * Гео-эндпоинт всегда использует `date_desc`-конфиг (created_at DESC).
+   *
+   * `points` (TASK-249, ADR-0133): необязательная нарисованная территория —
+   * если задана, результат — пересечение bbox И контура ({@link pointsFilterSql}).
    */
   async searchBounds(
     query: BoundsSearchQueryDto,
@@ -593,7 +600,7 @@ export class SearchService {
     const envelope = this.envelopeSql(query);
     const fxRate = await this.fxRateForFilter(query);
     // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
-    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND ${this.boundsPrefilterSql(query)} AND ST_Within(location::geometry, ${envelope})`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND ${this.boundsPrefilterSql(query)} AND ST_Within(location::geometry, ${envelope}) ${this.pointsFilterSql(query.points)}`;
     const pageWhere = cursor
       ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
@@ -953,6 +960,23 @@ export class SearchService {
   }
 
   /**
+   * Условие территории по необязательному `points` (TASK-249, ADR-0133) для
+   * `/search` и `/search/bounds` — та же полигональная фильтрация, что у
+   * `/search/polygon` ({@link polygonSql}), но подмешиваемая ДОПОЛНИТЕЛЬНО к
+   * bbox/скалярным фильтрам, а не вместо них. `undefined` (контур не задан) →
+   * `Prisma.empty` (условие не добавляется). Валидность строки уже гарантирована
+   * DTO-декоратором (`IsPolygonRingOptional`), поэтому `parsePolygonRing` здесь
+   * не должен бросать — как и в {@link searchPolygon}/{@link
+   * matchNewlyActiveListings}, парсинг — единственный источник истины
+   * ({@link parsePolygonRing}), расхождение невозможно.
+   */
+  private pointsFilterSql(points: string | undefined): Prisma.Sql {
+    if (points === undefined) return Prisma.empty;
+    const polygon = this.polygonSql(parsePolygonRing(points));
+    return Prisma.sql`AND location IS NOT NULL AND location && ${polygon}::geography AND ST_Within(location::geometry, ${polygon})`;
+  }
+
+  /**
    * Сборка keyset-envelope из ранжированных строк (+1 строка — индикатор
    * следующей страницы): срез до `limit`, гидратация карточек, tier-aware
    * `next_cursor` по последнему показанному элементу. `cfg` определяет, как
@@ -1151,7 +1175,12 @@ export class SearchService {
    * фильтр совпадал с конвертированными ценами, которые видит пользователь;
    * `rate=null` → деградация к сравнению в пределах одной валюты.
    *
-   * `rooms` (TASK-207): 0..3 — точное совпадение; 4 = «4+» (rooms >= 4).
+   * `rooms` (TASK-207/TASK-247, ADR-0133, BREAKING): массив ИЛИ одиночное число —
+   * `matchNewlyActiveListings` передаёт сырой `filters_json` в обход DTO, поэтому
+   * этот метод принимает `query.rooms` нативно как `number | number[]`. Каждое
+   * значение 0..4 — ТОЧНОЕ совпадение (`IN (...)`), 5 — «5 и более» (`>= 5`);
+   * ветки комбинируются через OR. Раньше одиночное `rooms=4` трактовалось как
+   * «4 и более» — теперь это РОВНО 4 (BREAKING).
    * `rooms_min`: «N и более» (rooms >= N) — для кнопок 1+/2+/…/5+.
    * Применяется во всех эндпоинтах поиска (включая гео-варианты).
    *
@@ -1207,12 +1236,24 @@ export class SearchService {
       if (query.price_max !== undefined)
         conds.push(Prisma.sql`price <= ${query.price_max}::numeric`);
     }
-    if (query.rooms !== undefined)
-      conds.push(
-        query.rooms >= 4
-          ? Prisma.sql`rooms >= 4`
-          : Prisma.sql`rooms = ${query.rooms}`,
-      );
+    // TASK-247 (ADR-0133): `query.rooms` — массив (DTO) ИЛИ одиночное число
+    // (сырые `filters_json` в matchNewlyActiveListings, в обход DTO-трансформа).
+    // Каждое значение 0..4 — точное совпадение (IN), 5 — «5 и более» (>= 5).
+    if (query.rooms !== undefined) {
+      const roomsValues = Array.isArray(query.rooms)
+        ? query.rooms
+        : [query.rooms];
+      if (roomsValues.length > 0) {
+        const exact = roomsValues.filter((v) => v < 5);
+        const hasFivePlus = roomsValues.some((v) => v >= 5);
+        const parts: Prisma.Sql[] = [];
+        if (exact.length > 0)
+          parts.push(Prisma.sql`rooms IN (${Prisma.join(exact)})`);
+        if (hasFivePlus) parts.push(Prisma.sql`rooms >= 5`);
+        if (parts.length > 0)
+          conds.push(Prisma.sql`(${Prisma.join(parts, ' OR ')})`);
+      }
+    }
 
     // Zillow Phase 1: «N+ комнат»
     if (query.rooms_min !== undefined)

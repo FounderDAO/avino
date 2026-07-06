@@ -6,57 +6,19 @@ import {
   IsString,
   Max,
   Min,
-  registerDecorator,
-  ValidationArguments,
-  ValidationOptions,
 } from 'class-validator';
 import { SearchListingsQueryDto } from './search-listings.dto';
-import { parsePolygonRing, PolygonVertex } from './polygon-ring.util';
+import {
+  IsPolygonRing,
+  parsePolygonRing,
+  PolygonVertex,
+} from './polygon-ring.util';
 
 // Re-export so callers that previously imported from here continue to work.
-export { parsePolygonRing, PolygonVertex };
-
-// ─── @IsPolygonRing() decorator ───────────────────────────────────────────────
-
-/**
- * Кастомный декоратор class-validator для поля `points` полигонального поиска
- * (TASK-193). Вызывает {@link parsePolygonRing}; при ошибке — сообщение
- * возвращается в 400 VALIDATION_ERROR. При успехе не мутирует значение
- * (парсинг повторно вызывается в сервисе через тот же хелпер).
- */
-export function IsPolygonRing(options?: ValidationOptions) {
-  return function (object: object, propertyName: string) {
-    registerDecorator({
-      name: 'isPolygonRing',
-      target: (object as { constructor: new (...args: unknown[]) => unknown }).constructor,
-      propertyName,
-      options,
-      validator: {
-        validate(value: unknown): boolean {
-          if (typeof value !== 'string') return false;
-          try {
-            parsePolygonRing(value);
-            return true;
-          } catch {
-            return false;
-          }
-        },
-        defaultMessage(args: ValidationArguments): string {
-          const raw = args.value;
-          if (typeof raw !== 'string') {
-            return 'points must be a string';
-          }
-          try {
-            parsePolygonRing(raw);
-            return '';
-          } catch (err) {
-            return (err as Error).message;
-          }
-        },
-      },
-    });
-  };
-}
+// `IsPolygonRing()` теперь живёт в `polygon-ring.util.ts` (TASK-249) — нужно
+// базовому `SearchListingsQueryDto` для необязательного `points`, а он не может
+// импортировать из этого файла (цикл: geo-search.dto.ts → search-listings.dto.ts).
+export { parsePolygonRing, PolygonVertex, IsPolygonRing };
 
 /** Верхняя граница радиуса (метры) — ограничивает стоимость гео-запроса. */
 const MAX_RADIUS_M = 50_000;
@@ -138,7 +100,7 @@ export class PolygonSearchQueryDto extends SearchListingsQueryDto {
    */
   @IsString()
   @IsPolygonRing()
-  points!: string;
+  declare points: string;
 }
 
 /**

@@ -316,6 +316,21 @@ Body:
 ```
 200 → объект профиля.
 
+### POST /api/v1/users/me/avatar
+Загрузка аватара (TASK-248, ADR-0134). Auth: **Bearer**. `multipart/form-data`,
+поле `file` (`image/jpeg|png|webp`, ≤10 MiB) — та же proxy-загрузка, что у медиа
+объявлений. Файл кладётся в R2 (`user_profiles.avatar_storage_key`), `avatar_url`
+подписывается заново на каждое чтение (sign-on-read, ADR-0086) и **не**
+перезаписывает `avatar_url` фото OAuth-провайдера.
+→ `201 { "avatar_url": "https://..." }`. Errors: `400 VALIDATION_ERROR` (нет
+файла), `415 UNSUPPORTED_MEDIA_TYPE`, `413 FILE_TOO_LARGE`.
+
+### DELETE /api/v1/users/me/avatar
+Убрать загруженный аватар (`avatar_storage_key → null`, объект в R2 удаляется
+best-effort). Auth: **Bearer**. → `204`. После этого `avatar_url` снова отдаёт
+фото OAuth-провайдера или `null`. Чтение аватара (в `/users/me`, `/auth/me`,
+`/chat/threads`) резолвит подписанную ссылку из `avatar_storage_key`, если задан.
+
 ### DELETE /api/v1/users/me
 Soft-delete собственного аккаунта (ADR-013): `status → DELETED`, `deleted_at`
 устанавливается; строка сохраняется (referential history), контакт освобождается
@@ -569,9 +584,10 @@ Query-фильтры (`ARCHITECTURE` §12):
 | `price_min`, `price_max` | decimal | в пределах `currency`, без FX |
 | `currency` | `UZS \| USD` | валюта диапазона цен |
 | `area_min`, `area_max` | decimal | |
-| `rooms` | int | число комнат: 0..3 — точное совпадение; **4 = «4+»** (`rooms >= 4`) |
+| `rooms` | int (повтор.) | число комнат, **повторяющийся** параметр → OR/IN (`rooms=2&rooms=3&rooms=5`). Каждое **0..4 — ТОЧНОЕ** совпадение (`4` = ровно 4, **BREAKING** vs прежнего «4+»); **`5` = «5+»** (`rooms >= 5`). Одиночный скаляр совместим. Для «4+» — `rooms_min=4`. TASK-247/ADR-0133 |
 | `floor`, `total_floors`, `year_built` | int | |
 | `feature_ids` | uuid[] | амenities (CSV или повтор параметра) |
+| `points` | string | необязательная нарисованная территория `lat,lng;lat,lng;…` (≥3 вершин); пересечение с контуром (`ST_Within`) поверх остальных фильтров и bbox. Тот же формат, что `/search/polygon`; невалидная строка → `400 VALIDATION_ERROR`. Принимается и в `/search/bounds`. TASK-249/ADR-0133 |
 | `promotion_type` | `NORMAL \| TOP \| VIP` | фильтр по тиру (опц.) |
 | `sort` | `date_desc \| price_asc \| price_desc \| area_desc` | ключ сортировки; **умолчание** `date_desc`; невалидное значение → 400. При явном выборе — гибрид (см. ниже): закреплённое промо + строгий ключ; `price_*` нормализуется по курсу (ADR-0117) |
 | `cursor`, `limit` | | keyset-пагинация |

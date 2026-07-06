@@ -23,6 +23,8 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { MeResponse } from './dto/me-response.dto';
 import { isReviewerBypass, type OtpBypassConfig } from './otp-bypass.util';
+import { UploadsService } from '../uploads';
+import { resolveAvatarUrl } from '../users/avatar-url.util';
 
 /** Сводка пользователя в ответе verify (API.md §3). */
 export interface AuthUserSummary {
@@ -92,6 +94,7 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly telegram: TelegramService,
     private readonly rateLimitService: OtpRateLimitService,
+    private readonly uploads: UploadsService,
   ) {}
 
   /** Коды OTP-ошибок, на которые шлём admin-алерт о неудачном входе. */
@@ -321,6 +324,13 @@ export class AuthService {
     }
 
     const latestConsent = user.legalConsents[0];
+    // Загруженный аватар (avatarStorageKey) → свежая подписанная R2-ссылка;
+    // иначе фото OAuth-провайдера или null (TASK-248, ADR-0134).
+    const avatarUrl = await resolveAvatarUrl(
+      this.uploads,
+      user.profile?.avatarStorageKey,
+      user.profile?.avatarUrl,
+    );
 
     return {
       id: user.id,
@@ -335,7 +345,7 @@ export class AuthService {
         first_name: user.profile?.firstName ?? null,
         last_name: user.profile?.lastName ?? null,
         display_name: user.profile?.displayName ?? null,
-        avatar_url: user.profile?.avatarUrl ?? null,
+        avatar_url: avatarUrl,
         contact_phone: user.profile?.contactPhone ?? null,
         preferred_language:
           user.profile?.preferredLanguage ?? user.defaultLanguage,

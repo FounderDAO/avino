@@ -66,7 +66,8 @@ describe('AuthService.verifyOtp', () => {
       assertCanVerify: jest.fn().mockResolvedValue(undefined),
       recordFailedVerify: jest.fn().mockResolvedValue(undefined),
     };
-    service = new AuthService(prisma, config, tokenService, telegram, rateLimitService as any);
+    const uploads = { getObjectUrl: jest.fn().mockResolvedValue('https://signed/a.webp') };
+    service = new AuthService(prisma, config, tokenService, telegram, rateLimitService as any, uploads as any);
   });
 
   const dto = (code = CODE) => ({
@@ -396,6 +397,7 @@ describe('AuthService.getMe', () => {
       {} as any,
       { sendAdminAlert: jest.fn() } as any,
       { assertCanVerify: jest.fn().mockResolvedValue(undefined), recordFailedVerify: jest.fn().mockResolvedValue(undefined) } as any,
+      { getObjectUrl: jest.fn().mockResolvedValue('https://signed/a.webp') } as any,
     );
   });
 

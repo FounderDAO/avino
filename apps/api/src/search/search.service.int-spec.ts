@@ -388,10 +388,13 @@ describe('SearchService sort + rooms (integration, TASK-207)', () => {
     expect(explicit.data[1].id).toBe(ID.top);
   });
 
-  it('rooms=2: returns only listings with rooms == 2', async () => {
+  // TASK-247 (ADR-0133, BREAKING): rooms — массив, семантика OR/IN; 0..4 точное
+  // совпадение, 5 = «5 и более» (раньше одиночное rooms=4 схлопывало 4/5/6 в
+  // «4+» — теперь rooms=4 это РОВНО 4).
+  it('rooms=[2]: returns only listings with rooms == 2', async () => {
     const result = await service.search({
       city_id: CITY_ID_207,
-      rooms: 2,
+      rooms: [2],
       limit: 100,
     });
 
@@ -402,34 +405,62 @@ describe('SearchService sort + rooms (integration, TASK-207)', () => {
     expect(ids.size).toBe(2);
   });
 
-  it('rooms=4: returns listings with rooms >= 4 (the 4+ bucket)', async () => {
+  it('rooms=[4]: EXACT match only (BREAKING — no longer the old "4+" bucket)', async () => {
     const result = await service.search({
       city_id: CITY_ID_207,
-      rooms: 4,
+      rooms: [4],
       limit: 100,
     });
 
     const ids = new Set(result.data.map((d) => d.id));
-    // rooms=4: n2(4), n3(5) → оба >= 4.
-    expect(ids).toContain(ID.n2);
-    expect(ids).toContain(ID.n3);
-    expect(ids.size).toBe(2);
-    // Строки с rooms < 4 не должны попадать.
-    expect(ids.has(ID.vip)).toBe(false); // rooms=2
-    expect(ids.has(ID.top)).toBe(false); // rooms=1
-    expect(ids.has(ID.n1)).toBe(false);  // rooms=0
-    expect(ids.has(ID.n4)).toBe(false);  // rooms=2
-    expect(ids.has(ID.n5)).toBe(false);  // rooms=3
+    // rooms=4 точный: только n2(4); n3(5) больше НЕ попадает (раньше попадал как «4+»).
+    expect(ids).toEqual(new Set([ID.n2]));
   });
 
-  it('rooms=0: returns only listings with rooms == 0 (exact match)', async () => {
+  it('rooms=[5]: «5 и более» bucket (rooms >= 5)', async () => {
     const result = await service.search({
       city_id: CITY_ID_207,
-      rooms: 0,
+      rooms: [5],
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toEqual(new Set([ID.n3])); // n3(5); n2(4) не попадает (точный <5 бакет).
+  });
+
+  it('rooms=[2,3,5]: OR/IN across exact values + the 5+ bucket, no duplicates', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_207,
+      rooms: [2, 3, 5],
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    // 2 → vip,n4; 3 → n5; 5+ → n3. n1(0)/top(1)/n2(4) не должны попасть.
+    expect(ids).toEqual(new Set([ID.vip, ID.n4, ID.n5, ID.n3]));
+  });
+
+  it('rooms=[0]: returns only listings with rooms == 0 (exact match)', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_207,
+      rooms: [0],
       limit: 100,
     });
 
     expect(result.data.map((d) => d.id)).toEqual([ID.n1]);
+  });
+
+  it('rooms=4 (bare scalar, back-compat — matchNewlyActiveListings/legacy filters_json path bypassing DTO)', async () => {
+    // buildWhereSql принимает `number | number[]` нативно (TASK-247): сырые
+    // filters_json могут хранить одиночное число, а не массив. `as any`, потому
+    // что SearchListingsQueryDto.rooms типизирован как number[] на уровне DTO.
+    const result = await service.search({
+      city_id: CITY_ID_207,
+      rooms: 4,
+      limit: 100,
+    } as any);
+
+    expect(result.data.map((d) => d.id)).toEqual([ID.n2]); // РОВНО 4, не «4+».
   });
 
   it('keyset stability: sort=price_asc with limit=2 — no duplicates, no gaps', async () => {

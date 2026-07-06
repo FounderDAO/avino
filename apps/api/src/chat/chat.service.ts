@@ -12,6 +12,8 @@ import { AuthenticatedUser } from '../common/guards';
 import { NotificationsService } from '../notifications';
 import { PrismaService } from '../prisma';
 import { SearchService } from '../search';
+import { UploadsService } from '../uploads';
+import { resolveAvatarUrl } from '../users/avatar-url.util';
 
 /** Дефолт/максимум размера страницы (API.md §4: default 20, max 100). */
 const DEFAULT_LIMIT = 20;
@@ -170,6 +172,7 @@ export class ChatService {
     private readonly prisma: PrismaService,
     private readonly search: SearchService,
     private readonly notifications: NotificationsService,
+    private readonly uploads: UploadsService,
   ) {}
 
   /**
@@ -702,19 +705,31 @@ export class ChatService {
             firstName: true,
             lastName: true,
             avatarUrl: true,
+            avatarStorageKey: true,
           },
         },
       },
     });
     return new Map(
-      users.map((u) => [
-        u.id,
-        {
-          id: u.id,
-          name: this.profileName(u.profile),
-          avatar_url: u.profile?.avatarUrl ?? null,
-        },
-      ]),
+      await Promise.all(
+        users.map(
+          async (u) =>
+            [
+              u.id,
+              {
+                id: u.id,
+                name: this.profileName(u.profile),
+                // Загруженный аватар (avatarStorageKey) → свежая подписанная
+                // R2-ссылка; иначе фото OAuth-провайдера или null (TASK-248).
+                avatar_url: await resolveAvatarUrl(
+                  this.uploads,
+                  u.profile?.avatarStorageKey,
+                  u.profile?.avatarUrl,
+                ),
+              },
+            ] as const,
+        ),
+      ),
     );
   }
 
