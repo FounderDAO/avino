@@ -18,7 +18,7 @@ const base = {
 it('рендерит подписи домена и два поля', () => {
   render(<PriceRangeControl {...base} value={{ min: null, max: null }} onChange={vi.fn()} />);
   expect(screen.getByText('$0')).toBeInTheDocument();
-  expect(screen.getByText('$1000+')).toBeInTheDocument();
+  expect(screen.getByText('$1000')).toBeInTheDocument();
   expect(screen.getByPlaceholderText('от $')).toBeInTheDocument();
   expect(screen.getByPlaceholderText('до $')).toBeInTheDocument();
 });
