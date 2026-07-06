@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Patch,
+  Post,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
 import { ProfileResponse, ProfilesService } from '../profiles';
@@ -6,7 +18,11 @@ import { UpdateProfileDto } from '../profiles/dto/update-profile.dto';
 import { AcceptLegalConsentDto } from './dto/accept-legal-consent.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LegalConsentService, LegalConsentState } from './legal-consent.service';
-import { UserMeResponse, UsersService } from './users.service';
+import {
+  UploadedAvatarFile,
+  UserMeResponse,
+  UsersService,
+} from './users.service';
 
 /**
  * UsersController — собственный аккаунт пользователя (TASK-040, API.md §5).
@@ -56,5 +72,26 @@ export class UsersController {
     @Body() dto: AcceptLegalConsentDto,
   ): Promise<LegalConsentState> {
     return this.legalConsentService.record(userId, dto);
+  }
+
+  /**
+   * `POST /api/v1/users/me/avatar` — загрузка аватара (TASK-248, ADR-0134).
+   * `multipart/form-data`, поле `file` — та же proxy-загрузка, что и у медиа
+   * объявлений (`ListingMediaController.upload`).
+   */
+  @Post('me/avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadAvatar(
+    @CurrentUser('id') userId: string,
+    @UploadedFile() file: UploadedAvatarFile | undefined,
+  ): Promise<{ avatar_url: string }> {
+    return this.usersService.uploadAvatar(userId, file);
+  }
+
+  /** `DELETE /api/v1/users/me/avatar` — убрать аватар (TASK-248, ADR-0134). */
+  @Delete('me/avatar')
+  @HttpCode(204)
+  async deleteAvatar(@CurrentUser('id') userId: string): Promise<void> {
+    await this.usersService.deleteAvatar(userId);
   }
 }

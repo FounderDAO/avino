@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { RolesModule } from '../roles';
 import { SettingsModule } from '../settings';
 import { ProfilesService } from '../profiles';
+import { UploadsModule } from '../uploads';
 import { LegalConsentService } from './legal-consent.service';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
@@ -15,9 +16,12 @@ import { UsersService } from './users.service';
  *
  * ProfilesService живёт в `../profiles` (concern профиля отделён от core-user),
  * но провайдится здесь — `/users/me/profile` обслуживает тот же контроллер.
+ *
+ * `UploadsModule` — {@link UploadsService} для `POST/DELETE /users/me/avatar`
+ * (TASK-248, ADR-0134), тем же способом, что и `ListingMediaModule`.
  */
 @Module({
-  imports: [RolesModule, SettingsModule],
+  imports: [RolesModule, SettingsModule, UploadsModule],
   controllers: [UsersController],
   providers: [UsersService, ProfilesService, LegalConsentService],
   exports: [UsersService, ProfilesService],

@@ -1,3 +1,9 @@
+import {
+  registerDecorator,
+  ValidationArguments,
+  ValidationOptions,
+} from 'class-validator';
+
 // ─── Polygon ring parse helper ─────────────────────────────────────────────────
 
 /** Одна вершина кольца полигона (WGS84). */
@@ -71,4 +77,109 @@ export function polygonVerticesFromFilters(
   } catch {
     return null;
   }
+}
+
+// ─── @IsPolygonRing() / @IsPolygonRingOptional() decorators ───────────────────
+//
+// Живут здесь (не в geo-search.dto.ts), потому что `search-listings.dto.ts`
+// (TASK-249) должен уметь импортировать декоратор для необязательного `points`
+// без цикла: geo-search.dto.ts импортирует SearchListingsQueryDto ИЗ
+// search-listings.dto.ts, поэтому декоратор не может жить в geo-search.dto.ts,
+// если его хочет использовать и базовый DTO.
+
+/**
+ * Кастомный декоратор class-validator для ОБЯЗАТЕЛЬНОГО поля `points`
+ * полигонального поиска (TASK-193, `/search/polygon`). Вызывает
+ * {@link parsePolygonRing}; при ошибке — сообщение возвращается в 400
+ * VALIDATION_ERROR. `undefined`/не-строка — невалидны (см.
+ * {@link IsPolygonRingOptional} для необязательного варианта).
+ */
+export function IsPolygonRing(options?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isPolygonRing',
+      target: (object as { constructor: new (...args: unknown[]) => unknown }).constructor,
+      propertyName,
+      options,
+      validator: {
+        validate(value: unknown): boolean {
+          if (typeof value !== 'string') return false;
+          try {
+            parsePolygonRing(value);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        defaultMessage(args: ValidationArguments): string {
+          const raw = args.value;
+          if (typeof raw !== 'string') {
+            return 'points must be a string';
+          }
+          try {
+            parsePolygonRing(raw);
+            return '';
+          } catch (err) {
+            return (err as Error).message;
+          }
+        },
+      },
+    });
+  };
+}
+
+/**
+ * Вариант {@link IsPolygonRing} для НЕОБЯЗАТЕЛЬНОГО `points` (TASK-249: `/search`,
+ * `/search/bounds`) — `undefined` валиден (контур не задан → фильтр по территории
+ * не применяется), заданное значение проверяется тем же {@link parsePolygonRing}.
+ *
+ * НЕ реализовано как `@IsOptional() @IsPolygonRing()` НАМЕРЕННО. class-validator
+ * наследует validation-метаданные между базовым и производным классом ПО ИМЕНИ
+ * СВОЙСТВА (`MetadataStorage.getTargetValidationMetadatas`): унаследованная
+ * метаданная дедуплицируется против метаданных подкласса только если у подкласса
+ * есть СВОЯ метаданная того же `type`. `PolygonSearchQueryDto.points` (TASK-193,
+ * `/search/polygon`) — подкласс `SearchListingsQueryDto` и остаётся обязательным
+ * (`points!: string`), но НЕ объявляет свой `@IsOptional()`/`@ValidateIf()`
+ * (`type: 'conditionalValidation'`). Если бы базовый `points` был помечен
+ * `@IsOptional()`, это условие унаследовалось бы в `PolygonSearchQueryDto` (нет
+ * встречной `conditionalValidation`-метаданной для дедупа) и молча сделало бы
+ * обязательный контур необязательным — `/search/polygon` перестал бы отдавать 400
+ * при отсутствующем `points`. Этот декоратор — единственный custom-валидатор
+ * (`type: 'customValidation'`) на `points` в базовом классе: подкласс полностью
+ * переопределяет его своим собственным `@IsPolygonRing()` (дедуп по `type`,
+ * см. выше), поэтому утечки в обратную сторону нет.
+ */
+export function IsPolygonRingOptional(options?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isPolygonRingOptional',
+      target: (object as { constructor: new (...args: unknown[]) => unknown }).constructor,
+      propertyName,
+      options,
+      validator: {
+        validate(value: unknown): boolean {
+          if (value === undefined) return true;
+          if (typeof value !== 'string') return false;
+          try {
+            parsePolygonRing(value);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        defaultMessage(args: ValidationArguments): string {
+          const raw = args.value;
+          if (typeof raw !== 'string') {
+            return 'points must be a string';
+          }
+          try {
+            parsePolygonRing(raw);
+            return '';
+          } catch (err) {
+            return (err as Error).message;
+          }
+        },
+      },
+    });
+  };
 }

@@ -88,3 +88,54 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(errors.length).toBeGreaterThan(0);
   });
 });
+
+describe('SearchListingsQueryDto — rooms (TASK-247, ADR-0133)', () => {
+  it('нормализует одиночный rooms в массив из 1 элемента (back-compat)', () => {
+    const { inst, errors } = dto({ rooms: '2' });
+    expect(errors).toHaveLength(0);
+    expect(inst.rooms).toEqual([2]);
+  });
+
+  it('принимает повторяющийся rooms как массив чисел', () => {
+    const { inst, errors } = dto({ rooms: ['2', '3', '5'] });
+    expect(errors).toHaveLength(0);
+    expect(inst.rooms).toEqual([2, 3, 5]);
+  });
+
+  it('отклоняет нечисловой элемент rooms', () => {
+    const { errors } = dto({ rooms: ['abc'] });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('отклоняет отрицательный rooms', () => {
+    const { errors } = dto({ rooms: ['-1'] });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('SearchListingsQueryDto — points (TASK-249)', () => {
+  it('необязателен — отсутствие points валидно', () => {
+    const { errors } = dto({});
+    expect(errors).toHaveLength(0);
+  });
+
+  it('принимает валидный полигон (>= 3 вершины)', () => {
+    const { inst, errors } = dto({
+      points: '41.30,69.27;41.30,69.29;41.32,69.28',
+    });
+    expect(errors).toHaveLength(0);
+    expect(inst.points).toBe('41.30,69.27;41.30,69.29;41.32,69.28');
+  });
+
+  it('отклоняет невалидный полигон (< 3 вершин)', () => {
+    const { errors } = dto({ points: '41.30,69.27;41.30,69.29' });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('отклоняет нечисловые координаты', () => {
+    const { errors } = dto({
+      points: 'abc,69.27;41.30,69.29;41.32,69.28',
+    });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});

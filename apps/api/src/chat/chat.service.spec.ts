@@ -55,7 +55,8 @@ describe('ChatService', () => {
     };
     search = { cardsByIds: jest.fn().mockResolvedValue([]) };
     notifications = { queueChatMessage: jest.fn() };
-    service = new ChatService(prisma, search, notifications);
+    const uploads = { getObjectUrl: jest.fn().mockResolvedValue('https://signed/a.webp') };
+    service = new ChatService(prisma, search, notifications, uploads as any);
   });
 
   async function expectError(p: Promise<unknown>, code: ApiErrorCode) {

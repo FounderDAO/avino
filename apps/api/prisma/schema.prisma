@@ -314,6 +314,12 @@ model UserProfile {
   lastName          String?   @map("last_name") @db.VarChar(100)
   displayName       String?   @map("display_name") @db.VarChar(150)
   avatarUrl         String?   @map("avatar_url")
+  // R2-ключ загруженного пользователем аватара (TASK-248, ADR-0134); отдельно
+  // от avatarUrl, который хранит внешнюю ссылку на фото OAuth-провайдера
+  // (Google/Apple) и НЕ должен перезаписываться. sign-on-read по образцу
+  // ListingMedia.storageKey (ADR-0086): при чтении, если задан, приоритетнее
+  // avatarUrl.
+  avatarStorageKey  String?   @map("avatar_storage_key")
   contactPhone      String?   @map("contact_phone") @db.VarChar(20)
   preferredLanguage Language? @map("preferred_language")
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)

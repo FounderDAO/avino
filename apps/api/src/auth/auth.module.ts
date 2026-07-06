@@ -4,6 +4,7 @@ import { EmailModule } from '../email';
 import { RolesModule } from '../roles';
 import { SmsModule } from '../sms';
 import { TelegramModule } from '../telegram';
+import { UploadsModule } from '../uploads';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { GoogleAuthService } from './google-auth.service';
@@ -31,6 +32,7 @@ import { TokenService } from './token.service';
     JwtModule.register({}),
     RolesModule,
     TelegramModule,
+    UploadsModule,
   ],
   controllers: [AuthController],
   providers: [

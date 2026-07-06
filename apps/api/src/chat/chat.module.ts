@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { NotificationsModule } from '../notifications';
 import { RolesModule } from '../roles';
 import { SearchModule } from '../search';
+import { UploadsModule } from '../uploads';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 
@@ -15,7 +16,7 @@ import { ChatService } from './chat.service';
  * сообщения. Prisma — глобальный модуль, импорт не нужен.
  */
 @Module({
-  imports: [RolesModule, SearchModule, NotificationsModule],
+  imports: [RolesModule, SearchModule, NotificationsModule, UploadsModule],
   controllers: [ChatController],
   providers: [ChatService],
   exports: [ChatService],
