@@ -1749,6 +1749,766 @@ TASK-BL-007 — Адрес объявления на 3 языках (uz/ru/en) �
 
 ---
 
+## 22b. Заявки мобильного клиента (2026-07-04)
+
+Источник: BACKEND-REQUESTS.md от мобильного разработчика (04.07.2026), 4 заявки.
+Пункты 2 и 4 заявок уже покрыты существующим API и в задачи не превращаются:
+
+```text
+Пункт 2 (полигон в живом поиске) → уже есть GET /api/v1/search/polygon:
+        принимает points ("lat,lng;lat,lng;…") и наследует ВСЕ фильтры
+        SearchListingsQueryDto (search.controller.ts, geo-search.dto.ts).
+Пункт 4 (FX ценового фильтра)   → уже реализовано: параметр currency,
+        price_min/price_max трактуются в нём, цены FX-нормализуются по курсу
+        ЦБУ во всех эндпоинтах включая bounds/polygon (fxRateForFilter).
+        Мобильному клиенту нужно просто передавать currency в запросе.
+```
+
+Ниже — оставшиеся 2 заявки (пункты 1 и 3).
+
+_TASK-225 (PR #324) и TASK-226 (PR #323) completed — see docs/DONE.md._
+
+---
+
+## 22c. M19 — DevOps production readiness (аудит 2026-07-05)
+
+Источник: DevOps-аудит `DevOps.md` (корень репо), раздел «P0 — критично до прода».
+Серверные задачи (crontab, daemon.json на VPS, внешние аккаунты) не решаются из
+репозитория — помечены BLOCKED с готовыми командами для Team Lead.
+
+### TASK-227 — SMTP-провайдер для EMAIL-OTP в production
+
+Status:
+
+```text
+BLOCKED (нужен выбор провайдера и аккаунт — решение Team Lead)
+```
+
+Branch:
+
+```text
+chore/env-smtp-provider
+```
+
+Scope:
+
+```text
+В NODE_ENV=production EMAIL-OTP не отправляется и не логируется → вход в чистом
+проде невозможен. Выбрать транзакционного провайдера (SES / Resend / Postmark —
+порт 25 у хостера обычно закрыт, нужен 465/587), завести аккаунт, заполнить
+SMTP_* в .env на сервере, проверить доставку OTP-письма на staging с
+NODE_ENV=production у api.
+```
+
+Files expected:
+
+```text
+.env (на сервере, не в git)
+docs/ENV.md
+```
+
+Acceptance criteria:
+
+```text
+OTP-письмо доставляется при NODE_ENV=production
+SMTP_* документированы в deploy/prod.env.example / docs/ENV.md
+Прод-деплой ./deploy/deploy.sh проходит health-wait
+```
+
+Dependencies:
+
+```text
+Решение Team Lead по провайдеру
+```
+
+---
+
+### TASK-228 — Верифицировать бэкапы: cron + off-site R2 + restore-тест
+
+Status:
+
+```text
+BLOCKED (нужен доступ к VPS; изменения на сервере, не в репо)
+```
+
+Scope:
+
+```text
+deploy/backup.sh готов, но на VPS не подтверждены: (а) crontab с двухслойной
+схемой из deploy/README.md §Бэкапы (часовые 2 суток + суточные 30 суток);
+(б) BACKUP_S3_BUCKET → off-site в R2 (README называет его обязательным для
+прода); (в) restore ни разу не прогонялся. Настроить cron, задать
+BACKUP_S3_BUCKET, однократно прогнать restore-процедуру на staging и
+зафиксировать результат в docs/LOG.md.
+```
+
+Acceptance criteria:
+
+```text
+crontab -l на VPS содержит оба слоя бэкапов
+В R2-бакете появляются свежие дампы
+Restore из дампа на staging прогнан один раз, результат записан в docs/LOG.md
+```
+
+Dependencies:
+
+```text
+SSH-доступ к VPS 75.119.159.168
+```
+
+---
+
+_TASK-229 completed (PR #331) — see docs/DONE.md._
+
+---
+
+### TASK-230 — Внешний uptime-мониторинг + алерты в Telegram
+
+Status:
+
+```text
+BLOCKED (нужен аккаунт UptimeRobot/Better Stack — Team Lead)
+```
+
+Scope:
+
+```text
+Повесить внешний монитор (бесплатного тарифа достаточно) на
+https://api.avino.uz/api/v1/health, https://avino.uz, https://admin.avino.uz
+(+ test.avino.uz по желанию) с алертом в Telegram. Это единственный способ
+узнавать о падении раньше пользователей.
+```
+
+Acceptance criteria:
+
+```text
+3 монитора активны, интервал ≤ 5 мин
+Алерт приходит в Telegram при падении (проверить тестовым стопом на staging)
+```
+
+Dependencies:
+
+```text
+TASK-231 (health должен реально проверять зависимости)
+Аккаунт мониторинг-сервиса
+```
+
+---
+
+_TASK-231 completed (PR #332) — see docs/DONE.md._
+
+---
+
+_TASK-232 completed (PR #333 api + #334 client + #335 web) — see docs/DONE.md._
+_Активация: 3 Sentry-проекта → SENTRY_DSN / NEXT_PUBLIC_SENTRY_DSN_CLIENT /
+NEXT_PUBLIC_SENTRY_DSN_WEB в .env на сервере + redeploy с пересборкой._
+
+---
+
+## 22d. M19 — DevOps P1 (аудит 2026-07-05, «важно»)
+
+Источник: `DevOps.md` §«P1 — важно» (пункты 7–13 аудита).
+
+### TASK-233 — Multi-stage Dockerfile'ы + non-root (api, web, client)
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+chore/api-docker-multistage, chore/web-docker-multistage,
+chore/client-docker-multistage (3 PR — по одной app-папке)
+```
+
+Scope:
+
+```text
+Сейчас все три образа single-stage на node:20-slim под root: COPY всего
+workspace + devDeps + исходники остаются в рантайме. Переделать:
+- api: стадия build → рантайм только dist + prod-deps (pnpm deploy --prod
+  или prune --prod); CMD node dist/main.js (уже так).
+- web/client: next.config → output: 'standalone', рантайм = node server.js
+  (убрать прослойку pnpm start).
+- Во все три: USER node, HEALTHCHECK (зеркально compose-healthcheck).
+Эффект: образы в разы меньше, деплой/откат быстрее, root убран.
+Начать с api (самый простой); web/client требуют проверки standalone-режима
+с next-intl и NEXT_PUBLIC-инлайном.
+```
+
+Files expected:
+
+```text
+apps/api/Dockerfile
+apps/web/Dockerfile + apps/web/next.config.mjs
+apps/client/Dockerfile + apps/client/next.config.mjs
+```
+
+Acceptance criteria:
+
+```text
+docker build всех трёх образов проходит; размер образа заметно меньше (замерить до/после)
+Контейнеры работают под пользователем node (docker exec whoami)
+Полный стек поднимается: docker compose --profile app up + healthy у всех
+Staging live-verify: главная, /search, вход, фото (R2), карта
+```
+
+Suggested commits:
+
+```text
+chore(api): multi-stage docker image with non-root user
+chore(web): standalone multi-stage docker image
+chore(client): standalone multi-stage docker image
+```
+
+Dependencies:
+
+```text
+None
+```
+
+---
+
+### TASK-234 — CI: client-тесты, гейт миграций, int-spec с живым PG
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+ci/close-test-gaps
+```
+
+Scope:
+
+```text
+Закрыть дыры .github/workflows/ci.yml:
+(а) job client-тестов: pnpm --filter @avino/client test (Vitest).
+    ⚠️ ПРЕДУСЛОВИЕ: починить 2 предсущ. фейла LoginModal.test.tsx
+    (useAppleLoginMutation не замокан — известный долг), иначе job красный
+    с первого дня.
+(б) job с service-контейнером postgis/postgis:16-3.4: prisma migrate deploy
+    на чистой БД (гейт на битые миграции).
+(в) там же прогон *.int-spec.ts — ПО ОДНОМУ ФАЙЛУ (cross-file контаминация
+    гео-фикстур — известная гоча int-spec'ов).
+```
+
+Files expected:
+
+```text
+.github/workflows/ci.yml
+apps/client/src/components/layout/LoginModal.test.tsx (фикс мока)
+```
+
+Acceptance criteria:
+
+```text
+CI гоняет client-тесты, job зелёный
+Битая миграция валит CI (проверить временной порчей в ветке)
+int-spec'ы зелёные в CI по одному файлу
+Время пайплайна выросло разумно (кеш pnpm сохранён)
+```
+
+Suggested commits:
+
+```text
+fix(client): mock apple login mutation in LoginModal test
+ci: add client tests, migration gate and api int-specs
+```
+
+Dependencies:
+
+```text
+None
+```
+
+---
+
+### TASK-235 — CD-минимум: образы в GHCR + деплой по git-тегу
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+ci/ghcr-deploy-by-tag
+```
+
+Scope:
+
+```text
+Workflow на тег v*: build+push трёх образов в GHCR (docker/build-push-action,
+cache-from gha) → SSH-step (appleboy/ssh-action) → на сервере
+docker compose pull && up -d (без --build). Деплой-скрипты дополнить режимом
+pull-образов. Даёт: сборку не на VPS (нет конкуренции за CPU с живым
+трафиком), откат за секунды (pull предыдущего тега), воспроизводимость.
+```
+
+Files expected:
+
+```text
+.github/workflows/release.yml
+docker-compose.prod.yml (image: ghcr.io/... + тег)
+deploy/deploy.sh, deploy/deploy-staging.sh (режим pull)
+docs/adr/
+```
+
+Acceptance criteria:
+
+```text
+git tag v* → 3 образа в GHCR с тегом версии
+Деплой на staging из готовых образов проходит health-wait
+Откат = деплой предыдущего тега без пересборки (проверить)
+Секреты SSH_KEY/SSH_HOST заведены в GitHub (Team Lead)
+```
+
+Suggested commits:
+
+```text
+ci: build and push images to GHCR on version tags
+chore(deploy): pull prebuilt images instead of building on VPS
+```
+
+Dependencies:
+
+```text
+TASK-233 (желательно — пуш уже лёгких образов)
+GitHub secrets от Team Lead
+```
+
+---
+
+### TASK-236 — Лимиты ресурсов в prod-compose
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+chore/compose-resource-limits
+```
+
+Scope:
+
+```text
+mem_limit/cpus для client/web/api в docker-compose.prod.yml, чтобы Next.js
+SSR не выдавил postgres на одной машине. Ориентиры docs/SERVER_TO_PROD.md §4:
+client 3–4 GB, api 2 GB, web 0.7 GB (подогнать под фактический VPS).
+```
+
+Files expected:
+
+```text
+docker-compose.prod.yml
+```
+
+Acceptance criteria:
+
+```text
+docker compose config валиден; лимиты видны в docker stats на staging
+Стек живёт под нагрузкой смоук-прогона без OOM-kill
+```
+
+Suggested commits:
+
+```text
+chore(deploy): add memory/cpu limits to prod services
+```
+
+Dependencies:
+
+```text
+None
+```
+
+---
+
+### TASK-237 — dependabot + закрепление версий базовых образов
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+chore/dependabot
+```
+
+Scope:
+
+```text
+.github/dependabot.yml: экосистемы npm (корень), github-actions, docker.
+Закрепить плавающие теги образов минимум до минора: redis:7.x-alpine,
+caddy:2.x-alpine (postgis уже 16-3.4). Интервал weekly, лимит открытых PR.
+```
+
+Files expected:
+
+```text
+.github/dependabot.yml
+docker-compose.yml, docker-compose.prod.yml (теги образов)
+```
+
+Acceptance criteria:
+
+```text
+Dependabot открывает PR по трём экосистемам
+Теги образов закреплены до минора
+```
+
+Suggested commits:
+
+```text
+chore: add dependabot config and pin base image tags
+```
+
+Dependencies:
+
+```text
+None
+```
+
+---
+
+### TASK-238 — Firewall/SSH-hardening runbook для VPS
+
+Status:
+
+```text
+TODO (правки в репо) + серверная часть за Team Lead
+```
+
+Branch:
+
+```text
+docs/server-hardening-runbook
+```
+
+Scope:
+
+```text
+Дополнить deploy/README.md (или install-docker.sh) блоком:
+ufw default deny incoming; allow 22,80,443/tcp; enable + отключение
+password-auth в sshd. ЯВНО задокументировать: docker publish ОБХОДИТ ufw —
+поэтому на сервере нельзя поднимать base-compose без prod-overlay (dev-порты
+postgres/redis торчат на 0.0.0.0). Затем применить на VPS.
+```
+
+Files expected:
+
+```text
+deploy/README.md
+deploy/install-docker.sh (опционально — идемпотентный ufw-блок)
+```
+
+Acceptance criteria:
+
+```text
+Runbook в README; предупреждение про docker publish + base-compose
+На VPS: ufw active (22/80/443), PasswordAuthentication no
+```
+
+Suggested commits:
+
+```text
+docs(deploy): add firewall and ssh hardening runbook
+```
+
+Dependencies:
+
+```text
+SSH-доступ к VPS для применения
+```
+
+---
+
+### TASK-239 — Актуализировать deploy/README.md
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+docs/deploy-readme-refresh
+```
+
+Scope:
+
+```text
+Убрать выполненные пункты «На заметку»: trust proxy уже в
+apps/api/src/main.ts:17; NEXT_PUBLIC_YANDEX_MAPS_API_KEY для client уже
+прокинут (ARG+compose). При необходимости добавить аналогичный ARG для web.
+Сверить остальной текст README с фактическим состоянием deploy/*.
+```
+
+Files expected:
+
+```text
+deploy/README.md
+apps/web/Dockerfile + docker-compose.yml (если добавляем Yandex-ARG для web)
+```
+
+Acceptance criteria:
+
+```text
+В «На заметку» нет уже выполненных пунктов
+Описание скриптов/восстановления соответствует текущим файлам
+```
+
+Suggested commits:
+
+```text
+docs(deploy): refresh README, drop completed notes
+```
+
+Dependencies:
+
+```text
+None
+```
+
+---
+
+## 22e. M19 — DevOps P2 (аудит 2026-07-05, «желательно» — backlog)
+
+Источник: `DevOps.md` §«P2 — желательно» (пункты 14–20). Статус BACKLOG —
+промотируются в TODO, когда берутся в работу.
+
+### TASK-240 — Zero-downtime deploy
+
+Status:
+
+```text
+BACKLOG
+```
+
+Scope:
+
+```text
+После перехода на registry-образы (TASK-235): либо два экземпляра api/client
+за Caddy с поочерёдным рестартом (docker rollout), либо минимум — порядок
+«собрать/спуллить заранее → up -d без --build», чтобы окно даунтайма сжалось
+до рестарта контейнеров.
+```
+
+Dependencies:
+
+```text
+TASK-235
+```
+
+---
+
+### TASK-241 — Метрики хоста и контейнеров
+
+Status:
+
+```text
+BACKLOG
+```
+
+Scope:
+
+```text
+node-exporter + cAdvisor + Grafana Cloud (free tier) или netdata — чтобы
+сигналы «пора масштабироваться» из docs/SERVER_TO_PROD.md §7 (p95, load
+average, cache hit ratio PG) было чем измерять.
+```
+
+---
+
+### TASK-242 — Тюнинг производительности по мере роста (SERVER_TO_PROD §6)
+
+Status:
+
+```text
+BACKLOG
+```
+
+Scope:
+
+```text
+PgBouncer, shared_buffers/effective_cache_size, ISR/Redis-кэш горячих
+страниц, вынос BullMQ-воркеров в отдельный контейнер. Брать по одному при
+появлении соответствующих сигналов из мониторинга (TASK-241).
+```
+
+Dependencies:
+
+```text
+TASK-241 (сначала измерить)
+```
+
+---
+
+### TASK-243 — e2e-смоук (Playwright) на staging после деплоя
+
+Status:
+
+```text
+BACKLOG
+```
+
+Scope:
+
+```text
+Смоук-набор: главная, /search, вход по OTP (staging-режим позволяет — код в
+логах/Telegram). Запуск вручную или шагом после deploy-staging.sh.
+```
+
+---
+
+### TASK-244 — Rate-limit на Caddy для /api/v1/auth/*
+
+Status:
+
+```text
+BACKLOG
+```
+
+Scope:
+
+```text
+Плагин rate_limit для Caddy (кастомная сборка xcaddy) или fail2ban по логам
+Caddy — гасить флуд до Node/Throttler.
+```
+
+---
+
+### TASK-245 — Гигиена репо: CODEOWNERS, PR-template, .nvmrc
+
+Status:
+
+```text
+BACKLOG
+```
+
+Scope:
+
+```text
+.github/CODEOWNERS, .github/pull_request_template.md (чеклист из CLAUDE.md §6),
+.nvmrc (20) для единообразия с engines/CI.
+```
+
+---
+
+### TASK-246 — Бэкап серверного .env в защищённое место
+
+Status:
+
+```text
+BACKLOG
+```
+
+Scope:
+
+```text
+Сейчас потеря VPS = потеря всех прод-секретов, включая JWT (инвалидация всех
+сессий). Зашифрованная копия .env в менеджере секретов / password manager +
+пункт в runbook о ротации после инцидента. backup.sh БД не трогает .env.
+```
+
+---
+
+## 22f. Заявки мобильного клиента (2026-07-06)
+
+Источник: `BACKEND-REQUESTS (3).md` от мобильного разработчика (06.07.2026),
+7 пунктов (0–6). Сверено построчно с кодом `apps/api` 06.07.2026.
+Три пункта в задачи НЕ превращаются — уже покрыты или это действие на сервере:
+
+```text
+Пункт 0 (env Google/Apple + FCM) → КОДА НЕ ТРЕБУЕТ. CSV-audience уже парсится
+        (configuration.ts:248/258 → google.clientIds/apple.clientIds;
+        google-auth.service.ts:147, apple-auth.service.ts:78). Миграция
+        20260622000000_notification_deliveries уже в репо. Нужно только выставить
+        GOOGLE_CLIENT_ID (CSV из заявки), APPLE_CLIENT_ID=uz.avino.app, залить
+        Firebase service-account (FIREBASE_*) и прогнать migrate deploy на сервере
+        → действие Team Lead. 401/503 = отсутствующие env, не баг.
+Пункт 1 (кластеры карты)          → уже реализовано: GET /api/v1/search/clusters
+        (ADR-0126, PR #323/#324). Форма ответа clusters.dto.ts:27-39
+        (latitude/longitude/count/min_price/avg_price) совпадает с запросом 1:1,
+        min/avg_price FX-нормализованы. Мобилке — просто использовать эндпоинт.
+Пункт 4 (FX ценового фильтра)     → уже реализовано (search.service.ts:1187-1201,
+        ADR-0117). Конверсия включается ТОЛЬКО если клиент шлёт currency вместе
+        с price_min/price_max; без currency код падает в else и сравнивает сырую
+        цену (:1202-1208) — это и есть их симптом. Фикс на стороне клиента:
+        добавить currency=USD|UZS к ценовым фильтрам. Backend не трогаем.
+```
+
+TASK-247/248/249 выполнены и смёржены (PR #359, деплой staging 06.07, smoke зелёный
+на test-api.avino.uz) → перенесены в docs/DONE.md. Остаётся TASK-250 (аудит показал:
+уже починено в main коммитом 9a1c685 — кода не требуется, оставлен для истории).
+
+### TASK-250 — Баг: бокс «весь мир» возвращает пусто (пункт 3)
+
+Status:
+
+```text
+TODO (low-pri — на реальных зумах не мешает, оценка мобилки)
+```
+
+Branch:
+
+```text
+fix/search-bounds-full-extent
+```
+
+Scope:
+
+```text
+GET /search/bounds?sw_lat=-85&sw_lng=-180&ne_lat=85&ne_lng=180 → total 0,
+хотя более узкий бокс отдаёт данные. boundsPrefilterSql уже чанкует широкий bbox
+≤90° geography (search.service.ts:908-924), но финальный
+ST_Within(location::geometry, envelope) в searchBounds (:596) использует ПОЛНЫЙ
+ST_MakeEnvelope(-180,-85,180,85) — вырождение на полном экстенте. Repro на
+staging, подрезать/чанковать финальный ST_Within (или снять его на полном
+экстенте, оставив чанкованный &&).
+```
+
+Files expected:
+
+```text
+apps/api/src/search/search.service.ts  (envelopeSql / searchBounds)
+apps/api/src/search/*.spec.ts           (регресс на полный экстент)
+```
+
+Acceptance criteria:
+
+```text
+GET /search/bounds sw=-85,-180 ne=85,180 → total > 0 (все объявления)
+Узкие боксы продолжают работать (без регресса)
+```
+
+Dependencies:
+
+```text
+нет
+```
+
+---
+
 ## 23. Priority execution order
 
 Claude should execute in this order:

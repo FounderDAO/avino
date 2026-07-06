@@ -37,7 +37,404 @@ Related ADR:
 
 ---
 
+## 2026-07-06
+
+### TASK-251 — Динамический price filter из цен текущей выдачи (client)
+
+Status: DONE
+Branch: feat/client-dynamic-price-filter
+PR: #361 (merged)
+
+Files changed:
+- apps/client/src/store/resultPricesSlice.ts
+- apps/client/src/store/resultPricesSlice.test.ts
+- apps/client/src/store/store.ts
+- apps/client/src/features/search/SearchResults.tsx
+- apps/client/src/features/search/PriceFilter.tsx
+- apps/client/src/features/search/controls/priceRange.ts
+- apps/client/src/features/search/controls/priceRange.test.ts
+- apps/client/src/features/search/controls/PriceRangeControl.tsx
+- apps/client/src/features/search/controls/PriceRangeControl.test.tsx
+- apps/client/src/store/api/priceDistributionApi.ts (удалён)
+- docs/adr/ADR-0136-dynamic-price-filter-from-results.md
+
+Summary:
+- Слайдер цены и гистограмма на `/search` теперь считаются на КЛИЕНТЕ из цен текущей выдачи, а не из глобального `GET /search/price-distribution`. Домен `[0, niceCeil(max выдачи)]`, 30 столбцов — чистыми функциями; пустая выдача → фолбэк $0–$1M / 0–12 млрд сум.
+- `SearchResults` зеркалит сырые пары цена+валюта в новый `resultPricesSlice` (паттерн `territorySlice`); `PriceFilter` конвертирует их курсом ЦБУ и строит домен/бакеты. Смена района или пан карты пересчитывают фильтр автоматически, без новых запросов.
+- Хранятся сырые пары (не конвертированные) → тоггл [сум|$] пересчитывает без обновления списка. `displayed` обёрнут в useMemo (иначе эффект-зеркало зацикливается на `polygonData ?? []`).
+- Клиентский `priceDistributionApi` удалён (мёртвый); `PriceBucket` переехал в `priceRange.ts`. Серверный эндпоинт сохранён для мобилки.
+- Ограничение (осознанное): домен по загруженной выдаче (viewport/полигон ≤100, paged растёт догрузкой).
+- Верификация: 437/437 юнит-тестов клиента, чистый `next build`, live-проверка (43 объявления → «0 сум – 1.8 млрд»; смена валюты → «$0 – $130k», гистограмма перестроилась).
+
+Commit messages:
+- feat(client): price-range helpers — niceCeil, toDisplayPrices, buildPriceHistogram
+- feat(client): resultPrices slice — зеркало цен текущей выдачи
+- feat(client): зеркало цен выдачи в resultPrices из SearchResults
+- feat(client): динамический price filter из цен текущей выдачи
+- docs: спека и план динамического price filter
+
+Related ADR:
+- docs/adr/ADR-0136-dynamic-price-filter-from-results.md
+
+### TASK-247 — Фильтр комнат: массив + точная семантика (пункт 6 заявок мобилки)
+
+Status: DONE
+Branch: feat/api-mobile-batch-0706
+PR: #359 (merged)
+Files changed:
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/search/dto/geo-search.dto.ts
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/dto/search-listings.dto.spec.ts
+- apps/api/src/search/search.service.int-spec.ts
+- docs/adr/ADR-0133-search-filter-mobile-fixes.md
+- docs/API.md
+
+Summary:
+- `rooms` стал повторяющимся параметром (массив, OR/IN), как property_type/amenities.
+- Каждое 0..4 — ТОЧНОЕ совпадение, 5 = «5+» (rooms >= 5). Устранён баг «rooms=5 отдавал 4/5/6» и 400 на повторяющемся параметре.
+- **BREAKING:** rooms=4 теперь ровно 4 (было «4+»); для «4+» → rooms_min=4.
+- Матчер сохранённых поисков работает через тот же buildWhereSql (принимает массив и скаляр из сырого filters_json) — правок в saved-searches не потребовалось.
+- Verified live на test-api.avino.uz: rooms=5→[5,6], rooms=4→[4], rooms=2&3&5→[2,3,5,6] без 400.
+
+Commit messages:
+- feat(api): mobile backend batch — rooms multiselect, search points, avatar upload
+
+Related ADR:
+- docs/adr/ADR-0133-search-filter-mobile-fixes.md
+
+### TASK-248 — Загрузка аватара профиля (пункт 5 заявок мобилки)
+
+Status: DONE
+Branch: feat/api-mobile-batch-0706
+PR: #359 (merged)
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260706000000_add_profile_avatar_storage_key/migration.sql
+- apps/api/src/users/users.controller.ts
+- apps/api/src/users/users.service.ts
+- apps/api/src/users/users.module.ts
+- apps/api/src/users/avatar-url.util.ts
+- apps/api/src/users/users.service.spec.ts
+- apps/api/src/auth/auth.service.ts, auth.module.ts, auth.service.spec.ts
+- apps/api/src/chat/chat.service.ts, chat.module.ts, chat.service.spec.ts
+- apps/api/openapi.public.json, openapi.internal.json
+- docs/adr/ADR-0134-user-avatar-upload.md
+- docs/API.md
+
+Summary:
+- POST/DELETE /api/v1/users/me/avatar (multipart `file`, R2 по образцу листинг-медиа, sign-on-read ADR-0086).
+- Отдельная колонка user_profiles.avatar_storage_key (+ миграция) — не перезаписывает avatarUrl фото OAuth-провайдера; при чтении приоритетнее.
+- Read-сайты /users/me, /auth/me, /chat/threads резолвят подписанную ссылку (общий resolveAvatarUrl; UploadsService добавлен в DI auth/chat).
+- Verified: роут под JwtAuthGuard (POST без auth → 401); авторизованный upload с токеном — финальная проверка по фото из приложения.
+
+Commit messages:
+- feat(api): mobile backend batch — rooms multiselect, search points, avatar upload
+
+Related ADR:
+- docs/adr/ADR-0134-user-avatar-upload.md
+
+### TASK-249 — Приём `points` в /search и /search/bounds (пункт 2 заявок мобилки)
+
+Status: DONE
+Branch: feat/api-mobile-batch-0706
+PR: #359 (merged)
+Files changed:
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/search/dto/geo-search.dto.ts
+- apps/api/src/search/dto/polygon-ring.util.ts
+- apps/api/src/search/dto/geo-search.dto.spec.ts
+- apps/api/src/search/search.service.ts
+- docs/adr/ADR-0133-search-filter-mobile-fixes.md
+- docs/API.md
+
+Summary:
+- `points` (нарисованная территория `lat,lng;...`) принимается в /search и /search/bounds; ST_Within подмешивается поверх фильтров/bbox.
+- Декоратор IsPolygonRing вынесен в polygon-ring.util.ts (обход циклического импорта) + новый IsPolygonRingOptional — иначе @IsOptional на базовом поле делал points опциональным и у /search/polygon (гоча наследования class-validator; добавлен регресс-спек geo-search.dto.spec.ts).
+- Verified live на test-api.avino.uz: валидный points → 200, битый (2 вершины) → 400.
+
+Commit messages:
+- feat(api): mobile backend batch — rooms multiselect, search points, avatar upload
+
+Related ADR:
+- docs/adr/ADR-0133-search-filter-mobile-fixes.md
+
+## 2026-07-05
+
+### TASK-232 — Sentry error tracking (api + client + web)
+
+Status: DONE
+Branch: feat/api-sentry + feat/client-sentry + feat/web-sentry
+PR: #333, #334, #335
+
+Files changed:
+- apps/api/src/instrument.ts, apps/api/src/main.ts, apps/api/src/common/filters/all-exceptions.filter.ts (+spec)
+- apps/client/sentry.{server,edge}.config.ts, apps/client/src/instrumentation{,-client}.ts, apps/client/Dockerfile
+- apps/web/sentry.{server,edge}.config.ts, apps/web/src/instrumentation{,-client}.ts, apps/web/Dockerfile
+- docker-compose.yml (build-args), .env.example, deploy/prod.env.example
+- docs/adr/ADR-0129-sentry-error-tracking.md
+
+Summary:
+- Error tracking во всех трёх приложениях (P0 №6 DevOps-аудита, «слепой прод»).
+  api: @sentry/nestjs, init в instrument.ts (первый импорт main.ts), captureException
+  в AllExceptionsFilter только для подлинных INTERNAL_ERROR 5xx (request_id в тегах).
+  client/web: @sentry/nextjs — browser через instrumentation-client.ts (автоподхват
+  Next >=15.3, withSentryConfig не нужен), SSR/edge через instrumentation.ts.
+- Всё config-gated: без DSN ни один init не вызывается — код смержен до заведения
+  аккаунта Sentry. tracesSampleRate 0 (только ошибки).
+- DSN фронтов инлайнится на build; в .env пер-приложенческие переменные
+  NEXT_PUBLIC_SENTRY_DSN_CLIENT/_WEB → compose маппит в NEXT_PUBLIC_SENTRY_DSN.
+- Активация (за Team Lead): 3 проекта в Sentry, DSN в .env сервера, redeploy
+  с пересборкой; для api DSN рантаймовый (без пересборки образа).
+
+Commit messages:
+- feat(api): config-gated Sentry error tracking
+- feat(client): config-gated Sentry error tracking
+- feat(web): config-gated Sentry error tracking
+
+Related ADR:
+- docs/adr/ADR-0129-sentry-error-tracking.md
+
+### TASK-229 — Ротация docker-логов + healthchecks web/client (compose)
+
+Status: DONE
+Branch: chore/compose-log-rotation-healthchecks
+PR: #331
+
+Files changed:
+- docker-compose.yml
+- docker-compose.prod.yml
+- deploy/install-docker.sh
+- docs/adr/ADR-0127-docker-log-rotation-healthchecks.md
+
+Summary:
+- x-logging anchor (json-file, max-size 20m, max-file 5) на все сервисы prod-overlay; staging наследует. P0 №3 DevOps-аудита: без ротации логи забивали диск VPS.
+- install-docker.sh идемпотентно пишет /etc/docker/daemon.json с той же ротацией на новых серверах (существующий log-driver не затирает).
+- healthcheck для web (3000) и client (3001) в базовом compose по образцу api (node fetch): повисший Next.js виден как unhealthy.
+
+Commit messages:
+- chore(deploy): add docker log rotation and web/client healthchecks
+
+Related ADR:
+- docs/adr/ADR-0127-docker-log-rotation-healthchecks.md
+
+### TASK-231 — GET /api/v1/health проверяет PostgreSQL и Redis
+
+Status: DONE
+Branch: feat/api-deep-healthcheck
+PR: #332
+
+Files changed:
+- apps/api/src/health/health.controller.ts
+- apps/api/src/health/health.controller.spec.ts
+- docs/adr/ADR-0128-deep-health-endpoint.md
+
+Summary:
+- Health-эндпоинт вместо статического {status:'ok'} параллельно проверяет PG (SELECT 1 через Prisma) и Redis (PING), пробы с таймаутом 2с. Отказ любой зависимости → 503 с checks{database,redis}; прежние поля ответа сохранены. P0 №5 аудита («слепой прод»).
+- @nestjs/terminus сознательно не подключён (~30 строк без новой зависимости, см. ADR).
+- Полный jest-сьют api: 99 сьютов / 842 теста зелёные; openapi без дрифта.
+
+Commit messages:
+- feat(api): health endpoint verifies postgres and redis
+
+Related ADR:
+- docs/adr/ADR-0128-deep-health-endpoint.md
+
 ## 2026-07-04
+
+### TASK — Гейт «Контактные данные» в /sell/new + Имя/Фамилия в профиле (client)
+
+Status: DONE
+Branch: feature/client-profile-required-gate
+PR: #321 (https://github.com/FounderDAO/avino/pull/321)
+
+Files changed:
+- apps/client/src/lib/profile-complete.ts (+ test)
+- apps/client/src/features/listing-new/ContactDetailsGate.tsx (+ test)
+- apps/client/src/features/listing-new/ListingNew.tsx (+ test)
+- apps/client/src/features/account/Profile.tsx
+- apps/client/messages/{ru,uz,en}.json
+
+Summary:
+- Клиентская половина ADR-0125 (backend — PR #320). Предикат
+  `isProfileCompleteForListing` — зеркало backend-гейта: имя/фамилия
+  trim-непустые, телефон = `contact_phone || phone`.
+- Визард /sell/new: вошедшему с неполным профилем вместо шагов рендерится
+  экран «Контактные данные» (предзаполнен), сохранение →
+  `PATCH /users/me/profile` → инвалидация Auth → getMe перечитывается →
+  гейт исчезает сам. Телефон в `contact_phone` без OTP (осознанно).
+- Гочи, пойманные ревью: гейт показывается только при `currentUser &&
+  !profileComplete` (isAuthenticated синхронен из токена, getMe асинхронен —
+  иначе мигание у полных профилей); форма с префиллом обязана ре-синкаться
+  useEffect'ом по [user].
+- Страховка: 422 PROFILE_INCOMPLETE от createListing → локализованный текст.
+- /account/profile: «Имя» разбито на «Имя»+«Фамилия» (first/last_name);
+  при сохранении `display_name: null` — публичное имя становится производным
+  (buildContact: displayName ?? first+last), иначе display_name из Google
+  перекрывал бы правки.
+- Тесты 427 passed / 2 предсущ. LoginModal; финальное ревью Ready to merge.
+
+Commit messages:
+- feat(client): isProfileCompleteForListing predicate (ADR-0125 mirror)
+- feat(client): ContactDetailsGate form + contactGate i18n (ru/uz/en)
+- fix(client): re-sync ContactDetailsGate form when getMe loads after mount
+- feat(client): profile completeness gate in /sell/new wizard + PROFILE_INCOMPLETE error text
+- feat(client): split profile name into first/last name fields
+- fix(client): don't flash profile gate before getMe resolves on /sell/new
+
+Related ADR:
+- docs/adr/ADR-0125-listing-requires-complete-profile.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-07-04-listing-profile-required-design.md
+- docs/superpowers/plans/2026-07-04-client-profile-required-gate.md
+
+### TASK — 422 PROFILE_INCOMPLETE на создание объявления без полного профиля (api)
+
+Status: DONE
+Branch: feature/api-listing-profile-required
+PR: #320 (https://github.com/FounderDAO/avino/pull/320)
+
+Files changed:
+- apps/api/src/common/dto/error-response.dto.ts
+- apps/api/src/listings/listings.service.ts (+ spec)
+- apps/api/openapi.public.json, apps/api/openapi.internal.json (regen, diff пуст)
+- docs/API.md, docs/adr/ADR-0125-listing-requires-complete-profile.md
+
+Summary:
+- `POST /api/v1/listings` → `422 { code: PROFILE_INCOMPLETE }`, если у автора
+  не заполнены Имя/Фамилия/Телефон (ADR-0125). `ensureProfileComplete()`
+  первой строкой `create()`, до транзакции.
+- Предикат: `first_name`/`last_name` trim-непустые; телефон =
+  `profile.contact_phone?.trim() || user.phone?.trim()` — тот же фолбэк, что
+  в публичном buildContact. Вход по телефону → дозаполнить только имя;
+  Google-вход → как правило только телефон.
+- Гейтится ТОЛЬКО создание; редактирование/статусы/медиа не блокируются.
+  Миграций нет — поля существовали.
+- Тесты: 836 passed / 98 suites (6 новых), lint 0 errors, tsc clean.
+
+Commit messages:
+- feat(listings): require complete profile (name+phone) to create a listing
+- docs(listings): ADR-0125 complete profile required + API.md errors, spec/plans
+
+Related ADR:
+- docs/adr/ADR-0125-listing-requires-complete-profile.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-07-04-listing-profile-required-design.md
+- docs/superpowers/plans/2026-07-04-api-listing-profile-required.md
+
+### TASK — Красные пины карты для всех SALE-объявлений (client)
+
+Status: DONE
+Branch: fix/map-sale-pins-red
+PR: #319 (https://github.com/FounderDAO/avino/pull/319)
+
+Files changed:
+- apps/client/src/features/map/MapView.tsx
+
+Summary:
+- Все объявления с `deal_type=SALE` теперь рисуются на карте красными пинами
+  (раньше цвет зависел от промо-тира и продажа визуально не отличалась от аренды).
+- Точечный фикс пресета плейсмарка в `MapView`; аренда и кластеры без изменений.
+
+Commit messages:
+- fix(client): red map pins for all SALE listings
+
+### TASK — Дефолт display-валюты USD вместо UZS (client)
+
+Status: DONE
+Branch: fix/currency-default-usd
+PR: #318 (https://github.com/FounderDAO/avino/pull/318)
+
+Files changed:
+- apps/client/src/store/currencySlice.ts (+ test)
+- apps/client/src/store/StoreProvider.tsx
+- docs/adr/ADR-0093-currency-display-exchange-rate.md
+
+Summary:
+- Симптом: в шапке выбран «сум», а цены показываются в $ — SSR-дефолт слайса
+  (UZS) расходился с localStorage до гидратации шапки.
+- Фикс в `currencySlice`: дефолт display-валюты = USD; гидратация из
+  localStorage как раньше, явный выбор пользователя уважается.
+- Вариант с cookie-SSR отвергнут — он динамизировал бы весь портал
+  (см. ADR-0093, обновлён).
+
+Commit messages:
+- fix(client): default display currency USD instead of UZS
+
+Related ADR:
+- docs/adr/ADR-0093-currency-display-exchange-rate.md
+
+### TASK — Zillow map mode: viewport-поиск на /search, pin preview, унификация /map (client)
+
+Status: DONE
+Branch: feature/client-search-map-viewport
+PR: #317 (https://github.com/FounderDAO/avino/pull/317)
+
+Files changed:
+- apps/client/src/features/map/useViewportSearch.ts (+ test)
+- apps/client/src/features/map/MapPreviewCard.tsx (+ test)
+- apps/client/src/features/map/MapView.tsx
+- apps/client/src/features/map/MapSearch.tsx
+- apps/client/src/features/search/SearchResults.tsx
+- apps/client/src/app/[locale]/search/page.tsx
+- apps/client/src/lib/api/listings.ts
+- apps/client/src/lib/geo.ts (+ geo-bounds.test.ts, search-paths.test.ts)
+- apps/client/src/store/api/searchApi.ts
+- docs/adr/ADR-0124-search-viewport-driven-map.md
+
+Summary:
+- `/search` переведён на Zillow-режим: список справа управляется видимой
+  областью карты (ADR-0124). Хук `useViewportSearch` — гео-приоритет
+  (polygon > bounds > обычный поиск) + guard от out-of-order ответов bounds.
+- `MapView`: флаг пользовательского жеста (drag/zoom vs программный
+  `setBounds`, включая `pointercancel`) + восстановление `initialBounds`.
+- bbox сохраняется в URL через shallow `replaceState` (НЕ `router.replace` —
+  чтобы не перерендеривать всю страницу на каждый сдвиг карты).
+- Общий `MapPreviewCard` — превью объявления при клике на пин; `/map`
+  унифицирован на тот же хук и карточку (дублирование убрано).
+- Попутный фикс: гео-эндпоинты (`bounds`/`polygon`/`radius`) теперь получают
+  полный набор фильтров Фазы 2 + SSR-фетч первой страницы по bounds.
+- Refetch списка при очистке нарисованной территории.
+
+Commit messages:
+- feat(client): add bbox URL helpers for viewport search
+- fix(client): pass full phase-2 filters to geo search endpoints, add SSR bounds fetch
+- feat(client): MapView user-gesture flag and initialBounds restore
+- fix(client): handle pointercancel in MapView gesture detection
+- feat(client): shared MapPreviewCard overlay for map pin preview
+- feat(client): useViewportSearch hook — Zillow viewport mode with geo-priority
+- fix(client): guard useViewportSearch against out-of-order bounds responses
+- feat(client): Zillow viewport search on /search — map-driven list, pin preview, bbox in URL
+- refactor(client): unify /map on useViewportSearch and MapPreviewCard
+- fix(client): refetch viewport listings on territory clear in /search
+- docs(adr): viewport-driven search on /search (Zillow map mode)
+
+Related ADR:
+- docs/adr/ADR-0124-search-viewport-driven-map.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-07-04-search-map-viewport-zillow-design.md
+- docs/superpowers/plans/2026-07-04-search-map-viewport-zillow.md
+
+### TASK — Скрыть варианты санузлов 2.5/3.5 в формах создания/редактирования (client)
+
+Status: DONE
+Branch: fix/wizard-hide-half-bath-options
+PR: #316 (https://github.com/FounderDAO/avino/pull/316)
+
+Files changed:
+- apps/client/src/features/listing-new/ListingNew.tsx
+- apps/client/src/features/listing-edit/ListingEdit.tsx
+
+Summary:
+- Из селекта «Санузлы» визарда `/sell/new` и формы редактирования убраны
+  дробные значения 2.5/3.5 — для рынка Узбекистана половинные санузлы
+  не актуальны. Фильтр поиска (bathrooms, ADR-0108) не тронут.
+
+Commit messages:
+- fix(client): hide 2.5/3.5 bathroom options in create/edit listing forms
 
 ### TASK — Toast-уведомления клиента: sonner + глобальный перехват ошибок мутаций (client)
 
@@ -5636,3 +6033,82 @@ Related ADR:
 Related spec/plan:
 - docs/superpowers/specs/2026-06-29-legal-consent-modal-design.md
 - docs/superpowers/plans/2026-06-29-client-legal-consent-modal.md
+
+## 2026-07-05
+
+### TASK-226 — Fix: /search/bounds на боксе «весь мир» возвращает 0
+
+Status: DONE
+Branch: fix/api-search-bounds-full-extent
+PR: #323
+
+Files changed:
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/search.service.geo.int-spec.ts
+
+Summary:
+- Баг из заявки мобильного клиента (BACKEND-REQUESTS.md 04.07.2026, п.3): bbox
+  полного экстента (sw=-85,-180 / ne=85,180) давал total: 0.
+- Причина: каст planar-envelope к geography в GIST-префильтре
+  `location && envelope::geography` — при ширине ≥ 180° по долготе рёбра-дуги
+  больших кругов «коротким путём» вырождают/инвертируют полигон (при 360°
+  горизонтальные рёбра нулевой длины), префильтр отбрасывал всё.
+- Фикс: хелпер boundsPrefilterSql — широкий bbox чанкуется на куски ≤ 90° по
+  долготе, префильтр = OR по кускам (GIST bitmap-OR, индекс сохраняется);
+  точный ST_Within(location::geometry, envelope) не менялся.
+- TDD: red-тест падал ровно с total: 0; 3 новых int-spec кейса (полный экстент,
+  span 200°, span ровно 180°), геосьют 11/11 на живом PostGIS.
+
+Commit messages:
+- fix(search): handle wide/full-extent bbox in /search/bounds
+
+Related ADR:
+- нет (точечный багфикс в рамках принятых решений bounds-поиска)
+
+Related plan:
+- docs/superpowers/plans/2026-07-04-search-bounds-full-extent-fix.md
+
+### TASK-225 — Эндпоинт кластеризации карты GET /api/v1/search/clusters
+
+Status: DONE
+Branch: feature/api-search-clusters
+PR: #324
+
+Files changed:
+- apps/api/src/search/dto/clusters.dto.ts
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/search.controller.ts
+- apps/api/src/search/search.service.spec.ts
+- apps/api/src/search/search.service.geo.int-spec.ts
+- apps/api/openapi.public.json
+- apps/api/openapi.internal.json
+- docs/adr/ADR-0126-search-clusters-endpoint.md
+- docs/API.md
+
+Summary:
+- Заявка мобильного клиента (BACKEND-REQUESTS.md 04.07.2026, п.1): агрегирующий
+  эндпоинт для широких зумов карты (схема Zillow/Airbnb), чтобы видеть ВСЕ
+  10 000+ объявлений кластерами.
+- GET /api/v1/search/clusters?sw_lat&sw_lng&ne_lat&ne_lng&zoom&<фильтры /search>
+  → { data: [{ latitude, longitude, count, min_price, avg_price }], currency }.
+- Сетка GROUP BY ST_SnapToGrid, шаг 360/2^zoom/8; координата кластера — центроид
+  точек ячейки; все фильтры §9 через buildWhereSql; bbox — чанкованный префильтр
+  из TASK-226 + ST_Within; цены FX-нормализуются к currency (default USD) по
+  курсу ЦБУ (деградация к сырой цене без курса, паттерн ADR-0117); LIMIT 2000.
+- В docs/API.md заменён устаревший «Planned»-placeholder с неотгруженной формой
+  ответа. Гоча реализации: ST_SnapToGrid (2-арг) снапит к БЛИЖАЙШЕМУ узлу
+  абсолютной сетки — фикстура на границе бина сплитится (int-spec low-zoom
+  использует zoom 4).
+- Тесты: юнит clusterCellSizeDeg (halving-инвариант), 5 int-spec кейсов
+  (слияние/сплит/фильтры/полный экстент/пустой результат), геосьют 16/16.
+
+Commit messages:
+- feat(search): add map clusters aggregation endpoint
+- docs(adr): add ADR-0126 search clusters endpoint
+- test(search): cover empty-result contract of /search/clusters
+
+Related ADR:
+- docs/adr/ADR-0126-search-clusters-endpoint.md
+
+Related plan:
+- docs/superpowers/plans/2026-07-04-search-clusters-endpoint.md
