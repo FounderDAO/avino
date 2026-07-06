@@ -29,6 +29,7 @@ import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import { selectTerritoryPoints } from '@/store/territorySlice';
 import { useCreateSavedSearchMutation } from '@/store/api/savedSearchesApi';
 import { describeFilters, type SavedSearchFilters } from '@/lib/savedSearch';
+import { LoginModal } from '@/components/layout/LoginModal';
 import { getApiError } from '@/store/api/apiError';
 import { useTranslations, useLocale } from 'next-intl';
 import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
@@ -386,12 +387,36 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     return filters;
   }, [values, territoryPoints]);
 
-  const handleSaveSearch = React.useCallback(() => {
-    if (!isAuthenticated || isSaving) return;
+  // Модалка входа для гостя + «отложенное намерение» сохранить после входа.
+  const [loginOpen, setLoginOpen] = React.useState(false);
+  const [pendingSave, setPendingSave] = React.useState(false);
+
+  /** Само сохранение (без auth-гейта) — вызывается напрямую или после входа. */
+  const doSave = React.useCallback(() => {
+    if (isSaving) return;
     const filters = buildFilters();
     const name = describeFilters(filters, t) || tSearch('filters.mySearch');
     void createSavedSearch({ name, filters });
-  }, [isAuthenticated, isSaving, buildFilters, createSavedSearch, t, tSearch]);
+  }, [isSaving, buildFilters, createSavedSearch, t, tSearch]);
+
+  // «Сохранить поиск»: гость → открываем модалку входа (как в ContactCard) и
+  // запоминаем намерение; авторизован → сохраняем сразу.
+  const handleSaveSearch = React.useCallback(() => {
+    if (!isAuthenticated) {
+      setPendingSave(true);
+      setLoginOpen(true);
+      return;
+    }
+    doSave();
+  }, [isAuthenticated, doSave]);
+
+  // После успешного входа гостя — выполняем отложенное сохранение.
+  React.useEffect(() => {
+    if (isAuthenticated && pendingSave) {
+      setPendingSave(false);
+      doSave();
+    }
+  }, [isAuthenticated, pendingSave, doSave]);
 
   const saveApiError = getApiError(saveError);
 
@@ -601,32 +626,31 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
             </DropdownContent>
           </Dropdown>
 
-          {/* Сохранить поиск — только для авторизованных (POST /saved-searches). */}
-          {isAuthenticated && (
-            <button
-              type="button"
-              onClick={handleSaveSearch}
-              disabled={isSaving}
-              title={saveApiError?.message}
-              className={cn(
-                'inline-flex flex-shrink-0 items-center gap-2 rounded-pill border-[1.5px] px-4 py-[9px] text-sm font-bold transition-colors disabled:opacity-60',
-                isSaved
-                  ? 'border-teal bg-mint text-teal'
-                  : saveApiError
-                    ? 'border-red-300 bg-surface text-red-600'
-                    : 'border-border bg-surface text-teal hover:border-teal',
-              )}
-            >
-              <Bell size={16} strokeWidth={1.9} />
-              {isSaving
-                ? tSearch('filters.saving')
-                : isSaved
-                  ? tSearch('filters.saved')
-                  : saveApiError
-                    ? tSearch('filters.saveError')
-                    : tSearch('filters.saveSearch')}
-            </button>
-          )}
+          {/* Сохранить поиск — видна всем; гость по клику получает вход
+              (LoginModal), затем сохранение продолжается (POST /saved-searches). */}
+          <button
+            type="button"
+            onClick={handleSaveSearch}
+            disabled={isSaving}
+            title={saveApiError?.message}
+            className={cn(
+              'inline-flex flex-shrink-0 items-center gap-2 rounded-pill border-[1.5px] px-4 py-[9px] text-sm font-bold transition-colors disabled:opacity-60',
+              isSaved
+                ? 'border-teal bg-mint text-teal'
+                : saveApiError
+                  ? 'border-red-300 bg-surface text-red-600'
+                  : 'border-border bg-surface text-teal hover:border-teal',
+            )}
+          >
+            <Bell size={16} strokeWidth={1.9} />
+            {isSaving
+              ? tSearch('filters.saving')
+              : isSaved
+                ? tSearch('filters.saved')
+                : saveApiError
+                  ? tSearch('filters.saveError')
+                  : tSearch('filters.saveSearch')}
+          </button>
 
           {/* Переключатель Список / Карта — только на мобайле. */}
           <div className="ml-auto flex-shrink-0 lg:hidden">
@@ -650,6 +674,12 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
       </div>
       {/* Ряд активных фильтр-чипов под скролл-баром. */}
       <ActiveFilters values={values} districts={districts} regions={regions} />
+      {/* Вход для гостя, нажавшего «Сохранить поиск». */}
+      <LoginModal
+        open={loginOpen}
+        onOpenChange={setLoginOpen}
+        context={tSearch('filters.saveSearchLoginPrompt')}
+      />
     </div>
   );
 }
