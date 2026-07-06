@@ -5,7 +5,7 @@ import { Slider as RadixSlider } from 'radix-ui';
 import { Field } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
 import { clamp, niceStep, type PriceDomain, type PriceDraft } from './priceRange';
-import type { PriceBucket } from '@/store/api/priceDistributionApi';
+import type { PriceBucket } from './priceRange';
 
 export interface PriceRangeControlProps {
   domain: PriceDomain;
@@ -88,10 +88,10 @@ export function PriceRangeControl({
       </RadixSlider.Root>
       </div>
 
-      {/* Подписи краёв домена ($0 — $1M+) */}
+      {/* Подписи краёв домена ($0 — $1M) */}
       <div className="flex justify-between text-[13px] font-semibold text-ink">
         <span>{formatLabel(domain.min)}</span>
-        <span>{formatLabel(domain.max)}+</span>
+        <span>{formatLabel(domain.max)}</span>
       </div>
 
       {/* Поля Мин/Макс */}

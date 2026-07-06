@@ -2,8 +2,9 @@
 
 /**
  * PriceFilter — Zillow-вид фильтра цены: Popover с вкладками «Цена / Ежемесячный платёж»,
- * гистограммой распределения и слайдером. Контейнер тянет распределение через RTK Query
- * только при открытии Popover (ленивый mount PriceFilterBody).
+ * гистограммой распределения и слайдером. Домен и гистограмма считаются на клиенте из цен
+ * текущей выдачи (стор `resultPricesSlice`), а не запросом к API — контейнер лишь ленивый
+ * mount PriceFilterBody при открытии Popover.
  *
  * Вкладка «Ежемесячный платёж» — заглушка «Скоро» (Phase 2).
  */
@@ -11,15 +12,25 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { useGetPriceDistributionQuery } from '@/store/api/priceDistributionApi';
+import { useAppSelector } from '@/store/hooks';
+import { selectResultPrices } from '@/store/resultPricesSlice';
+import { useGetExchangeRateQuery } from '@/store/api/exchangeRateApi';
 import { compactPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { clamp, toAppliedRange, type PriceDomain, type PriceDraft } from './controls/priceRange';
+import {
+  clamp,
+  toAppliedRange,
+  niceCeil,
+  toDisplayPrices,
+  buildPriceHistogram,
+  type PriceDomain,
+  type PriceDraft,
+} from './controls/priceRange';
 import { PriceRangeControl } from './controls/PriceRangeControl';
 import { TriggerButton } from './TriggerButton';
 import type { Currency, TransactionType } from '@/lib/mock/types';
 
-/** Фолбэк-потолок домена, когда распределения ещё нет / пусто. */
+/** Фолбэк-потолок домена, когда выдача пуста или цены недоступны. */
 const FALLBACK_MAX: Record<Currency, number> = {
   USD: 1_000_000,
   UZS: 12_000_000_000,
@@ -44,7 +55,7 @@ export function PriceFilter(props: PriceFilterProps) {
         <TriggerButton label={props.triggerLabel} active={props.active} data-testid="filter-price" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[340px]">
-        {/* Контент монтируется только при открытии → запрос распределения идёт по первому открытию */}
+        {/* Контент монтируется только при открытии → домен/гистограмма считаются лениво */}
         <PriceFilterBody {...props} close={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
@@ -70,11 +81,24 @@ function PriceFilterBody({
   const tUnits = useTranslations('units');
   const [tab, setTab] = React.useState<'list' | 'monthly'>('list');
 
-  const { data } = useGetPriceDistributionQuery({ currency: displayCurrency, transactionType: tx });
+  // Цены текущей выдачи (зеркало из SearchResults) → display-валюта по курсу ЦБУ.
+  const resultPrices = useAppSelector(selectResultPrices);
+  const { data: rateData } = useGetExchangeRateQuery();
+  const rate = rateData ? Number(rateData.rate) : undefined;
 
+  const converted = React.useMemo(
+    () => toDisplayPrices(resultPrices, displayCurrency, rate),
+    [resultPrices, displayCurrency, rate],
+  );
+  // Домен: [0, niceCeil(max выдачи)]; пусто/нули → фолбэк $1M / 12 млрд сум.
+  const maxPrice = converted.length > 0 ? Math.max(...converted) : 0;
   const domain: PriceDomain = React.useMemo(
-    () => ({ min: 0, max: data && data.max > 0 ? data.max : FALLBACK_MAX[displayCurrency] }),
-    [data, displayCurrency],
+    () => ({ min: 0, max: maxPrice > 0 ? niceCeil(maxPrice) : FALLBACK_MAX[displayCurrency] }),
+    [maxPrice, displayCurrency],
+  );
+  const buckets = React.useMemo(
+    () => buildPriceHistogram(converted, domain),
+    [converted, domain],
   );
 
   const [draft, setDraft] = React.useState<PriceDraft>(() => initDraft(value, domain));
@@ -134,7 +158,7 @@ function PriceFilterBody({
         <>
           <PriceRangeControl
             domain={domain}
-            buckets={data?.buckets ?? []}
+            buckets={buckets}
             value={draft}
             onChange={setDraft}
             minLabel={t('priceMinLabel')}
