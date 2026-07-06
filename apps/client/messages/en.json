@@ -931,6 +931,11 @@
       "authText": "Sign in to Avino to view and edit your profile.",
       "login": "Sign in",
       "changePhoto": "Change photo",
+      "uploadingPhoto": "Uploading…",
+      "removePhoto": "Remove",
+      "avatarAlt": "Profile photo",
+      "avatarInvalidType": "Please choose a JPG, PNG, or WEBP image.",
+      "avatarTooLarge": "Image is too large. Maximum size is 10 MB.",
       "firstName": "First name",
       "lastName": "Last name",
       "phone": "Phone",
@@ -1132,6 +1137,9 @@
     "tourCancelled": "Tour request cancelled",
     "tourActionFailed": "Could not update the tour. Please try again.",
     "savedSearchCreated": "Search saved",
-    "savedSearchDeleted": "Saved search deleted"
+    "savedSearchDeleted": "Saved search deleted",
+    "avatarUpdated": "Photo updated",
+    "avatarRemoved": "Photo removed",
+    "avatarActionFailed": "Couldn't update the photo. Please try again."
   }
 }

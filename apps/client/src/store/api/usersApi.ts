@@ -10,8 +10,12 @@ import type { Language, MeResponse, UserProfile } from './authApi';
  *     Смена email триггерит OTP re-verify на бэке — просто вызываем.
  * - PATCH /users/me/profile  { first_name?, last_name?, display_name?,
  *     avatar_url?, contact_phone?, preferred_language? } → 200 profile.
+ * - POST  /users/me/avatar   multipart поле `file` (image/jpeg|png|webp,
+ *     ≤10 MiB) → 201 { avatar_url }. Сервер сам сохраняет ключ в профиле —
+ *     отдельный PATCH avatar_url не нужен.
+ * - DELETE /users/me/avatar  → 204. Сбрасывает загруженный аватар.
  *
- * snake_case в телах, enum-значения UPPERCASE (UZ|RU|EN). Обе мутации
+ * snake_case в телах, enum-значения UPPERCASE (UZ|RU|EN). Все мутации
  * инвалидируют 'Auth' и 'User', чтобы GET /auth/me перечитал свежие данные.
  */
 
@@ -43,6 +47,11 @@ export interface LegalConsentState {
   accepted_at: string | null;
 }
 
+/** Ответ POST /users/me/avatar — свежая подписанная ссылка на загруженный аватар. */
+export interface UploadAvatarResponse {
+  avatar_url: string;
+}
+
 export const usersApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     updateUser: build.mutation<MeResponse, UpdateUserBody>({
@@ -71,6 +80,29 @@ export const usersApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Auth', 'User'],
     }),
+
+    // Загрузка аватара — прямой multipart (как uploadListingMedia): поле `file`,
+    // Content-Type не выставляем вручную (fetchBaseQuery прокидывает FormData).
+    uploadAvatar: build.mutation<UploadAvatarResponse, File>({
+      query: (file) => {
+        const form = new FormData();
+        form.append('file', file);
+        return {
+          url: '/users/me/avatar',
+          method: 'POST',
+          body: form,
+        };
+      },
+      invalidatesTags: ['Auth', 'User'],
+    }),
+
+    deleteAvatar: build.mutation<void, void>({
+      query: () => ({
+        url: '/users/me/avatar',
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Auth', 'User'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -79,4 +111,6 @@ export const {
   useUpdateUserMutation,
   useUpdateProfileMutation,
   useAcceptLegalConsentMutation,
+  useUploadAvatarMutation,
+  useDeleteAvatarMutation,
 } = usersApi;
