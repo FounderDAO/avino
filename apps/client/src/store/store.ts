@@ -6,6 +6,7 @@ import favoritesReducer from './favoritesSlice';
 import currencyReducer from './currencySlice';
 import { authReducer } from './slices/authSlice';
 import territoryReducer from './territorySlice';
+import resultPricesReducer from './resultPricesSlice';
 
 export const makeStore = () => {
   const store = configureStore({
@@ -15,6 +16,7 @@ export const makeStore = () => {
       currency: currencyReducer,
       auth: authReducer,
       territory: territoryReducer,
+      resultPrices: resultPricesReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().concat(baseApi.middleware, apiErrorToastMiddleware),
