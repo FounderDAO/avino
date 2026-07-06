@@ -64,6 +64,7 @@ export function AccountLayout({ tab, children }: AccountLayoutProps) {
     t('userCard.guest');
   const accountPhone = user?.profile?.contact_phone ?? user?.phone ?? null;
   const initial = accountName.trim().charAt(0).toUpperCase() || '?';
+  const avatarUrl = user?.profile?.avatar_url ?? null;
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 pb-16 pt-7">
@@ -72,8 +73,13 @@ export function AccountLayout({ tab, children }: AccountLayoutProps) {
         <aside>
           {/* Карточка пользователя (реальный текущий юзер из Redux) */}
           <div className="flex items-center gap-3 px-1.5 pb-4">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-teal text-lg font-extrabold text-white">
-              {initial}
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal text-lg font-extrabold text-white">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                initial
+              )}
             </span>
             <div className="min-w-0">
               <div className="truncate font-bold">{accountName}</div>

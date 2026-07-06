@@ -931,6 +931,11 @@
       "authText": "Чтобы видеть и редактировать профиль, войдите в Avino.",
       "login": "Войти",
       "changePhoto": "Сменить фото",
+      "uploadingPhoto": "Загрузка…",
+      "removePhoto": "Удалить",
+      "avatarAlt": "Фото профиля",
+      "avatarInvalidType": "Выберите изображение JPG, PNG или WEBP.",
+      "avatarTooLarge": "Файл слишком большой. Максимум 10 МБ.",
       "firstName": "Имя",
       "lastName": "Фамилия",
       "phone": "Телефон",
@@ -1132,6 +1137,9 @@
     "tourCancelled": "Запрос на тур отменён",
     "tourActionFailed": "Не удалось обновить тур. Попробуйте ещё раз.",
     "savedSearchCreated": "Поиск сохранён",
-    "savedSearchDeleted": "Сохранённый поиск удалён"
+    "savedSearchDeleted": "Сохранённый поиск удалён",
+    "avatarUpdated": "Фото обновлено",
+    "avatarRemoved": "Фото удалено",
+    "avatarActionFailed": "Не удалось обновить фото. Попробуйте ещё раз."
   }
 }
