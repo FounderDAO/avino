@@ -9,6 +9,7 @@
     "error": "Xatolik yuz berdi",
     "addToFavorites": "Saralanganlarga qo'shish",
     "removeFromFavorites": "Saralanganlardan olib tashlash",
+    "loginToFavorite": "Saralanganlarga qo'shish uchun tizimga kiring",
     "close": "Yopish",
     "previous": "Orqaga",
     "next": "Oldinga",
@@ -324,7 +325,8 @@
     "gallery": {
       "showAll": "Barcha suratlar",
       "counter": "{current} / {total}",
-      "counterAria": "{total} tadan {current}-surat"
+      "counterAria": "{total} tadan {current}-surat",
+      "seeAllCount": "Barcha {total} suratni ko'rish"
     },
     "meta": {
       "title": "{title} — {price} | Avino",
@@ -345,7 +347,8 @@
     },
     "map": {
       "pin": "{district} tumani · {address}",
-      "note": "Aniq joylashuv muallif bilan bog'langandan so'ng ko'rsatiladi."
+      "note": "Aniq joylashuv muallif bilan bog'langandan so'ng ko'rsatiladi.",
+      "openInYandex": "Yandex Xaritalarda ochish"
     },
     "similar": {
       "viewAll": "Barchasini ko'rish"

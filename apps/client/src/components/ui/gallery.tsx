@@ -11,6 +11,7 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
+import { LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PhotoImg } from './photo-img';
 import { Lightbox } from './lightbox';
@@ -21,6 +22,22 @@ export interface GalleryProps {
   alt?: string;
   className?: string;
 }
+
+/**
+ * Раскладка правой мозаики по числу превью (1–4) — без «дыр» в сетке:
+ * 1 → одно фото на всю правую колонку; 2 → стопкой; 3 → верхнее на всю ширину
+ * + два снизу; 4 → сетка 2×2 (по-зилловски).
+ */
+const MOSAIC_GRID: Record<number, string> = {
+  1: 'sm:grid-cols-1 sm:grid-rows-1',
+  2: 'sm:grid-cols-1 sm:grid-rows-2',
+  3: 'sm:grid-cols-2 sm:grid-rows-2',
+  4: 'sm:grid-cols-2 sm:grid-rows-2',
+};
+/** Спаны отдельных тайлов (только там, где нужно перекрыть автопоток). */
+const MOSAIC_TILE: Record<number, Record<number, string>> = {
+  3: { 0: 'sm:col-span-2' },
+};
 
 export function Gallery({ photos, alt, className }: GalleryProps) {
   const [lightbox, setLightbox] = React.useState<number | null>(null);
@@ -42,10 +59,21 @@ export function Gallery({ photos, alt, className }: GalleryProps) {
   const rest = photos.slice(1, 5);
   const total = photos.length;
   const hasMany = total > 1;
+  // Мозаику справа показываем, только когда есть превью; иначе главное фото
+  // растягиваем на всю ширину (без пустой правой колонки).
+  const showMosaic = rest.length > 0;
+  // Сколько фото осталось «за кадром» сверх показанных (главное + до 4 превью).
+  const moreCount = total - (1 + rest.length);
 
   return (
     <div className={className}>
-      <div className="grid grid-cols-1 gap-2 overflow-hidden rounded-card sm:grid-cols-2">
+      <div
+        className={cn(
+          'grid grid-cols-1 gap-2 overflow-hidden rounded-card',
+          // Фикс-пропорция контейнера на sm+ даёт мозаике равные по высоте колонки.
+          showMosaic && 'sm:aspect-[2/1] sm:grid-cols-2',
+        )}
+      >
         {/*
          * Главное фото: кликабельный div (не button) открывает лайтбокс.
          * Внутри — абсолютный span-счётчик и отдельная button «Показать все».
@@ -66,15 +94,18 @@ export function Gallery({ photos, alt, className }: GalleryProps) {
               ? t('gallery.counterAria', { current: 1, total })
               : (alt ?? '')
           }
-          className="relative block aspect-[4/3] w-full cursor-pointer overflow-hidden sm:aspect-auto sm:row-span-2"
+          className={cn(
+            'relative block aspect-[4/3] w-full cursor-pointer overflow-hidden',
+            showMosaic ? 'sm:aspect-auto sm:h-full' : 'sm:aspect-[16/9]',
+          )}
         >
           <PhotoImg src={main.url} alt={alt} priority />
 
-          {/* Счётчик «1 / N» — всегда, когда фото > 1 */}
+          {/* Счётчик «1 / N» — на мобайле (на sm+ роль счётчика берёт мозаика). */}
           {hasMany && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white"
+              className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white sm:hidden"
             >
               {t('gallery.counter', { current: 1, total })}
             </span>
@@ -95,22 +126,36 @@ export function Gallery({ photos, alt, className }: GalleryProps) {
           )}
         </div>
 
-        {/* Сетка превью — только на sm+ */}
-        <div className="hidden grid-cols-2 gap-2 sm:grid">
-          {rest.map((p, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setLightbox(i + 1)}
-              className={cn(
-                'relative block aspect-[4/3] overflow-hidden',
-                rest.length === 1 && 'col-span-2',
-              )}
-            >
-              <PhotoImg src={p.thumb} alt={alt} />
-            </button>
-          ))}
-        </div>
+        {/* Мозаика превью — только на sm+, раскладка зависит от числа фото. */}
+        {showMosaic && (
+          <div className={cn('hidden gap-2 sm:grid sm:h-full', MOSAIC_GRID[rest.length])}>
+            {rest.map((p, i) => {
+              const isLast = i === rest.length - 1;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setLightbox(i + 1)}
+                  className={cn(
+                    'relative block h-full w-full overflow-hidden',
+                    MOSAIC_TILE[rest.length]?.[i],
+                  )}
+                >
+                  <PhotoImg src={p.thumb} alt={alt} />
+
+                  {/* «Показать все N фото» — пилюлей на последнем тайле, если фото
+                      больше, чем помещается в мозаику (по-зилловски). */}
+                  {isLast && moreCount > 0 && (
+                    <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs font-bold text-ink shadow-sm">
+                      <LayoutGrid size={14} strokeWidth={2.2} />
+                      {t('gallery.seeAllCount', { total })}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {lightbox !== null && (
