@@ -76,10 +76,24 @@ export interface TourListParams {
   upcoming?: boolean;
 }
 
-const tourListUrl = (base: string, params?: TourListParams | void): string => {
-  const sp = new URLSearchParams({ limit: '50' });
+/** Страница cursor-пагинации для infinite-списков (агенда/шапка используют массив-хуки). */
+export interface TourPage {
+  items: TourRequestItem[];
+  nextCursor: string | null;
+}
+
+/** Размер страницы для «Показать ещё» на вкладках «Запросы ко мне» / «Мои запросы». */
+const TOUR_PAGE_SIZE = 15;
+
+const tourListUrl = (
+  base: string,
+  params?: TourListParams | void,
+  opts?: { limit?: number; cursor?: string },
+): string => {
+  const sp = new URLSearchParams({ limit: String(opts?.limit ?? 50) });
   if (params?.status) sp.set('status', params.status);
   if (params?.upcoming) sp.set('upcoming', 'true');
+  if (opts?.cursor) sp.set('cursor', opts.cursor);
   return `${base}?${sp.toString()}`;
 };
 
@@ -103,6 +117,42 @@ export const tourRequestsApi = baseApi.injectEndpoints({
     getIncomingTours: build.query<TourRequestItem[], TourListParams | void>({
       query: (params) => tourListUrl('/tour-requests/incoming', params),
       transformResponse: (env: TourListEnvelope) => env.data,
+      providesTags: [INCOMING_TAG],
+    }),
+
+    // Пагинируемые списки для вкладок «Мои туры» («Показать ещё» через cursor).
+    // Отдельные от массив-хуков выше: те питают агенду и unread-счётчик шапки,
+    // и их плоский тип менять нельзя.
+    getOutgoingToursPage: build.infiniteQuery<TourPage, TourListParams | void, string | null>({
+      infiniteQueryOptions: {
+        initialPageParam: null,
+        getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      },
+      query: ({ queryArg, pageParam }) =>
+        tourListUrl('/tour-requests/outgoing', queryArg, {
+          limit: TOUR_PAGE_SIZE,
+          cursor: pageParam ?? undefined,
+        }),
+      transformResponse: (env: TourListEnvelope): TourPage => ({
+        items: env.data,
+        nextCursor: env.meta.next_cursor,
+      }),
+      providesTags: [OUTGOING_TAG],
+    }),
+    getIncomingToursPage: build.infiniteQuery<TourPage, TourListParams | void, string | null>({
+      infiniteQueryOptions: {
+        initialPageParam: null,
+        getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      },
+      query: ({ queryArg, pageParam }) =>
+        tourListUrl('/tour-requests/incoming', queryArg, {
+          limit: TOUR_PAGE_SIZE,
+          cursor: pageParam ?? undefined,
+        }),
+      transformResponse: (env: TourListEnvelope): TourPage => ({
+        items: env.data,
+        nextCursor: env.meta.next_cursor,
+      }),
       providesTags: [INCOMING_TAG],
     }),
     updateTourStatus: build.mutation<TourRequestItem, { id: string; action: TourAction }>({
@@ -130,6 +180,8 @@ export const {
   useCreateTourRequestMutation,
   useGetOutgoingToursQuery,
   useGetIncomingToursQuery,
+  useGetOutgoingToursPageInfiniteQuery,
+  useGetIncomingToursPageInfiniteQuery,
   useUpdateTourStatusMutation,
   useGetTakenSlotsQuery,
 } = tourRequestsApi;
