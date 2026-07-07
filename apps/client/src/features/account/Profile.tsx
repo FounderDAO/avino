@@ -1,8 +1,9 @@
 /**
  * Profile — вкладка «Профиль».
  * Гидрируется из текущего пользователя (GET /auth/me → authSlice) и сохраняет
- * изменения двумя PATCH-вызовами: профиль (имя/телефон/язык) и пользователь
- * (email/язык). Гость → подсказка войти.
+ * изменения двумя PATCH-вызовами: профиль (имя/телефон) и пользователь (email).
+ * Язык интерфейса живёт на вкладке «Настройки» (Settings) — здесь его нет.
+ * Гость → подсказка войти.
  */
 'use client';
 
@@ -11,7 +12,6 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Link } from '@/i18n/navigation';
 import { Field } from '@/components/ui/field';
-import { Pill } from '@/components/ui/pill';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAppSelector } from '@/store/hooks';
@@ -19,7 +19,6 @@ import {
   selectCurrentUser,
   selectIsAuthenticated,
 } from '@/store/slices/authSlice';
-import type { Language } from '@/store/api/authApi';
 import {
   useUpdateProfileMutation,
   useUpdateUserMutation,
@@ -32,28 +31,12 @@ import { getApiError } from '@/store/api/apiError';
 const AVATAR_ACCEPT = 'image/jpeg,image/png,image/webp';
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 
-/** Язык чипа (lowercase) ↔ enum API (UPPERCASE). */
-type LangChip = 'ru' | 'uz' | 'en';
-
-const LANGS: [LangChip, string][] = [
-  ['ru', 'Русский'],
-  ['uz', 'O‘zbekcha'],
-  ['en', 'English'],
-];
-
-const LANG_UPPER: Record<LangChip, Language> = { ru: 'RU', uz: 'UZ', en: 'EN' };
-
-function toChip(lang: Language | undefined): LangChip {
-  return (lang ? (lang.toLowerCase() as LangChip) : 'ru');
-}
-
 /** Состояние формы профиля. */
 interface ProfileForm {
   firstName: string;
   lastName: string;
   phone: string;
   email: string;
-  lang: LangChip;
 }
 
 export function Profile() {
@@ -93,7 +76,6 @@ export function Profile() {
     lastName: '',
     phone: '',
     email: '',
-    lang: 'ru',
   });
   const [emailError, setEmailError] = React.useState<string | null>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -106,7 +88,6 @@ export function Profile() {
       lastName: user.profile.last_name ?? '',
       phone: user.profile.contact_phone ?? user.phone ?? '',
       email: user.email ?? '',
-      lang: toChip(user.default_language),
     });
   }, [user]);
 
@@ -196,11 +177,10 @@ export function Profile() {
     setEmailError(null);
     setFormError(null);
 
-    const nextLang = LANG_UPPER[form.lang];
     const trimmedEmail = form.email.trim();
 
     try {
-      // Профиль: имя/телефон/язык — всегда.
+      // Профиль: имя/телефон — всегда. Язык живёт на вкладке «Настройки».
       await updateProfile({
         first_name: form.firstName.trim() || null,
         last_name: form.lastName.trim() || null,
@@ -209,19 +189,11 @@ export function Profile() {
         // навсегда перекрывал бы отредактированные Имя/Фамилию.
         display_name: null,
         contact_phone: form.phone.trim() || null,
-        preferred_language: nextLang,
       }).unwrap();
 
-      // Пользователь: только при изменении email или языка.
-      const userPatch: { email?: string; default_language?: Language } = {};
+      // Пользователь: только при изменении email.
       if (user && trimmedEmail !== (user.email ?? '')) {
-        userPatch.email = trimmedEmail;
-      }
-      if (user && nextLang !== user.default_language) {
-        userPatch.default_language = nextLang;
-      }
-      if (userPatch.email !== undefined || userPatch.default_language !== undefined) {
-        await updateUser(userPatch).unwrap();
+        await updateUser({ email: trimmedEmail }).unwrap();
       }
 
       toast.success(tToasts('profileSaved'));
@@ -308,16 +280,6 @@ export function Profile() {
             {emailError && (
               <p className="mt-1.5 text-[13px] font-semibold text-red">{emailError}</p>
             )}
-          </div>
-          <div>
-            <label className="mb-[7px] block text-[13px] font-bold">{t('profile.language')}</label>
-            <div className="flex gap-2">
-              {LANGS.map(([k, v]) => (
-                <Pill key={k} active={form.lang === k} onClick={() => set('lang', k)}>
-                  {v}
-                </Pill>
-              ))}
-            </div>
           </div>
 
           {formError && (
