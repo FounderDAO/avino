@@ -91,6 +91,8 @@ export interface SearchListItem {
   lot_area: string | null;
   city_id: string | null;
   district_id: string | null;
+  /** Точный адрес объявления (VarChar 500); `null`, если не заполнен. */
+  address: string | null;
   latitude: string | null;
   longitude: string | null;
   promotion_type: PromotionType;
@@ -244,6 +246,7 @@ const SEARCH_SELECT = {
   lotArea: true,
   cityId: true,
   districtId: true,
+  address: true,
   latitude: true,
   longitude: true,
   promotionType: true,
@@ -1413,6 +1416,7 @@ export class SearchService {
       lot_area: listing.lotArea?.toFixed(2) ?? null,
       city_id: listing.cityId,
       district_id: listing.districtId,
+      address: listing.address,
       latitude: listing.latitude?.toFixed(6) ?? null,
       longitude: listing.longitude?.toFixed(6) ?? null,
       promotion_type: listing.promotionType,

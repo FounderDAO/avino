@@ -91,7 +91,9 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
   }, [onReset]);
 
   return (
-    <div className="flex flex-col gap-5 p-4">
+    <div className="flex max-h-[72vh] flex-col">
+      {/* Прокручиваемое тело: скроллится только контент, футер закреплён снизу */}
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
 
       {/* 0. Комнаты и санузлы */}
       <Section title={t('roomsAndBathrooms')}>
@@ -232,8 +234,10 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
         />
       </Section>
 
-      {/* Кнопки внизу */}
-      <div className="flex gap-2 pt-1">
+      </div>
+
+      {/* Закреплённый футер: кнопки всегда видны без скролла (как у Zillow) */}
+      <div className="flex flex-shrink-0 gap-2 border-t border-border bg-surface p-4">
         <button
           type="button"
           data-testid="filters-reset"
@@ -246,7 +250,7 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
           type="button"
           data-testid="filters-apply"
           onClick={() => onApply(draft)}
-          className="flex-1 rounded-lg bg-teal px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-teal/90"
+          className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary/90"
         >
           {t('apply')}
         </button>

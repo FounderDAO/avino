@@ -37,6 +37,7 @@ interface FavoriteSearchItem {
   city_id: string | null;
   district_id: string | null;
   district_name: string | null;
+  address: string | null;
   latitude: string | null;
   longitude: string | null;
   promotion_type: PromotionType;

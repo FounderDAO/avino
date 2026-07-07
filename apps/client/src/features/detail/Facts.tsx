@@ -60,7 +60,8 @@ export function Facts({ listing, className }: FactsProps) {
   if (listing.year) {
     items.push(<Fact key="year" icon={CalendarDays} label={t('facts.year')} value={listing.year} />);
   }
-  if (listing.parkingType) {
+  // Гараж вынесен в раздел «Удобства» (Detail.tsx); в сетке — остальные типы.
+  if (listing.parkingType && listing.parkingType !== 'GARAGE') {
     items.push(<Fact key="parking" icon={SquareParking} label={t('facts.parking')} value={tEnums(`parking.${listing.parkingType}`)} />);
   }
   if (listing.lotArea) {
