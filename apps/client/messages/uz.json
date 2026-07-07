@@ -1038,6 +1038,16 @@
     "bathrooms": "{count} s/u",
     "territory": "hudud"
   },
+  "saveSearchModal": {
+    "titleCreate": "Qidiruvni saqlash",
+    "titleRename": "Qidiruvni qayta nomlash",
+    "nameLabel": "Qidiruv nomi",
+    "namePlaceholder": "Masalan: 2 xonali, 500 000 000 gacha",
+    "submitCreate": "Saqlash",
+    "submitRename": "Saqlash",
+    "cancel": "Bekor qilish",
+    "close": "Yopish"
+  },
   "units": {
     "approx": "≈",
     "roomsLabel": "{count, plural, other {xona}}",

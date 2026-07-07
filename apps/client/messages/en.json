@@ -1038,6 +1038,16 @@
     "bathrooms": "{count} ba",
     "territory": "territory"
   },
+  "saveSearchModal": {
+    "titleCreate": "Save search",
+    "titleRename": "Rename search",
+    "nameLabel": "Name your search",
+    "namePlaceholder": "e.g. 2-room under 500,000,000",
+    "submitCreate": "Save",
+    "submitRename": "Save",
+    "cancel": "Cancel",
+    "close": "Close"
+  },
   "units": {
     "approx": "≈",
     "roomsLabel": "{count, plural, one {room} other {rooms}}",

@@ -1038,6 +1038,16 @@
     "bathrooms": "{count} с/у",
     "territory": "территория"
   },
+  "saveSearchModal": {
+    "titleCreate": "Сохранить поиск",
+    "titleRename": "Переименовать поиск",
+    "nameLabel": "Название поиска",
+    "namePlaceholder": "Например: 2-комн. до 500 000 000",
+    "submitCreate": "Сохранить",
+    "submitRename": "Сохранить",
+    "cancel": "Отмена",
+    "close": "Закрыть"
+  },
   "units": {
     "approx": "≈",
     "roomsLabel": "{count, plural, one {комната} few {комнаты} many {комнат} other {комнаты}}",
