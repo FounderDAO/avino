@@ -9,8 +9,8 @@
  *    зажал → обвёл → отпустил → `onPolygonComplete`), оверлей территории
  *    (`polygon`) и отчёт о видимой области (`onBoundsChange`, debounce).
  *
- * Маркеры — кластеризуются (ymaps.Clusterer). Пины брендовые (ADR-0060): все
- * красные, активный — тёмный (ink). Клик по пину → `onSelect`,
+ * Маркеры — кластеризуются (ymaps.Clusterer). Пины брендовые (ADR-0060):
+ * аренда — оранжевые, продажа — красные, активный — тёмный (ink). Клик по пину → `onSelect`,
  * наведение → `onHover`; активный пин подсвечивается, центрирование карты —
  * опционально (admin-флаг recenterOnHover).
  *
@@ -23,7 +23,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { usePriceFormatter } from '@/lib/usePriceFormatter';
 import { clampRadius, type LatLng, type LatLngBounds } from '@/lib/geo';
-import type { Listing, RadiusCircle } from '@/lib/mock/types';
+import type { Listing, RadiusCircle, TransactionType } from '@/lib/mock/types';
 import { useYmaps, type Ymaps, type YmapsStatus } from './useYmaps';
 
 export type DrawMode = 'radius' | 'polygon' | null;
@@ -100,9 +100,10 @@ const OVERLAY_STYLE = {
   fillOpacity: 0.08,
 } as const;
 
-/** HTML ценового пина: все пины красные; активный — тёмный. */
-function pinHTML(active: boolean, priceText: string): string {
-  const bg = active ? 'var(--ink, #282218)' : 'var(--red, #e03c42)';
+/** HTML ценового пина: аренда — оранжевый, продажа — красный; активный — тёмный. */
+function pinHTML(active: boolean, priceText: string, tx: TransactionType): string {
+  const base = tx === 'RENT' ? 'var(--orange, #f2820b)' : 'var(--red, #e03c42)';
+  const bg = active ? 'var(--ink, #282218)' : base;
   return `<div class="av-ypin ${active ? 'active' : ''}" style="background:${bg};color:#fff;border:none">${priceText}</div>`;
 }
 
@@ -317,7 +318,7 @@ export function MapView({
         [l.lat, l.lng],
         { listingId: l.id },
         {
-          iconLayout: makeIconLayout(ymaps, pinHTML(l.id === activeId, priceText)),
+          iconLayout: makeIconLayout(ymaps, pinHTML(l.id === activeId, priceText, l.tx)),
           iconShape: { type: 'Rectangle', coordinates: [[-46, -16], [46, 16]] },
         },
       );
@@ -349,7 +350,7 @@ export function MapView({
     listings.forEach((l) => {
       const pm = placemarksRef.current[l.id];
       if (!pm) return;
-      pm.options.set('iconLayout', makeIconLayout(ymaps, pinHTML(l.id === activeId, fmtRef.current.pin(l))));
+      pm.options.set('iconLayout', makeIconLayout(ymaps, pinHTML(l.id === activeId, fmtRef.current.pin(l), l.tx)));
       pm.options.set('zIndex', l.id === activeId ? 1000 : 0);
     });
     if (recenterOnHover && activeId) {

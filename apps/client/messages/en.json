@@ -452,7 +452,8 @@
       "agent": {
         "title": "Sell with an Avino Pro agent",
         "text": "A professional handles showings, negotiations, and paperwork. You save time.",
-        "cta": "Find an agent"
+        "cta": "Find an agent",
+        "comingSoon": "Coming soon"
       },
       "rent": {
         "title": "Rent it out",

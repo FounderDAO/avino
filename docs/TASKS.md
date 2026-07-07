@@ -1468,6 +1468,72 @@ TASK-052
 
 ---
 
+### TASK-BL-008 — Дефолтный гео-фильтр «Ташкент» на /search (список + карта консистентны)
+
+Status:
+
+```text
+BACKLOG
+```
+
+Branch:
+
+```text
+feat/client-default-tashkent-search
+```
+
+Scope:
+
+```text
+Сделано сейчас (fix 2026-07-08, ветка отдельная, ещё не мёржена):
+Карта /search больше НЕ разъезжается на весь Узбекистан при пустом заходе.
+autoFit (подгон вида под маркеры) теперь включается ТОЛЬКО когда пользователь
+задал локацию — район/регион или текстовый запрос (hasLocationIntent). В «чистом»
+дефолте карта остаётся на дефолт-центре Ташкента (MapView, zoom 12).
+Файл: apps/client/src/features/search/SearchResults.tsx.
+
+Остаётся рассинхрон (сознательно отложен, эта задача):
+SSR-выдача по умолчанию НЕ имеет гео-фильтра — список показывает объявления по
+всей стране, а заголовок «· Ташкент» (defaultLocation) косметический. Т.е. сейчас
+«карта = Ташкент», но «список = по стране с лейблом Ташкент».
+
+Если заказчика не устроит этот рассинхрон — вернуться и сделать дефолтный
+гео-фильтр «Ташкент» на SSR: когда в URL нет district_id/region_id/bbox,
+searchListingsPage фильтрует по региону Ташкент, чтобы список И карта строго
+показывали Ташкент по умолчанию.
+```
+
+Files expected:
+
+```text
+apps/client/src/app/[locale]/search/page.tsx
+apps/client/src/features/search/SearchResults.tsx
+docs/adr/
+```
+
+Acceptance criteria:
+
+```text
+Пустой заход /search → список только Ташкент И карта Ташкент (консистентно)
+Явный выбор другого района/региона/запроса работает без регресса
+SEO canonical (ADR-0104) не ломается; viewport-режим панорамирования работает
+FilterBar «сброс фильтров» и длиннохвостые URL учтены
+```
+
+Suggested commits:
+
+```text
+feat(client): default search geo-filter to Tashkent when no location in URL
+```
+
+Dependencies:
+
+```text
+ADR-0113 (Region→District), ADR-0124 (viewport /search)
+```
+
+---
+
 ## 22a. UI/UX audit follow-ups — client live audit (2026-06-13)
 
 Источник: живой UI/UX-разбор публичного портала `apps/client` (главная desktop+mobile,

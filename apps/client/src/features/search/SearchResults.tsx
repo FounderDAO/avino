@@ -110,6 +110,14 @@ export function SearchResults({
   // Активен только без явного гео-фильтра и территории; активация — жестом
   // пользователя на карте (или сразу, если SSR восстановил bbox из URL).
   const geoFilterActive = Boolean(filter.districtId || filter.regionId);
+  // Автоподгон карты под маркеры нужен ТОЛЬКО когда пользователь задал локацию
+  // (район/регион или текстовый запрос) — тогда фокусируемся на результатах. В
+  // «чистом» дефолте (без локации) НЕ фитим: карта остаётся на дефолт-центре
+  // Ташкента (MapView), иначе autoFit растянул бы вид на объявления по всей
+  // стране, хотя выдача по умолчанию — «· Ташкент».
+  const hasLocationIntent = Boolean(
+    filter.districtId || filter.regionId || filter.query,
+  );
   const vp = useViewportSearch({
     mode: 'gesture',
     filter: filterWithCurrency,
@@ -258,7 +266,7 @@ export function SearchResults({
           onPolygonComplete={handlePolygonComplete}
           onBoundsChange={vp.handleBoundsChange}
           initialBounds={initialBounds}
-          autoFit={!vp.active}
+          autoFit={hasLocationIntent && !vp.active}
           recenterOnHover={recenterOnHover}
           preview={
             preview

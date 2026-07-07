@@ -22,6 +22,7 @@ function Path({
   cta,
   href,
   accent,
+  disabled,
 }: {
   icon: typeof HomeIcon;
   title: string;
@@ -29,6 +30,7 @@ function Path({
   cta: string;
   href: string;
   accent?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex h-full flex-col gap-3 rounded-card bg-surface p-[26px] shadow-card">
@@ -42,9 +44,15 @@ function Path({
       </span>
       <h3 className="text-xl">{title}</h3>
       <p className="flex-1 text-[14.5px] leading-[1.55] text-muted-foreground">{text}</p>
-      <Button asChild variant={accent ? 'primary' : 'outline'} className="self-start">
-        <Link href={href}>{cta}</Link>
-      </Button>
+      {disabled ? (
+        <Button variant="outline" className="self-start" disabled>
+          {cta}
+        </Button>
+      ) : (
+        <Button asChild variant={accent ? 'primary' : 'outline'} className="self-start">
+          <Link href={href}>{cta}</Link>
+        </Button>
+      )}
     </div>
   );
 }
@@ -119,10 +127,11 @@ export function Sell() {
             href="/sell/new"
           />
           <Path
+            disabled
             icon={User}
             title={t('paths.agent.title')}
             text={t('paths.agent.text')}
-            cta={t('paths.agent.cta')}
+            cta={t('paths.agent.comingSoon')}
             href="/sell/new"
           />
           <Path
@@ -130,7 +139,7 @@ export function Sell() {
             title={t('paths.rent.title')}
             text={t('paths.rent.text')}
             cta={t('paths.rent.cta')}
-            href="/sell/new"
+            href="/sell/new?tx=rent"
           />
         </div>
       </section>

@@ -452,7 +452,8 @@
       "agent": {
         "title": "Avino Pro agenti bilan sotish",
         "text": "Mutaxassis ko'rsatuvlar, muzokaralar va rasmiylashtirishni o'z zimmasiga oladi. Siz vaqtingizni tejaysiz.",
-        "cta": "Agent topish"
+        "cta": "Agent topish",
+        "comingSoon": "Tez orada"
       },
       "rent": {
         "title": "Ijaraga berish",
