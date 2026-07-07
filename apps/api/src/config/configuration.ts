@@ -101,6 +101,14 @@ export const promotionConfig = registerAs('promotion', () => ({
   expiryBatchSize: parseInt(process.env.PROMOTION_EXPIRY_BATCH_SIZE ?? '100', 10),
 }));
 
+export const activeListingLimitConfig = registerAs('activeListingLimit', () => ({
+  // Лимит числа активных (ACTIVE + на модерации NEW) объявлений обычного
+  // клиента. По умолчанию 2. ACTIVE_LISTING_LIMIT=N → N. Перебивается
+  // runtime-строкой active_listing_limit в app_settings (admin-настройка).
+  // `0` = без лимита. Профессионалов (AGENT/AGENCY) не касается.
+  default: parseInt(process.env.ACTIVE_LISTING_LIMIT ?? '2', 10),
+}));
+
 export const mapHoverRecenterConfig = registerAs('mapHoverRecenter', () => ({
   // Центрирование карты к пину при наведении на карточку в /search (поведение
   // «карта едет»). По умолчанию ВЫКЛЮЧЕНО — карта стоит на месте (Zillow-режим).
@@ -374,6 +382,7 @@ export const configurations = [
   smsConfig,
   translateConfig,
   promotionConfig,
+  activeListingLimitConfig,
   mapHoverRecenterConfig,
   legalConsentConfig,
   savedSearchConfig,

@@ -8,6 +8,7 @@ import {
 } from '@prisma/client';
 import { DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
+import { ActiveListingLimitService } from '../settings';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
 import { ListingsService } from './listings.service';
@@ -16,6 +17,12 @@ import { ListingsService } from './listings.service';
 const uploadsStub = {
   resolveMediaUrl: async (_key: string | null | undefined, url: string) => url,
 } as unknown as UploadsService;
+
+// Лимит активных объявлений в integration-сидинге отключаем (0 = без лимита),
+// чтобы не блокировать создание нескольких листингов одного владельца.
+const activeLimitStub = {
+  getLimit: async () => 0,
+} as unknown as ActiveListingLimitService;
 
 /**
  * Integration-тесты контактного блока детальной (TASK-210, ADR-0069) на живом
@@ -36,6 +43,7 @@ describe('ListingsService contact block (integration, TASK-210)', () => {
     new TranslationsService(prisma),
     districts,
     uploadsStub,
+    activeLimitStub,
   );
 
   const CITY_ID = '55555555-3333-4444-8555-000000000210';
