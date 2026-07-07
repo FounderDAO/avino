@@ -9,6 +9,7 @@
     "error": "Something went wrong",
     "addToFavorites": "Add to favorites",
     "removeFromFavorites": "Remove from favorites",
+    "loginToFavorite": "Sign in to save to favorites",
     "close": "Close",
     "previous": "Previous",
     "next": "Next",
@@ -324,7 +325,8 @@
     "gallery": {
       "showAll": "Show all photos",
       "counter": "{current} / {total}",
-      "counterAria": "Photo {current} of {total}"
+      "counterAria": "Photo {current} of {total}",
+      "seeAllCount": "See all {total} photos"
     },
     "meta": {
       "title": "{title} — {price} | Avino",
@@ -345,7 +347,8 @@
     },
     "map": {
       "pin": "{district} district · {address}",
-      "note": "The exact location is shown after contacting the author."
+      "note": "The exact location is shown after contacting the author.",
+      "openInYandex": "Open in Yandex Maps"
     },
     "similar": {
       "viewAll": "View all"

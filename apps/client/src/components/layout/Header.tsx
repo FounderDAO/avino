@@ -126,7 +126,6 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
   const isActive = (key: string) => {
     if (key === 'sell') return pathname.startsWith('/sell');
     if (key === 'help') return pathname.startsWith('/help');
-    if (key === 'map') return pathname.startsWith('/map');
     if (pathname === '/search') {
       const tx = searchParams?.get('tx');
       const isNew = searchParams?.get('type') === 'NEW_BUILDING';

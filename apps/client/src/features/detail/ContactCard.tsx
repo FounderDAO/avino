@@ -1,9 +1,9 @@
 /**
  * ContactCard — карточка контакта автора объявления (sticky-сайдбар detail).
  * Перенос ContactCard из claudeDesign/detail.jsx на токены проекта.
- * Кнопки: «Показать телефон» (раскрывает номер из мока), «Написать» (заглушка),
- * «В избранное» (FavButton), «Поделиться» (открывает общий ShareModal —
- * превью объявления + каналы Copy/Telegram/WhatsApp/Email).
+ * Кнопки: «Показать телефон» (раскрывает номер из мока), «Написать» (заглушка).
+ * Избранное и «Поделиться» вынесены в шапку деталки/модалки (см. Detail.tsx);
+ * ShareModal остаётся во владельческом виде.
  */
 'use client';
 
@@ -12,7 +12,6 @@ import { useTranslations } from 'next-intl';
 import { useRouter, Link } from '@/i18n/navigation';
 import { CalendarDays, MessageSquare, Phone, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { FavButton } from '@/components/ui/fav-button';
 import { LoginModal } from '@/components/layout/LoginModal';
 import { TourRequestModal } from './TourRequestModal';
 import { ShareModal } from './ShareButton';
@@ -194,14 +193,6 @@ export function ContactCard({ listing, className }: ContactCardProps) {
           <MessageSquare size={18} /> {t('contact.message')}
         </Button>
         {chatError && <div className="text-[12.5px] text-red">{chatError}</div>}
-
-        {/* Нижний ряд: избранное + поделиться */}
-        <div className="flex items-center gap-2.5">
-          <FavButton listingId={listing.id} size={48} className="shrink-0 shadow-none ring-1 ring-border" />
-          <Button variant="outline" size="lg" className="flex-1" onClick={() => setShareOpen(true)}>
-            <Share2 size={17} /> {t('contact.share')}
-          </Button>
-        </div>
       </div>
 
       {/* Вход гостя при попытке написать продавцу. */}

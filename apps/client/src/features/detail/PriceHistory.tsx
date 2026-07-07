@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import type { Listing, PriceHistoryEntry } from '@/lib/mock/types';
 import { usePriceFormatter } from '@/lib/usePriceFormatter';
@@ -28,23 +28,23 @@ function deltaPct(
   return Math.abs(pct) < 0.05 ? null : pct;
 }
 
-const DATE_LOCALES: Record<string, string> = { uz: 'uz-UZ', en: 'en-US', ru: 'ru-RU' };
+/**
+ * Дата записи в формате dd.mm.yyyy (напр. 11.08.2023) — единый для всех локалей.
+ * Части берём в UTC: SSR (сервер в UTC) и браузер (Asia/Tashkent) не должны
+ * расходиться по календарному дню → иначе hydration mismatch.
+ */
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}.${d.getUTCFullYear()}`;
+}
 
 export function PriceHistory({ listing }: PriceHistoryProps) {
   const t = useTranslations('listing');
-  const locale = useLocale();
   const fmt = usePriceFormatter();
   const entries = listing.priceHistory ?? [];
   if (entries.length === 0) return null;
-
-  // timeZone: 'UTC' — SSR (сервер в UTC) и браузер (Asia/Tashkent) не должны
-  // расходиться по дате календарного дня → hydration mismatch.
-  const dateFmt = new Intl.DateTimeFormat(DATE_LOCALES[locale] ?? 'ru-RU', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
 
   // Новые сверху; label: первая (хронологически) запись — «Опубликовано».
   const rows = entries
@@ -63,7 +63,7 @@ export function PriceHistory({ listing }: PriceHistoryProps) {
                 className="border-b border-border last:border-b-0"
               >
                 <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                  {dateFmt.format(new Date(entry.createdAt))}
+                  {formatDate(entry.createdAt)}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {isFirst ? t('priceHistory.listed') : t('priceHistory.changed')}

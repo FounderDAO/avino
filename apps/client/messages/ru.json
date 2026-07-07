@@ -9,6 +9,7 @@
     "error": "Что-то пошло не так",
     "addToFavorites": "В избранное",
     "removeFromFavorites": "Убрать из избранного",
+    "loginToFavorite": "Войдите, чтобы добавить в избранное",
     "close": "Закрыть",
     "previous": "Назад",
     "next": "Вперёд",
@@ -324,7 +325,8 @@
     "gallery": {
       "showAll": "Показать все фото",
       "counter": "{current} / {total}",
-      "counterAria": "Фото {current} из {total}"
+      "counterAria": "Фото {current} из {total}",
+      "seeAllCount": "Показать все {total} фото"
     },
     "meta": {
       "title": "{title} — {price} | Avino",
@@ -345,7 +347,8 @@
     },
     "map": {
       "pin": "{district} р-н · {address}",
-      "note": "Точное местоположение показывается после связи с автором."
+      "note": "Точное местоположение показывается после связи с автором.",
+      "openInYandex": "Открыть в Яндекс Картах"
     },
     "similar": {
       "viewAll": "Смотреть все"
