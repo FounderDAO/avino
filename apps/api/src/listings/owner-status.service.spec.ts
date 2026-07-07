@@ -8,6 +8,7 @@ import {
 } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { DistrictsService } from '../geo';
+import { ActiveListingLimitService } from '../settings';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
 import { ListingsService } from './listings.service';
@@ -63,11 +64,16 @@ describe('ListingsService.setOwnerStatus', () => {
     const uploads = {
       resolveMediaUrl: jest.fn(),
     } as unknown as UploadsService;
+    // Смена статуса лимит активных объявлений не проверяет — стаб-заглушка.
+    const activeLimit = {
+      getLimit: jest.fn().mockResolvedValue(0),
+    } as unknown as ActiveListingLimitService;
     service = new ListingsService(
       prisma,
       new TranslationsService(prisma),
       districts,
       uploads,
+      activeLimit,
     );
   });
 
