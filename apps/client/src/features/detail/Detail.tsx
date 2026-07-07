@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Snowflake,
   Sofa,
+  SquareParking,
   WashingMachine,
   Waves,
   Wifi,
@@ -234,12 +235,13 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
             </div>
           )}
 
-          {/* Удобства (ADR-0111) */}
-          {listing.amenities && listing.amenities.length > 0 && (
+          {/* Удобства (ADR-0111). Гараж-парковка показывается здесь чипом. */}
+          {((listing.amenities && listing.amenities.length > 0) ||
+            listing.parkingType === 'GARAGE') && (
             <div className="mt-7">
               <h2 className="text-[22px]">{t('amenities.title')}</h2>
               <div className="mt-3 flex flex-wrap gap-2">
-                {listing.amenities.map((a) => {
+                {listing.amenities?.map((a) => {
                   const Icon = AMENITY_ICON[a];
                   return (
                     <span
@@ -251,6 +253,15 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
                     </span>
                   );
                 })}
+                {listing.parkingType === 'GARAGE' && (
+                  <span
+                    key="parking-garage"
+                    className="inline-flex items-center gap-1.5 rounded-pill border border-border bg-surface px-3.5 py-2 text-sm font-semibold"
+                  >
+                    <SquareParking size={15} strokeWidth={2} className="text-teal" />
+                    {tEnums('parking.GARAGE')}
+                  </span>
+                )}
               </div>
             </div>
           )}

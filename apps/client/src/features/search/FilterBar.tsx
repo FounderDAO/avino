@@ -616,7 +616,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
             </DropdownTrigger>
             <DropdownContent
               align="start"
-              className="w-[min(360px,92vw)] max-h-[72vh] overflow-y-auto p-0"
+              className="w-[min(360px,92vw)] overflow-hidden p-0"
             >
               <FiltersPanel
                 values={panelValues}

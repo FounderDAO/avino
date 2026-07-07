@@ -75,10 +75,10 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
           ))}
         </div>
 
-        {/* Локация: полный адрес + район/город, по-зилловски (без обрезки) */}
+        {/* Локация: длинный адрес (по-зилловски), с откатом на район, если пуст. */}
         <div className="mt-1 flex items-start gap-1 text-[12.5px] text-muted-foreground">
           <MapPin size={13} strokeWidth={1.8} className="mt-[3px] shrink-0" />
-          <span>{[listing.address, listing.district].filter(Boolean).join(', ')}</span>
+          <span>{listing.address?.trim() || listing.district}</span>
         </div>
       </div>
     </Link>

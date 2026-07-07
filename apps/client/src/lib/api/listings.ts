@@ -66,6 +66,8 @@ export interface ApiSearchItem {
   district_id: string | null;
   /** Имя района на языке ответа (TASK-209); null если район не найден. */
   district_name: string | null;
+  /** Точный адрес объявления; null если не заполнен. */
+  address: string | null;
   latitude: string | null;
   longitude: string | null;
   promotion_type: PromotionType;
@@ -326,7 +328,8 @@ export function mapListing(api: AnyApiListing): Listing {
 
     // Имя района на языке ответа (TASK-209, ADR-0068); null → '' (без uuid в UI).
     district: api.district_name ?? '',
-    address: detail?.address ?? '',
+    // Точный адрес отдаётся и в выдаче поиска, и в detail (оба члена union).
+    address: api.address ?? '',
     lat: toNumberOrUndef(api.latitude),
     lng: toNumberOrUndef(api.longitude),
 

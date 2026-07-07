@@ -30,6 +30,7 @@ const searchItem: ApiSearchItem = {
   city_id: 'c1',
   district_id: 'uuid-district',
   district_name: 'Юнусабадский',
+  address: 'ул. Амира Темура, 15',
   latitude: '41.31',
   longitude: '69.27',
   promotion_type: 'NORMAL',
