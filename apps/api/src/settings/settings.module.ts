@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PublicSettingsController } from './public-settings.controller';
 import { PromotionsFlagService } from './promotions-flag.service';
+import { ActiveListingLimitService } from './active-listing-limit.service';
 import { MapHoverRecenterFlagService } from './map-hover-recenter-flag.service';
 import { LegalConsentFlagService } from './legal-consent-flag.service';
 
@@ -15,7 +16,17 @@ import { LegalConsentFlagService } from './legal-consent-flag.service';
 @Module({
   imports: [],
   controllers: [PublicSettingsController],
-  providers: [PromotionsFlagService, MapHoverRecenterFlagService, LegalConsentFlagService],
-  exports: [PromotionsFlagService, MapHoverRecenterFlagService, LegalConsentFlagService],
+  providers: [
+    PromotionsFlagService,
+    ActiveListingLimitService,
+    MapHoverRecenterFlagService,
+    LegalConsentFlagService,
+  ],
+  exports: [
+    PromotionsFlagService,
+    ActiveListingLimitService,
+    MapHoverRecenterFlagService,
+    LegalConsentFlagService,
+  ],
 })
 export class SettingsModule {}

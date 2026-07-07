@@ -302,7 +302,11 @@ export function ListingNew({
   // был перехватить неполный профиль, но getMe мог не успеть перечитаться —
   // показываем тот же текст, что и на гейте.
   const apiErrorMessage =
-    apiError?.code === 'PROFILE_INCOMPLETE' ? t('errors.profileIncomplete') : apiError?.message;
+    apiError?.code === 'PROFILE_INCOMPLETE'
+      ? t('errors.profileIncomplete')
+      : apiError?.code === 'ACTIVE_LISTING_LIMIT_REACHED'
+        ? t('errors.activeListingLimit')
+        : apiError?.message;
 
   // Автозаголовок вместо скрытого поля «Заголовок»: тип + площадь + адрес
   // (адрес обязателен на шаге 2, поэтому строка всегда непустая).

@@ -3413,6 +3413,9 @@
           "promotionsEnabled": {
             "type": "boolean"
           },
+          "activeListingLimit": {
+            "type": "number"
+          },
           "mapHoverRecenter": {
             "type": "boolean"
           },
@@ -3425,6 +3428,7 @@
         },
         "required": [
           "promotionsEnabled",
+          "activeListingLimit",
           "mapHoverRecenter",
           "legalConsentRequired",
           "legalConsentVersion"

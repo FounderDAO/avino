@@ -20,6 +20,7 @@ import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
 import { DistrictsService } from '../geo';
+import { ActiveListingLimitService } from '../settings';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
 import { ListingsService } from './listings.service';
@@ -34,6 +35,7 @@ describe('ListingsService', () => {
   const LISTING_ID = '11111111-1111-1111-1111-111111111111';
 
   let prisma: any;
+  let activeLimit: { getLimit: jest.Mock };
   let service: ListingsService;
 
   const dbListing = {
@@ -114,11 +116,16 @@ describe('ListingsService', () => {
         Promise.resolve(key ?? url),
       ),
     } as unknown as UploadsService;
+    // Лимит активных объявлений (ADR-…): дефолт 2. Базовые create-тесты держат
+    // userRole.count=1 (автор трактуется как «продавец/pro») → квота пропускает
+    // проверку; кейсы лимита ниже переопределяют getLimit + listing.count.
+    activeLimit = { getLimit: jest.fn().mockResolvedValue(2) };
     service = new ListingsService(
       prisma,
       new TranslationsService(prisma),
       districts,
       uploads,
+      activeLimit as unknown as ActiveListingLimitService,
     );
   });
 
@@ -357,6 +364,43 @@ describe('ListingsService', () => {
       });
       prisma.listing.create.mockResolvedValue(dbListing);
       await expect(service.create(OWNER_ID, validCreate as any)).resolves.toBeDefined();
+    });
+  });
+
+  describe('create — active listing limit', () => {
+    it('rejects with 422 ACTIVE_LISTING_LIMIT_REACHED when the client is at the limit', async () => {
+      prisma.userRole.count.mockResolvedValue(0); // обычный клиент (не AGENT/AGENCY)
+      activeLimit.getLimit.mockResolvedValue(2);
+      prisma.listing.count.mockResolvedValue(2); // уже 2 активных (ACTIVE+NEW)
+      await expectCode(
+        service.create(OWNER_ID, validCreate as any),
+        ApiErrorCode.ACTIVE_LISTING_LIMIT_REACHED,
+      );
+      expect(prisma.listing.create).not.toHaveBeenCalled();
+    });
+
+    it('allows the create when under the limit', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      activeLimit.getLimit.mockResolvedValue(2);
+      prisma.listing.count.mockResolvedValue(1); // 1 < 2
+      prisma.listing.create.mockResolvedValue(dbListing);
+      await expect(service.create(OWNER_ID, validCreate as any)).resolves.toBeDefined();
+    });
+
+    it('does not apply the limit to professionals (AGENT/AGENCY)', async () => {
+      prisma.userRole.count.mockResolvedValue(1); // есть AGENT/AGENCY
+      prisma.listing.count.mockResolvedValue(999);
+      prisma.listing.create.mockResolvedValue(dbListing);
+      await expect(service.create(OWNER_ID, validCreate as any)).resolves.toBeDefined();
+      expect(activeLimit.getLimit).not.toHaveBeenCalled(); // ранний выход
+    });
+
+    it('treats limit 0 as unlimited', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      activeLimit.getLimit.mockResolvedValue(0);
+      prisma.listing.create.mockResolvedValue(dbListing);
+      await expect(service.create(OWNER_ID, validCreate as any)).resolves.toBeDefined();
+      expect(prisma.listing.count).not.toHaveBeenCalled(); // до подсчёта не доходим
     });
   });
 

@@ -649,7 +649,8 @@
     "errors": {
       "loginRequired": "Sign in to publish your listing.",
       "guestHint": "To publish a listing, sign in to your account (the sign-in button is in the header).",
-      "profileIncomplete": "Fill in your first name, last name and phone in your profile to post a listing."
+      "profileIncomplete": "Fill in your first name, last name and phone in your profile to post a listing.",
+      "activeListingLimit": "You've reached your active listings limit. Unpublish one of your current listings to post a new one."
     },
     "auth": {
       "title": "Sign in to post a listing",

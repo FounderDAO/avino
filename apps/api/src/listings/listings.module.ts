@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { GeoModule } from '../geo';
 import { RolesModule } from '../roles';
+import { SettingsModule } from '../settings';
 import { TranslationsModule } from '../translations';
 import { UploadsModule } from '../uploads';
 import { ListingsController } from './listings.controller';
@@ -17,7 +18,7 @@ import { ListingsService } from './listings.service';
  * presigned-подписи медиа на чтении (ADR-0086). Prisma — глобальный модуль.
  */
 @Module({
-  imports: [RolesModule, TranslationsModule, GeoModule, UploadsModule],
+  imports: [RolesModule, TranslationsModule, GeoModule, UploadsModule, SettingsModule],
   controllers: [ListingsController],
   providers: [ListingsService],
   exports: [ListingsService],

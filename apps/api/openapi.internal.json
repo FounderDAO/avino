@@ -4119,6 +4119,36 @@
         }
       }
     },
+    "/api/v1/admin/active-listing-limit": {
+      "get": {
+        "operationId": "AdminActiveListingLimitController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "operationId": "AdminActiveListingLimitController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateActiveListingLimitDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/admin/map-hover-recenter-flag": {
       "get": {
         "operationId": "AdminMapHoverRecenterFlagController_get",
@@ -5058,6 +5088,9 @@
           "promotionsEnabled": {
             "type": "boolean"
           },
+          "activeListingLimit": {
+            "type": "number"
+          },
           "mapHoverRecenter": {
             "type": "boolean"
           },
@@ -5070,6 +5103,7 @@
         },
         "required": [
           "promotionsEnabled",
+          "activeListingLimit",
           "mapHoverRecenter",
           "legalConsentRequired",
           "legalConsentVersion"
@@ -5863,6 +5897,19 @@
         },
         "required": [
           "enabled"
+        ]
+      },
+      "UpdateActiveListingLimitDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "limit"
         ]
       },
       "UpdateMapHoverRecenterFlagDto": {

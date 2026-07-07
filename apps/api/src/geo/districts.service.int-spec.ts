@@ -8,6 +8,7 @@ import {
 } from '@prisma/client';
 import { ListingsService } from '../listings/listings.service';
 import { PrismaService } from '../prisma';
+import { ActiveListingLimitService } from '../settings';
 import { SearchService } from '../search/search.service';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
@@ -17,6 +18,11 @@ import { DistrictsService } from './districts.service';
 const uploadsStub = {
   resolveMediaUrl: async (_key: string | null | undefined, url: string) => url,
 } as unknown as UploadsService;
+
+// Лимит активных объявлений в integration-сидинге отключаем (0 = без лимита).
+const activeLimitStub = {
+  getLimit: async () => 0,
+} as unknown as ActiveListingLimitService;
 
 /**
  * Integration-тесты справочника районов и встраивания `district_name` (TASK-209,
@@ -42,6 +48,7 @@ describe('DistrictsService + district_name (integration, TASK-209)', () => {
     translations,
     districts,
     uploadsStub,
+    activeLimitStub,
   );
 
   const CITY_ID = '44444444-3333-4444-8555-000000000209';

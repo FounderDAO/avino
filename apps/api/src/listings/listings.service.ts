@@ -24,6 +24,7 @@ import { DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
+import { ActiveListingLimitService } from '../settings';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
@@ -447,6 +448,7 @@ export class ListingsService {
     private readonly translations: TranslationsService,
     private readonly districts: DistrictsService,
     private readonly uploads: UploadsService,
+    private readonly activeLimit: ActiveListingLimitService,
   ) {}
 
   /** `POST /api/v1/listings` — создать объявление (статус `NEW`). */
@@ -455,6 +457,7 @@ export class ListingsService {
     dto: CreateListingDto,
   ): Promise<ListingResponse> {
     await this.ensureProfileComplete(ownerId);
+    await this.ensureActiveListingQuota(ownerId);
     validateToursInput(dto.tours_enabled ?? false, (dto.tour_windows as TourWindow[]) ?? []);
     // Optional-поля даёт toScalarData; required (после спреда) выставляются явно,
     // чтобы их типы оставались non-undefined. ownerId + nested translations.create
@@ -549,6 +552,42 @@ export class ListingsService {
           code: ApiErrorCode.PROFILE_INCOMPLETE,
           message:
             'First name, last name and phone are required to create a listing',
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+  }
+
+  /**
+   * Лимит активных объявлений обычного клиента (admin-настраиваемый,
+   * `active_listing_limit` в app_settings, default 2). «Занятым слотом»
+   * считаем ACTIVE + на модерации NEW. Профессионалов (AGENT/AGENCY) лимит не
+   * касается; лимит `0` = без ограничения. Превышение → `422`.
+   */
+  private async ensureActiveListingQuota(ownerId: string): Promise<void> {
+    // Агент/агентство публикуют без ограничения.
+    const proRoleCount = await this.prisma.userRole.count({
+      where: {
+        userId: ownerId,
+        role: { code: { in: [UserRole.AGENT, UserRole.AGENCY] } },
+      },
+    });
+    if (proRoleCount > 0) return;
+
+    const limit = await this.activeLimit.getLimit();
+    if (limit <= 0) return; // 0 = без лимита
+
+    const used = await this.prisma.listing.count({
+      where: {
+        ownerId,
+        status: { in: [ListingStatus.ACTIVE, ListingStatus.NEW] },
+      },
+    });
+    if (used >= limit) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.ACTIVE_LISTING_LIMIT_REACHED,
+          message: `You can have at most ${limit} active listings`,
         },
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
