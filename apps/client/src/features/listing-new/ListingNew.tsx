@@ -258,9 +258,12 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export function ListingNew({
   regions,
   districts,
+  initialTx,
 }: {
   regions: Region[];
   districts: District[];
+  /** Предвыбранный тип сделки (?tx из /sell, например «Сдать в аренду» → RENT). */
+  initialTx?: TransactionType;
 }) {
   const t = useTranslations('listingNew');
   const tUnits = useTranslations('units');
@@ -269,7 +272,11 @@ export function ListingNew({
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
-  const [f, dispatch] = useReducer(reducer, INITIAL);
+  // Ленивая инициализация: предвыбор tx из ?tx (иначе дефолт INITIAL.tx = SALE).
+  const [f, dispatch] = useReducer(reducer, initialTx, (tx) => ({
+    ...INITIAL,
+    tx: tx ?? INITIAL.tx,
+  }));
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     dispatch({ type: 'set', key, value });
 
