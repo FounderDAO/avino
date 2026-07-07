@@ -136,7 +136,15 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   };
 
   set('tx', asString(filters.transaction_type));
-  set('type', asString(filters.property_type));
+  // Мультивыбор типа: повторяем ?type= для каждого, иначе фолбэк на одиночный.
+  const propertyTypes = Array.isArray(filters.property_types)
+    ? (filters.property_types as unknown[]).filter(isPropertyType)
+    : [];
+  if (propertyTypes.length > 0) {
+    for (const pt of propertyTypes) params.append('type', pt);
+  } else {
+    set('type', asString(filters.property_type));
+  }
   set('region_id', asString(filters.region_id));
   set('district_id', asString(filters.district_id));
   set('priceMin', asString(filters.price_min));
@@ -170,9 +178,13 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
     }
   }
   set('query', asString(filters.q));
+  set('sort', asString(filters.sort));
+  set('currency', asString(filters.currency));
 
-  // `points` (нарисованная территория) намеренно НЕ мапим в URL: по клику территорию
-  // заново не рисуем (MVP) — выдача перезапускается по скалярам (решение 2026-06-19).
+  // `points` (нарисованная территория) восстанавливаем в URL: SearchResults
+  // сидит из него локальный полигон и перезапускает polygon-поиск.
+  set('points', asString(filters.points));
+
   const qs = params.toString();
   return qs ? `/search?${qs}` : '/search';
 }
