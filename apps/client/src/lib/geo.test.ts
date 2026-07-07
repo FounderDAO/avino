@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   circleFromBounds,
   serializePolygonRing,
+  deserializePolygonRing,
   MIN_RADIUS_M,
   MAX_RADIUS_M,
   MAX_POLYGON_VERTICES,
@@ -85,5 +86,38 @@ describe('serializePolygonRing', () => {
       69.27,
     ]);
     expect(serializePolygonRing(exact)!.split(';')).toHaveLength(MAX_POLYGON_VERTICES);
+  });
+});
+
+describe('deserializePolygonRing', () => {
+  it('round-trips a serialized ring', () => {
+    const ring: LatLng[] = [
+      [41.3, 69.27],
+      [41.3, 69.29],
+      [41.32, 69.29],
+    ];
+    const serialized = serializePolygonRing(ring)!;
+    expect(deserializePolygonRing(serialized)).toEqual(ring);
+  });
+
+  it('returns null for empty/nullish input', () => {
+    expect(deserializePolygonRing(null)).toBeNull();
+    expect(deserializePolygonRing(undefined)).toBeNull();
+    expect(deserializePolygonRing('')).toBeNull();
+  });
+
+  it('returns null for fewer than 3 vertices', () => {
+    expect(deserializePolygonRing('41.3,69.27;41.31,69.28')).toBeNull();
+  });
+
+  it('returns null when any coord is non-finite or out of WGS84 range', () => {
+    expect(deserializePolygonRing('41.3,69.27;x,69.29;41.32,69.29')).toBeNull();
+    expect(deserializePolygonRing('91,69.27;41.3,69.29;41.32,69.29')).toBeNull();
+    expect(deserializePolygonRing('41.3,200;41.3,69.29;41.32,69.29')).toBeNull();
+  });
+
+  it('returns null for malformed pairs (not exactly lat,lng)', () => {
+    expect(deserializePolygonRing('41.3;41.3,69.29;41.32,69.29')).toBeNull();
+    expect(deserializePolygonRing('41.3,69.27,5;41.3,69.29;41.32,69.29')).toBeNull();
   });
 });

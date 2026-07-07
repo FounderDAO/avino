@@ -177,6 +177,29 @@ export function serializePolygonRing(
   return ring.map(([lat, lng]) => `${roundCoord(lat)},${roundCoord(lng)}`).join(';');
 }
 
+/**
+ * Обратный к {@link serializePolygonRing}: строка `lat,lng;lat,lng;…` →
+ * массив вершин `[lat, lng]`. Возвращает `null`, если вершин < 3 или любая
+ * пара невалидна/вне WGS84 (симметрично сериализатору — вызывающий тогда
+ * не восстанавливает территорию и остаётся на скалярной выдаче).
+ */
+export function deserializePolygonRing(
+  raw: string | null | undefined,
+): LatLng[] | null {
+  if (!raw) return null;
+  const out: LatLng[] = [];
+  for (const pair of raw.split(';')) {
+    const parts = pair.split(',');
+    if (parts.length !== 2) return null;
+    const lat = Number(parts[0]);
+    const lng = Number(parts[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    out.push([lat, lng]);
+  }
+  return out.length >= 3 ? out : null;
+}
+
 // ─── bbox видимой области в URL /search (viewport-режим, Zillow) ───
 //
 // Область карты зеркалится в query (?sw_lat=&sw_lng=&ne_lat=&ne_lng=) shallow
