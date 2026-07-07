@@ -16,6 +16,7 @@ import {
   Building2,
   Check,
   ChevronLeft,
+  ExternalLink,
   Eye,
   Flame,
   Heart,
@@ -33,6 +34,7 @@ import { Gallery } from '@/components/ui/gallery';
 import { PromoBadge } from '@/components/ui/promo-badge';
 import { SectionTitle } from '@/components/ui/section-title';
 import { Button } from '@/components/ui/button';
+import { FavButton } from '@/components/ui/fav-button';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { specs, txLabel, propertyTypeLabel } from '@/lib/format';
 import { getSimilarListings } from '@/lib/api/listings';
@@ -106,9 +108,14 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
       {/* Регистрирует просмотр (POST /listings/:id/view, LAST_CHANGED_API.md §2). Без UI. */}
       <ViewTracker id={listing.id} />
 
-      {/* Внутри модалки своя шапка → крошку и «Назад» скрываем, Share оставляем. */}
+      {/* Внутри модалки своя шапка → крошку и «Назад» скрываем; избранное + Share оставляем. */}
       {embedded ? (
-        <div className="mb-3 flex justify-end">
+        <div className="mb-3 flex justify-end gap-2">
+          <FavButton
+            listingId={listing.id}
+            size={38}
+            className="border border-border bg-surface shadow-sm hover:bg-surface-2"
+          />
           <ShareButton listing={listing} />
         </div>
       ) : (
@@ -121,6 +128,11 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
             >
               <ChevronLeft size={18} /> {t('backToSearch')}
             </Link>
+            <FavButton
+              listingId={listing.id}
+              size={38}
+              className="border border-border bg-surface shadow-sm hover:bg-surface-2"
+            />
             <ShareButton listing={listing} />
           </div>
         </div>
@@ -251,7 +263,21 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
                 <div className="mt-3 h-[280px] overflow-hidden rounded-feature border border-border">
                   <DetailMap listing={listing} />
                 </div>
-                <p className="mt-2 text-[13.5px] text-muted-foreground">{t('map.note')}</p>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[13.5px] text-muted-foreground">{t('map.note')}</p>
+                  {/* Точный пин во внешних Яндекс.Картах (pt=lng,lat). Встроенный
+                      линк Яндекса открывает вид без пина — даём свой, управляемый. */}
+                  <a
+                    href={`https://yandex.uz/maps/?ll=${listing.lng},${listing.lat}&z=17&pt=${listing.lng},${listing.lat},pm2rdm`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[14px] font-bold text-teal hover:text-teal-deep"
+                  >
+                    <MapPin size={16} strokeWidth={2} />
+                    {t('map.openInYandex')}
+                    <ExternalLink size={14} strokeWidth={2} />
+                  </a>
+                </div>
               </>
             ) : (
               /* Нет координат → аккуратный fallback, без клетчатой заглушки. */
