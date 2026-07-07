@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * PriceFilter — Zillow-вид фильтра цены: Popover с вкладками «Цена / Ежемесячный платёж»,
- * гистограммой распределения и слайдером. Домен и гистограмма считаются на клиенте из цен
- * текущей выдачи (стор `resultPricesSlice`), а не запросом к API — контейнер лишь ленивый
- * mount PriceFilterBody при открытии Popover.
+ * PriceFilter — Zillow-вид фильтра цены: Popover с гистограммой распределения и слайдером.
+ * Домен и гистограмма считаются на клиенте из цен текущей выдачи (стор `resultPricesSlice`),
+ * а не запросом к API — контейнер лишь ленивый mount PriceFilterBody при открытии Popover.
  *
- * Вкладка «Ежемесячный платёж» — заглушка «Скоро» (Phase 2).
+ * Вкладка «Ежемесячный платёж» (заглушка «Скоро», Phase 2) временно скрыта —
+ * разметка вкладок и state `tab` закомментированы в теле компонента.
  */
 
 import * as React from 'react';
@@ -16,7 +16,6 @@ import { useAppSelector } from '@/store/hooks';
 import { selectResultPrices } from '@/store/resultPricesSlice';
 import { useGetExchangeRateQuery } from '@/store/api/exchangeRateApi';
 import { compactPrice } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import {
   clamp,
   toAppliedRange,
@@ -79,7 +78,9 @@ function PriceFilterBody({
 }: PriceFilterProps & { close: () => void }) {
   const t = useTranslations('search.filters');
   const tUnits = useTranslations('units');
-  const [tab, setTab] = React.useState<'list' | 'monthly'>('list');
+  // Вкладка «Ежемесячный платёж» временно скрыта (заглушка «Скоро», Phase 2).
+  // При возврате функции — раскомментировать state и блок вкладок ниже.
+  // const [tab, setTab] = React.useState<'list' | 'monthly'>('list');
 
   // Цены текущей выдачи (зеркало из SearchResults) → display-валюта по курсу ЦБУ.
   const resultPrices = useAppSelector(selectResultPrices);
@@ -122,69 +123,49 @@ function PriceFilterBody({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Вкладки */}
+      {/* Вкладки «Цена / Ежемесячный платёж» временно скрыты — вкладка платежа была
+          заглушкой «Скоро» (Phase 2). Раскомментировать блок и state `tab` при возврате.
       <div role="tablist" className="flex gap-1 rounded-pill border-[1.5px] border-border p-1">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'list'}
-          onClick={() => setTab('list')}
-          className={cn(
-            'flex-1 rounded-pill px-3 py-1.5 text-sm font-semibold transition-colors',
-            tab === 'list' ? 'bg-mint text-teal' : 'text-muted-foreground',
-          )}
-        >
+        <button type="button" role="tab" aria-selected={tab === 'list'} onClick={() => setTab('list')}
+          className={cn('flex-1 rounded-pill px-3 py-1.5 text-sm font-semibold transition-colors',
+            tab === 'list' ? 'bg-mint text-teal' : 'text-muted-foreground')}>
           {t('price')}
         </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'monthly'}
-          onClick={() => setTab('monthly')}
-          className={cn(
-            'flex-1 rounded-pill px-3 py-1.5 text-sm font-semibold transition-colors',
-            tab === 'monthly' ? 'bg-mint text-teal' : 'text-muted-foreground',
-          )}
-        >
+        <button type="button" role="tab" aria-selected={tab === 'monthly'} onClick={() => setTab('monthly')}
+          className={cn('flex-1 rounded-pill px-3 py-1.5 text-sm font-semibold transition-colors',
+            tab === 'monthly' ? 'bg-mint text-teal' : 'text-muted-foreground')}>
           {t('priceTabMonthly')}
         </button>
       </div>
+      */}
 
-      {tab === 'monthly' ? (
-        <div className="py-8 text-center text-sm font-semibold text-muted-foreground">
-          {t('priceTabMonthlySoon')}
-        </div>
-      ) : (
-        <>
-          <PriceRangeControl
-            domain={domain}
-            buckets={buckets}
-            value={draft}
-            onChange={setDraft}
-            minLabel={t('priceMinLabel')}
-            maxLabel={t('priceMaxLabel')}
-            fromPlaceholder={`${t('priceFrom')} ${currencySymbol}`}
-            toPlaceholder={`${t('priceTo')} ${currencySymbol}`}
-            formatLabel={(v) => compactPrice(v, displayCurrency, tUnits)}
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={reset}
-              className="rounded-pill border-[1.5px] border-border px-4 py-2.5 text-sm font-semibold text-ink hover:border-ink"
-            >
-              {t('resetAll')}
-            </button>
-            <button
-              type="button"
-              onClick={apply}
-              className="flex-1 rounded-pill bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary/90"
-            >
-              {t('apply')}
-            </button>
-          </div>
-        </>
-      )}
+      <PriceRangeControl
+        domain={domain}
+        buckets={buckets}
+        value={draft}
+        onChange={setDraft}
+        minLabel={t('priceMinLabel')}
+        maxLabel={t('priceMaxLabel')}
+        fromPlaceholder={`${t('priceFrom')} ${currencySymbol}`}
+        toPlaceholder={`${t('priceTo')} ${currencySymbol}`}
+        formatLabel={(v) => compactPrice(v, displayCurrency, tUnits)}
+      />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={reset}
+          className="rounded-pill border-[1.5px] border-border px-4 py-2.5 text-sm font-semibold text-ink hover:border-ink"
+        >
+          {t('resetAll')}
+        </button>
+        <button
+          type="button"
+          onClick={apply}
+          className="flex-1 rounded-pill bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary/90"
+        >
+          {t('apply')}
+        </button>
+      </div>
     </div>
   );
 }
