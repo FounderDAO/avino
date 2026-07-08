@@ -103,8 +103,12 @@ export function describeFilters(filters: SavedSearchFilters, t: T): string {
   else if (yearMin) parts.push(`${t('search.filters.yearTitle')}: ${t('search.filters.rangeFrom')} ${yearMin}`);
   else if (yearMax) parts.push(`${t('search.filters.yearTitle')}: ${t('search.filters.rangeTo')} ${yearMax}`);
 
-  if (filters.listing_source === 'OWNER') parts.push(t('search.filters.sourceOwner'));
-  else if (filters.listing_source === 'AGENCY') parts.push(t('search.filters.sourceAgency'));
+  // listing_source — массив (мультивыбор); старые записи могли хранить строку.
+  const sources = Array.isArray(filters.listing_source)
+    ? (filters.listing_source as string[])
+    : filters.listing_source ? [filters.listing_source as string] : [];
+  if (sources.includes('OWNER')) parts.push(t('search.filters.sourceOwner'));
+  if (sources.includes('AGENCY')) parts.push(t('search.filters.sourceAgency'));
 
   if (filters.tours_enabled) parts.push(t('search.filters.toursEnabled'));
   if (filters.is_basement) parts.push(t('search.filters.isBasement'));
@@ -164,7 +168,13 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   set('year_max', asString(filters.year_max));
   if (filters.not_first_floor) params.set('not_first_floor', 'true');
   if (filters.not_last_floor) params.set('not_last_floor', 'true');
-  set('listing_source', asString(filters.listing_source));
+  // listing_source — повторяющийся параметр; старые записи могли хранить строку.
+  const sources = Array.isArray(filters.listing_source)
+    ? (filters.listing_source as string[])
+    : filters.listing_source ? [filters.listing_source as string] : [];
+  for (const s of sources) {
+    if (s === 'OWNER' || s === 'AGENCY') params.append('listing_source', s);
+  }
   if (filters.tours_enabled) params.set('tours_enabled', 'true');
   if (filters.is_basement) params.set('is_basement', 'true');
   if (Array.isArray(filters.parking_types)) {

@@ -33,7 +33,7 @@ export interface FiltersPanelValues {
   notLastFloor?: boolean;
   totalFloorsMin?: string;
   totalFloorsMax?: string;
-  listingSource?: 'OWNER' | 'AGENCY';
+  listingSource?: ('OWNER' | 'AGENCY')[];
   toursEnabled?: boolean;
   parkingTypes?: ParkingType[];
   amenities?: Amenity[];
@@ -69,19 +69,15 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
     setDraft((prev) => ({ ...prev, ...delta }));
   }, []);
 
-  // ── Обработчики single-select listingSource ──
-  const handleSourceOwner = React.useCallback(() => {
-    setDraft((prev) => ({
-      ...prev,
-      listingSource: prev.listingSource === 'OWNER' ? undefined : 'OWNER',
-    }));
-  }, []);
-
-  const handleSourceAgency = React.useCallback(() => {
-    setDraft((prev) => ({
-      ...prev,
-      listingSource: prev.listingSource === 'AGENCY' ? undefined : 'AGENCY',
-    }));
+  // ── Обработчик мультивыбора listingSource (оба → без фильтра) ──
+  const toggleSource = React.useCallback((src: 'OWNER' | 'AGENCY') => {
+    setDraft((prev) => {
+      const cur = prev.listingSource ?? [];
+      const next = cur.includes(src)
+        ? cur.filter((s) => s !== src)
+        : [...cur, src];
+      return { ...prev, listingSource: next.length ? next : undefined };
+    });
   }, []);
 
   // ── Сбросить всё ──
@@ -184,18 +180,18 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
         />
       </Section>
 
-      {/* 5. Тип объявления — single-select toggle */}
+      {/* 5. Тип объявления — мультивыбор (можно оба) */}
       <Section title={t('listingSourceTitle')}>
         <div className="flex flex-col gap-1.5">
           <CheckboxRow
             label={t('sourceOwner')}
-            checked={draft.listingSource === 'OWNER'}
-            onChange={handleSourceOwner}
+            checked={draft.listingSource?.includes('OWNER') ?? false}
+            onChange={() => toggleSource('OWNER')}
           />
           <CheckboxRow
             label={t('sourceAgency')}
-            checked={draft.listingSource === 'AGENCY'}
-            onChange={handleSourceAgency}
+            checked={draft.listingSource?.includes('AGENCY') ?? false}
+            onChange={() => toggleSource('AGENCY')}
           />
         </div>
       </Section>

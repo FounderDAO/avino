@@ -259,15 +259,28 @@ describe('ActiveFilters', () => {
     expect(screen.getByText('search.filters.notLastFloor')).toBeInTheDocument();
   });
 
-  it('показывает чип listingSource=OWNER', () => {
+  it('показывает чип listingSource=[OWNER]', () => {
     render(
       <ActiveFilters
-        values={{ ...baseValues, listingSource: 'OWNER' }}
+        values={{ ...baseValues, listingSource: ['OWNER'] }}
         districts={districts}
         regions={[]}
       />,
     );
     expect(screen.getByText('search.filters.sourceOwner')).toBeInTheDocument();
+  });
+
+  it('показывает один чип с обоими источниками listingSource=[OWNER, AGENCY]', () => {
+    render(
+      <ActiveFilters
+        values={{ ...baseValues, listingSource: ['OWNER', 'AGENCY'] }}
+        districts={districts}
+        regions={[]}
+      />,
+    );
+    expect(
+      screen.getByText('search.filters.sourceOwner, search.filters.sourceAgency'),
+    ).toBeInTheDocument();
   });
 
   it('показывает чип toursEnabled', () => {
@@ -338,7 +351,7 @@ describe('ActiveFilters', () => {
           ...baseValues,
           areaMin: '40',
           notFirstFloor: true,
-          listingSource: 'OWNER',
+          listingSource: ['OWNER'],
           toursEnabled: true,
         }}
         districts={districts}
