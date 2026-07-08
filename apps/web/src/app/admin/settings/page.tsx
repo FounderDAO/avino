@@ -18,12 +18,16 @@ export default function SettingsPage() {
   return (
     <div>
       <SectionTitle sub="Конфигурация платформы">Настройки</SectionTitle>
-      <TelegramNotificationsToggle />
-      <SmsSendingToggle />
-      <NotificationsSendingToggle />
-      <PromotionsAvailabilityToggle />
+      {/* Тумблеры каналов/флагов — сетка 2 колонки (switch ON/OFF). */}
+      <div className="settings-grid">
+        <TelegramNotificationsToggle />
+        <SmsSendingToggle />
+        <NotificationsSendingToggle />
+        <PromotionsAvailabilityToggle />
+        <MapHoverRecenterToggle />
+      </div>
+      {/* Контролы с вводом (лимит, версия документов, курс) — во всю ширину. */}
       <ActiveListingLimitControl />
-      <MapHoverRecenterToggle />
       <LegalConsentRequiredToggle />
       <ExchangeRatePanel />
     </div>

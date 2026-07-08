@@ -64,6 +64,8 @@ export interface AdminListingListItem {
   district_id: string | null;
   /** Имя района (nameRu) — для колонки «Район» в админ-таблице; нет района → null. */
   district_name: string | null;
+  /** Точный адрес (из Яндекс-карты при создании); null, если не задан. */
+  address: string | null;
   /** Число комнат — для колонки «Комн.»; null для участков и т.п. */
   rooms: number | null;
   /** Счётчик просмотров листинга (`listings.views_count`). */
@@ -153,6 +155,7 @@ const LISTING_LIST_SELECT = {
   currency: true,
   cityId: true,
   districtId: true,
+  address: true,
   rooms: true,
   viewsCount: true,
   publishedAt: true,
@@ -474,6 +477,7 @@ export class ModerationService {
       district_id: listing.districtId,
       district_name:
         (listing.districtId && districtNames.get(listing.districtId)) || null,
+      address: listing.address,
       rooms: listing.rooms,
       views_count: listing.viewsCount,
       owner_id: listing.ownerId,

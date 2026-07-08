@@ -10,6 +10,7 @@ import {
   useGetPromotionsFlagQuery,
   useUpdatePromotionsFlagMutation,
 } from '@/store/api/adminPromotionsFlagApi';
+import { Switch } from '@/components/admin/ui/switch';
 
 export function PromotionsAvailabilityToggle() {
   const { data, isLoading } = useGetPromotionsFlagQuery();
@@ -17,10 +18,7 @@ export function PromotionsAvailabilityToggle() {
   const enabled = data?.promotionsEnabled ?? false;
 
   return (
-    <div
-      className="a-card"
-      style={{ padding: 24, maxWidth: 640, marginTop: 18 }}
-    >
+    <div className="a-card" style={{ padding: 24 }}>
       <div
         className="row gap-16"
         style={{ alignItems: 'center', justifyContent: 'space-between' }}
@@ -34,14 +32,12 @@ export function PromotionsAvailabilityToggle() {
             Выключение → функционал скрыт из портала и API. Без пересборки.
           </div>
         </div>
-        <button
-          type="button"
-          className={enabled ? 'abtn abtn-primary' : 'abtn'}
+        <Switch
+          checked={enabled}
           disabled={isLoading || isSaving}
-          onClick={() => void update({ enabled: !enabled })}
-        >
-          {isLoading ? '…' : enabled ? 'Включено' : 'Выключено'}
-        </button>
+          onChange={() => void update({ enabled: !enabled })}
+          label="Продвижение объявлений"
+        />
       </div>
     </div>
   );

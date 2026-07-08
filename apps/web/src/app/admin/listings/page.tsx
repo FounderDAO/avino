@@ -12,7 +12,7 @@ import { StatusPill } from '@/components/admin/ui/pill';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
 import { useListAdminListingsQuery } from '@/store/api/adminListingsApi';
-import { totalPages } from '@/store/api/adminApi';
+import { totalPages, type TransactionType } from '@/store/api/adminApi';
 import { rowToAdminListing, UI_FILTER_TO_API_STATUS } from '@/lib/adapters/listings';
 
 const LIMIT = 20;
@@ -43,10 +43,17 @@ const filters: [string, string][] = [
   ['ARCHIVED', 'Архив'],
 ];
 
+/** Фильтр по типу сделки (независимая ось от статуса). Пусто — все сделки. */
+const txFilters: [TransactionType, string][] = [
+  ['SALE', 'Продажа'],
+  ['RENT', 'Аренда'],
+];
+
 export default function ListingsPage() {
   const router = useRouter();
   const toast = useToast();
   const [filter, setFilter] = useState<string>('ALL');
+  const [tx, setTx] = useState<TransactionType | undefined>(undefined);
   const [q, setQ] = useState<string>('');
   const [debouncedQ, setDebouncedQ] = useState<string>('');
   const [page, setPage] = useState<number>(1);
@@ -61,10 +68,11 @@ export default function ListingsPage() {
   // Смена фильтра/запроса — на первую страницу.
   useEffect(() => {
     setPage(1);
-  }, [filter, debouncedQ]);
+  }, [filter, tx, debouncedQ]);
 
   const { data, isLoading, isFetching, isError, refetch } = useListAdminListingsQuery({
     status: UI_FILTER_TO_API_STATUS[filter],
+    transaction_type: tx,
     q: debouncedQ.trim() || undefined,
     page,
     limit: LIMIT,
@@ -101,6 +109,10 @@ export default function ListingsPage() {
         {filters.map(([k, v]) => (
           <button key={k} onClick={() => setFilter(k)} className="abtn abtn-sm" style={{ background: filter === k ? 'var(--ink)' : 'var(--surface)', color: filter === k ? '#fff' : 'var(--ink)', border: filter === k ? 'none' : '1.5px solid var(--border)' }}>{v}</button>
         ))}
+        <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: 'var(--border)', margin: '2px 4px' }} />
+        {txFilters.map(([k, v]) => (
+          <button key={k} onClick={() => setTx((prev) => (prev === k ? undefined : k))} className="abtn abtn-sm" style={{ background: tx === k ? 'var(--ink)' : 'var(--surface)', color: tx === k ? '#fff' : 'var(--ink)', border: tx === k ? 'none' : '1.5px solid var(--border)' }}>{v}</button>
+        ))}
       </div>
       {sel.size > 0 && (
         <div className="row gap-12" style={{ background: 'var(--ink)', color: '#fff', borderRadius: 10, padding: '10px 16px', marginBottom: 12 }}>
@@ -136,7 +148,7 @@ export default function ListingsPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={l.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       </div>
-                      <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{l.title}</div><div className="muted" style={{ fontSize: 12 }}>{l.tx} · {l.promo !== 'NORMAL' ? l.promo : '—'}</div></div>
+                      <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{l.title}</div><div className="muted" style={{ fontSize: 12, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', maxWidth: 260 }}>{l.tx}{l.address ? ` · ${l.address}` : ''}</div></div>
                     </div></td>
                     <td style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{l.price}</td>
                     <td className="muted">{l.type}</td>

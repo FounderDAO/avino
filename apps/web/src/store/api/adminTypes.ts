@@ -106,6 +106,11 @@ export interface AdminListingRow {
    * не отдаёт — UI деградирует к «—».
    */
   district_name?: string | null;
+  /**
+   * Точный адрес (из Яндекс-карты при создании) для строки списка. `optional`:
+   * старый бэкенд поля не отдаёт — UI деградирует мягко (адрес не показывается).
+   */
+  address?: string | null;
   /** Число комнат (null для участков). `optional` — мягкая деградация к «—». */
   rooms?: number | null;
   /** Счётчик просмотров. `optional` — мягкая деградация к «—». */
@@ -599,6 +604,14 @@ export interface AdminStats {
   complaints_new: number;
   users_total: number;
   promotions_active: number;
+  /** Опубликованные объявления (`ListingStatus.ACTIVE`). */
+  listings_active: number;
+  /** Объявления в архиве (`ListingStatus.ARCHIVED`). */
+  listings_archived: number;
+  /** Активная витрина на продажу (`ACTIVE` + `SALE`). */
+  listings_sale: number;
+  /** Активная витрина в аренду (`ACTIVE` + `RENT`). */
+  listings_rent: number;
 }
 
 /** Один помесячный бакет ряда «объявления за год» (12 точек, старые→новые). */

@@ -100,6 +100,8 @@ export interface AdminListing {
   promo: PromotionType;
   /** «Аренда» / «Продажа». */
   tx: string;
+  /** Точный адрес (из Яндекс-карты) для строки списка; отсутствует — не показываем. */
+  address?: string;
 }
 
 /** Объект очереди модерации. */

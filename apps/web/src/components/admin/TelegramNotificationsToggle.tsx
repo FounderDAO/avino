@@ -8,6 +8,7 @@ import {
   useGetTelegramSettingsQuery,
   useUpdateTelegramSettingsMutation,
 } from '@/store/api/adminTelegramSettingsApi';
+import { Switch } from '@/components/admin/ui/switch';
 
 export function TelegramNotificationsToggle() {
   const { data, isLoading } = useGetTelegramSettingsQuery();
@@ -15,10 +16,7 @@ export function TelegramNotificationsToggle() {
   const enabled = data?.notificationsEnabled ?? false;
 
   return (
-    <div
-      className="a-card"
-      style={{ padding: 24, maxWidth: 640, marginTop: 18 }}
-    >
+    <div className="a-card" style={{ padding: 24 }}>
       <div
         className="row gap-16"
         style={{ alignItems: 'center', justifyContent: 'space-between' }}
@@ -31,14 +29,12 @@ export function TelegramNotificationsToggle() {
             Алерты на запрос OTP и входы. Переключается без пересборки.
           </div>
         </div>
-        <button
-          type="button"
-          className={enabled ? 'abtn abtn-primary' : 'abtn'}
+        <Switch
+          checked={enabled}
           disabled={isLoading || isSaving}
-          onClick={() => void update({ enabled: !enabled })}
-        >
-          {isLoading ? '…' : enabled ? 'Включено' : 'Выключено'}
-        </button>
+          onChange={() => void update({ enabled: !enabled })}
+          label="Telegram-уведомления админу"
+        />
       </div>
     </div>
   );

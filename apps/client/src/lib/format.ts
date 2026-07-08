@@ -26,9 +26,9 @@ export function convertPrice(value: number, from: Currency, to: Currency, rate: 
   return from === 'USD' ? value * rate : value / rate;
 }
 
-/** Округление под валюту отображения: USD → целые $, UZS → до 1000. */
+/** Округление под валюту отображения: USD → целые $, UZS → до 10 000. */
 function roundForCurrency(value: number, currency: Currency): number {
-  return currency === 'USD' ? Math.round(value) : Math.round(value / 1000) * 1000;
+  return currency === 'USD' ? Math.round(value) : Math.round(value / 10_000) * 10_000;
 }
 
 /**
