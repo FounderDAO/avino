@@ -359,6 +359,8 @@
       "floor": "Этаж",
       "floorOf": "{floor} из {total}",
       "year": "Год постройки",
+      "propertyType": "Тип недвижимости",
+      "pricePerSqm": "Цена за м²",
       "parking": "Парковка",
       "lotArea": "Участок",
       "livingArea": "Жилая площадь",
