@@ -1157,6 +1157,7 @@
     "tourCancelled": "Tour request cancelled",
     "tourActionFailed": "Could not update the tour. Please try again.",
     "savedSearchCreated": "Search saved",
+    "savedSearchSaved": "Search saved",
     "savedSearchDeleted": "Saved search deleted",
     "avatarUpdated": "Photo updated",
     "avatarRemoved": "Photo removed",

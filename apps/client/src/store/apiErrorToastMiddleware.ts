@@ -34,7 +34,6 @@ export const SUPPRESSED_ENDPOINTS: ReadonlySet<string> = new Set([
   'addListingMedia', // ListingEdit
   'deleteListingMedia', // ListingEdit
   'reorderListingMedia', // ListingEdit
-  'createSavedSearch', // FilterBar
   'updateTourStatus', // IncomingTourModal (инлайн) / Tours, UpcomingTourCard (ручной toast)
   // Фон/инфраструктура.
   'refresh',

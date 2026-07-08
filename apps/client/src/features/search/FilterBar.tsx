@@ -30,9 +30,10 @@ import { selectTerritoryPoints } from '@/store/territorySlice';
 import { useCreateSavedSearchMutation } from '@/store/api/savedSearchesApi';
 import { describeFilters, type SavedSearchFilters } from '@/lib/savedSearch';
 import { LoginModal } from '@/components/layout/LoginModal';
-import { getApiError } from '@/store/api/apiError';
 import { useTranslations, useLocale } from 'next-intl';
 import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
+import { toast } from 'sonner';
+import { SaveSearchModal } from './SaveSearchModal';
 import { SearchAutocomplete } from './SearchAutocomplete';
 import { useGeoSuggest, type Suggestion } from './useGeoSuggest';
 import { suggestionToLocation } from './locationParams';
@@ -344,8 +345,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
   // ── Сохранить поиск ──────────────────────────────────────────────────────────
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const territoryPoints = useAppSelector(selectTerritoryPoints);
-  const [createSavedSearch, { isLoading: isSaving, isSuccess: isSaved, error: saveError }] =
-    useCreateSavedSearchMutation();
+  const tToasts = useTranslations('toasts');
 
   /** Собирает внутренний объект фильтров (param-имена GET /search). */
   const buildFilters = React.useCallback((): SavedSearchFilters => {
@@ -384,41 +384,52 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     if (values.isBasement) filters.is_basement = true;
     if (values.parkingTypes && values.parkingTypes.length > 0) filters.parking_types = values.parkingTypes;
     if (values.amenities && values.amenities.length > 0) filters.amenities = values.amenities;
+    // Сортировка — только если пользователь отошёл от дефолта 'promotion'.
+    if (values.sort && values.sort !== 'promotion') filters.sort = values.sort;
+    // Валюта — только когда задана цена (иначе price_min/max нечем интерпретировать).
+    if (values.priceMin || values.priceMax) filters.currency = displayCurrency;
     return filters;
-  }, [values, territoryPoints]);
+  }, [values, territoryPoints, displayCurrency]);
 
-  // Модалка входа для гостя + «отложенное намерение» сохранить после входа.
+  // Модалка входа для гостя + «отложенное намерение» открыть модалку сохранения.
   const [loginOpen, setLoginOpen] = React.useState(false);
   const [pendingSave, setPendingSave] = React.useState(false);
+  const [saveModalOpen, setSaveModalOpen] = React.useState(false);
+  const [createSavedSearch] = useCreateSavedSearchMutation();
 
-  /** Само сохранение (без auth-гейта) — вызывается напрямую или после входа. */
-  const doSave = React.useCallback(() => {
-    if (isSaving) return;
-    const filters = buildFilters();
-    const name = describeFilters(filters, t) || tSearch('filters.mySearch');
-    void createSavedSearch({ name, filters });
-  }, [isSaving, buildFilters, createSavedSearch, t, tSearch]);
-
-  // «Сохранить поиск»: гость → открываем модалку входа (как в ContactCard) и
-  // запоминаем намерение; авторизован → сохраняем сразу.
+  // «Сохранить поиск»: гость → вход (LoginModal) + отложенное открытие модалки;
+  // авторизован → сразу модалка именования.
   const handleSaveSearch = React.useCallback(() => {
     if (!isAuthenticated) {
       setPendingSave(true);
       setLoginOpen(true);
       return;
     }
-    doSave();
-  }, [isAuthenticated, doSave]);
+    setSaveModalOpen(true);
+  }, [isAuthenticated]);
 
-  // После успешного входа гостя — выполняем отложенное сохранение.
+  // После входа гостя — открыть модалку именования.
   React.useEffect(() => {
     if (isAuthenticated && pendingSave) {
       setPendingSave(false);
-      doSave();
+      setSaveModalOpen(true);
     }
-  }, [isAuthenticated, pendingSave, doSave]);
+  }, [isAuthenticated, pendingSave]);
 
-  const saveApiError = getApiError(saveError);
+  // Создание из модалки. Ошибку тостит apiErrorToastMiddleware (эндпоинт не
+  // в suppress-list) → при ошибке модалку не закрываем, catch глушим.
+  const handleCreateSubmit = React.useCallback(
+    async (name: string) => {
+      try {
+        await createSavedSearch({ name, filters: buildFilters() }).unwrap();
+        toast.success(tToasts('savedSearchSaved'));
+        setSaveModalOpen(false);
+      } catch {
+        /* ошибка показана тост-middleware */
+      }
+    },
+    [createSavedSearch, buildFilters, tToasts],
+  );
 
   return (
     <div className="sticky top-[var(--header-h)] z-20 border-b border-border bg-surface">
@@ -631,25 +642,10 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
           <button
             type="button"
             onClick={handleSaveSearch}
-            disabled={isSaving}
-            title={saveApiError?.message}
-            className={cn(
-              'inline-flex flex-shrink-0 items-center gap-2 rounded-pill border-[1.5px] px-4 py-[9px] text-sm font-bold transition-colors disabled:opacity-60',
-              isSaved
-                ? 'border-teal bg-mint text-teal'
-                : saveApiError
-                  ? 'border-red-300 bg-surface text-red-600'
-                  : 'border-border bg-surface text-teal hover:border-teal',
-            )}
+            className="inline-flex flex-shrink-0 items-center gap-2 rounded-pill border-[1.5px] border-border bg-surface px-4 py-[9px] text-sm font-bold text-teal transition-colors hover:border-teal"
           >
             <Bell size={16} strokeWidth={1.9} />
-            {isSaving
-              ? tSearch('filters.saving')
-              : isSaved
-                ? tSearch('filters.saved')
-                : saveApiError
-                  ? tSearch('filters.saveError')
-                  : tSearch('filters.saveSearch')}
+            {tSearch('filters.saveSearch')}
           </button>
 
           {/* Переключатель Список / Карта — только на мобайле. */}
@@ -679,6 +675,14 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
         open={loginOpen}
         onOpenChange={setLoginOpen}
         context={tSearch('filters.saveSearchLoginPrompt')}
+      />
+      {/* Именование при сохранении поиска. */}
+      <SaveSearchModal
+        open={saveModalOpen}
+        mode="create"
+        initialName={describeFilters(buildFilters(), t) || tSearch('filters.mySearch')}
+        onSubmit={handleCreateSubmit}
+        onClose={() => setSaveModalOpen(false)}
       />
     </div>
   );
