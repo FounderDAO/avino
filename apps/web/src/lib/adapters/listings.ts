@@ -121,7 +121,7 @@ export function rowToAdminListing(r: AdminListingRow): AdminListing {
     totalFloors: null,
     year: null,
     district: r.district_name ?? DASH,
-    address: DASH,
+    address: r.address ?? DASH,
     lat: null,
     lng: null,
     photos: [],
@@ -151,6 +151,7 @@ export function rowToAdminListing(r: AdminListingRow): AdminListing {
     created: fmtDate(r.created_at),
     promo: 'NORMAL',
     tx: TX_LABEL[r.transaction_type] ?? r.transaction_type,
+    address: r.address?.trim() || undefined,
   };
 }
 
