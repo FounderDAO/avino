@@ -1,107 +1,100 @@
 /**
- * SortControl — тесты (Task 9).
+ * SortControl — тесты.
+ *
+ * Сорт теперь клиентское Redux-состояние: смена НЕ вызывает навигацию, а
+ * диспатчит setSort и обновляет URL shallow-навигацией (history.replaceState).
  *
  * Мокируем:
- * - @/i18n/navigation (useRouter, usePathname) — как в FilterBar.test.tsx
- * - next/navigation (useSearchParams)
+ * - next/navigation (useSearchParams) — источник начального значения (hydrate)
  * - next-intl (useTranslations) — key→key резолвер
+ * Оборачиваем в реальный Redux-store (makeStore).
  */
 import * as React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { Provider } from 'react-redux';
+import { makeStore } from '@/store/store';
 
-// ── Моки навигации ────────────────────────────────────────────────────────────
-
-const mockReplace = vi.fn();
-const mockPathname = '/search';
 let mockSearchParamsStr = 'tx=SALE';
-
-vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({ replace: mockReplace }),
-  usePathname: () => mockPathname,
-}));
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(mockSearchParamsStr),
 }));
 
-// ── Мок next-intl: ns.key → ns.key ───────────────────────────────────────────
-
 vi.mock('next-intl', () => ({
-  useTranslations: (ns?: string) =>
-    (key: string) => (ns ? `${ns}.${key}` : key),
+  useTranslations: (ns?: string) => (key: string) => (ns ? `${ns}.${key}` : key),
 }));
 
 // Импорт ПОСЛЕ моков
 import { SortControl } from './SortControl';
 
-beforeEach(() => {
-  mockReplace.mockClear();
-  mockSearchParamsStr = 'tx=SALE';
-});
+function renderWithStore() {
+  return render(
+    <Provider store={makeStore()}>
+      <SortControl />
+    </Provider>,
+  );
+}
 
-// ── Тесты ──────────────────────────────────────────────────────────────────────
+let replaceSpy: ReturnType<typeof vi.spyOn>;
+
+beforeEach(() => {
+  mockSearchParamsStr = 'tx=SALE';
+  replaceSpy = vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+});
 
 describe('SortControl', () => {
   it('рендерится без ошибок', () => {
-    const { container } = render(<SortControl />);
+    const { container } = renderWithStore();
     expect(container).toBeTruthy();
   });
 
   it('показывает <select> с aria-label из i18n', () => {
-    render(<SortControl />);
-    // Мок: t('sortAria') → 'search.filters.sortAria'
-    expect(screen.getByRole('combobox', { name: /search\.filters\.sortAria/i })).toBeInTheDocument();
+    renderWithStore();
+    expect(
+      screen.getByRole('combobox', { name: /search\.filters\.sortAria/i }),
+    ).toBeInTheDocument();
   });
 
   it('отображает все 5 опций сортировки', () => {
-    render(<SortControl />);
-    const select = screen.getByRole('combobox');
-    const options = Array.from((select as HTMLSelectElement).options);
-    expect(options).toHaveLength(5);
+    renderWithStore();
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    expect(Array.from(select.options)).toHaveLength(5);
   });
 
   it('по умолчанию выбрана опция «promotion» (URL без sort=)', () => {
-    render(<SortControl />);
+    renderWithStore();
     const select = screen.getByRole('combobox') as HTMLSelectElement;
     expect(select.value).toBe('promotion');
   });
 
-  it('читает текущее значение sort из URL', () => {
+  it('восстанавливает значение sort из URL (hydrate)', () => {
     mockSearchParamsStr = 'tx=SALE&sort=price_asc';
-    render(<SortControl />);
+    renderWithStore();
     const select = screen.getByRole('combobox') as HTMLSelectElement;
     expect(select.value).toBe('price_asc');
   });
 
-  it('смена значения вызывает router.replace с sort=price_asc', () => {
-    render(<SortControl />);
-    const select = screen.getByRole('combobox');
+  it('смена значения обновляет UI и пишет sort в URL shallow (без навигации)', () => {
+    renderWithStore();
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'price_asc' } });
-    expect(mockReplace).toHaveBeenCalledOnce();
-    const [url] = mockReplace.mock.calls[0] as [string, unknown];
+    // Redux обновился → контролируемое значение select новое.
+    expect(select.value).toBe('price_asc');
+    // URL обновлён shallow (history.replaceState), не router-навигацией.
+    expect(replaceSpy).toHaveBeenCalledOnce();
+    const url = replaceSpy.mock.calls[0][2] as string;
     expect(url).toContain('sort=price_asc');
   });
 
   it('смена на «promotion» удаляет параметр sort из URL', () => {
-    // Начинаем с sort=price_desc в URL
     mockSearchParamsStr = 'tx=SALE&sort=price_desc';
-    render(<SortControl />);
-    const select = screen.getByRole('combobox');
+    renderWithStore();
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'promotion' } });
-    expect(mockReplace).toHaveBeenCalledOnce();
-    const [url] = mockReplace.mock.calls[0] as [string, unknown];
-    // promotion — дефолт, убирается из URL
+    expect(select.value).toBe('promotion');
+    expect(replaceSpy).toHaveBeenCalledOnce();
+    const url = replaceSpy.mock.calls[0][2] as string;
     expect(url).not.toContain('sort=');
-  });
-
-  it('передаёт scroll:false в router.replace', () => {
-    render(<SortControl />);
-    const select = screen.getByRole('combobox');
-    fireEvent.change(select, { target: { value: 'date_desc' } });
-    expect(mockReplace).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ scroll: false }),
-    );
   });
 });

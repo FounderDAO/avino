@@ -41,12 +41,15 @@ import { useCurrencyPreference, useSetCurrency } from '@/lib/useCurrencyPreferen
 import { useMapHoverRecenter } from '@/lib/useMapHoverRecenter';
 import { MapPreviewCard } from '@/features/map/MapPreviewCard';
 import { useViewportSearch } from '@/features/map/useViewportSearch';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   setTerritory,
   clearTerritory as clearTerritoryRedux,
 } from '@/store/territorySlice';
 import { setResultPrices, clearResultPrices } from '@/store/resultPricesSlice';
+import { selectSort } from '@/store/sortSlice';
+import { sortListings } from '@/lib/sortListings';
+import { useGetExchangeRateQuery } from '@/store/api/exchangeRateApi';
 
 // Карта — только на клиенте (Yandex JS API требует window). next/dynamic ssr:false.
 const MapView = dynamic(
@@ -98,10 +101,13 @@ export function SearchResults({
   // Предпочтение валюты из Redux (Task 14): добавляем в RTK-запросы (polygon/keyset),
   // чтобы бэкенд фильтровал price_min/price_max в правильной валюте.
   const displayCurrency = useCurrencyPreference();
-  const filterWithCurrency = React.useMemo<ListingFilter>(
-    () => ({ ...filter, currency: displayCurrency }),
-    [filter, displayCurrency],
-  );
+  // Фильтр для ЗАПРОСОВ (viewport/полигон/дозагрузка) — БЕЗ sort: сорт теперь
+  // клиентский, смена не должна триггерить рефетч или сброс пагинации. (Гео-
+  // эндпоинты сорт и так игнорируют — всегда date_desc.)
+  const filterWithCurrency = React.useMemo<ListingFilter>(() => {
+    const { sort: _ignoredSort, ...rest } = filter;
+    return { ...rest, currency: displayCurrency };
+  }, [filter, displayCurrency]);
   // Режим рисования территории + нарисованное кольцо (как на /map).
   const [drawing, setDrawing] = React.useState(false);
   const [polygon, setPolygon] = React.useState<LatLng[] | null>(null);
@@ -217,15 +223,27 @@ export function SearchResults({
     [points, polygonData, vp.active, vp.listings, paged],
   );
 
+  // ── Клиентская сортировка (без запроса к API) ──
+  // Сорт из Redux применяется к УЖЕ загруженной выдаче (реплика гибрида ADR-0117).
+  // Курс ЦБУ нужен только для price_* (нормализация UZS/USD в USD); эндпоинт уже
+  // в кэше (usePriceFormatter его тянет). Результат идёт и в список, и в карту.
+  const sort = useAppSelector(selectSort);
+  const { data: rateData } = useGetExchangeRateQuery();
+  const rate = rateData ? Number(rateData.rate) : undefined;
+  const sortedForDisplay = React.useMemo(
+    () => sortListings(displayed, sort, rate),
+    [displayed, sort, rate],
+  );
+
   // Зеркалим цены текущей выдачи в Redux: PriceFilter (соседний компонент)
   // строит по ним домен слайдера и гистограмму (спека 2026-07-06).
   React.useEffect(() => {
     dispatch(
       setResultPrices(
-        displayed.map((l) => ({ price: Number(l.price), currency: l.currency })),
+        sortedForDisplay.map((l) => ({ price: Number(l.price), currency: l.currency })),
       ),
     );
-  }, [displayed, dispatch]);
+  }, [sortedForDisplay, dispatch]);
   React.useEffect(() => () => void dispatch(clearResultPrices()), [dispatch]);
 
   // Viewport-режим: один запрос (limit=100), список раскрывается локальными
@@ -234,14 +252,15 @@ export function SearchResults({
   React.useEffect(() => {
     setVisibleCount(SEARCH_PAGE_SIZE);
   }, [vp.listings]);
-  const listShown = vp.active && !points ? displayed.slice(0, visibleCount) : displayed;
+  const listShown =
+    vp.active && !points ? sortedForDisplay.slice(0, visibleCount) : sortedForDisplay;
 
   const shownCount = listShown.length;
-  const totalCount = points || vp.active ? displayed.length : totalAll;
+  const totalCount = points || vp.active ? sortedForDisplay.length : totalAll;
   const hasMore = points
     ? false
     : vp.active
-      ? visibleCount < displayed.length
+      ? visibleCount < sortedForDisplay.length
       : cursor != null;
   const busy = Boolean(loading) || isFetching;
   const onShowMore = vp.active
@@ -267,7 +286,7 @@ export function SearchResults({
 
   // Превью по клику на пин (Zillow): MapView позиционирует карточку у пина.
   const preview = vp.previewId
-    ? displayed.find((l) => l.id === vp.previewId) ?? null
+    ? sortedForDisplay.find((l) => l.id === vp.previewId) ?? null
     : null;
 
   return (
@@ -286,7 +305,7 @@ export function SearchResults({
         )}
       >
         <MapView
-          listings={displayed}
+          listings={sortedForDisplay}
           activeId={activeId}
           onSelect={(id) => {
             setActiveId(id);

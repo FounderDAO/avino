@@ -128,9 +128,22 @@ function ensurePinStyles() {
   document.head.appendChild(style);
 }
 
-/** Кэш классов iconLayout по html — чтобы не пересоздавать на каждый рендер. */
+/**
+ * Кэш классов iconLayout по html. `templateLayoutFactory.createClass` компилирует
+ * шаблон — дорого; без кэша пересоздавался класс на КАЖДЫЙ маркер при каждом
+ * перестроении и на каждый ховер (N×createClass → фриз выдачи при смене сорта).
+ * Одинаковый html (та же цена/tx/active) → тот же класс. Cap-clear от утечки:
+ * различных html столько, сколько (цена × tx × active), в сессии — сотни.
+ */
+const ICON_LAYOUT_CACHE = new Map<string, unknown>();
 function makeIconLayout(ymaps: Ymaps, html: string): any {
-  return ymaps.templateLayoutFactory.createClass(html);
+  let cls = ICON_LAYOUT_CACHE.get(html);
+  if (!cls) {
+    if (ICON_LAYOUT_CACHE.size > 1000) ICON_LAYOUT_CACHE.clear();
+    cls = ymaps.templateLayoutFactory.createClass(html);
+    ICON_LAYOUT_CACHE.set(html, cls);
+  }
+  return cls;
 }
 
 export function MapView({
@@ -301,7 +314,14 @@ export function MapView({
   }, [ymaps]);
 
   // ── (Пере)строение маркеров при смене набора листингов ──
-  const listingsKey = listings.map((l) => l.id).join(',');
+  // Ключ порядко-НЕзависим (сортируем id): пины позиционные, порядок списка на
+  // карту не влияет. Смена сорта = ре-ордер того же набора → ключ не меняется →
+  // НЕ перестраиваем карту зря (иначе фриз 5-10с на createClass каждого пина).
+  // Меняется только реальный НАБОР (add/remove, «Показать ещё», др. фильтр) → rebuild.
+  const listingsKey = listings
+    .map((l) => l.id)
+    .sort()
+    .join(',');
   React.useEffect(() => {
     const map = mapRef.current;
     const clusterer = clustererRef.current;
