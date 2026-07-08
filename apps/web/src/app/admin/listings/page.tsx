@@ -148,7 +148,7 @@ export default function ListingsPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={l.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       </div>
-                      <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{l.title}</div><div className="muted" style={{ fontSize: 12, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', maxWidth: 260 }}>{l.tx}{l.address ? ` · ${l.address}` : ''}</div></div>
+                      <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', maxWidth: 260 }}>{l.address ?? l.tx}</div>{l.address && <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{l.tx}</div>}</div>
                     </div></td>
                     <td style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{l.price}</td>
                     <td className="muted">{l.type}</td>

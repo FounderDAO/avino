@@ -140,8 +140,8 @@ export function specs(
   if (l.bathrooms) parts.push(t('bathroomsShort', { count: l.bathrooms }));
   const areaNorm = normalizeArea(l.area);
   if (areaNorm) parts.push(t('area', { value: areaNorm }));
-  if (l.floor && l.totalFloors) parts.push(t('floorOf', { floor: l.floor, total: l.totalFloors }));
-  else if (l.type === 'LAND' && areaNorm) parts.push(t('landArea', { value: areaNorm }));
+  // Этаж/этажность в этой строке не показываем — он в блоке «Ключевые факты».
+  if (l.type === 'LAND' && areaNorm) parts.push(t('landArea', { value: areaNorm }));
   return parts;
 }
 

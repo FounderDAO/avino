@@ -252,7 +252,7 @@ export default function ModerationPage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={m.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </div>
-                  <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div><div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{m.tx}</div><StatusPill status="PENDING" /></div>
+                  <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600, fontSize: 13.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{m.address ?? m.tx}</div>{m.address && <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{m.tx}</div>}<StatusPill status="PENDING" /></div>
                 </button>
               ))}
             </div>
@@ -270,7 +270,7 @@ export default function ModerationPage() {
                 ) : detailFetching ? (
                   <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>Загрузка деталей…</div>
                 ) : null}
-                <h2 style={{ fontSize: 22 }}>{detailModel?.title ?? sel.title}</h2>
+                <h2 style={{ fontSize: 22 }}>{full?.address ?? sel.address ?? DASH}</h2>
                 <div style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>{detailModel?.price ?? sel.price}</div>
                 <div className="row gap-12 muted" style={{ fontSize: 14, marginTop: 8, flexWrap: 'wrap' }}>
                   <span>{detailModel?.type ?? sel.type}</span>

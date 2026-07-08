@@ -79,7 +79,7 @@ export function Facts({ listing, className }: FactsProps) {
   const priceNum = Number(listing.price);
   if (areaBasis > 0 && priceNum > 0) {
     const value = fmt.price(
-      { price: String(priceNum / areaBasis), currency: listing.currency, tx: listing.tx },
+      { price: String(Math.round(priceNum / areaBasis)), currency: listing.currency, tx: listing.tx },
       { suffix: false },
     );
     items.push(<Fact key="ppsm" icon={Coins} label={t('facts.pricePerSqm')} value={value} />);
