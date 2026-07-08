@@ -89,7 +89,7 @@ export interface FilterValues {
   notFirstFloor?: boolean;
   notLastFloor?: boolean;
   toursEnabled?: boolean;
-  listingSource?: 'OWNER' | 'AGENCY';
+  listingSource?: ('OWNER' | 'AGENCY')[];
   parkingTypes?: ParkingType[];
   amenities?: Amenity[];
   /** Только цокольные этажи (`?is_basement=true`, LAST_CHANGED_API.md §1). */
@@ -250,7 +250,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     values.floorMin || values.floorMax ||
     values.totalFloorsMin || values.totalFloorsMax ||
     values.notFirstFloor || values.notLastFloor ||
-    values.toursEnabled || values.listingSource ||
+    values.toursEnabled || (values.listingSource?.length ?? 0) > 0 ||
     values.bathroomsMin || values.isBasement ||
     (values.parkingTypes?.length ?? 0) > 0 ||
     (values.amenities?.length ?? 0) > 0,
@@ -304,7 +304,8 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
       setOne('total_floors_max', next.totalFloorsMax);
       setOne('not_first_floor', next.notFirstFloor ? 'true' : undefined);
       setOne('not_last_floor', next.notLastFloor ? 'true' : undefined);
-      setOne('listing_source', next.listingSource);
+      params.delete('listing_source');
+      for (const s of next.listingSource ?? []) params.append('listing_source', s);
       setOne('tours_enabled', next.toursEnabled ? 'true' : undefined);
       setOne('is_basement', next.isBasement ? 'true' : undefined);
       params.delete('parking_type');
@@ -379,7 +380,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     if (values.yearMax) filters.year_max = values.yearMax;
     if (values.notFirstFloor) filters.not_first_floor = true;
     if (values.notLastFloor) filters.not_last_floor = true;
-    if (values.listingSource) filters.listing_source = values.listingSource;
+    if (values.listingSource && values.listingSource.length > 0) filters.listing_source = values.listingSource;
     if (values.toursEnabled) filters.tours_enabled = true;
     if (values.isBasement) filters.is_basement = true;
     if (values.parkingTypes && values.parkingTypes.length > 0) filters.parking_types = values.parkingTypes;

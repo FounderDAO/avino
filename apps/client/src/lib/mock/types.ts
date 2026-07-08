@@ -276,8 +276,8 @@ export interface ListingFilter {
   totalFloorsMax?: number;
   yearMin?: number;
   yearMax?: number;
-  /** Источник объявления. */
-  listingSource?: 'OWNER' | 'AGENCY';
+  /** Источник объявления (мультивыбор: оба → без фильтра). */
+  listingSource?: ('OWNER' | 'AGENCY')[];
   toursEnabled?: boolean;
   /** Только цокольные этажи (`?is_basement=true`, LAST_CHANGED_API.md §1). */
   isBasement?: boolean;

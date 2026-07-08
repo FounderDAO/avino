@@ -164,9 +164,11 @@ export function ActiveFilters({ values, districts, regions }: ActiveFiltersProps
     chips.push({ key: 'not_last_floor', label: t('notLastFloor'), param: 'not_last_floor' });
   }
 
-  if (values.listingSource) {
-    const label = values.listingSource === 'OWNER' ? t('sourceOwner') : t('sourceAgency');
-    chips.push({ key: 'listing_source', label, param: 'listing_source' });
+  if (values.listingSource && values.listingSource.length > 0) {
+    const label = values.listingSource
+      .map((s) => (s === 'OWNER' ? t('sourceOwner') : t('sourceAgency')))
+      .join(', ');
+    chips.push({ key: 'listing_source', label, param: '__listing_source' });
   }
 
   if (values.toursEnabled) {
@@ -229,6 +231,11 @@ export function ActiveFilters({ values, districts, regions }: ActiveFiltersProps
     } else if (chip.param === '__amenities') {
       const params = new URLSearchParams(searchParams.toString());
       params.delete('amenities');
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    } else if (chip.param === '__listing_source') {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('listing_source');
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     } else {

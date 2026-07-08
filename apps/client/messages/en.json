@@ -359,6 +359,8 @@
       "floor": "Floor",
       "floorOf": "{floor} of {total}",
       "year": "Year built",
+      "propertyType": "Property type",
+      "pricePerSqm": "Price per m²",
       "parking": "Parking",
       "lotArea": "Lot",
       "livingArea": "Living area",

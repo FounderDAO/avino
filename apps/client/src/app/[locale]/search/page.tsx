@@ -210,10 +210,14 @@ export default async function SearchPage({
   const toursEnabled = first(sp.tours_enabled) === 'true' ? true : undefined;
   const isBasement = first(sp.is_basement) === 'true' ? true : undefined;
 
-  // Источник объявления.
-  const rawSource = first(sp.listing_source);
-  const listingSource: 'OWNER' | 'AGENCY' | undefined =
-    rawSource === 'OWNER' || rawSource === 'AGENCY' ? rawSource : undefined;
+  // Источник объявления (мультивыбор: повторяющийся ?listing_source=).
+  const rawSource = Array.isArray(sp.listing_source)
+    ? sp.listing_source
+    : sp.listing_source ? [sp.listing_source] : [];
+  const listingSourceArr = rawSource.filter(
+    (s): s is 'OWNER' | 'AGENCY' => s === 'OWNER' || s === 'AGENCY',
+  );
+  const listingSource = listingSourceArr.length > 0 ? listingSourceArr : undefined;
 
   // ----- Данные из реального API -----
   // Первая страница (limit=SEARCH_PAGE_SIZE) + meta (total/next_cursor): курсор прокидываем в

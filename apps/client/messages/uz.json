@@ -359,6 +359,8 @@
       "floor": "Qavat",
       "floorOf": "{floor} / {total}",
       "year": "Qurilgan yili",
+      "propertyType": "Ko'chmas mulk turi",
+      "pricePerSqm": "1 m² narxi",
       "parking": "Avtoturargoh",
       "lotArea": "Uchastka",
       "livingArea": "Turar-joy maydoni",

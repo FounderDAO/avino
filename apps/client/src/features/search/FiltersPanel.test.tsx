@@ -124,7 +124,7 @@ describe('FiltersPanel', () => {
     expect(callArg.notFirstFloor).toBe(true);
   });
 
-  it('listingSource — single-select: повторный клик снимает выбор', async () => {
+  it('listingSource — мультивыбор: можно выбрать оба источника', async () => {
     const user = userEvent.setup();
     const onApply = vi.fn();
     const onReset = vi.fn();
@@ -137,18 +137,30 @@ describe('FiltersPanel', () => {
     const sourceOwner = checkboxes[2]; // 0=notFirst, 1=notLast, 2=owner
     const sourceAgency = checkboxes[3];
 
-    // Выбираем «Собственник»
+    // Выбираем оба источника
     await user.click(sourceOwner);
+    await user.click(sourceAgency);
     expect(sourceOwner).toBeChecked();
-    expect(sourceAgency).not.toBeChecked();
+    expect(sourceAgency).toBeChecked();
 
-    // Применяем
+    // Применяем — в draft оба значения
     await user.click(screen.getByTestId('filters-apply'));
-    expect((onApply.mock.calls[0][0] as FiltersPanelValues).listingSource).toBe('OWNER');
+    expect((onApply.mock.calls[0][0] as FiltersPanelValues).listingSource).toEqual([
+      'OWNER',
+      'AGENCY',
+    ]);
     onApply.mockClear();
 
-    // Повторный клик — снимает
+    // Повторный клик по «Собственник» — снимает только его
     await user.click(sourceOwner);
+    await user.click(screen.getByTestId('filters-apply'));
+    expect((onApply.mock.calls[0][0] as FiltersPanelValues).listingSource).toEqual([
+      'AGENCY',
+    ]);
+    onApply.mockClear();
+
+    // Снимаем последний — фильтр пустой
+    await user.click(sourceAgency);
     await user.click(screen.getByTestId('filters-apply'));
     expect((onApply.mock.calls[0][0] as FiltersPanelValues).listingSource).toBeUndefined();
   });
