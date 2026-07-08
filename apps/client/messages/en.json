@@ -964,7 +964,8 @@
       "startSearch": "Start searching",
       "notifyOn": "Notifications on",
       "notifyOff": "Notifications off",
-      "deleteAria": "Delete search"
+      "deleteAria": "Delete search",
+      "editAria": "Rename"
     },
     "settings": {
       "title": "Settings",
@@ -1037,6 +1038,15 @@
     "rooms": "{count} rm",
     "bathrooms": "{count} ba",
     "territory": "territory"
+  },
+  "saveSearchModal": {
+    "titleCreate": "Save search",
+    "titleRename": "Rename search",
+    "nameLabel": "Name your search",
+    "namePlaceholder": "e.g. 2-room under 500,000,000",
+    "submitCreate": "Save",
+    "submitRename": "Save",
+    "close": "Close"
   },
   "units": {
     "approx": "≈",
@@ -1147,7 +1157,9 @@
     "tourCancelled": "Tour request cancelled",
     "tourActionFailed": "Could not update the tour. Please try again.",
     "savedSearchCreated": "Search saved",
+    "savedSearchSaved": "Search saved",
     "savedSearchDeleted": "Saved search deleted",
+    "savedSearchRenamed": "Search renamed",
     "avatarUpdated": "Photo updated",
     "avatarRemoved": "Photo removed",
     "avatarActionFailed": "Couldn't update the photo. Please try again."

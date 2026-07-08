@@ -13,7 +13,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Link } from '@/i18n/navigation';
-import { Bell, BookmarkX, X } from 'lucide-react';
+import { Bell, BookmarkX, Pencil, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
@@ -27,6 +27,7 @@ import { describeFilters, filtersToSearchHref } from '@/lib/savedSearch';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { SaveSearchModal } from '@/features/search/SaveSearchModal';
 
 export function SavedSearches() {
   const tAccount = useTranslations('account');
@@ -95,6 +96,16 @@ function SavedSearchRow({ item }: { item: SavedSearch }) {
   const tToasts = useTranslations('toasts');
   const [updateSearch, { isLoading: isUpdating }] = useUpdateSavedSearchMutation();
   const [deleteSearch, { isLoading: isDeleting }] = useDeleteSavedSearchMutation();
+  const [renameOpen, setRenameOpen] = React.useState(false);
+  const handleRename = async (name: string) => {
+    try {
+      await updateSearch({ id: item.id, name }).unwrap();
+      toast.success(tToasts('savedSearchRenamed'));
+      setRenameOpen(false);
+    } catch {
+      /* ошибка показана тост-middleware */
+    }
+  };
 
   const meta = describeFilters(item.filters_json.filters, t);
   const href = filtersToSearchHref(item.filters_json.filters);
@@ -109,6 +120,15 @@ function SavedSearchRow({ item }: { item: SavedSearch }) {
         )}
       </Link>
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          disabled={isUpdating}
+          onClick={() => setRenameOpen(true)}
+          aria-label={tAccount('savedSearches.editAria')}
+          className="p-1 text-muted-foreground hover:text-ink disabled:opacity-50"
+        >
+          <Pencil size={17} />
+        </button>
         <button
           type="button"
           disabled={isUpdating}
@@ -141,6 +161,14 @@ function SavedSearchRow({ item }: { item: SavedSearch }) {
           <X size={18} />
         </button>
       </div>
+      <SaveSearchModal
+        open={renameOpen}
+        mode="rename"
+        initialName={item.name}
+        isSubmitting={isUpdating}
+        onSubmit={handleRename}
+        onClose={() => setRenameOpen(false)}
+      />
     </div>
   );
 }

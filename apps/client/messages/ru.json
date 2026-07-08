@@ -964,7 +964,8 @@
       "startSearch": "Начать поиск",
       "notifyOn": "Уведомления вкл.",
       "notifyOff": "Уведомления выкл.",
-      "deleteAria": "Удалить поиск"
+      "deleteAria": "Удалить поиск",
+      "editAria": "Переименовать"
     },
     "settings": {
       "title": "Настройки",
@@ -1037,6 +1038,15 @@
     "rooms": "{count} комн",
     "bathrooms": "{count} с/у",
     "territory": "территория"
+  },
+  "saveSearchModal": {
+    "titleCreate": "Сохранить поиск",
+    "titleRename": "Переименовать поиск",
+    "nameLabel": "Название поиска",
+    "namePlaceholder": "Например: 2-комн. до 500 000 000",
+    "submitCreate": "Сохранить",
+    "submitRename": "Сохранить",
+    "close": "Закрыть"
   },
   "units": {
     "approx": "≈",
@@ -1147,7 +1157,9 @@
     "tourCancelled": "Запрос на тур отменён",
     "tourActionFailed": "Не удалось обновить тур. Попробуйте ещё раз.",
     "savedSearchCreated": "Поиск сохранён",
+    "savedSearchSaved": "Поиск сохранён",
     "savedSearchDeleted": "Сохранённый поиск удалён",
+    "savedSearchRenamed": "Поиск переименован",
     "avatarUpdated": "Фото обновлено",
     "avatarRemoved": "Фото удалено",
     "avatarActionFailed": "Не удалось обновить фото. Попробуйте ещё раз."

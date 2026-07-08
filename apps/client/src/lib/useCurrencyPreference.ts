@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setCurrency, type DisplayCurrency } from '../store/currencySlice';
 
@@ -9,5 +10,5 @@ export function useCurrencyPreference(): DisplayCurrency {
 /** Возвращает коллбэк для смены отображаемой валюты (с persist в localStorage). */
 export function useSetCurrency(): (c: DisplayCurrency) => void {
   const dispatch = useAppDispatch();
-  return (c) => dispatch(setCurrency(c));
+  return useCallback((c: DisplayCurrency) => dispatch(setCurrency(c)), [dispatch]);
 }
