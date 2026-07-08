@@ -395,7 +395,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
   const [loginOpen, setLoginOpen] = React.useState(false);
   const [pendingSave, setPendingSave] = React.useState(false);
   const [saveModalOpen, setSaveModalOpen] = React.useState(false);
-  const [createSavedSearch] = useCreateSavedSearchMutation();
+  const [createSavedSearch, { isLoading: isCreating }] = useCreateSavedSearchMutation();
 
   // «Сохранить поиск»: гость → вход (LoginModal) + отложенное открытие модалки;
   // авторизован → сразу модалка именования.
@@ -683,6 +683,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
         initialName={describeFilters(buildFilters(), t) || tSearch('filters.mySearch')}
         onSubmit={handleCreateSubmit}
         onClose={() => setSaveModalOpen(false)}
+        isSubmitting={isCreating}
       />
     </div>
   );
