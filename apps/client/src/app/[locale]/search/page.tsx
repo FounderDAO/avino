@@ -16,7 +16,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { getDistricts, getRegions } from '@/lib/api/geo';
 import { searchListingsPage, searchListingsByBounds, type SearchListingsPage } from '@/lib/api/listings';
-import { parseBoundsParams } from '@/lib/geo';
+import { deserializePolygonRing, parseBoundsParams } from '@/lib/geo';
 import type {
   Amenity,
   ListingFilter,
@@ -263,6 +263,9 @@ export default async function SearchPage({
         )
       : null;
 
+  // Saved-search: нарисованная территория восстанавливается из ?points=.
+  const initialPolygon = deserializePolygonRing(first(sp.points)) ?? undefined;
+
   const [page, districts, regions] = await Promise.all([
     initialBounds
       ? searchListingsByBounds(filter, initialBounds, locale, 100).then(
@@ -336,6 +339,7 @@ export default async function SearchPage({
         heading={heading}
         filter={filter}
         initialBounds={initialBounds}
+        initialPolygon={initialPolygon}
       />
     </div>
   );

@@ -24,14 +24,20 @@ import { SortControl } from '@/features/search/SortControl';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { serializePolygonRing, type LatLng, type LatLngBounds } from '@/lib/geo';
+import { useSearchParams } from 'next/navigation';
+import {
+  deserializePolygonRing,
+  serializePolygonRing,
+  type LatLng,
+  type LatLngBounds,
+} from '@/lib/geo';
 import {
   useSearchByPolygonQuery,
   useLazySearchPageQuery,
 } from '@/store/api/searchApi';
 import type { Listing, ListingFilter } from '@/lib/mock/types';
 import { SEARCH_PAGE_SIZE } from '@/lib/api/listings';
-import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
+import { useCurrencyPreference, useSetCurrency } from '@/lib/useCurrencyPreference';
 import { useMapHoverRecenter } from '@/lib/useMapHoverRecenter';
 import { MapPreviewCard } from '@/features/map/MapPreviewCard';
 import { useViewportSearch } from '@/features/map/useViewportSearch';
@@ -68,6 +74,8 @@ export interface SearchResultsProps {
   loading?: boolean;
   /** SSR-восстановленная область карты (?sw_lat=…) — стартуем в viewport-режиме. */
   initialBounds?: LatLngBounds | null;
+  /** Восстановленная из ?points= нарисованная территория (saved-search open). */
+  initialPolygon?: LatLng[] | null;
 }
 
 export function SearchResults({
@@ -79,6 +87,7 @@ export function SearchResults({
   filter,
   loading,
   initialBounds = null,
+  initialPolygon = null,
 }: SearchResultsProps) {
   const t = useTranslations('search');
   const tCommon = useTranslations('common');
@@ -135,6 +144,30 @@ export function SearchResults({
   }, [points, dispatch]);
   // Уходим со страницы поиска — сбрасываем, чтобы не утащить чужую территорию.
   React.useEffect(() => () => void dispatch(clearTerritoryRedux()), [dispatch]);
+
+  // Восстановление нарисованной территории из saved-search: сидим локальный
+  // полигон из initialPolygon. Ключ — сериализованное кольцо (стабильная строка),
+  // чтобы эффект не зациклился на новой ссылке массива и не перетёр ручную обводку.
+  const initialPolyKey = React.useMemo(
+    () => (initialPolygon ? serializePolygonRing(initialPolygon) : null),
+    [initialPolygon],
+  );
+  React.useEffect(() => {
+    setPolygon(initialPolyKey ? deserializePolygonRing(initialPolyKey) : null);
+    setDrawing(false);
+    // Сид/ресид только при появлении/смене восстановленной территории.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPolyKey]);
+
+  // Восстановление display-валюты из saved-search (?currency=).
+  const searchParams = useSearchParams();
+  const setCurrencyPref = useSetCurrency();
+  const currencyParam = searchParams.get('currency');
+  React.useEffect(() => {
+    if (currencyParam === 'UZS' || currencyParam === 'USD') {
+      setCurrencyPref(currencyParam);
+    }
+  }, [currencyParam, setCurrencyPref]);
 
   // Поиск по территории (ST_Within на сервере). Без территории — skip, показываем
   // SSR-выдачу по фильтрам. Смена фильтров при активной территории автоматически
