@@ -964,7 +964,8 @@
       "startSearch": "Qidiruvni boshlash",
       "notifyOn": "Bildirishnomalar yoqilgan",
       "notifyOff": "Bildirishnomalar o'chirilgan",
-      "deleteAria": "Qidiruvni o'chirish"
+      "deleteAria": "Qidiruvni o'chirish",
+      "editAria": "Qayta nomlash"
     },
     "settings": {
       "title": "Sozlamalar",
@@ -1159,6 +1160,7 @@
     "savedSearchCreated": "Qidiruv saqlandi",
     "savedSearchSaved": "Qidiruv saqlandi",
     "savedSearchDeleted": "Saqlangan qidiruv o'chirildi",
+    "savedSearchRenamed": "Qidiruv qayta nomlandi",
     "avatarUpdated": "Surat yangilandi",
     "avatarRemoved": "Surat o'chirildi",
     "avatarActionFailed": "Suratni yangilab bo'lmadi. Yana urinib ko'ring."

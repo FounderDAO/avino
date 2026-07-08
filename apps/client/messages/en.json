@@ -964,7 +964,8 @@
       "startSearch": "Start searching",
       "notifyOn": "Notifications on",
       "notifyOff": "Notifications off",
-      "deleteAria": "Delete search"
+      "deleteAria": "Delete search",
+      "editAria": "Rename"
     },
     "settings": {
       "title": "Settings",
@@ -1159,6 +1160,7 @@
     "savedSearchCreated": "Search saved",
     "savedSearchSaved": "Search saved",
     "savedSearchDeleted": "Saved search deleted",
+    "savedSearchRenamed": "Search renamed",
     "avatarUpdated": "Photo updated",
     "avatarRemoved": "Photo removed",
     "avatarActionFailed": "Couldn't update the photo. Please try again."

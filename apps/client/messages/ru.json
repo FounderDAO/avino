@@ -964,7 +964,8 @@
       "startSearch": "Начать поиск",
       "notifyOn": "Уведомления вкл.",
       "notifyOff": "Уведомления выкл.",
-      "deleteAria": "Удалить поиск"
+      "deleteAria": "Удалить поиск",
+      "editAria": "Переименовать"
     },
     "settings": {
       "title": "Настройки",
@@ -1159,6 +1160,7 @@
     "savedSearchCreated": "Поиск сохранён",
     "savedSearchSaved": "Поиск сохранён",
     "savedSearchDeleted": "Сохранённый поиск удалён",
+    "savedSearchRenamed": "Поиск переименован",
     "avatarUpdated": "Фото обновлено",
     "avatarRemoved": "Фото удалено",
     "avatarActionFailed": "Не удалось обновить фото. Попробуйте ещё раз."
