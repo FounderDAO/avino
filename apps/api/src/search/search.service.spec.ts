@@ -148,6 +148,7 @@ describe('SearchService', () => {
       rooms: 3,
       bathrooms: null,
       is_basement: false,
+      area: null,
       lot_area: null,
       city_id: CITY_ID,
       district_id: DISTRICT_ID,

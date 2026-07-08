@@ -88,6 +88,8 @@ export interface SearchListItem {
   bathrooms: number | null;
   parking_type: ParkingType | null;
   is_basement: boolean;
+  /** Общая площадь, м² (Decimal-строка); нужна клиенту для сортировки area_desc. */
+  area: string | null;
   lot_area: string | null;
   city_id: string | null;
   district_id: string | null;
@@ -243,6 +245,7 @@ const SEARCH_SELECT = {
   bathrooms: true,
   parkingType: true,
   isBasement: true,
+  area: true,
   lotArea: true,
   cityId: true,
   districtId: true,
@@ -1413,6 +1416,7 @@ export class SearchService {
       bathrooms: listing.bathrooms?.toNumber() ?? null,
       parking_type: listing.parkingType,
       is_basement: listing.isBasement,
+      area: listing.area?.toFixed(2) ?? null,
       lot_area: listing.lotArea?.toFixed(2) ?? null,
       city_id: listing.cityId,
       district_id: listing.districtId,

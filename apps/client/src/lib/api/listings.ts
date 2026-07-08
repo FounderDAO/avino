@@ -60,6 +60,9 @@ export interface ApiSearchItem {
   currency: Currency;
   rooms: number | null;
   bathrooms: number | null;
+  // Общая площадь для client-сортировки area_desc. Опционально: карточка избранного
+  // (FavoriteSearchItem) шарит этот маппер и area не отдаёт; /search — всегда отдаёт.
+  area?: string | null;
   lot_area: string | null;
   parking_type: ParkingType | null;
   city_id: string | null;
@@ -300,7 +303,8 @@ export function mapListing(api: AnyApiListing): Listing {
     price: api.price,
     currency: api.currency,
 
-    area: detail?.area ?? undefined,
+    // area отдаётся и в выдаче поиска (для client-сортировки area_desc), и в detail.
+    area: (api as ApiSearchItem | ApiListingDetail).area ?? undefined,
     lotArea: (api as ApiSearchItem | ApiListingDetail).lot_area ?? undefined,
     rooms: api.rooms ?? undefined,
     bathrooms: (api as ApiSearchItem | ApiListingDetail).bathrooms ?? undefined,
