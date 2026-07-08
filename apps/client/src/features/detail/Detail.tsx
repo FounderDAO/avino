@@ -189,7 +189,7 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
             <div className="mt-2 flex flex-wrap items-center text-[15.5px] font-medium text-muted-foreground">
               {parts.map((p, i) => (
                 <span key={i} className="inline-flex items-center">
-                  {i > 0 && <span className="mx-2.5 text-border">•</span>}
+                  {i > 0 && <span className="mx-2.5 text-border">|</span>}
                   {p}
                 </span>
               ))}
