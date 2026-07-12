@@ -13,6 +13,7 @@ import {
   searchListings,
 } from '@/lib/api/listings';
 import { getDistricts } from '@/lib/api/geo';
+import { getAgents } from '@/lib/api/agents';
 import { Hero } from '@/features/home/Hero';
 import { Categories } from '@/features/home/Categories';
 import { FeaturedCarousel } from '@/features/home/FeaturedCarousel';
@@ -52,12 +53,14 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   const t = await getTranslations('home');
-  // Рекомендованные (VIP/TOP в приоритете), свежее в аренде и районы для
-  // автокомплита локации в Hero (выбор района → /search?district_id=).
-  const [featured, rent, districts] = await Promise.all([
+  // Рекомендованные (VIP/TOP в приоритете), свежее в аренде, районы для
+  // автокомплита локации в Hero (выбор района → /search?district_id=) и
+  // каталог агентов для блока «Агенты» (по числу активных объявлений, §21).
+  const [featured, rent, districts, agents] = await Promise.all([
     getFeaturedListings(8, locale),
     searchListings({ tx: 'RENT' }, locale),
     getDistricts(locale),
+    getAgents(6),
   ]);
 
   return (
@@ -75,7 +78,7 @@ export default async function HomePage({
         listings={prioritizePhotos(rent)}
       />
       <Districts />
-      <Agents />
+      <Agents agents={agents} />
       <AgentCTA />
       <Faq />
     </div>

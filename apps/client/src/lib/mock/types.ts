@@ -219,16 +219,6 @@ export interface District {
   regionId?: string;
 }
 
-/** Карточка агента/агентства (для блока «Агенты»). */
-export interface Agent {
-  id: string;
-  name: string;
-  pro: boolean;
-  agency: string;
-  /** Кол-во активных объявлений. */
-  listingsCount: number;
-}
-
 /** Фильтр выдачи поиска. */
 export interface ListingFilter {
   tx?: TransactionType;

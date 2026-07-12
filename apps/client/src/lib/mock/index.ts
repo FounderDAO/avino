@@ -6,9 +6,7 @@
  * можно подставить RTK Query, не меняя вызовы в компонентах.
  */
 import { LISTINGS, FALLBACK_PHOTO } from './listings';
-import { AGENTS } from './agents';
 import type {
-  Agent,
   Listing,
   ListingFilter,
   PromotionType,
@@ -84,11 +82,6 @@ export function getListings(filter: ListingFilter = {}): Listing[] {
 /** Один листинг по id (или undefined). */
 export function getListingById(id: string): Listing | undefined {
   return LISTINGS.find((l) => l.id === id);
-}
-
-/** Агенты/агентства. */
-export function getAgents(): Agent[] {
-  return AGENTS;
 }
 
 /**
