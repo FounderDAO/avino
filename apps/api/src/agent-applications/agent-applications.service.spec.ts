@@ -88,8 +88,10 @@ describe('AgentApplicationsService', () => {
     notifications = {
       queueAgentApplicationResolved: jest.fn().mockResolvedValue(undefined),
     };
+    // Аватар резолвится через resolveAvatarUrl (ADR-0134), которое зовёт
+    // uploads.getObjectUrl только когда есть avatarStorageKey.
     uploads = {
-      resolveMediaUrl: jest.fn().mockResolvedValue(null),
+      getObjectUrl: jest.fn().mockResolvedValue(null),
     };
     service = new AgentApplicationsService(prisma, notifications, uploads);
   });
@@ -306,6 +308,41 @@ describe('AgentApplicationsService', () => {
       expect(prisma.auditLog.create).not.toHaveBeenCalled();
     });
 
+    it('blank/missing reason becomes null (reject_reason and update args)', async () => {
+      prisma.agentApplication.findUnique.mockResolvedValue({
+        ...ROW_PENDING_FULL,
+      });
+      prisma.agentApplication.update.mockResolvedValue({
+        ...ROW_PENDING_WITH_USER,
+        status: AgentApplicationStatus.REJECTED,
+        rejectReason: null,
+        moderatorId: MODERATOR_ID,
+      });
+
+      const res = await service.reject(MODERATOR_ID, ROW_PENDING_FULL.id, {
+        reason: '   ',
+      });
+
+      expect(res.reject_reason).toBeNull();
+      expect(prisma.agentApplication.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ rejectReason: null }),
+        }),
+      );
+      expect(notifications.queueAgentApplicationResolved).toHaveBeenCalledWith(
+        prisma,
+        USER_ID,
+        expect.objectContaining({ status: 'REJECTED', rejectReason: null }),
+      );
+
+      // undefined reason (dto без поля reason вовсе) — тот же результат.
+      prisma.agentApplication.findUnique.mockResolvedValue({
+        ...ROW_PENDING_FULL,
+      });
+      const res2 = await service.reject(MODERATOR_ID, ROW_PENDING_FULL.id, {});
+      expect(res2.reject_reason).toBeNull();
+    });
+
     it('404 for missing application', async () => {
       prisma.agentApplication.findUnique.mockResolvedValue(null);
 
@@ -336,7 +373,7 @@ describe('AgentApplicationsService', () => {
         ROW_PENDING_WITH_USER,
       ]);
       prisma.agentApplication.count.mockResolvedValue(1);
-      uploads.resolveMediaUrl.mockResolvedValue('https://signed/avatar.jpg');
+      uploads.getObjectUrl.mockResolvedValue('https://signed/avatar.jpg');
 
       const res = await service.listAdmin({
         status: AgentApplicationStatus.PENDING,
@@ -354,6 +391,7 @@ describe('AgentApplicationsService', () => {
           name: 'Алишер Усманов',
         }),
       );
+      expect(uploads.getObjectUrl).toHaveBeenCalledWith('avatars/user-1.jpg');
     });
 
     it('defaults to page 1 / limit 20 with no status filter', async () => {
@@ -368,7 +406,7 @@ describe('AgentApplicationsService', () => {
       );
     });
 
-    it('leaves avatar_url null and skips resolveMediaUrl when applicant has no avatar', async () => {
+    it('leaves avatar_url null and skips getObjectUrl when applicant has no avatar', async () => {
       const rowNoAvatar = {
         ...ROW_PENDING_WITH_USER,
         user: {
@@ -386,7 +424,33 @@ describe('AgentApplicationsService', () => {
       const res = await service.listAdmin({});
 
       expect(res.data[0].user.avatar_url).toBeNull();
-      expect(uploads.resolveMediaUrl).not.toHaveBeenCalled();
+      expect(uploads.getObjectUrl).not.toHaveBeenCalled();
+    });
+
+    it('returns the external OAuth avatarUrl as-is when there is no avatarStorageKey (ADR-0134)', async () => {
+      // Google/Apple avatar: без storage_key resolveAvatarUrl должен отдать
+      // внешний URL как есть, а НЕ прогонять его через resolveMediaUrl/
+      // extractKey (сломало бы ссылку — это и был предмет ревью).
+      const rowOAuthAvatar = {
+        ...ROW_PENDING_WITH_USER,
+        user: {
+          ...ROW_PENDING_WITH_USER.user,
+          profile: {
+            ...ROW_PENDING_WITH_USER.user.profile,
+            avatarStorageKey: null,
+            avatarUrl: 'https://lh3.googleusercontent.com/a/xyz',
+          },
+        },
+      };
+      prisma.agentApplication.findMany.mockResolvedValue([rowOAuthAvatar]);
+      prisma.agentApplication.count.mockResolvedValue(1);
+
+      const res = await service.listAdmin({});
+
+      expect(res.data[0].user.avatar_url).toBe(
+        'https://lh3.googleusercontent.com/a/xyz',
+      );
+      expect(uploads.getObjectUrl).not.toHaveBeenCalled();
     });
   });
 });

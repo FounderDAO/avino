@@ -12,6 +12,7 @@ import { PaginatedResponse } from '../moderation';
 import { NotificationsService } from '../notifications';
 import { PrismaService } from '../prisma';
 import { UploadsService } from '../uploads';
+import { resolveAvatarUrl } from '../users/avatar-url.util';
 import { CreateAgentApplicationDto } from './dto/create-agent-application.dto';
 import { ListAgentApplicationsQueryDto } from './dto/list-agent-applications.dto';
 import { RejectAgentApplicationDto } from './dto/reject-agent-application.dto';
@@ -306,14 +307,15 @@ export class AgentApplicationsService {
     const fullName = [profile?.firstName, profile?.lastName]
       .filter((p): p is string => Boolean(p))
       .join(' ');
-    // sign-on-read аватара — как в ListingsService (ADR-0086/ADR-0134).
-    const avatarUrl =
-      profile?.avatarStorageKey || profile?.avatarUrl
-        ? await this.uploads.resolveMediaUrl(
-            profile?.avatarStorageKey ?? null,
-            profile?.avatarUrl ?? '',
-          )
-        : null;
+    // Аватар — общий хелпер (ADR-0134), как в UsersService.getMe: storageKey
+    // (загружен через POST /users/me/avatar) → sign-on-read; иначе внешний
+    // avatarUrl (Google/Apple) отдаётся как есть — НЕ через resolveMediaUrl,
+    // которое прогнало бы его через extractKey и сломало внешнюю ссылку.
+    const avatarUrl = await resolveAvatarUrl(
+      this.uploads,
+      profile?.avatarStorageKey,
+      profile?.avatarUrl,
+    );
     return {
       ...this.toResponse(row),
       moderator_id: row.moderatorId,
