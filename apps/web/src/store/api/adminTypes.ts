@@ -93,6 +93,11 @@ export type RoleCode =
  */
 export interface AdminListingRow {
   id: string;
+  /**
+   * Публичный человекочитаемый номер объявления (ADR-0137). `optional`: старый
+   * бэкенд поля не отдаёт — UI деградирует к «—».
+   */
+  reference?: number;
   status: ListingStatus;
   transaction_type: TransactionType;
   property_type: PropertyType;
@@ -506,6 +511,8 @@ export interface AdminListingFilters extends PageParams {
   status?: ListingStatus;
   property_type?: PropertyType;
   transaction_type?: TransactionType;
+  /** Точный поиск по номеру объявления (`listings.reference`, ADR-0137). */
+  reference?: number;
   q?: string;
 }
 

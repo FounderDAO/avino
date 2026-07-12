@@ -70,10 +70,16 @@ export default function ListingsPage() {
     setPage(1);
   }, [filter, tx, debouncedQ]);
 
+  // Умный поиск: если ввод — целое число, ищем по номеру объявления (reference,
+  // ADR-0137), иначе — по названию (q). Один инпут закрывает оба сценария.
+  const trimmedQ = debouncedQ.trim();
+  const refQuery = /^\d+$/.test(trimmedQ) ? Number(trimmedQ) : undefined;
+
   const { data, isLoading, isFetching, isError, refetch } = useListAdminListingsQuery({
     status: UI_FILTER_TO_API_STATUS[filter],
     transaction_type: tx,
-    q: debouncedQ.trim() || undefined,
+    reference: refQuery,
+    q: refQuery === undefined ? trimmedQ || undefined : undefined,
     page,
     limit: LIMIT,
   });
@@ -104,7 +110,7 @@ export default function ListingsPage() {
       <div className="row gap-8" style={{ marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', minWidth: 240 }}>
           <IC.Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
-          <input className="a-field" style={{ paddingLeft: 36, width: '100%' }} placeholder="Поиск по названию…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="a-field" style={{ paddingLeft: 36, width: '100%' }} placeholder="Поиск по названию или № (ID)…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         {filters.map(([k, v]) => (
           <button key={k} onClick={() => setFilter(k)} className="abtn abtn-sm" style={{ background: filter === k ? 'var(--ink)' : 'var(--surface)', color: filter === k ? '#fff' : 'var(--ink)', border: filter === k ? 'none' : '1.5px solid var(--border)' }}>{v}</button>
@@ -132,17 +138,19 @@ export default function ListingsPage() {
           <table className="a-table">
             <thead><tr>
               <th style={{ width: 36 }}><input type="checkbox" checked={allSel} onChange={toggleAll} disabled={rows.length === 0} /></th>
+              <th style={{ width: 84 }}>№</th>
               <th>Объявление</th><th>Цена</th><th>Тип</th><th>Комн.</th><th>Район</th><th>Агент</th><th>Статус</th><th>Просм.</th><th>Создано</th><th></th>
             </tr></thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={11} className="muted" style={{ textAlign: 'center', padding: 40 }}>Загрузка…</td></tr>
+                <tr><td colSpan={12} className="muted" style={{ textAlign: 'center', padding: 40 }}>Загрузка…</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={11} className="muted" style={{ textAlign: 'center', padding: 40 }}>Ничего не найдено.</td></tr>
+                <tr><td colSpan={12} className="muted" style={{ textAlign: 'center', padding: 40 }}>Ничего не найдено.</td></tr>
               ) : (
                 rows.map((l) => (
                   <tr key={l.id} className="clickable" onClick={() => router.push(`/admin/listings/${l.id}`)}>
                     <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={sel.has(l.id)} onChange={() => toggle(l.id)} /></td>
+                    <td className="muted" style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{l.reference}</td>
                     <td><div className="row" style={{ minWidth: 220, gap: 14 }}>
                       <div style={{ width: 48, height: 38, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
