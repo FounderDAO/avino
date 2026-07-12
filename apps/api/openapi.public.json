@@ -880,6 +880,14 @@
             }
           },
           {
+            "name": "agent_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
@@ -1169,6 +1177,14 @@
           },
           {
             "name": "district_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agent_id",
             "required": false,
             "in": "query",
             "schema": {
@@ -1495,6 +1511,14 @@
           },
           {
             "name": "district_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agent_id",
             "required": false,
             "in": "query",
             "schema": {
@@ -1889,6 +1913,14 @@
             }
           },
           {
+            "name": "agent_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
@@ -2169,6 +2201,14 @@
           },
           {
             "name": "district_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agent_id",
             "required": false,
             "in": "query",
             "schema": {
@@ -2528,6 +2568,14 @@
           },
           {
             "name": "district_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agent_id",
             "required": false,
             "in": "query",
             "schema": {

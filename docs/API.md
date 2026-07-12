@@ -601,6 +601,7 @@ Query-фильтры (`ARCHITECTURE` §12):
 | `new_construction` | bool | «Новостройка»: `year_built` за последние 3 календарных года **или в будущем** (недострой — «сдача в 2028»). Порог вычисляет сервер (URL стабилен); `year_built IS NULL` не проходит. Работает во всех поисковых эндпоинтах (`/search`, `/search/bounds`, `/search/radius`, `/search/polygon`, `/search/clusters`, price-distribution) |
 | `feature_ids` | uuid[] | амenities (CSV или повтор параметра) |
 | `points` | string | необязательная нарисованная территория `lat,lng;lat,lng;…` (≥3 вершин); пересечение с контуром (`ST_Within`) поверх остальных фильтров и bbox. Тот же формат, что `/search/polygon`; невалидная строка → `400 VALIDATION_ERROR`. Принимается и в `/search/bounds`. TASK-249/ADR-0133 |
+| `agent_id` | uuid | только объявления этого владельца (страница агента, ADR-0140, §21): применяется к `owner_id` без проверки роли — `owner_id` и так публичен в detail-ответе (§7). Наследован во всех гео-эндпоинтах `/search/*` (их DTO расширяют этот) — отдельного `/agents/:id/listings` нет |
 | `promotion_type` | `NORMAL \| TOP \| VIP` | фильтр по тиру (опц.) |
 | `sort` | `date_desc \| price_asc \| price_desc \| area_desc` | ключ сортировки; **умолчание** `date_desc`; невалидное значение → 400. При явном выборе — гибрид (см. ниже): закреплённое промо + строгий ключ; `price_*` нормализуется по курсу (ADR-0117) |
 | `cursor`, `limit` | | keyset-пагинация |
@@ -904,9 +905,14 @@ notification (`notify_chat_message`).
 
 Типы (`notification_type`): `SAVED_SEARCH_NEW_LISTING | FAVORITE_PRICE_DROP |
 NEW_CHAT_MESSAGE | LISTING_MODERATION_STATUS_CHANGED | NEW_LEAD |
-PROMOTION_ACTIVATED | PROMOTION_EXPIRED`. Каналы: `EMAIL | PUSH | IN_APP`. MVP
-надёжно доставляет `EMAIL + IN_APP`; `PUSH` (FCM/APNs) — задокументированный stub
-через реестр устройств (ADR-010). Все отправки — BullMQ-джобы.
+PROMOTION_ACTIVATED | PROMOTION_EXPIRED | AGENT_APPLICATION_RESOLVED`. Каналы:
+`EMAIL | PUSH | IN_APP`. MVP надёжно доставляет `EMAIL + IN_APP`; `PUSH`
+(FCM/APNs) — задокументированный stub через реестр устройств (ADR-010).
+Фактический набор каналов на тип задаёт routing-конфиг
+(`notification-routing.ts`); большинство типов идут в `EMAIL + IN_APP`,
+`AGENT_APPLICATION_RESOLVED` (решение по заявке «Стать агентом», ADR-0140,
+§21) — **только `IN_APP`** (`data_json: { application_id, status,
+reject_reason }`). Все отправки — BullMQ-джобы.
 
 ### GET /api/v1/notifications
 In-app лента уведомлений. Auth: **Bearer**. Query: `status` (`PENDING|SENT|
@@ -1436,3 +1442,113 @@ handshake джойнит сокет в комнату `user:<id>` автомат
 
 WS — канал foreground; фон/закрытое приложение покрывает FCM push (§14).
 Полный гайд для Flutter: `docs/GUIDE_MOBILE_REALTIME_WS.md`.
+
+---
+
+## 21. Agents & agent applications
+
+Заявка «Стать агентом» (риелтор) + модерация + публичный каталог агентов
+(ADR-0140). Лимит активных объявлений обычного клиента
+(`app_settings.active_listing_limit`, default 2, `0` = без лимита) публичен в
+`GET /api/v1/settings/public → activeListingLimit`; агент/агентство (роль
+`AGENT`/`AGENCY`) публикуют без лимита. Бейдж «риелтор» на detail-странице
+объявления — уже существующее поле `contact.type` (`owner`/`agent`/`agency`,
+§7); отдельного поля `owner_is_agent` не добавлялось.
+
+### POST /api/v1/users/me/agent-application
+Подать заявку. Auth: **Bearer**. Анкета-минимум: имя/телефон/аватар берутся
+из профиля пользователя.
+```json
+{ "agency_name": "Ideal Estate", "about": "10 лет на рынке недвижимости Ташкента" }
+```
+`agency_name` опционален (`null` — частный маклер, макс. 255 симв.); `about`
+обязателен (макс. 2000 симв.).
+201:
+```json
+{ "id": "aa1", "status": "PENDING", "agency_name": "Ideal Estate",
+  "about": "10 лет на рынке недвижимости Ташкента", "reject_reason": null,
+  "created_at": "2026-07-12T10:00:00Z", "resolved_at": null }
+```
+После `REJECTED` повторная подача разрешена — создаётся новая запись, история
+предыдущих сохраняется. Errors: `400 VALIDATION_ERROR`,
+`409 AGENT_APPLICATION_PENDING` (уже есть заявка на рассмотрении),
+`409 ALREADY_AGENT` (уже есть роль `AGENT`/`AGENCY`, §17).
+
+### GET /api/v1/users/me/agent-application
+Последняя заявка текущего пользователя (любой статус). Auth: **Bearer**.
+200 → тот же контракт, что ответ `POST` выше. Errors: `404 NOT_FOUND` (заявок
+ещё не было).
+
+### GET /api/v1/admin/agent-applications
+Модерационный список заявок. Auth: **MODERATOR / ADMIN**. Query: `status`
+(`PENDING|APPROVED|REJECTED`), `page`, `limit`.
+200 → пагинированный список; каждый элемент — контракт `POST` выше + заявитель
+и модератор:
+```json
+{ "data": [ { "id": "aa1", "status": "PENDING", "agency_name": "Ideal Estate",
+    "about": "10 лет на рынке недвижимости Ташкента", "reject_reason": null,
+    "created_at": "2026-07-12T10:00:00Z", "resolved_at": null,
+    "moderator_id": null,
+    "user": { "id": "u1", "name": "Алишер Усманов", "phone": "+998901234567",
+      "avatar_url": "https://cdn.avino.uz/u1/avatar.webp?..." } } ],
+  "meta": { "page": 1, "limit": 20, "total": 1 } }
+```
+`user.avatar_url` — общий хелпер `resolveAvatarUrl` (ADR-0134): storageKey
+(загружен через `POST /users/me/avatar`) → sign-on-read; иначе внешний
+`avatarUrl` (Google/Apple) как есть; иначе `null`. `user.name` — `display_name`
+профиля либо «first last», иначе `null`.
+
+### POST /api/v1/admin/agent-applications/:id/approve
+Одобрить заявку. Auth: **MODERATOR / ADMIN**. Тела запроса нет. В одной
+транзакции: статус → `APPROVED` + `resolved_at`/`moderator_id`, выдаётся роль
+`AGENT` (`upsert` — идемпотентно, переживает роль, выданную админом вручную
+ранее), запись `audit_logs(ROLE_CHANGE)`, уведомление заявителю (см. ниже).
+200 → тот же контракт, что элемент `GET /admin/agent-applications`.
+Errors: `404 NOT_FOUND`, `422 INVALID_STATUS_TRANSITION` (заявка не в
+`PENDING`, §17).
+
+### POST /api/v1/admin/agent-applications/:id/reject
+Отклонить заявку. Auth: **MODERATOR / ADMIN**.
+```json
+{ "reason": "Недостаточно данных для проверки" }
+```
+`reason` опционален (макс. 2000 симв.). 200 → тот же контракт, что approve.
+Errors: `404 NOT_FOUND`, `422 INVALID_STATUS_TRANSITION`.
+
+Approve/reject создают уведомление `AGENT_APPLICATION_RESOLVED` заявителю в
+одной транзакции со сменой статуса (канал — **только `IN_APP`**, §14):
+`data_json: { application_id, status, reject_reason }`.
+
+### GET /api/v1/agents
+Публичный каталог агентов. Auth: **public**. Агент — `ACTIVE`-пользователь с
+ролью `AGENT`/`AGENCY`, независимо от того, назначена роль по одобренной
+заявке или админом вручную напрямую. Query: `page`, `limit`. Сортировка — по
+числу активных объявлений, убыв.
+200:
+```json
+{ "data": [ { "id": "u1", "name": "Алишер Усманов",
+    "avatar_url": "https://cdn.avino.uz/u1/avatar.webp?...",
+    "agency_name": "Ideal Estate", "about": "10 лет на рынке недвижимости Ташкента",
+    "active_listings_count": 14 } ],
+  "meta": { "page": 1, "limit": 20, "total": 6 } }
+```
+`agency_name`/`about` — из последней `APPROVED`-заявки пользователя; `null`
+для агентов, назначенных админом напрямую без заявки.
+
+### GET /api/v1/agents/:id
+Публичный профиль агента. Auth: **public**. 200 → тот же контракт, что
+элемент `GET /agents`. Errors: `404 NOT_FOUND` (пользователь не найден или не
+является агентом).
+
+### Объявления агента — `GET /search?agent_id=`
+
+Отдельного `GET /agents/:id/listings` нет: страница профиля агента
+переиспользует публичный поиск (§9) с фильтром `agent_id` (значение —
+`users.id` агента, применяется к `owner_id`). Параметр наследован во всех
+гео-эндпоинтах (`/search/bounds`, `/search/radius`, `/search/near-me`,
+`/search/polygon`, `/search/clusters`) — их DTO расширяют
+`SearchListingsQueryDto`.
+```text
+GET /api/v1/search?agent_id=u1&transaction_type=SALE
+```
+200 → тот же envelope/card-shape, что `/search` (§9); только `status = ACTIVE`.
