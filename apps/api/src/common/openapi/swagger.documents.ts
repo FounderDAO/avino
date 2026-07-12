@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 import { AgentApplicationsModule } from '../../agent-applications';
+import { AgentsModule } from '../../agents';
 import { AuthModule } from '../../auth/auth.module';
 import { ChatModule } from '../../chat';
 import { ComplaintsModule } from '../../complaints';
@@ -30,6 +31,7 @@ export const BEARER_SCHEME_NAME = 'bearer';
 export const PUBLIC_MODULES = [
   AuthModule,
   AgentApplicationsModule,
+  AgentsModule,
   UsersModule,
   TranslationsModule,
   ListingsModule,
@@ -55,6 +57,7 @@ export const PUBLIC_MODULES = [
  */
 export const PUBLIC_PATH_PREFIXES = [
   '/api/v1/auth',
+  '/api/v1/agents',
   '/api/v1/users',
   '/api/v1/translations',
   '/api/v1/listings', // покрывает и /listings/{id}/media

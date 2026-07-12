@@ -3344,6 +3344,108 @@
           }
         }
       }
+    },
+    "/api/v1/users/me/agent-application": {
+      "post": {
+        "operationId": "AgentApplicationsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentApplicationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "AgentApplicationsController_getMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents": {
+      "get": {
+        "operationId": "AgentsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}": {
+      "get": {
+        "operationId": "AgentsController_getById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "info": {
@@ -4088,6 +4190,22 @@
         "required": [
           "listing_id",
           "reason"
+        ]
+      },
+      "CreateAgentApplicationDto": {
+        "type": "object",
+        "properties": {
+          "agency_name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "about": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "about"
         ]
       },
       "ErrorDetailDto": {
