@@ -1,12 +1,18 @@
 /**
  * Тесты AgentProfile: рендер шапки профиля + сетки объявлений по фикстурам.
- * Мокируем next-intl (реальный messages/ru.json, как в Agents.test.tsx) и
- * зависимости PropertyCard (как в PropertyCard.test.tsx), чтобы рендерить
- * изолированно.
+ *
+ * next-intl НЕ мокируется вручную — рендерим через настоящий
+ * NextIntlClientProvider с реальным messages/ru.json (как в
+ * LimitReachedModal.test.tsx/SaveSearchModal.test.tsx), чтобы ICU
+ * plural (`agentProfile.listingsCount`) раскрывался по-настоящему, а не
+ * подменялся упрощённым `{count}`-мок-резолвером. Зависимости PropertyCard
+ * (фото/промо/избранное/цена) мокируем — как в PropertyCard.test.tsx.
  */
 import * as React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import ru from '../../../messages/ru.json';
 import type { Agent } from '@/lib/api/agents';
 import type { Listing } from '@/lib/mock/types';
 
@@ -15,34 +21,6 @@ vi.mock('@/i18n/navigation', () => ({
     <a href={href}>{children}</a>
   ),
 }));
-
-// next-intl резолвер по реальному messages/ru.json (как в Agents.test/Hero.test).
-vi.mock('next-intl', async () => {
-  const ru = (await import('../../../messages/ru.json')).default as Record<
-    string,
-    unknown
-  >;
-  const useTranslations =
-    (ns: string) =>
-    (key: string, vars?: Record<string, unknown>): string => {
-      const root = (ns ? ru[ns] : ru) as Record<string, unknown>;
-      const val = key
-        .split('.')
-        .reduce<unknown>(
-          (o, k) =>
-            o && typeof o === 'object'
-              ? (o as Record<string, unknown>)[k]
-              : undefined,
-          root,
-        );
-      return typeof val === 'string'
-        ? vars
-          ? val.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''))
-          : val
-        : key;
-    };
-  return { useTranslations };
-});
 
 vi.mock('@/lib/usePriceFormatter', () => ({
   usePriceFormatter: () => ({ price: () => '$108 223' }),
@@ -59,6 +37,15 @@ vi.mock('@/components/ui/fav-button', () => ({
 }));
 
 import { AgentProfile } from './AgentProfile';
+
+/** Рендер с реальным next-intl провайдером (ICU plural резолвится по-настоящему). */
+function renderProfile(props: React.ComponentProps<typeof AgentProfile>) {
+  return render(
+    <NextIntlClientProvider locale="ru" messages={ru}>
+      <AgentProfile {...props} />
+    </NextIntlClientProvider>,
+  );
+}
 
 const AGENT: Agent = {
   id: 'ag-1',
@@ -104,18 +91,19 @@ const LISTINGS: Listing[] = [
 
 describe('AgentProfile (публичный профиль агента, Task 5)', () => {
   it('рендерит шапку профиля: имя, агентство, счётчик объявлений, о себе', () => {
-    render(<AgentProfile agent={AGENT} listings={LISTINGS} />);
+    renderProfile({ agent: AGENT, listings: LISTINGS });
 
     expect(screen.getByRole('heading', { level: 1, name: 'Дилноза Каримова' })).toBeInTheDocument();
     expect(screen.getByText('Estate Group')).toBeInTheDocument();
-    expect(screen.getByText('2 объявлений')).toBeInTheDocument();
+    // activeListingsCount: 2 → форма «few» (2-4) в русском ICU plural.
+    expect(screen.getByText('2 объявления')).toBeInTheDocument();
     expect(
       screen.getByText('Более 10 лет на рынке недвижимости Ташкента.'),
     ).toBeInTheDocument();
   });
 
   it('рендерит сетку карточек объявлений (PropertyCard) со ссылками на /listing/:id', () => {
-    render(<AgentProfile agent={AGENT} listings={LISTINGS} />);
+    renderProfile({ agent: AGENT, listings: LISTINGS });
 
     const links = screen.getAllByRole('link', { name: /\$108 223/ });
     expect(links).toHaveLength(2);
@@ -124,23 +112,42 @@ describe('AgentProfile (публичный профиль агента, Task 5)'
   });
 
   it('agencyName = null → показывается «Частный маклер»', () => {
-    render(<AgentProfile agent={{ ...AGENT, agencyName: null }} listings={LISTINGS} />);
+    renderProfile({ agent: { ...AGENT, agencyName: null }, listings: LISTINGS });
     expect(screen.getByText('Частный маклер')).toBeInTheDocument();
     expect(screen.queryByText('Estate Group')).not.toBeInTheDocument();
   });
 
   it('name = null → заголовок имени скрыт', () => {
-    render(<AgentProfile agent={{ ...AGENT, name: null }} listings={LISTINGS} />);
+    renderProfile({ agent: { ...AGENT, name: null }, listings: LISTINGS });
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
   });
 
   it('about = null → блок «О себе» скрыт', () => {
-    render(<AgentProfile agent={{ ...AGENT, about: null }} listings={LISTINGS} />);
+    renderProfile({ agent: { ...AGENT, about: null }, listings: LISTINGS });
     expect(screen.queryByText(AGENT.about!)).not.toBeInTheDocument();
   });
 
   it('пустой список объявлений → пустое состояние вместо сетки', () => {
-    render(<AgentProfile agent={AGENT} listings={[]} />);
+    renderProfile({ agent: AGENT, listings: [] });
     expect(screen.queryAllByRole('link', { name: /\$108 223/ })).toHaveLength(0);
+  });
+
+  it('listingsCount — корректная ICU-плюрализация для 1/2/5 объявлений (ru)', () => {
+    const { unmount: u1 } = renderProfile({
+      agent: { ...AGENT, activeListingsCount: 1 },
+      listings: LISTINGS,
+    });
+    expect(screen.getByText('1 объявление')).toBeInTheDocument();
+    u1();
+
+    const { unmount: u2 } = renderProfile({
+      agent: { ...AGENT, activeListingsCount: 2 },
+      listings: LISTINGS,
+    });
+    expect(screen.getByText('2 объявления')).toBeInTheDocument();
+    u2();
+
+    renderProfile({ agent: { ...AGENT, activeListingsCount: 5 }, listings: LISTINGS });
+    expect(screen.getByText('5 объявлений')).toBeInTheDocument();
   });
 });

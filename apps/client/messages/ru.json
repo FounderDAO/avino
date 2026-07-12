@@ -406,7 +406,7 @@
       "notFoundTitle": "Агент не найден — Avino"
     },
     "privateAgent": "Частный маклер",
-    "listingsCount": "{count} объявлений",
+    "listingsCount": "{count, plural, one {# объявление} few {# объявления} many {# объявлений} other {# объявления}}",
     "about": "О себе",
     "empty": "У этого агента пока нет активных объявлений"
   },

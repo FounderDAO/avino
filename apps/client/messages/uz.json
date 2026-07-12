@@ -406,7 +406,7 @@
       "notFoundTitle": "Agent topilmadi — Avino"
     },
     "privateAgent": "Xususiy makler",
-    "listingsCount": "{count} ta e'lon",
+    "listingsCount": "{count, plural, other {# ta e'lon}}",
     "about": "O'zi haqida",
     "empty": "Bu agentda hozircha faol e'lonlar yo'q"
   },

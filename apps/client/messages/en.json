@@ -406,7 +406,7 @@
       "notFoundTitle": "Agent not found — Avino"
     },
     "privateAgent": "Private agent",
-    "listingsCount": "{count} listings",
+    "listingsCount": "{count, plural, one {# listing} other {# listings}}",
     "about": "About",
     "empty": "This agent has no active listings yet"
   },
