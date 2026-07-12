@@ -29,6 +29,7 @@ describe('SearchService', () => {
   const CITY_ID = '22222222-2222-2222-2222-222222222222';
   const DISTRICT_ID = '33333333-3333-3333-3333-333333333333';
   const REGION_ID = '44444444-4444-4444-4444-444444444444';
+  const OWNER_ID = '55555555-5555-5555-5555-555555555555';
 
   let prisma: any;
   let service: SearchService;
@@ -255,6 +256,25 @@ describe('SearchService', () => {
       'district_id IN (SELECT id FROM districts WHERE region_id =',
     );
     expect(pageSql.values).toEqual(expect.arrayContaining([REGION_ID]));
+  });
+
+  it('filters by agent_id (owner) — страница агента (ADR-0140)', async () => {
+    mockQuery([], 0);
+
+    await service.search({ agent_id: OWNER_ID } as any);
+
+    const pageSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+    expect(sqlText(pageSql)).toContain('owner_id =');
+    expect(pageSql.values).toEqual(expect.arrayContaining([OWNER_ID]));
+  });
+
+  it('does not add an owner_id condition when agent_id is absent', async () => {
+    mockQuery([], 0);
+
+    await service.search({});
+
+    const pageSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+    expect(sqlText(pageSql)).not.toContain('owner_id');
   });
 
   it('treats an expired promotion as NORMAL but keeps an active one (card)', async () => {
