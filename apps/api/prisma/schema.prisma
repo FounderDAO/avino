@@ -430,6 +430,11 @@ model RefreshToken {
 /// появятся целевые таблицы (отдельные задачи).
 model Listing {
   id                 String                                 @id @default(uuid()) @db.Uuid
+  // Публичный человекочитаемый номер объявления (ADR-0137). Отдельная колонка
+  // рядом с UUID-PK: PK не меняем (FK/URL остаются). Sequence стартует со 100000,
+  // чтобы номера не раскрывали общее число объявлений (анти-энумерация) —
+  // конкретный START задаёт raw-SQL миграция, не Prisma.
+  reference          Int                                    @unique @default(autoincrement())
   ownerId            String                                 @map("owner_id") @db.Uuid
   agencyId           String?                                @map("agency_id") @db.Uuid
   transactionType    TransactionType                        @map("transaction_type")

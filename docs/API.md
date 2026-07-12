@@ -430,11 +430,14 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `422 PROFILE_INCOMPLETE`
 к новым: `[{ "price": "<decimal>", "currency": "<UZS|USD>", "created_at": "<ISO8601>" }]`.
 Первая запись — цена при создании объявления. Используется для отображения динамики
 цены на клиенте.
+`reference` — публичный человекочитаемый номер объявления (ADR-0137, `Int`,
+нумерация со сдвига от 100000); короткий id, по которому объявление можно найти/
+продиктовать. UUID `id` остаётся каноническим ключом для всех связей и ссылок.
 
 200:
 ```json
 {
-  "id": "l1", "status": "ACTIVE",
+  "id": "l1", "reference": 100042, "status": "ACTIVE",
   "transaction_type": "RENT", "property_type": "APARTMENT",
   "price": "4500000.00", "currency": "UZS", "area": "62.50",
   "rooms": 2, "floor": 4, "total_floors": 9, "year_built": 2018,
@@ -457,6 +460,11 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `422 PROFILE_INCOMPLETE`
 }
 ```
 Errors: `404 NOT_FOUND`.
+
+### GET /api/v1/listings/by-ref/:reference
+То же, что `GET /api/v1/listings/:id`, но поиск по публичному номеру
+(`listings.reference`, ADR-0137) вместо UUID. `:reference` — целое число.
+Ответ и правила видимости идентичны `GET :id`. Errors: `404 NOT_FOUND`.
 
 ### PATCH /api/v1/listings/:id
 Обновить собственный листинг. Auth: **владелец / agency-admin / AGENT с правом**.
@@ -1101,9 +1109,11 @@ ADMIN**.
 
 ### GET /api/v1/admin/listings
 Очередь модерации и админ-список. Query: `status` (например `NEW`),
-`property_type`, `transaction_type`, `q`, `page`, `limit`.
+`property_type`, `transaction_type`, `reference` (точный поиск по номеру
+объявления, ADR-0137), `q`, `page`, `limit`.
 ```text
 GET /api/v1/admin/listings?status=NEW
+GET /api/v1/admin/listings?reference=100042
 ```
 200 → пагинированный список листингов (любые статусы). Каждый элемент несёт
 `owner_id`, `created_at`, `published_at`, `photo_url` (обложка) и инлайн-профиль
@@ -1112,6 +1122,7 @@ GET /api/v1/admin/listings?status=NEW
 ```json
 {
   "id": "l1",
+  "reference": 100042,
   "status": "NEW",
   "owner_id": "u1",
   "created_at": "2026-06-02T08:00:00Z",

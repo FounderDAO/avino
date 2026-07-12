@@ -79,6 +79,8 @@ const PINNED_PROMO_COUNT = 3;
  */
 export interface SearchListItem {
   id: string;
+  /** Публичный человекочитаемый номер объявления (ADR-0137). */
+  reference: number;
   status: ListingStatus;
   transaction_type: TransactionType;
   property_type: PropertyType;
@@ -236,6 +238,7 @@ const SORTS: Record<SortMode, SortConfig> = {
 
 const SEARCH_SELECT = {
   id: true,
+  reference: true,
   status: true,
   transactionType: true,
   propertyType: true,
@@ -1405,6 +1408,7 @@ export class SearchService {
 
     return {
       id: listing.id,
+      reference: listing.reference,
       status: listing.status,
       transaction_type: listing.transactionType,
       property_type: listing.propertyType,
