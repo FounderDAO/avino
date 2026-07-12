@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeUnreadCounts } from './useUnreadCounts';
+import { computeUnreadCounts, effectivePollingInterval } from './useUnreadCounts';
 
 describe('computeUnreadCounts', () => {
   it('суммирует unread_count тредов', () => {
@@ -32,5 +32,16 @@ describe('computeUnreadCounts', () => {
       tours: 0,
       total: 0,
     });
+  });
+});
+
+describe('effectivePollingInterval', () => {
+  it('живой сокет → 60с независимо от запрошенного', () => {
+    expect(effectivePollingInterval(20_000, true)).toBe(60_000);
+    expect(effectivePollingInterval(20_000, false)).toBe(20_000);
+  });
+  it('запрошенный 0 остаётся 0 (читатели кэша не начинают поллинг)', () => {
+    expect(effectivePollingInterval(0, true)).toBe(0);
+    expect(effectivePollingInterval(0, false)).toBe(0);
   });
 });
