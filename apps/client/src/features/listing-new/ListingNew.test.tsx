@@ -11,25 +11,60 @@ import ru from '../../../messages/ru.json';
  */
 let mockUser: unknown = {
   phone: '+998901234567',
-  profile: { first_name: 'Ali', last_name: 'Valiev', contact_phone: '+998901234567' },
+  profile: {
+    first_name: 'Ali',
+    last_name: 'Valiev',
+    contact_phone: '+998901234567',
+  },
 };
 
 beforeEach(() => {
   mockUser = {
     phone: '+998901234567',
-    profile: { first_name: 'Ali', last_name: 'Valiev', contact_phone: '+998901234567' },
+    profile: {
+      first_name: 'Ali',
+      last_name: 'Valiev',
+      contact_phone: '+998901234567',
+    },
   };
 });
 
 vi.mock('@/store/hooks', () => ({
   useAppSelector: (sel: unknown) =>
     (sel as (s: unknown) => unknown)({
-      auth: { accessToken: 'token', refreshToken: 'token', user: mockUser, status: 'authenticated' },
+      auth: {
+        accessToken: 'token',
+        refreshToken: 'token',
+        user: mockUser,
+        status: 'authenticated',
+      },
     }),
 }));
+/**
+ * Ошибка createListing (error-envelope РТК Query), подставляемая в мок ниже.
+ * По умолчанию undefined (успех); тесты лимита переопределяют перед рендером.
+ * Каждый тест ставит НОВЫЙ объект — эффект открытия модалки в ListingNew
+ * завязан на identity `createError`, чтобы повторный сабмит с тем же кодом
+ * тоже открывал модалку (не только сменой code).
+ */
+let mockCreateError: unknown = undefined;
+
+beforeEach(() => {
+  mockCreateError = undefined;
+});
+
 vi.mock('@/store/api/createListingApi', () => ({
-  useCreateListingMutation: () => [vi.fn(), { isLoading: false }],
+  useCreateListingMutation: () => [
+    vi.fn(),
+    { isLoading: false, error: mockCreateError },
+  ],
   useUploadListingMediaMutation: () => [vi.fn(), { isLoading: false }],
+}));
+vi.mock('@/store/api/publicSettingsApi', () => ({
+  useGetPublicSettingsQuery: () => ({
+    data: { activeListingLimit: 3 },
+    isLoading: false,
+  }),
 }));
 vi.mock('@/store/api/usersApi', () => ({
   useUpdateProfileMutation: () => [vi.fn(), { isLoading: false }],
@@ -43,8 +78,16 @@ vi.mock('@/i18n/navigation', () => ({
  * валидации шага 2, который требует непустого address).
  */
 vi.mock('./AddressStep', () => ({
-  AddressStep: ({ onAddressChange }: { onAddressChange: (v: string) => void }) => (
-    <button type="button" data-testid="fill-address" onClick={() => onAddressChange('ул. Тестовая, 1')}>
+  AddressStep: ({
+    onAddressChange,
+  }: {
+    onAddressChange: (v: string) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="fill-address"
+      onClick={() => onAddressChange('ул. Тестовая, 1')}
+    >
       fill-address
     </button>
   ),
@@ -61,7 +104,9 @@ vi.mock('./RegionDistrictSelect', () => ({
     <button
       type="button"
       data-testid="fill-region"
-      onClick={() => onChange({ regionId: 'region-1', districtId: 'district-1' })}
+      onClick={() =>
+        onChange({ regionId: 'region-1', districtId: 'district-1' })
+      }
     >
       fill-region
     </button>
@@ -75,7 +120,11 @@ vi.mock('next-intl', () => {
       const root = (ns ? (ru as any)[ns] : ru) as any;
       const val = key
         .split('.')
-        .reduce((o: any, k: string) => (o && typeof o === 'object' ? o[k] : undefined), root);
+        .reduce(
+          (o: any, k: string) =>
+            o && typeof o === 'object' ? o[k] : undefined,
+          root,
+        );
       return typeof val === 'string' ? val : key;
     };
   return { useTranslations: resolve, useLocale: () => 'ru' };
@@ -206,5 +255,59 @@ describe('ListingNew wizard (variant B)', () => {
     expect(screen.queryByText('Контактные данные')).toBeNull();
     expect(screen.getByText('Тип сделки')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /далее/i })).toBeInTheDocument();
+  });
+
+  it('(г) 422 ACTIVE_LISTING_LIMIT_REACHED от createListing → открывает LimitReachedModal', () => {
+    mockCreateError = {
+      status: 422,
+      data: {
+        error: {
+          code: 'ACTIVE_LISTING_LIMIT_REACHED',
+          message: 'limit reached',
+        },
+      },
+    };
+    render(<ListingNew {...emptyProps} />);
+    expect(screen.getByText('Достигнут лимит объявлений')).toBeInTheDocument();
+  });
+
+  it('(г) другой код ошибки createListing → LimitReachedModal не открывается', () => {
+    mockCreateError = {
+      status: 400,
+      data: { error: { code: 'VALIDATION_ERROR', message: 'bad request' } },
+    };
+    render(<ListingNew {...emptyProps} />);
+    expect(screen.queryByText('Достигнут лимит объявлений')).toBeNull();
+  });
+
+  it('(г) повторный сабмит с тем же кодом (новый объект ошибки) снова открывает модалку', () => {
+    mockCreateError = {
+      status: 422,
+      data: {
+        error: {
+          code: 'ACTIVE_LISTING_LIMIT_REACHED',
+          message: 'limit reached',
+        },
+      },
+    };
+    const { rerender } = render(<ListingNew {...emptyProps} />);
+    expect(screen.getByText('Достигнут лимит объявлений')).toBeInTheDocument();
+
+    // Закрываем модалку — она должна пропасть.
+    fireEvent.click(screen.getByRole('button', { name: 'Понятно' }));
+    expect(screen.queryByText('Достигнут лимит объявлений')).toBeNull();
+
+    // Повторный сабмит: новый объект ошибки с тем же кодом должен снова открыть модалку.
+    mockCreateError = {
+      status: 422,
+      data: {
+        error: {
+          code: 'ACTIVE_LISTING_LIMIT_REACHED',
+          message: 'limit reached',
+        },
+      },
+    };
+    rerender(<ListingNew {...emptyProps} />);
+    expect(screen.getByText('Достигнут лимит объявлений')).toBeInTheDocument();
   });
 });

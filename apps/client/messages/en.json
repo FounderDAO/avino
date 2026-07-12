@@ -659,6 +659,14 @@
       "profileIncomplete": "Fill in your first name, last name and phone in your profile to post a listing.",
       "activeListingLimit": "You've reached your active listings limit. Unpublish one of your current listings to post a new one."
     },
+    "limitModal": {
+      "title": "Listing limit reached",
+      "body": "Individuals can post up to {limit} active listings. Register as an agent — post without limits, your listings get a realtor badge, and your profile is added to the Avino agents directory.",
+      "bodyNoLimit": "You've reached your active listings limit. Register as an agent — post without limits, your listings get a realtor badge, and your profile is added to the Avino agents directory.",
+      "becomeAgent": "Become an agent",
+      "dismiss": "Got it",
+      "close": "Close"
+    },
     "auth": {
       "title": "Sign in to post a listing",
       "text": "Posting a listing is available to signed-in users only. Sign in or create an account — it takes less than a minute.",

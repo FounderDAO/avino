@@ -659,6 +659,14 @@
       "profileIncomplete": "E'lon joylash uchun profilda ism, familiya va telefonni to'ldiring.",
       "activeListingLimit": "Faol e'lonlar limitiga yetdingiz. Yangi e'lon joylash uchun mavjudlardan birini e'londan olib tashlang."
     },
+    "limitModal": {
+      "title": "Faol e'lonlar limitiga yetdingiz",
+      "body": "Jismoniy shaxslar {limit} tagacha faol e'lon joylashi mumkin. Agent sifatida ro'yxatdan o'ting — cheklovsiz e'lon joylang, e'lonlaringizga rieltor belgisi qo'yiladi, profilingiz Avino agentlari ro'yxatiga tushadi.",
+      "bodyNoLimit": "Siz faol e'lonlar limitiga yetdingiz. Agent sifatida ro'yxatdan o'ting — cheklovsiz e'lon joylang, e'lonlaringizga rieltor belgisi qo'yiladi, profilingiz Avino agentlari ro'yxatiga tushadi.",
+      "becomeAgent": "Agent bo'lish",
+      "dismiss": "Tushunarli",
+      "close": "Yopish"
+    },
     "auth": {
       "title": "E'lon joylash uchun tizimga kiring",
       "text": "E'lon joylash faqat ro'yxatdan o'tgan foydalanuvchilar uchun mavjud. Tizimga kiring yoki ro'yxatdan o'ting — bu bir daqiqadan kam vaqt oladi.",
