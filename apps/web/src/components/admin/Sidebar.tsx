@@ -21,6 +21,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       ['/admin/listings', 'Объявления', IC.Home],
       ['/admin/moderation', 'Модерация', IC.Check],
       ['/admin/complaints', 'Жалобы', IC.Flag],
+      ['/admin/agent-applications', 'Заявки агентов', IC.UserCheck],
     ],
   },
   { group: 'Люди', items: [['/admin/users', 'Пользователи', IC.User]] },

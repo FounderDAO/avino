@@ -503,6 +503,39 @@ export interface NotificationLog {
   created_at: string;
 }
 
+// ─── DTO: заявки агентов (API.md §21, ADR-0140) ─────────────────────────────
+
+/** Статус заявки «Стать агентом» (PG enum `AgentApplicationStatus`, §21). */
+export type AgentApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/**
+ * Заявитель в админ-списке заявок (§21). `name` — display_name либо
+ * «first last», иначе `null`; `avatar_url` резолвит бэкенд (ADR-0134).
+ */
+export interface AgentApplicationUser {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+}
+
+/**
+ * Заявка «Стать агентом» (`agent_applications`, §21) — элемент
+ * `GET /admin/agent-applications` и ответ approve/reject.
+ */
+export interface AgentApplication {
+  id: string;
+  status: AgentApplicationStatus;
+  /** `null` — частный маклер (без агентства). */
+  agency_name: string | null;
+  about: string;
+  reject_reason: string | null;
+  moderator_id: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  user: AgentApplicationUser;
+}
+
 // ─── Параметры списков (фильтры + пагинация, §6/§15/§16) ─────────────────────
 
 /** `GET /admin/listings` (§16). */
@@ -526,6 +559,11 @@ export interface AdminUserFilters extends PageParams {
 export interface ComplaintFilters extends PageParams {
   status?: ComplaintStatus;
   listing_id?: string;
+}
+
+/** `GET /admin/agent-applications` (§21). */
+export interface AgentApplicationFilters extends PageParams {
+  status?: AgentApplicationStatus;
 }
 
 /** `GET /admin/audit-logs` (§16). */
