@@ -10,9 +10,10 @@ import * as client from './socketClient';
 vi.mock('./socketClient');
 
 function wrapper(store: ReturnType<typeof makeStore>) {
-  return ({ children }: { children: React.ReactNode }) => (
+  const StoreWrapper = ({ children }: { children: React.ReactNode }) => (
     <Provider store={store}>{children}</Provider>
   );
+  return StoreWrapper;
 }
 
 describe('useRealtimeBridge', () => {
