@@ -46,6 +46,14 @@ NEW). При попытке опубликовать объявление све
    + уведомление. Новые коды ошибок: `409 AGENT_APPLICATION_PENDING`,
    `409 ALREADY_AGENT`; переходы статуса — существующий
    `422 INVALID_STATUS_TRANSITION`.
+3.5. **Админ-интерфейс модерации в apps/web**: страница `/admin/agent-applications`
+   (меню Контент → Заявки агентов) показывает очередь заявок с фильтром по статусу
+   (default PENDING), пагинацией и действиями одобрить/отклонить. Отклонение открывает
+   модалку с опциональным текстовым полем причины (видна пользователю в уведомлении).
+   RTK-слайс `adminAgentApplicationsApi` инкапсулирует `GET /admin/agent-applications`
+   (query-фильтры, пагинация) и `POST :id/approve|:id/reject` операции; адаптер
+   `lib/adapters/agent-applications.ts` трансформирует API-DTO. Первый unit-тест-набор
+   в apps/web (Vitest, node env) покрывает адаптер.
 4. **Публичный каталог `GET /agents` + `GET /agents/:id`** — не ADMIN-only.
    Агент = `ACTIVE`-пользователь с ролью `AGENT`/`AGENCY`, независимо от того,
    назначена роль по заявке или админом напрямую (в последнем случае
@@ -127,6 +135,10 @@ Negative / trade-offs:
 - apps/api/src/common/openapi/swagger.documents.ts (`PUBLIC_MODULES`)
 - apps/api/src/admin/admin.module.ts (`AdminAgentApplicationsController`)
 - apps/api/openapi.public.json, apps/api/openapi.internal.json
+- apps/web/src/app/admin/agent-applications/page.tsx (админ-страница очереди)
+- apps/web/src/store/api/adminAgentApplicationsApi.ts (RTK-слайс)
+- apps/web/src/lib/adapters/agent-applications.ts (трансформация DTO)
+- apps/web/src/lib/adapters/agent-applications.test.ts (unit-тесты адаптера)
 - docs/API.md §7, §9, §14, §17, §21
 - docs/DB_SCHEMA.md §18
 
