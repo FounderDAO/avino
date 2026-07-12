@@ -339,6 +339,7 @@
     },
     "backToSearch": "Back to search",
     "addressLine": "{address}, {district} district, Tashkent",
+    "referenceLine": "Listing # {reference}",
     "sections": {
       "description": "Description",
       "features": "Features",
