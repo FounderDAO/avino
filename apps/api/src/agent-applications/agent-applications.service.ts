@@ -213,13 +213,29 @@ export class AgentApplicationsService {
     if (!role) throw new Error('AGENT role is not seeded');
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const row = await tx.agentApplication.update({
-        where: { id },
+      // TOCTOU-guard: requirePending() читает статус ДО транзакции, поэтому
+      // между ним и этим update окно гонки — два параллельных approve/reject
+      // по одной заявке иначе оба прошли бы и задвоили роль/аудит/уведомление.
+      // updateMany с тем же condition в WHERE атомарно решает, кто первый.
+      const guarded = await tx.agentApplication.updateMany({
+        where: { id, status: AgentApplicationStatus.PENDING },
         data: {
           status: AgentApplicationStatus.APPROVED,
           moderatorId,
           resolvedAt: new Date(),
         },
+      });
+      if (guarded.count !== 1) {
+        throw new HttpException(
+          {
+            code: ApiErrorCode.INVALID_STATUS_TRANSITION,
+            message: 'Cannot resolve application: already resolved',
+          },
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        );
+      }
+      const row = await tx.agentApplication.findUniqueOrThrow({
+        where: { id },
         include: ADMIN_APPLICATION_INCLUDE,
       });
       await tx.userRole.upsert({
@@ -254,14 +270,27 @@ export class AgentApplicationsService {
   ): Promise<AdminAgentApplicationResponse> {
     const app = await this.requirePending(id);
     const updated = await this.prisma.$transaction(async (tx) => {
-      const row = await tx.agentApplication.update({
-        where: { id },
+      // TOCTOU-guard: см. комментарий в approve() — тот же приём для reject.
+      const guarded = await tx.agentApplication.updateMany({
+        where: { id, status: AgentApplicationStatus.PENDING },
         data: {
           status: AgentApplicationStatus.REJECTED,
           rejectReason: dto.reason?.trim() || null,
           moderatorId,
           resolvedAt: new Date(),
         },
+      });
+      if (guarded.count !== 1) {
+        throw new HttpException(
+          {
+            code: ApiErrorCode.INVALID_STATUS_TRANSITION,
+            message: 'Cannot resolve application: already resolved',
+          },
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        );
+      }
+      const row = await tx.agentApplication.findUniqueOrThrow({
+        where: { id },
         include: ADMIN_APPLICATION_INCLUDE,
       });
       await this.notifications.queueAgentApplicationResolved(tx, app.userId, {

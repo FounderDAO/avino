@@ -74,10 +74,11 @@ describe('AgentApplicationsService', () => {
       agentApplication: {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
         findMany: jest.fn(),
         count: jest.fn(),
         create: jest.fn(),
-        update: jest.fn(),
+        updateMany: jest.fn(),
       },
       role: { findUnique: jest.fn() },
       auditLog: { create: jest.fn() },
@@ -202,7 +203,8 @@ describe('AgentApplicationsService', () => {
         ...ROW_PENDING_FULL,
       });
       prisma.role.findUnique.mockResolvedValue({ id: ROLE_AGENT_ID });
-      prisma.agentApplication.update.mockResolvedValue({
+      prisma.agentApplication.updateMany.mockResolvedValue({ count: 1 });
+      prisma.agentApplication.findUniqueOrThrow.mockResolvedValue({
         ...ROW_PENDING_WITH_USER,
         status: AgentApplicationStatus.APPROVED,
         moderatorId: MODERATOR_ID,
@@ -211,6 +213,12 @@ describe('AgentApplicationsService', () => {
       const res = await service.approve(MODERATOR_ID, ROW_PENDING_FULL.id);
 
       expect(res.status).toBe('APPROVED');
+      // TOCTOU-guard: updateMany с where.status=PENDING внутри tx, не голый update.
+      expect(prisma.agentApplication.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: ROW_PENDING_FULL.id, status: AgentApplicationStatus.PENDING },
+        }),
+      );
       // tx === prisma в этом харнесе (см. beforeEach): $transaction(cb) => cb(prisma).
       expect(prisma.userRole.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -239,7 +247,8 @@ describe('AgentApplicationsService', () => {
         ...ROW_PENDING_FULL,
       });
       prisma.role.findUnique.mockResolvedValue({ id: ROLE_AGENT_ID });
-      prisma.agentApplication.update.mockResolvedValue({
+      prisma.agentApplication.updateMany.mockResolvedValue({ count: 1 });
+      prisma.agentApplication.findUniqueOrThrow.mockResolvedValue({
         ...ROW_PENDING_WITH_USER,
         status: AgentApplicationStatus.APPROVED,
         moderatorId: MODERATOR_ID,
@@ -275,6 +284,27 @@ describe('AgentApplicationsService', () => {
         response: { code: 'NOT_FOUND' },
       });
     });
+
+    it('TOCTOU race: updateMany matches 0 rows (concurrent approve/reject already resolved it) → 422, no notification', async () => {
+      // requirePending() читает PENDING до транзакции, но между чтением и
+      // update другой запрос успевает резолвить заявку первым — updateMany
+      // с where.status=PENDING внутри tx матчит 0 строк.
+      prisma.agentApplication.findUnique.mockResolvedValue({
+        ...ROW_PENDING_FULL,
+      });
+      prisma.role.findUnique.mockResolvedValue({ id: ROLE_AGENT_ID });
+      prisma.agentApplication.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.approve(MODERATOR_ID, ROW_PENDING_FULL.id),
+      ).rejects.toMatchObject({
+        response: { code: 'INVALID_STATUS_TRANSITION' },
+      });
+      expect(prisma.agentApplication.findUniqueOrThrow).not.toHaveBeenCalled();
+      expect(prisma.userRole.upsert).not.toHaveBeenCalled();
+      expect(prisma.auditLog.create).not.toHaveBeenCalled();
+      expect(notifications.queueAgentApplicationResolved).not.toHaveBeenCalled();
+    });
   });
 
   describe('reject', () => {
@@ -282,7 +312,8 @@ describe('AgentApplicationsService', () => {
       prisma.agentApplication.findUnique.mockResolvedValue({
         ...ROW_PENDING_FULL,
       });
-      prisma.agentApplication.update.mockResolvedValue({
+      prisma.agentApplication.updateMany.mockResolvedValue({ count: 1 });
+      prisma.agentApplication.findUniqueOrThrow.mockResolvedValue({
         ...ROW_PENDING_WITH_USER,
         status: AgentApplicationStatus.REJECTED,
         rejectReason: 'нет данных',
@@ -312,7 +343,8 @@ describe('AgentApplicationsService', () => {
       prisma.agentApplication.findUnique.mockResolvedValue({
         ...ROW_PENDING_FULL,
       });
-      prisma.agentApplication.update.mockResolvedValue({
+      prisma.agentApplication.updateMany.mockResolvedValue({ count: 1 });
+      prisma.agentApplication.findUniqueOrThrow.mockResolvedValue({
         ...ROW_PENDING_WITH_USER,
         status: AgentApplicationStatus.REJECTED,
         rejectReason: null,
@@ -324,8 +356,9 @@ describe('AgentApplicationsService', () => {
       });
 
       expect(res.reject_reason).toBeNull();
-      expect(prisma.agentApplication.update).toHaveBeenCalledWith(
+      expect(prisma.agentApplication.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
+          where: { id: ROW_PENDING_FULL.id, status: AgentApplicationStatus.PENDING },
           data: expect.objectContaining({ rejectReason: null }),
         }),
       );
@@ -364,6 +397,21 @@ describe('AgentApplicationsService', () => {
       ).rejects.toMatchObject({
         response: { code: 'INVALID_STATUS_TRANSITION' },
       });
+    });
+
+    it('TOCTOU race: updateMany matches 0 rows (concurrent approve/reject already resolved it) → 422, no notification', async () => {
+      prisma.agentApplication.findUnique.mockResolvedValue({
+        ...ROW_PENDING_FULL,
+      });
+      prisma.agentApplication.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.reject(MODERATOR_ID, ROW_PENDING_FULL.id, { reason: 'x' }),
+      ).rejects.toMatchObject({
+        response: { code: 'INVALID_STATUS_TRANSITION' },
+      });
+      expect(prisma.agentApplication.findUniqueOrThrow).not.toHaveBeenCalled();
+      expect(notifications.queueAgentApplicationResolved).not.toHaveBeenCalled();
     });
   });
 
