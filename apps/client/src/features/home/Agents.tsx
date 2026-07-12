@@ -1,19 +1,23 @@
 /**
- * Agents — блок агентов и агентств Avino Pro.
- * Данные из getAgents(); карточки с инициалом-аватаром, именем, агентством
- * и счётчиком объявлений. Server component (статичные данные).
+ * Agents — блок агентов и агентств на главной.
+ * Данные приходят пропсами из page.tsx (SSR getAgents(), реальный API §21).
+ * Карточка — ссылка на /agents/:id; аватар: avatarUrl → фото, иначе инициал-
+ * плейсхолдер (как в ProfileMenu). Пустой список → блок не рендерится.
  */
 import { useTranslations } from 'next-intl';
-import { BadgeCheck } from 'lucide-react';
+import { User } from 'lucide-react';
+import { Link } from '@/i18n/navigation';
 import { SectionTitle } from '@/components/ui/section-title';
-import { getAgents } from '@/lib/mock';
+import type { Agent } from '@/lib/api/agents';
 
-/** Первая буква имени для аватара-плейсхолдера. */
-const initial = (name: string) => name.trim().charAt(0).toUpperCase();
+/** Первая буква имени для аватара-плейсхолдера (нет имени → null). */
+const initial = (name: string | null) =>
+  name && name.trim() ? name.trim().charAt(0).toUpperCase() : null;
 
-export function Agents() {
+export function Agents({ agents }: { agents: Agent[] }) {
   const t = useTranslations('home');
-  const agents = getAgents();
+
+  if (agents.length === 0) return null;
 
   return (
     <section className="mx-auto max-w-[1280px] px-4 pt-14 sm:px-6">
@@ -23,29 +27,34 @@ export function Agents() {
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {agents.map((a) => (
-          <div
+          <Link
             key={a.id}
+            href={`/agents/${a.id}`}
             className="flex items-center gap-3.5 rounded-card border border-border/60 bg-surface p-4 shadow-card transition-shadow duration-200 hover:shadow-card-hover"
           >
-            {/* Аватар-инициал */}
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-mint text-lg font-extrabold text-teal-deep">
-              {initial(a.name)}
+            {/* Аватар: фото, инициал или иконка-плейсхолдер */}
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-mint text-lg font-extrabold text-teal-deep">
+              {a.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={a.avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : initial(a.name) ? (
+                initial(a.name)
+              ) : (
+                <User size={20} strokeWidth={1.9} />
+              )}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="truncate font-bold text-ink">{a.name}</span>
-                {a.pro && (
-                  <BadgeCheck size={16} className="shrink-0 text-teal" aria-label="Avino Pro" />
-                )}
-              </div>
-              <div className="mt-0.5 truncate text-[13.5px] text-muted-foreground">
-                {a.agency}
-              </div>
+              <div className="truncate font-bold text-ink">{a.name}</div>
+              {a.agencyName && (
+                <div className="mt-0.5 truncate text-[13.5px] text-muted-foreground">
+                  {a.agencyName}
+                </div>
+              )}
               <div className="mt-1.5 text-[13px] font-semibold text-teal">
-                {t('agents.listingsCount', { count: a.listingsCount })}
+                {t('agents.listingsCount', { count: a.activeListingsCount })}
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </section>

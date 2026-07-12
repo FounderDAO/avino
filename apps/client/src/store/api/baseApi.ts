@@ -24,6 +24,7 @@ export const baseApi = createApi({
     'TourRequest',
     'TourTakenSlots',
     'User',
+    'AgentApplication',
   ],
   endpoints: () => ({}),
 });

@@ -21,6 +21,7 @@ import {
   MessageCircle,
   Sparkles,
   TrendingDown,
+  UserCheck,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,7 @@ const TYPE_ICON: Record<NotificationType, LucideIcon> = {
   PROMOTION_ACTIVATED: Sparkles,
   PROMOTION_EXPIRED: Sparkles,
   TOUR_REQUEST_STATUS_CHANGED: CalendarCheck,
+  AGENT_APPLICATION_RESOLVED: UserCheck,
 };
 
 function iconFor(type: NotificationType): LucideIcon {

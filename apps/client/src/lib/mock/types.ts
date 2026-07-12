@@ -88,6 +88,8 @@ export interface ListingAgent {
   agency: string;
   /** Телефон для связи (опционально, для detail). */
   phone?: string;
+  /** Тип контакта (TASK-210/ADR-0069); у краткой карточки — 'owner' по умолчанию. */
+  kind: 'owner' | 'agent' | 'agency';
 }
 
 /** Окно для экскурсии (время начала и конца). */
@@ -219,16 +221,6 @@ export interface District {
   regionId?: string;
 }
 
-/** Карточка агента/агентства (для блока «Агенты»). */
-export interface Agent {
-  id: string;
-  name: string;
-  pro: boolean;
-  agency: string;
-  /** Кол-во активных объявлений. */
-  listingsCount: number;
-}
-
 /** Фильтр выдачи поиска. */
 export interface ListingFilter {
   tx?: TransactionType;
@@ -239,6 +231,8 @@ export interface ListingFilter {
   districtId?: string;
   /** UUID региона для фильтрации (`?region_id=`, GET /search). */
   regionId?: string;
+  /** UUID агента (users.id) — только его объявления (`?agent_id=`, страница /agents/:id, API.md §21). */
+  agentId?: string;
   /** Точное число комнат (4 = «4+»). */
   rooms?: number;
   /** Диапазон цены (в единицах валюты объявления; грубый фильтр для моков). */

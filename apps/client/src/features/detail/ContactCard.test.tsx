@@ -100,7 +100,11 @@ vi.mock('./TourRequestModal', () => ({
 
 import { ContactCard } from './ContactCard';
 
-function makeListing(phone?: string, ownerId?: string): Listing {
+function makeListing(
+  phone?: string,
+  ownerId?: string,
+  kind: 'owner' | 'agent' | 'agency' = 'owner',
+): Listing {
   return {
     id: 'lst-1',
     tx: 'SALE',
@@ -114,7 +118,7 @@ function makeListing(phone?: string, ownerId?: string): Listing {
     district: '',
     photos: [],
     ownerId,
-    agent: { name: 'Тимур Сафаров', pro: false, agency: '', phone },
+    agent: { name: 'Тимур Сафаров', pro: false, agency: '', phone, kind },
   } as unknown as Listing;
 }
 
@@ -210,6 +214,22 @@ describe('ContactCard', () => {
     render(<ContactCard listing={makeListing('+998 90 123-45-67', 'u-owner')} />);
     expect(screen.queryByText('Это ваше объявление')).not.toBeInTheDocument();
     expect(screen.getByText('Показать телефон')).toBeInTheDocument();
+  });
+
+  it('не показывает бейдж «Риелтор»/«Агентство», если kind === owner', () => {
+    render(<ContactCard listing={makeListing('+998 90 123-45-67', undefined, 'owner')} />);
+    expect(screen.queryByText('Риелтор')).not.toBeInTheDocument();
+    expect(screen.queryByText('Агентство')).not.toBeInTheDocument();
+  });
+
+  it('показывает бейдж «Риелтор», если kind === agent', () => {
+    render(<ContactCard listing={makeListing('+998 90 123-45-67', undefined, 'agent')} />);
+    expect(screen.getByText('Риелтор')).toBeInTheDocument();
+  });
+
+  it('показывает бейдж «Агентство», если kind === agency', () => {
+    render(<ContactCard listing={makeListing('+998 90 123-45-67', undefined, 'agency')} />);
+    expect(screen.getByText('Агентство')).toBeInTheDocument();
   });
 
   it('клик по раскрытой tel:-ссылке засчитывает звонок', async () => {

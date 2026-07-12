@@ -19,7 +19,7 @@ import { clearCredentials, setCredentials, setUser } from '../slices/authSlice';
 // ─── Общие типы ───────────────────────────────────────────────────────────
 
 export type OtpChannel = 'SMS' | 'EMAIL';
-export type UserRole = 'USER' | 'AGENT' | 'MODERATOR' | 'ADMIN';
+export type UserRole = 'USER' | 'AGENT' | 'AGENCY' | 'MODERATOR' | 'ADMIN';
 export type UserStatus = 'ACTIVE' | 'BLOCKED' | 'DELETED';
 export type Language = 'UZ' | 'RU' | 'EN';
 

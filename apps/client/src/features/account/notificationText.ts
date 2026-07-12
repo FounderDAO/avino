@@ -22,12 +22,15 @@ type Translate = (key: string, params?: Record<string, string | number>) => stri
 export interface NotificationContent {
   title: string;
   body: string;
+  /** Относительный путь для перехода по клику (не все типы его имеют). */
+  href?: string;
 }
 
 /** Корневой префикс ключей i18n (внутри неймспейса `account`). */
 const K = 'notifications.types';
 const MOD = `${K}.LISTING_MODERATION_STATUS_CHANGED`;
 const TOUR = `${K}.TOUR_REQUEST_STATUS_CHANGED`;
+const AGENT = 'notifications.agentApplication';
 
 /** Безопасно достаёт непустую строку из `data_json` (иначе undefined). */
 function str(value: unknown): string | undefined {
@@ -64,6 +67,24 @@ function tourStatusBody(
     return t(`${TOUR}.body_${status}`);
   }
   return t(`${TOUR}.body`);
+}
+
+/** Тело уведомления о решении по заявке агента — по `status` из data_json. */
+function agentApplicationBody(
+  data: Record<string, unknown>,
+  t: Translate,
+): string {
+  const status = str(data.status);
+  if (status === 'APPROVED') {
+    return t(`${AGENT}.body_APPROVED`);
+  }
+  if (status === 'REJECTED') {
+    const reason = str(data.reject_reason);
+    return reason
+      ? t(`${AGENT}.body_REJECTED_reason`, { reason })
+      : t(`${AGENT}.body_REJECTED`);
+  }
+  return t(`${AGENT}.body`);
 }
 
 /**
@@ -107,6 +128,12 @@ export function notificationContent(
       return {
         title: t(`${TOUR}.title`),
         body: tourStatusBody(d, t),
+      };
+    case 'AGENT_APPLICATION_RESOLVED':
+      return {
+        title: t(`${AGENT}.title`),
+        body: agentApplicationBody(d, t),
+        href: '/become-agent',
       };
     case 'NEW_LEAD':
       return {

@@ -151,8 +151,8 @@
     },
     "agents": {
       "title": "Agents and agencies",
-      "subtitle": "Verified Avino Pro professionals",
-      "listingsCount": "{count} listings"
+      "subtitle": "Verified real estate agents and agencies",
+      "listingsCount": "{count, plural, one {# listing} other {# listings}}"
     },
     "cta": {
       "title": "Selling or renting out a property?",
@@ -380,6 +380,10 @@
       "chatError": "Could not start the conversation",
       "proBadge": "Avino Pro",
       "owner": "Owner",
+      "badge": {
+        "agent": "Realtor",
+        "agency": "Agency"
+      },
       "showPhone": "Show phone",
       "message": "Send message",
       "share": "Share",
@@ -399,6 +403,16 @@
       "viewsAria": "Views: {count}",
       "likesAria": "Favorited: {count}"
     }
+  },
+  "agentProfile": {
+    "meta": {
+      "title": "{name} — Avino agent",
+      "notFoundTitle": "Agent not found — Avino"
+    },
+    "privateAgent": "Private agent",
+    "listingsCount": "{count, plural, one {# listing} other {# listings}}",
+    "about": "About",
+    "empty": "This agent has no active listings yet"
   },
   "tourRequest": {
     "title": "Request a tour",
@@ -659,6 +673,14 @@
       "profileIncomplete": "Fill in your first name, last name and phone in your profile to post a listing.",
       "activeListingLimit": "You've reached your active listings limit. Unpublish one of your current listings to post a new one."
     },
+    "limitModal": {
+      "title": "Listing limit reached",
+      "body": "Individuals can post up to {limit} active listings. Register as an agent — post without limits, your listings get a realtor badge, and your profile is added to the Avino agents directory.",
+      "bodyNoLimit": "You've reached your active listings limit. Register as an agent — post without limits, your listings get a realtor badge, and your profile is added to the Avino agents directory.",
+      "becomeAgent": "Become an agent",
+      "dismiss": "Got it",
+      "close": "Close"
+    },
     "auth": {
       "title": "Sign in to post a listing",
       "text": "Posting a listing is available to signed-in users only. Sign in or create an account — it takes less than a minute.",
@@ -684,6 +706,57 @@
       "mediaFailures": "Failed to upload {count, plural, one {# photo} other {# photos}}. The listing was created — you can add photos later in your account.",
       "myListings": "My listings",
       "home": "Back to home"
+    }
+  },
+  "becomeAgent": {
+    "meta": {
+      "title": "Become an agent — Avino",
+      "description": "Apply to become an Avino agent: post listings without limits, get a realtor badge, and a profile in the agents directory."
+    },
+    "title": "Become an Avino agent",
+    "intro": "Agents and agencies post listings without limits, their listings get a realtor badge, and their profile appears in the Avino agents directory.",
+    "auth": {
+      "title": "Sign in to apply",
+      "text": "Applying to become an agent is available to signed-in users only. Sign in or create an account — it takes less than a minute.",
+      "context": "Sign in to apply to become an agent",
+      "login": "Sign in",
+      "home": "Go home"
+    },
+    "alreadyAgent": {
+      "title": "You're already an Avino agent",
+      "text": "You can post listings without limits — they'll get a realtor badge. Your profile is available in the agents directory.",
+      "createListing": "Post a listing",
+      "myProfile": "My agent profile"
+    },
+    "loading": "Loading application status…",
+    "pending": {
+      "title": "Application under review",
+      "text": "Application submitted on {date}. A moderator usually reviews it within a few hours — we'll notify you of the decision."
+    },
+    "rejected": {
+      "title": "Application rejected",
+      "reasonLabel": "Rejection reason",
+      "text": "You can update your application and submit it again."
+    },
+    "form": {
+      "agencyName": {
+        "label": "Agency",
+        "placeholder": "E.g. Ideal Estate",
+        "hint": "Optional — leave blank if you work as an independent agent"
+      },
+      "about": {
+        "label": "About you",
+        "placeholder": "Tell us about your experience in real estate"
+      },
+      "submit": "Submit application",
+      "submitting": "Submitting…",
+      "resubmit": "Resubmit application"
+    },
+    "errors": {
+      "alreadyAgent": "You already have the agent role.",
+      "pending": "You already have an application under review.",
+      "aboutRequired": "Tell us about yourself — this field is required.",
+      "generic": "Failed to submit the application. Please try again."
     }
   },
   "help": {
@@ -935,6 +1008,13 @@
           "body_CANCELLED": "The tour request has been cancelled.",
           "body": "Your tour request status has been updated."
         }
+      },
+      "agentApplication": {
+        "title": "Agent application status changed",
+        "body_APPROVED": "Your agent application was approved — list properties without limits.",
+        "body_REJECTED": "Your agent application was rejected.",
+        "body_REJECTED_reason": "Your agent application was rejected. Reason: {reason}",
+        "body": "Your agent application status was updated."
       }
     },
     "profile": {

@@ -12,6 +12,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter, Link } from '@/i18n/navigation';
 import { CalendarDays, MessageSquare, Phone, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { LoginModal } from '@/components/layout/LoginModal';
 import { TourRequestModal } from './TourRequestModal';
 import { ShareModal } from './ShareButton';
@@ -139,7 +140,15 @@ export function ContactCard({ listing, className }: ContactCardProps) {
           {agent.name.trim()[0]?.toUpperCase() ?? '·'}
         </div>
         <div className="min-w-0">
-          <div className="truncate text-base font-bold">{agent.name}</div>
+          <div className="flex items-center gap-2">
+            <div className="truncate text-base font-bold">{agent.name}</div>
+            {agent.kind === 'agent' && (
+              <Badge variant="neutral">{t('contact.badge.agent')}</Badge>
+            )}
+            {agent.kind === 'agency' && (
+              <Badge variant="neutral">{t('contact.badge.agency')}</Badge>
+            )}
+          </div>
           <div className="mt-0.5">
             {agent.pro ? (
               <span className="inline-block rounded-badge bg-mint px-2.5 py-1 text-[11.5px] font-extrabold text-teal-deep">

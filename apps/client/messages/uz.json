@@ -151,8 +151,8 @@
     },
     "agents": {
       "title": "Agentlar va agentliklar",
-      "subtitle": "Ishonchli Avino Pro mutaxassislari",
-      "listingsCount": "{count} ta e’lon"
+      "subtitle": "Tasdiqlangan rieltorlar va ko'chmas mulk agentliklari",
+      "listingsCount": "{count, plural, other {# ta e'lon}}"
     },
     "cta": {
       "title": "Uy-joy sotyapsizmi yoki ijaraga beryapsizmi?",
@@ -380,6 +380,10 @@
       "chatError": "Suhbatni boshlab bo'lmadi",
       "proBadge": "Avino Pro",
       "owner": "Mulk egasi",
+      "badge": {
+        "agent": "Rieltor",
+        "agency": "Agentlik"
+      },
       "showPhone": "Telefonni ko'rsatish",
       "message": "Yozish",
       "share": "Ulashish",
@@ -399,6 +403,16 @@
       "viewsAria": "Ko'rishlar soni: {count}",
       "likesAria": "Sevimlilarga qo'shilgan: {count}"
     }
+  },
+  "agentProfile": {
+    "meta": {
+      "title": "{name} — Avino agenti",
+      "notFoundTitle": "Agent topilmadi — Avino"
+    },
+    "privateAgent": "Xususiy makler",
+    "listingsCount": "{count, plural, other {# ta e'lon}}",
+    "about": "O'zi haqida",
+    "empty": "Bu agentda hozircha faol e'lonlar yo'q"
   },
   "tourRequest": {
     "title": "Tur uchun ariza",
@@ -659,6 +673,14 @@
       "profileIncomplete": "E'lon joylash uchun profilda ism, familiya va telefonni to'ldiring.",
       "activeListingLimit": "Faol e'lonlar limitiga yetdingiz. Yangi e'lon joylash uchun mavjudlardan birini e'londan olib tashlang."
     },
+    "limitModal": {
+      "title": "Faol e'lonlar limitiga yetdingiz",
+      "body": "Jismoniy shaxslar {limit} tagacha faol e'lon joylashi mumkin. Agent sifatida ro'yxatdan o'ting — cheklovsiz e'lon joylang, e'lonlaringizga rieltor belgisi qo'yiladi, profilingiz Avino agentlari ro'yxatiga tushadi.",
+      "bodyNoLimit": "Siz faol e'lonlar limitiga yetdingiz. Agent sifatida ro'yxatdan o'ting — cheklovsiz e'lon joylang, e'lonlaringizga rieltor belgisi qo'yiladi, profilingiz Avino agentlari ro'yxatiga tushadi.",
+      "becomeAgent": "Agent bo'lish",
+      "dismiss": "Tushunarli",
+      "close": "Yopish"
+    },
     "auth": {
       "title": "E'lon joylash uchun tizimga kiring",
       "text": "E'lon joylash faqat ro'yxatdan o'tgan foydalanuvchilar uchun mavjud. Tizimga kiring yoki ro'yxatdan o'ting — bu bir daqiqadan kam vaqt oladi.",
@@ -684,6 +706,57 @@
       "mediaFailures": "{count} ta fotoni yuklab bo'lmadi. E'lon yaratildi — fotolarni keyinroq shaxsiy kabinetda qo'shishingiz mumkin.",
       "myListings": "Mening e'lonlarim",
       "home": "Bosh sahifaga"
+    }
+  },
+  "becomeAgent": {
+    "meta": {
+      "title": "Agent bo'lish — Avino",
+      "description": "Avino agenti bo'lish uchun ariza bering: e'lonlarni cheklovsiz joylang, «rieltor» belgisini oling va agentlar katalogida profilga ega bo'ling."
+    },
+    "title": "Avino agenti bo'lish",
+    "intro": "Agentlar va agentliklar e'lonlarni cheklovsiz joylaydi, ularning e'lonlariga «rieltor» belgisi qo'yiladi, profili esa Avino agentlari katalogida paydo bo'ladi.",
+    "auth": {
+      "title": "Ariza berish uchun tizimga kiring",
+      "text": "«Agent bo'lish» arizasini faqat ro'yxatdan o'tgan foydalanuvchilar bera oladi. Tizimga kiring yoki ro'yxatdan o'ting — bu bir daqiqadan kam vaqt oladi.",
+      "context": "Ariza berish uchun tizimga kiring",
+      "login": "Kirish",
+      "home": "Bosh sahifa"
+    },
+    "alreadyAgent": {
+      "title": "Siz allaqachon Avino agentisiz",
+      "text": "Siz e'lonlarni cheklovsiz joylashingiz mumkin — ularga «rieltor» belgisi qo'yiladi. Profilingiz agentlar katalogida mavjud.",
+      "createListing": "E'lon joylash",
+      "myProfile": "Mening agent profilim"
+    },
+    "loading": "Ariza holati yuklanmoqda…",
+    "pending": {
+      "title": "Ariza ko'rib chiqilmoqda",
+      "text": "Ariza {date} sanasida yuborilgan. Moderator uni odatda bir necha soat ichida ko'rib chiqadi — qaror haqida sizga xabar yuboramiz."
+    },
+    "rejected": {
+      "title": "Ariza rad etildi",
+      "reasonLabel": "Rad etish sababi",
+      "text": "Anketani to'g'irlab, arizani qayta berishingiz mumkin."
+    },
+    "form": {
+      "agencyName": {
+        "label": "Agentlik",
+        "placeholder": "Masalan, Ideal Estate",
+        "hint": "Ixtiyoriy — agar mustaqil rieltor sifatida ishlasangiz, bo'sh qoldiring"
+      },
+      "about": {
+        "label": "O'zingiz haqingizda",
+        "placeholder": "Ko'chmas mulk bozoridagi tajribangiz haqida yozing"
+      },
+      "submit": "Ariza berish",
+      "submitting": "Yuborilmoqda…",
+      "resubmit": "Arizani qayta berish"
+    },
+    "errors": {
+      "alreadyAgent": "Sizda allaqachon agent roli bor.",
+      "pending": "Sizda ko'rib chiqilayotgan ariza allaqachon bor.",
+      "aboutRequired": "O'zingiz haqingizda yozing — bu maydon majburiy.",
+      "generic": "Arizani yuborib bo'lmadi. Qaytadan urinib ko'ring."
     }
   },
   "help": {
@@ -935,6 +1008,13 @@
           "body_CANCELLED": "Ko'rikka so'rov bekor qilindi.",
           "body": "Ko'rikka so'rovingiz holati yangilandi."
         }
+      },
+      "agentApplication": {
+        "title": "Agent arizasi holati o'zgardi",
+        "body_APPROVED": "Agent arizangiz tasdiqlandi — cheklovsiz e'lon joylashtiring.",
+        "body_REJECTED": "Agent arizangiz rad etildi.",
+        "body_REJECTED_reason": "Agent arizangiz rad etildi. Sababi: {reason}",
+        "body": "Agent arizangiz holati yangilandi."
       }
     },
     "profile": {

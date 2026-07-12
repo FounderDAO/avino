@@ -16,7 +16,8 @@ export type NotificationType =
   | 'NEW_LEAD'
   | 'PROMOTION_ACTIVATED'
   | 'PROMOTION_EXPIRED'
-  | 'TOUR_REQUEST_STATUS_CHANGED';
+  | 'TOUR_REQUEST_STATUS_CHANGED'
+  | 'AGENT_APPLICATION_RESOLVED';
 
 /** Статус доставки уведомления. */
 export type NotificationStatus = 'PENDING' | 'SENT' | 'FAILED' | 'READ';

@@ -91,6 +91,44 @@ describe('notificationContent', () => {
     expect(body).toBe(`${P}.LISTING_MODERATION_STATUS_CHANGED.body_REJECTED`);
   });
 
+  it('заявка агента: APPROVED → ключ body_APPROVED + deep link на /become-agent', () => {
+    const { title, body, href } = notificationContent(
+      'AGENT_APPLICATION_RESOLVED',
+      { application_id: 'a1', status: 'APPROVED', reject_reason: null },
+      t,
+    );
+    expect(title).toBe('notifications.agentApplication.title');
+    expect(body).toBe('notifications.agentApplication.body_APPROVED');
+    expect(href).toBe('/become-agent');
+  });
+
+  it('заявка агента: REJECTED c причиной → ключ body_REJECTED_reason + прокинут reason', () => {
+    const { body, href } = notificationContent(
+      'AGENT_APPLICATION_RESOLVED',
+      { application_id: 'a1', status: 'REJECTED', reject_reason: 'Мало опыта' },
+      t,
+    );
+    expect(body).toBe('notifications.agentApplication.body_REJECTED_reason');
+    expect(href).toBe('/become-agent');
+    // Причина должна прокинуться в перевод как {reason}.
+    const echoed = notificationContent(
+      'AGENT_APPLICATION_RESOLVED',
+      { application_id: 'a1', status: 'REJECTED', reject_reason: 'Мало опыта' },
+      (k, params) =>
+        params?.reason != null ? `reason:${String(params.reason)}` : k,
+    );
+    expect(echoed.body).toBe('reason:Мало опыта');
+  });
+
+  it('заявка агента: REJECTED без причины → ключ без reason', () => {
+    const { body } = notificationContent(
+      'AGENT_APPLICATION_RESOLVED',
+      { application_id: 'a1', status: 'REJECTED', reject_reason: null },
+      t,
+    );
+    expect(body).toBe('notifications.agentApplication.body_REJECTED');
+  });
+
   it('неизвестный тип → generic-фолбэк, но не пусто', () => {
     const { title, body } = notificationContent(
       'SOMETHING_NEW' as never,
