@@ -58,6 +58,13 @@ export interface TourStatusChangedNotificationData {
   status: string;
 }
 
+/** Данные уведомления о решении по заявке «Стать агентом» (ADR-0140). */
+export interface AgentApplicationResolvedNotificationData {
+  applicationId: string;
+  status: 'APPROVED' | 'REJECTED';
+  rejectReason: string | null;
+}
+
 /** Поля выборки уведомления под {@link NotificationResponse}. */
 const SELECT = {
   id: true,
@@ -259,6 +266,30 @@ export class NotificationsService {
           tour_request_id: data.tourRequestId,
           listing_id: data.listingId,
           status: data.status,
+        },
+      },
+    });
+  }
+
+  /**
+   * Уведомить заявителя о решении по заявке «Стать агентом» (ADR-0140).
+   * Канал IN_APP. Принимает `tx`, чтобы коммититься в одной транзакции со
+   * сменой статуса заявки.
+   */
+  async queueAgentApplicationResolved(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    data: AgentApplicationResolvedNotificationData,
+  ): Promise<void> {
+    await tx.notification.create({
+      data: {
+        userId,
+        type: NotificationType.AGENT_APPLICATION_RESOLVED,
+        channel: NotificationChannel.IN_APP,
+        dataJson: {
+          application_id: data.applicationId,
+          status: data.status,
+          reject_reason: data.rejectReason,
         },
       },
     });
