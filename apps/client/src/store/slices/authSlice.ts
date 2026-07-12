@@ -53,19 +53,26 @@ export interface AuthState {
   status: AuthStatus;
 }
 
-const hydratedAccess = readStored(ACCESS_TOKEN_KEY);
-const hydratedRefresh = readStored(REFRESH_TOKEN_KEY);
-
-const initialState: AuthState = {
-  accessToken: hydratedAccess,
-  refreshToken: hydratedRefresh,
-  user: null,
-  status: hydratedRefresh ? 'authenticated' : 'idle',
-};
+/**
+ * Ленивый initialState: localStorage читается при СОЗДАНИИ store, а не при
+ * загрузке модуля. Смена локали ремонтирует [locale]/layout → StoreProvider
+ * создаёт новый store; module-scope снапшот терял бы логин, полученный после
+ * загрузки страницы (модалка входа возвращалась бы уже залогиненному).
+ */
+function buildInitialState(): AuthState {
+  const hydratedAccess = readStored(ACCESS_TOKEN_KEY);
+  const hydratedRefresh = readStored(REFRESH_TOKEN_KEY);
+  return {
+    accessToken: hydratedAccess,
+    refreshToken: hydratedRefresh,
+    user: null,
+    status: hydratedRefresh ? 'authenticated' : 'idle',
+  };
+}
 
 const authSlice = createSlice({
   name: 'auth',
-  initialState,
+  initialState: buildInitialState,
   reducers: {
     /**
      * Полная/частичная установка кредов. Используется и verifyOtp

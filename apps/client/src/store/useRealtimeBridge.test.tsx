@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { makeStore } from './store';
@@ -17,6 +17,12 @@ function wrapper(store: ReturnType<typeof makeStore>) {
 }
 
 describe('useRealtimeBridge', () => {
+  beforeEach(() => {
+    // setCredentials пишет токены в localStorage, а authSlice гидрируется из
+    // него при создании store — чистим, чтобы тесты не влияли друг на друга.
+    window.localStorage.clear();
+  });
+
   it('подключается при наличии токена', () => {
     const store = makeStore();
     store.dispatch(setCredentials({ access_token: 'tok', refresh_token: 'r' }));
