@@ -7,6 +7,11 @@ describe('invalidationTagsFor', () => {
       { type: 'Chat', id: 't1' },
     ]);
   });
+  it('thread без id → фолбэк на список диалогов', () => {
+    expect(invalidationTagsFor({ type: 'thread' })).toEqual([
+      { type: 'Chat', id: 'LIST' },
+    ]);
+  });
   it('thread_list → список диалогов', () => {
     expect(invalidationTagsFor({ type: 'thread_list' })).toEqual([
       { type: 'Chat', id: 'LIST' },
