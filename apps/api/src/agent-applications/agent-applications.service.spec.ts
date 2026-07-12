@@ -1,4 +1,4 @@
-import { AgentApplicationStatus } from '@prisma/client';
+import { AgentApplicationStatus, Prisma } from '@prisma/client';
 import { AgentApplicationsService } from './agent-applications.service';
 
 const USER_ID = 'user-1';
@@ -83,6 +83,44 @@ describe('AgentApplicationsService', () => {
         response: { code: 'AGENT_APPLICATION_PENDING' },
       });
       expect(prisma.agentApplication.create).not.toHaveBeenCalled();
+    });
+
+    it('409 AGENT_APPLICATION_PENDING when create() races into a P2002 unique violation', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      prisma.agentApplication.findFirst.mockResolvedValue(null);
+      prisma.agentApplication.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '0',
+        }),
+      );
+
+      await expect(service.create(USER_ID, { about: 'x' })).rejects.toMatchObject({
+        response: { code: 'AGENT_APPLICATION_PENDING' },
+      });
+    });
+
+    it('rethrows a non-P2002 error from create() as-is', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      prisma.agentApplication.findFirst.mockResolvedValue(null);
+      const err = new Error('boom');
+      prisma.agentApplication.create.mockRejectedValue(err);
+
+      await expect(service.create(USER_ID, { about: 'x' })).rejects.toBe(err);
+    });
+
+    it('trims about, and blank agency_name becomes null', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      prisma.agentApplication.findFirst.mockResolvedValue(null);
+      prisma.agentApplication.create.mockResolvedValue(ROW_PENDING);
+
+      await service.create(USER_ID, { agency_name: '   ', about: '  x  ' });
+
+      expect(prisma.agentApplication.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ agencyName: null, about: 'x' }),
+        }),
+      );
     });
   });
 
