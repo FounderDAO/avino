@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { RealtimeModule } from '../realtime';
 import { RolesModule } from '../roles';
 import { TranslationsModule } from '../translations';
 import { UploadsModule } from '../uploads';
@@ -13,10 +14,18 @@ import { TourRequestsService } from './tour-requests.service';
  * `RolesModule` даёт Bearer-аутентификацию ({@link JwtAuthGuard}) одним импортом
  * (TASK-044). `NotificationsModule` — уведомления о смене статуса тура.
  * `TranslationsModule`/`UploadsModule` — контекст объявления в списках (spec 2026-07-04).
- * Prisma — глобальный модуль.
+ * `RealtimeModule` — {@link RealtimeEmitter} для WebSocket-пуша сторонам тура при
+ * создании/смене статуса заявки. Prisma — глобальный модуль.
  */
 @Module({
-  imports: [RolesModule, PrismaModule, NotificationsModule, TranslationsModule, UploadsModule],
+  imports: [
+    RolesModule,
+    PrismaModule,
+    NotificationsModule,
+    TranslationsModule,
+    UploadsModule,
+    RealtimeModule,
+  ],
   controllers: [TourRequestsController],
   providers: [TourRequestsService],
 })
