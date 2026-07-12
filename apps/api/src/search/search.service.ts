@@ -1225,6 +1225,9 @@ export class SearchService {
       conds.push(
         Prisma.sql`district_id IN (SELECT id FROM districts WHERE region_id = ${query.region_id}::uuid)`,
       );
+    // Страница агента (ADR-0140): только объявления этого владельца.
+    if (query.agent_id !== undefined)
+      conds.push(Prisma.sql`owner_id = ${query.agent_id}::uuid`);
 
     // Ценовой диапазон + валюта. Цену пользователь видит КОНВЕРТИРОВАННОЙ в
     // выбранную валюту (usePriceFormatter «≈ $X»), поэтому и фильтр обязан

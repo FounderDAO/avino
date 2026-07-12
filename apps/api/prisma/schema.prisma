@@ -206,6 +206,7 @@ enum NotificationType {
   PROMOTION_EXPIRED
   TOUR_REQUEST_STATUS_CHANGED
   ADMIN_BROADCAST
+  AGENT_APPLICATION_RESOLVED
 }
 
 /// Канал доставки уведомления (DB_SCHEMA.md §3/§11). В MVP надёжно доставляются
@@ -300,6 +301,9 @@ model User {
   broadcastsReceived   Broadcast[]          @relation("BroadcastTargetUser")
   // Согласия с юр-документами (Правила+Политика); append-only аудит-след (design 2026-06-29).
   legalConsents        LegalConsent[]
+  // Заявки «Стать агентом» (ADR-0140): поданные и рассмотренные как модератор.
+  agentApplications          AgentApplication[] @relation("AgentApplicant")
+  agentApplicationsModerated AgentApplication[] @relation("AgentApplicationModerator")
 
   @@map("users")
 }
@@ -360,6 +364,36 @@ model UserRole {
   @@index([userId])
   @@index([roleId])
   @@map("user_roles")
+}
+
+/// Статус заявки «Стать агентом» (ADR-0140).
+enum AgentApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// agent_applications — заявки «Стать агентом» (ADR-0140). Одна PENDING-заявка
+// на пользователя — partial unique index в SQL-миграции (Prisma не выражает).
+// agency_name NULL = частный маклер. После REJECTED допустима новая заявка
+// (новая строка — история сохраняется).
+model AgentApplication {
+  id           String                 @id @default(uuid()) @db.Uuid
+  userId       String                 @map("user_id") @db.Uuid
+  agencyName   String?                @map("agency_name") @db.VarChar(255)
+  about        String
+  status       AgentApplicationStatus @default(PENDING)
+  rejectReason String?                @map("reject_reason")
+  moderatorId  String?                @map("moderator_id") @db.Uuid
+  createdAt    DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  resolvedAt   DateTime?              @map("resolved_at") @db.Timestamptz(6)
+
+  user      User  @relation("AgentApplicant", fields: [userId], references: [id], onDelete: Cascade)
+  moderator User? @relation("AgentApplicationModerator", fields: [moderatorId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("agent_applications")
 }
 
 // otp_codes — одноразовые коды для OTP-логина (DB_SCHEMA.md §4, ADR-0010).

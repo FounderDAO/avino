@@ -147,6 +147,15 @@ export class SearchListingsQueryDto {
   @IsUUID()
   district_id?: string;
 
+  /**
+   * Только объявления этого владельца-агента (страница агента, ADR-0140).
+   * Значение — users.id; применяется к owner_id без проверки роли: owner_id
+   * и так публичен в detail-ответе, скрывать нечего.
+   */
+  @IsOptional()
+  @IsUUID()
+  agent_id?: string;
+
   // ── Forward-compatible поля (API.md §9, TASK-081/082) ──────────────────────
   // Клиент уже шлёт эти параметры; пока валидируется только форма, фильтрация/
   // сортировка по ним НЕ применяется (см. SearchService.buildWhereSql). При

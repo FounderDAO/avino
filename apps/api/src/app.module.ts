@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AdminModule } from './admin';
+import { AgentApplicationsModule } from './agent-applications';
+import { AgentsModule } from './agents';
 import { BroadcastsModule } from './broadcasts';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -74,6 +76,8 @@ import { UsersModule } from './users/users.module';
     UploadsModule,
     MediaCleanupModule,
     TourRequestsModule,
+    AgentApplicationsModule,
+    AgentsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -822,6 +822,7 @@ Behavioural rules enforced by the data layer
 [x] cities
 [x] districts
 [x] features
+[x] agent_applications      ("Become an agent" request + moderation, ADR-0140, §18)
 ```
 
 ## 17. Out of scope for MVP
@@ -838,4 +839,47 @@ Behavioural rules enforced by the data layer
 - Trusted-agency auto-publish (bypassing moderation).
 - AI/LLM translation-quality storage (auto translations stay provider-based).
 - Custom drawn-polygon search geometry storage (Phase 2 if needed).
+```
+
+## 18. Agent applications schema
+
+Binding — ADR-0140 / `API.md` §21. "Become an agent" request flow: a regular
+user applies, a moderator approves/rejects; approval grants the `AGENT` role
+(no self-serve promotion). Kept as its own table (not flags on `users`) so the
+history — including rejection reasons — is preserved.
+
+```text
+agent_applications
+- id                  uuid PK
+- user_id             uuid FK -> users(id) ON DELETE CASCADE
+- agency_name         varchar(255) NULL      (NULL = independent agent, no agency)
+- about               text NOT NULL
+- status              agent_application_status NOT NULL default 'PENDING'
+- reject_reason       text NULL
+- moderator_id        uuid FK -> users(id) ON DELETE SET NULL NULL
+- created_at          timestamptz NOT NULL
+- resolved_at         timestamptz NULL
+Constraints:
+- agent_applications_user_pending_key: PARTIAL UNIQUE (user_id)
+  WHERE status = 'PENDING'   (at most one active application per user;
+  raw SQL migration, Prisma cannot express filtered unique indexes — see §14)
+Indexes:
+- (status, created_at)   (admin queue, filtered by status, newest first)
+- (user_id)              (resolve "my application")
+Rules:
+- After a REJECTED outcome a new application is allowed (new row) — history of
+  past attempts, including reject_reason, is never overwritten.
+- Approve is transactional: agent_applications.status -> APPROVED +
+  moderator_id + resolved_at, an idempotent upsert into user_roles for the
+  AGENT role (survives a role granted manually by an admin earlier), an
+  audit_logs(ROLE_CHANGE) row, and an AGENT_APPLICATION_RESOLVED notification
+  (IN_APP only) to the applicant — all in one transaction.
+- agency_name / about surface publicly through the agents catalog
+  (GET /api/v1/agents) sourced from the applicant's latest APPROVED
+  application; users granted AGENT/AGENCY directly by an admin (no approved
+  application) show agency_name/about = NULL there.
+```
+
+```text
+agent_application_status   PENDING | APPROVED | REJECTED
 ```

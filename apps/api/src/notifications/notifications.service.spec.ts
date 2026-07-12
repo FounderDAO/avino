@@ -136,6 +136,27 @@ describe('NotificationsService', () => {
     });
   });
 
+  describe('queueAgentApplicationResolved', () => {
+    it('queueAgentApplicationResolved ставит AGENT_APPLICATION_RESOLVED заявителю', async () => {
+      const tx = { notification: { create: jest.fn() } } as any;
+      await service.queueAgentApplicationResolved(tx, 'U3', {
+        applicationId: 'APP1',
+        status: 'REJECTED',
+        rejectReason: 'Недостаточно опыта',
+      });
+      expect(tx.notification.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: 'U3', type: 'AGENT_APPLICATION_RESOLVED', channel: 'IN_APP',
+          dataJson: expect.objectContaining({
+            application_id: 'APP1',
+            status: 'REJECTED',
+            reject_reason: 'Недостаточно опыта',
+          }),
+        }),
+      });
+    });
+  });
+
   describe('list', () => {
     function row(id: string, createdAt: Date) {
       return {
