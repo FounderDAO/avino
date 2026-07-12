@@ -1008,6 +1008,13 @@
           "body_CANCELLED": "Ko'rikka so'rov bekor qilindi.",
           "body": "Ko'rikka so'rovingiz holati yangilandi."
         }
+      },
+      "agentApplication": {
+        "title": "Agent arizasi holati o'zgardi",
+        "body_APPROVED": "Agent arizangiz tasdiqlandi — cheklovsiz e'lon joylashtiring.",
+        "body_REJECTED": "Agent arizangiz rad etildi.",
+        "body_REJECTED_reason": "Agent arizangiz rad etildi. Sababi: {reason}",
+        "body": "Agent arizangiz holati yangilandi."
       }
     },
     "profile": {

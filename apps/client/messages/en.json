@@ -1008,6 +1008,13 @@
           "body_CANCELLED": "The tour request has been cancelled.",
           "body": "Your tour request status has been updated."
         }
+      },
+      "agentApplication": {
+        "title": "Agent application status changed",
+        "body_APPROVED": "Your agent application was approved — list properties without limits.",
+        "body_REJECTED": "Your agent application was rejected.",
+        "body_REJECTED_reason": "Your agent application was rejected. Reason: {reason}",
+        "body": "Your agent application status was updated."
       }
     },
     "profile": {
