@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import { AgentApplicationsModule } from '../../agent-applications';
 import { AuthModule } from '../../auth/auth.module';
 import { ChatModule } from '../../chat';
 import { ComplaintsModule } from '../../complaints';
@@ -28,6 +29,7 @@ export const BEARER_SCHEME_NAME = 'bearer';
 /** Модули, контроллеры которых попадают в ПУБЛИЧНЫЙ документ (без admin/*). */
 export const PUBLIC_MODULES = [
   AuthModule,
+  AgentApplicationsModule,
   UsersModule,
   TranslationsModule,
   ListingsModule,
