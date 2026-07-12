@@ -35,6 +35,7 @@ import { UnreadIndicators } from './UnreadIndicators';
 import { CountBadge } from '@/components/ui/count-badge';
 import { useUnreadCounts } from '@/store/useUnreadCounts';
 import { useUnreadSound } from '@/lib/useUnreadSound';
+import { useRealtimeBridge } from '@/store/useRealtimeBridge';
 
 /** Ряд мобильного меню: ссылка + опциональный аддон + шеврон. */
 function MenuRow({
@@ -100,6 +101,8 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
     ready: unreadReady,
   } = useUnreadCounts({ pollingInterval: 20000 });
   useUnreadSound(unreadTotal, unreadReady);
+  // Единая точка монтирования realtime-моста (сокет→RTK invalidation, TASK-10).
+  useRealtimeBridge();
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
