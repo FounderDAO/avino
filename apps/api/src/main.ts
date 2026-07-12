@@ -11,6 +11,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { setupSwagger } from './common/openapi';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
 import { validationPipeOptions } from './common/validation/validation.options';
+import { RedisIoAdapter } from './realtime';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -66,6 +67,10 @@ async function bootstrap() {
   );
   // Swagger/OpenAPI: смонтировать после префикса/версионирования.
   setupSwagger(app);
+  // Redis-backed socket.io adapter: emit долетает до всех инстансов (spec real-time).
+  const redisIoAdapter = new RedisIoAdapter(app);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
   const port = config.get<number>('app.port') ?? 4000;
   await app.listen(port);
   // eslint-disable-next-line no-console

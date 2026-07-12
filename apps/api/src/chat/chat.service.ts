@@ -11,6 +11,7 @@ import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
 import { NotificationsService } from '../notifications';
 import { PrismaService } from '../prisma';
+import { RealtimeEmitter } from '../realtime';
 import { SearchService } from '../search';
 import { UploadsService } from '../uploads';
 import { resolveAvatarUrl } from '../users/avatar-url.util';
@@ -173,6 +174,7 @@ export class ChatService {
     private readonly search: SearchService,
     private readonly notifications: NotificationsService,
     private readonly uploads: UploadsService,
+    private readonly realtime: RealtimeEmitter,
   ) {}
 
   /**
@@ -462,6 +464,12 @@ export class ChatService {
       });
       return created;
     });
+
+    // Push получателю: новая реплика в треде, сдвиг списка диалогов и новое
+    // IN_APP-уведомление (NEW_CHAT_MESSAGE). Только после commit (spec).
+    this.realtime.emit(recipientId, { type: 'thread', id: threadId });
+    this.realtime.emit(recipientId, { type: 'thread_list' });
+    this.realtime.emit(recipientId, { type: 'notification' });
 
     return this.toMessageResponse(message);
   }
