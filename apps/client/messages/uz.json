@@ -380,6 +380,10 @@
       "chatError": "Suhbatni boshlab bo'lmadi",
       "proBadge": "Avino Pro",
       "owner": "Mulk egasi",
+      "badge": {
+        "agent": "Rieltor",
+        "agency": "Agentlik"
+      },
       "showPhone": "Telefonni ko'rsatish",
       "message": "Yozish",
       "share": "Ulashish",

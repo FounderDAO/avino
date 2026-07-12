@@ -290,8 +290,9 @@ export function mapListing(api: AnyApiListing): Listing {
         pro: detail.contact.is_pro,
         agency: '',
         phone: detail.contact.phone ?? undefined,
+        kind: detail.contact.type,
       }
-    : { name: '', pro: false, agency: '', phone: undefined };
+    : { name: '', pro: false, agency: '', phone: undefined, kind: 'owner' };
 
   return {
     id: api.id,

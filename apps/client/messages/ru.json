@@ -380,6 +380,10 @@
       "chatError": "Не удалось начать диалог",
       "proBadge": "Avino Pro",
       "owner": "Собственник",
+      "badge": {
+        "agent": "Риелтор",
+        "agency": "Агентство"
+      },
       "showPhone": "Показать телефон",
       "message": "Написать",
       "share": "Поделиться",

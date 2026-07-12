@@ -88,6 +88,8 @@ export interface ListingAgent {
   agency: string;
   /** Телефон для связи (опционально, для detail). */
   phone?: string;
+  /** Тип контакта (TASK-210/ADR-0069); у краткой карточки — 'owner' по умолчанию. */
+  kind: 'owner' | 'agent' | 'agency';
 }
 
 /** Окно для экскурсии (время начала и конца). */

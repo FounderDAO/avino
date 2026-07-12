@@ -380,6 +380,10 @@
       "chatError": "Could not start the conversation",
       "proBadge": "Avino Pro",
       "owner": "Owner",
+      "badge": {
+        "agent": "Realtor",
+        "agency": "Agency"
+      },
       "showPhone": "Show phone",
       "message": "Send message",
       "share": "Share",

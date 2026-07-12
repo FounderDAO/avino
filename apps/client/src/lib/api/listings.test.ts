@@ -92,6 +92,24 @@ describe('mapListing — district_name', () => {
   });
 });
 
+describe('mapListing — agent.kind (TASK-210/ADR-0069)', () => {
+  it('прокидывает contact.type в agent.kind для детальной карточки', () => {
+    expect(mapListing(asListing(detail)).agent.kind).toBe('agent');
+  });
+
+  it('agency: contact.type=agency → agent.kind=agency', () => {
+    const agencyDetail = {
+      ...detail,
+      contact: { ...detail.contact, type: 'agency' as const },
+    };
+    expect(mapListing(asListing(agencyDetail)).agent.kind).toBe('agency');
+  });
+
+  it('краткая карточка поиска (без contact) → agent.kind=owner по умолчанию', () => {
+    expect(mapListing(searchItem).agent.kind).toBe('owner');
+  });
+});
+
 describe('mapListing — photos (TASK-197)', () => {
   it('карточка поиска с thumbnail → одно фото', () => {
     const photos = mapListing(searchItem).photos;
