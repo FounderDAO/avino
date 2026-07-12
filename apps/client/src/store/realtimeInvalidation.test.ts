@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { invalidationTagsFor, ALL_REALTIME_TAGS } from './realtimeInvalidation';
 
 describe('invalidationTagsFor', () => {
