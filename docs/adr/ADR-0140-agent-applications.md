@@ -82,6 +82,7 @@ NEW). При попытке опубликовать объявление све
    хелпер `resolveAvatarUrl` (ADR-0134): storageKey (загружен пользователем)
    → sign-on-read; иначе внешний `avatarUrl` (Google/Apple OAuth) как есть —
    без прогона через `resolveMediaUrl`, которое сломало бы внешнюю ссылку.
+
 ## Consequences
 
 Positive:
