@@ -151,8 +151,8 @@
     },
     "agents": {
       "title": "Agents and agencies",
-      "subtitle": "Verified Avino Pro professionals",
-      "listingsCount": "{count} listings"
+      "subtitle": "Verified real estate agents and agencies",
+      "listingsCount": "{count, plural, one {# listing} other {# listings}}"
     },
     "cta": {
       "title": "Selling or renting out a property?",

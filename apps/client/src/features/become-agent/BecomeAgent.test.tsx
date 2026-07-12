@@ -133,6 +133,21 @@ describe('BecomeAgent', () => {
     expect(screen.getByText('Вы уже агент Avino')).toBeInTheDocument();
   });
 
+  it('(2c) роли не агент, но заявка APPROVED (deep-link из уведомления) → тоже карточка «Вы уже агент»', () => {
+    loginAs();
+    mockApplication = {
+      id: 'aa3',
+      status: 'APPROVED',
+      agencyName: null,
+      about: 'about text',
+      rejectReason: null,
+      createdAt: '2026-07-01T10:00:00Z',
+      resolvedAt: '2026-07-02T10:00:00Z',
+    };
+    render(<BecomeAgent />);
+    expect(screen.getByText('Вы уже агент Avino')).toBeInTheDocument();
+  });
+
   it('(3) заявка PENDING → карточка «На рассмотрении» с датой подачи', () => {
     loginAs();
     mockApplication = {

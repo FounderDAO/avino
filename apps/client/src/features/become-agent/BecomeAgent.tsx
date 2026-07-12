@@ -4,7 +4,9 @@
  * модалка открывается эффектом после монтирования — без SSR/гидрационного
  * мелькания). Состояния (по currentUser.roles + useGetMyAgentApplicationQuery):
  *  1. Гость → экран входа.
- *  2. currentUser.roles содержит AGENT/AGENCY → карточка «Вы уже агент».
+ *  2. currentUser.roles содержит AGENT/AGENCY, либо заявка уже APPROVED
+ *     (роли ещё не подтянулись — например, deep-link из уведомления) →
+ *     карточка «Вы уже агент».
  *  3. Заявка PENDING → карточка «На рассмотрении».
  *  4. Заявка REJECTED → причина отказа + форма повторной подачи (префилл).
  *  5. Заявок нет → форма подачи.
@@ -133,8 +135,9 @@ export function BecomeAgent() {
     );
   }
 
-  // ---- 2. Уже агент/агентство ----
-  if (isAgent) {
+  // ---- 2. Уже агент/агентство (роли, либо заявка уже APPROVED — роли ещё
+  // не подтянулись, например при переходе по deep-link из уведомления) ----
+  if (isAgent || application?.status === 'APPROVED') {
     return (
       <div className="fade-up mx-auto max-w-[620px] px-6 py-16 text-center">
         <div className="mx-auto mb-5 flex h-21 w-21 items-center justify-center rounded-full bg-green-bg text-green">

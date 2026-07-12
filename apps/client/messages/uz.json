@@ -151,8 +151,8 @@
     },
     "agents": {
       "title": "Agentlar va agentliklar",
-      "subtitle": "Ishonchli Avino Pro mutaxassislari",
-      "listingsCount": "{count} ta e’lon"
+      "subtitle": "Tasdiqlangan rieltorlar va ko'chmas mulk agentliklari",
+      "listingsCount": "{count, plural, other {# ta e'lon}}"
     },
     "cta": {
       "title": "Uy-joy sotyapsizmi yoki ijaraga beryapsizmi?",
