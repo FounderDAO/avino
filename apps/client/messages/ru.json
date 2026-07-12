@@ -339,6 +339,7 @@
     },
     "backToSearch": "Назад к поиску",
     "addressLine": "{address}, {district} р-н, Ташкент",
+    "referenceLine": "Объявление № {reference}",
     "sections": {
       "description": "Описание",
       "features": "Особенности",

@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Eye,
   Flame,
+  Hash,
   Heart,
   MapPin,
   ShieldCheck,
@@ -203,6 +204,16 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
               {t('addressLine', { address: listing.address, district: listing.district })}
             </span>
           </div>
+
+          {/* Номер объявления (ADR-0137) — короткий id, который можно продиктовать. */}
+          {listing.reference != null && (
+            <div className="mt-1.5 flex items-center gap-2 text-[13.5px] text-muted-foreground">
+              <Hash size={15} strokeWidth={1.9} className="shrink-0" />
+              <span className="tabular-nums">
+                {t('referenceLine', { reference: listing.reference })}
+              </span>
+            </div>
+          )}
 
           {/* Ключевые факты */}
           <Facts listing={listing} className="mt-6" />

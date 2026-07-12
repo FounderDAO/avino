@@ -114,6 +114,8 @@ export interface PriceHistoryEntry {
  */
 export interface Listing {
   id: string;
+  /** Публичный человекочитаемый номер объявления (detail-only, ADR-0137). */
+  reference?: number;
   /** Тип сделки. */
   tx: TransactionType;
   /** Тип недвижимости. */

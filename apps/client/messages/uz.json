@@ -339,6 +339,7 @@
     },
     "backToSearch": "Qidiruvga qaytish",
     "addressLine": "{address}, {district} tumani, Toshkent",
+    "referenceLine": "E'lon № {reference}",
     "sections": {
       "description": "Tavsif",
       "features": "Xususiyatlar",

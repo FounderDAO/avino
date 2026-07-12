@@ -105,6 +105,8 @@ interface ApiContactBlock {
 /** Ответ GET /listings/:id (детальная карточка). */
 interface ApiListingDetail {
   id: string;
+  /** Публичный человекочитаемый номер объявления (ADR-0137). Optional — старый бэкенд. */
+  reference?: number;
   status: ListingStatus;
   transaction_type: TransactionType;
   property_type: PropertyType;
@@ -293,6 +295,8 @@ export function mapListing(api: AnyApiListing): Listing {
 
   return {
     id: api.id,
+    // Публичный номер объявления есть только в detail-ответе (ADR-0137).
+    reference: detail?.reference,
     tx: api.transaction_type,
     type: api.property_type,
     // effective_tier есть только у карточки поиска; у detail — promotion_type.
