@@ -1348,6 +1348,8 @@ Backend client-neutral — один контракт для web (RTK Query) и F
   `initiator_id`/`owner_id`. Эти имена зафиксированы, чтобы не вызвать v2 после
   выпуска клиентов.
 - **Единые envelope/ошибки/пагинация** — §4 — одинаковы для всех клиентов.
+- **Realtime (foreground)**: socket.io-канал `/rt` с тонкими инвалидациями —
+  §20 и `docs/GUIDE_MOBILE_REALTIME_WS.md`; фон остаётся за FCM.
 - Полный мобильный гайд ведётся в `docs/MOBILE_API_GUIDE.md`.
 
 ---
@@ -1387,3 +1389,43 @@ Body: `{ "rate": "12700" }` — decimal до 6 знаков дроби. 200 → 
 
 ### POST /api/v1/admin/exchange-rate/refresh
 Немедленный прогон обновления из ЦБ. Auth: **ADMIN**. 200 → текущий `ExchangeRateView`.
+
+---
+
+## 20. Realtime WebSocket (`/rt`)
+
+Push-сигналы об устаревании данных чата/уведомлений/туров (ADR-0138). Это **не
+REST** и не входит в `openapi.*.json` (OpenAPI не описывает WS): канал —
+socket.io v4, namespace `/rt` на том же хосте, транспорт `websocket`, путь
+engine.io стандартный `/socket.io/`.
+
+Ключевой инвариант: сокет **не несёт данных** — только тонкий сигнал
+инвалидации; источником истины остаются REST-эндпоинты этого документа.
+Канал односторонний (сервер → клиент), клиентских событий нет.
+
+**Auth** — access JWT (тот же, что REST) в `handshake.auth.token` (без
+`Bearer `). Невалидный/протухший токен → немедленный disconnect; клиент
+обновляет токен через `POST /auth/refresh` и переподключается. Успешный
+handshake джойнит сокет в комнату `user:<id>` автоматически.
+
+**Событие `invalidate`:**
+
+```json
+{ "type": "thread" | "thread_list" | "notification" | "tour", "id"?: "<uuid>" }
+```
+
+| `type` | Перезапросить |
+|--------|---------------|
+| `thread` (`id`=threadId) | `GET /chat/threads/{id}/messages` |
+| `thread_list` | `GET /chat/threads` |
+| `notification` | `GET /notifications` |
+| `tour` | `GET /tour-requests/incoming` + `/outgoing` |
+
+Сигнал шлётся **только получателю** (после commit транзакции): новое сообщение —
+собеседнику; создание тура — владельцу листинга; смена статуса тура — второй
+стороне. Пропущенные за разрыв события не реплеятся — при `connect`/reconnect
+клиент обязан перезапросить все три подсистемы (gap-fill). Неизвестные значения
+`type` игнорировать (канал расширяемый без версии).
+
+WS — канал foreground; фон/закрытое приложение покрывает FCM push (§14).
+Полный гайд для Flutter: `docs/GUIDE_MOBILE_REALTIME_WS.md`.
