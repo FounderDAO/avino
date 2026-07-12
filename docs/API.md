@@ -1317,8 +1317,8 @@ Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | MIME вне allow-list (jpeg/png/webp) |
 | `FILE_TOO_LARGE` | 413 | Превышен max размер файла |
 | `MEDIA_LIMIT_EXCEEDED` | 422 | Превышено число файлов на листинг |
-| `AGENT_APPLICATION_PENDING` | 409 | User already has a pending agent application |
-| `ALREADY_AGENT` | 409 | User already has the AGENT/AGENCY role |
+| `AGENT_APPLICATION_PENDING` | 409 | Заявка «Стать агентом» уже на рассмотрении |
+| `ALREADY_AGENT` | 409 | У пользователя уже есть роль AGENT/AGENCY |
 | `INTERNAL_ERROR` | 500 | Внутренняя ошибка |
 
 Примеры тел:
