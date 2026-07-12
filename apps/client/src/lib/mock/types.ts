@@ -229,6 +229,8 @@ export interface ListingFilter {
   districtId?: string;
   /** UUID региона для фильтрации (`?region_id=`, GET /search). */
   regionId?: string;
+  /** UUID агента (users.id) — только его объявления (`?agent_id=`, страница /agents/:id, API.md §21). */
+  agentId?: string;
   /** Точное число комнат (4 = «4+»). */
   rooms?: number;
   /** Диапазон цены (в единицах валюты объявления; грубый фильтр для моков). */

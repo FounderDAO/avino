@@ -400,6 +400,16 @@
       "likesAria": "Sevimlilarga qo'shilgan: {count}"
     }
   },
+  "agentProfile": {
+    "meta": {
+      "title": "{name} — Avino agenti",
+      "notFoundTitle": "Agent topilmadi — Avino"
+    },
+    "privateAgent": "Xususiy makler",
+    "listingsCount": "{count} ta e'lon",
+    "about": "O'zi haqida",
+    "empty": "Bu agentda hozircha faol e'lonlar yo'q"
+  },
   "tourRequest": {
     "title": "Tur uchun ariza",
     "name": "Ism va familiya",

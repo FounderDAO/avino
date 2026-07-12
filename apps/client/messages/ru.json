@@ -400,6 +400,16 @@
       "likesAria": "В избранном: {count}"
     }
   },
+  "agentProfile": {
+    "meta": {
+      "title": "{name} — агент Avino",
+      "notFoundTitle": "Агент не найден — Avino"
+    },
+    "privateAgent": "Частный маклер",
+    "listingsCount": "{count} объявлений",
+    "about": "О себе",
+    "empty": "У этого агента пока нет активных объявлений"
+  },
   "tourRequest": {
     "title": "Заявка на тур",
     "name": "Имя и фамилия",

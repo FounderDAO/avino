@@ -391,6 +391,16 @@ describe('buildSearchParams — Zillow-фильтры (Task 4)', () => {
     expect(p.has('region_id')).toBe(false);
   });
 
+  it('agentId → agent_id в параметрах запроса (страница /agents/:id, API.md §21)', () => {
+    const p = buildSearchParams({ agentId: 'u1' }, 24);
+    expect(p.get('agent_id')).toBe('u1');
+  });
+
+  it('agentId не задан → agent_id отсутствует', () => {
+    const p = buildSearchParams({ tx: 'SALE' }, 24);
+    expect(p.has('agent_id')).toBe(false);
+  });
+
   it('rooms_min, area, floor, year, source, tours', () => {
     const p = buildSearchParams(
       {

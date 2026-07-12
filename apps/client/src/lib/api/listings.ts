@@ -438,6 +438,7 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   }
   if (filter.regionId) params.set('region_id', filter.regionId);
   if (filter.districtId) params.set('district_id', filter.districtId);
+  if (filter.agentId) params.set('agent_id', filter.agentId);
   if (filter.priceMin != null) params.set('price_min', String(filter.priceMin));
   if (filter.priceMax != null) params.set('price_max', String(filter.priceMax));
   // Валюта ценового диапазона — только когда задан хотя бы один рубеж (зеркало

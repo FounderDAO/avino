@@ -400,6 +400,16 @@
       "likesAria": "Favorited: {count}"
     }
   },
+  "agentProfile": {
+    "meta": {
+      "title": "{name} — Avino agent",
+      "notFoundTitle": "Agent not found — Avino"
+    },
+    "privateAgent": "Private agent",
+    "listingsCount": "{count} listings",
+    "about": "About",
+    "empty": "This agent has no active listings yet"
+  },
   "tourRequest": {
     "title": "Request a tour",
     "name": "First & last name",
