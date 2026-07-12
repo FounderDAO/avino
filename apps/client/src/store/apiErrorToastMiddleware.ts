@@ -35,6 +35,8 @@ export const SUPPRESSED_ENDPOINTS: ReadonlySet<string> = new Set([
   'deleteListingMedia', // ListingEdit
   'reorderListingMedia', // ListingEdit
   'updateTourStatus', // IncomingTourModal (инлайн) / Tours, UpcomingTourCard (ручной toast)
+  'submitAgentApplication', // BecomeAgent (инлайн)
+  'getMyAgentApplication', // BecomeAgent/лимит-модалка — 404 у новичка не должен давать тост
   // Фон/инфраструктура.
   'refresh',
   'logout',
