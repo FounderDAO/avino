@@ -22,6 +22,7 @@ import { NotificationsModule } from './notifications';
 import { PrismaModule } from './prisma';
 import { PromotionsModule } from './promotions';
 import { QueuesModule } from './queues';
+import { RealtimeModule } from './realtime';
 import { RedisModule } from './redis';
 import { SavedSearchesModule } from './saved-searches';
 import { SearchModule } from './search';
@@ -53,6 +54,7 @@ import { UsersModule } from './users/users.module';
     QueuesModule,
     HealthModule,
     AuthModule,
+    RealtimeModule,
     UsersModule,
     TranslationsModule,
     ListingsModule,
