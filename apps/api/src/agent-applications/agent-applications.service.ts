@@ -1,13 +1,20 @@
 import {
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { AgentApplicationStatus, Prisma } from '@prisma/client';
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
+import { PaginatedResponse } from '../moderation';
+import { NotificationsService } from '../notifications';
 import { PrismaService } from '../prisma';
+import { UploadsService } from '../uploads';
 import { CreateAgentApplicationDto } from './dto/create-agent-application.dto';
+import { ListAgentApplicationsQueryDto } from './dto/list-agent-applications.dto';
+import { RejectAgentApplicationDto } from './dto/reject-agent-application.dto';
 
 /** Заявка «Стать агентом» в пользовательском контракте (API.md §21). */
 export interface AgentApplicationResponse {
@@ -18,6 +25,17 @@ export interface AgentApplicationResponse {
   reject_reason: string | null;
   created_at: string;
   resolved_at: string | null;
+}
+
+/** Заявка в админ-контракте: + заявитель и модератор (API.md §21). */
+export interface AdminAgentApplicationResponse extends AgentApplicationResponse {
+  user: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    avatar_url: string | null;
+  };
+  moderator_id: string | null;
 }
 
 const APPLICATION_SELECT = {
@@ -34,17 +52,46 @@ type ApplicationRow = Prisma.AgentApplicationGetPayload<{
   select: typeof APPLICATION_SELECT;
 }>;
 
+const ADMIN_APPLICATION_INCLUDE = {
+  user: {
+    select: {
+      id: true,
+      phone: true,
+      profile: {
+        select: {
+          firstName: true,
+          lastName: true,
+          displayName: true,
+          avatarUrl: true,
+          avatarStorageKey: true,
+          contactPhone: true,
+        },
+      },
+    },
+  },
+} as const;
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
 /**
  * AgentApplicationsService — заявки «Стать агентом» (ADR-0140, API.md §21).
  *
  * Пользовательская часть: подача (`POST /users/me/agent-application`, одна
  * PENDING на пользователя — partial unique в БД страхует гонку) и статус
- * последней заявки (`GET`). Админ-часть (список/approve/reject) добавляется
- * в этом же сервисе (Task 5), HTTP — Admin-контроллер в AdminModule.
+ * последней заявки (`GET`). Админ-часть: список (`listAdmin`), одобрение
+ * (`approve` — статус APPROVED + роль AGENT + аудит + уведомление в одной
+ * транзакции) и отклонение (`reject`); HTTP — Admin-контроллер в AdminModule
+ * (следующая задача).
  */
 @Injectable()
 export class AgentApplicationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+    private readonly uploads: UploadsService,
+  ) {}
 
   /**
    * `POST /api/v1/users/me/agent-application` — подать заявку. Уже агент →
@@ -119,6 +166,164 @@ export class AgentApplicationsService {
       });
     }
     return this.toResponse(row);
+  }
+
+  /** `GET /api/v1/admin/agent-applications` — модерационный список. */
+  async listAdmin(
+    query: ListAgentApplicationsQueryDto,
+  ): Promise<PaginatedResponse<AdminAgentApplicationResponse>> {
+    const page = query.page ?? DEFAULT_PAGE;
+    const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const where: Prisma.AgentApplicationWhereInput = {};
+    if (query.status) where.status = query.status;
+
+    const [rows, total] = await Promise.all([
+      this.prisma.agentApplication.findMany({
+        where,
+        include: ADMIN_APPLICATION_INCLUDE,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.agentApplication.count({ where }),
+    ]);
+
+    return {
+      data: await Promise.all(rows.map((r) => this.toAdminResponse(r))),
+      meta: { page, limit, total },
+    };
+  }
+
+  /**
+   * `POST /api/v1/admin/agent-applications/:id/approve` — одобрить: статус
+   * APPROVED + роль AGENT (идемпотентно через upsert — переживает роль,
+   * выданную админом вручную ранее) + аудит + уведомление, всё в одной
+   * транзакции. Не-PENDING → `422 INVALID_STATUS_TRANSITION`.
+   */
+  async approve(
+    moderatorId: string,
+    id: string,
+  ): Promise<AdminAgentApplicationResponse> {
+    const app = await this.requirePending(id);
+    const role = await this.prisma.role.findUnique({
+      where: { code: UserRole.AGENT },
+      select: { id: true },
+    });
+    if (!role) throw new Error('AGENT role is not seeded');
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.agentApplication.update({
+        where: { id },
+        data: {
+          status: AgentApplicationStatus.APPROVED,
+          moderatorId,
+          resolvedAt: new Date(),
+        },
+        include: ADMIN_APPLICATION_INCLUDE,
+      });
+      await tx.userRole.upsert({
+        where: { userId_roleId: { userId: app.userId, roleId: role.id } },
+        update: {},
+        create: { userId: app.userId, roleId: role.id, grantedBy: moderatorId },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: moderatorId,
+          action: 'ROLE_CHANGE',
+          entityType: 'user',
+          entityId: app.userId,
+          metadata: { role: UserRole.AGENT, op: 'grant', agent_application_id: id },
+        },
+      });
+      await this.notifications.queueAgentApplicationResolved(tx, app.userId, {
+        applicationId: id,
+        status: 'APPROVED',
+        rejectReason: null,
+      });
+      return row;
+    });
+    return this.toAdminResponse(updated);
+  }
+
+  /** `POST /api/v1/admin/agent-applications/:id/reject` — отклонить с причиной. */
+  async reject(
+    moderatorId: string,
+    id: string,
+    dto: RejectAgentApplicationDto,
+  ): Promise<AdminAgentApplicationResponse> {
+    const app = await this.requirePending(id);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.agentApplication.update({
+        where: { id },
+        data: {
+          status: AgentApplicationStatus.REJECTED,
+          rejectReason: dto.reason?.trim() || null,
+          moderatorId,
+          resolvedAt: new Date(),
+        },
+        include: ADMIN_APPLICATION_INCLUDE,
+      });
+      await this.notifications.queueAgentApplicationResolved(tx, app.userId, {
+        applicationId: id,
+        status: 'REJECTED',
+        rejectReason: dto.reason?.trim() || null,
+      });
+      return row;
+    });
+    return this.toAdminResponse(updated);
+  }
+
+  /** Заявка существует и в PENDING, иначе 404 / 422. */
+  private async requirePending(id: string) {
+    const app = await this.prisma.agentApplication.findUnique({
+      where: { id },
+      select: { id: true, userId: true, status: true },
+    });
+    if (!app) {
+      throw new NotFoundException({
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Agent application not found',
+      });
+    }
+    if (app.status !== AgentApplicationStatus.PENDING) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.INVALID_STATUS_TRANSITION,
+          message: `Cannot resolve application in status ${app.status}`,
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+    return app;
+  }
+
+  private async toAdminResponse(
+    row: Prisma.AgentApplicationGetPayload<{
+      include: typeof ADMIN_APPLICATION_INCLUDE;
+    }>,
+  ): Promise<AdminAgentApplicationResponse> {
+    const profile = row.user.profile;
+    const fullName = [profile?.firstName, profile?.lastName]
+      .filter((p): p is string => Boolean(p))
+      .join(' ');
+    // sign-on-read аватара — как в ListingsService (ADR-0086/ADR-0134).
+    const avatarUrl =
+      profile?.avatarStorageKey || profile?.avatarUrl
+        ? await this.uploads.resolveMediaUrl(
+            profile?.avatarStorageKey ?? null,
+            profile?.avatarUrl ?? '',
+          )
+        : null;
+    return {
+      ...this.toResponse(row),
+      moderator_id: row.moderatorId,
+      user: {
+        id: row.user.id,
+        name: profile?.displayName ?? (fullName.length > 0 ? fullName : null),
+        phone: profile?.contactPhone ?? row.user.phone ?? null,
+        avatar_url: avatarUrl,
+      },
+    };
   }
 
   private toResponse(row: ApplicationRow): AgentApplicationResponse {
