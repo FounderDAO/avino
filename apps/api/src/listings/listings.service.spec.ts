@@ -650,6 +650,7 @@ describe('ListingsService', () => {
   describe('findOne', () => {
     const detailRow = {
       id: LISTING_ID,
+      reference: 100042,
       ownerId: OWNER_ID,
       agencyId: null,
       // Контакт автора (TASK-210): профиль + роль AGENT.
@@ -733,6 +734,7 @@ describe('ListingsService', () => {
       );
       expect(result).toMatchObject({
         id: LISTING_ID,
+        reference: 100042,
         status: ListingStatus.ACTIVE,
         price: '4500000.00',
         area: '62.50',
@@ -928,6 +930,28 @@ describe('ListingsService', () => {
           created_at: '2026-07-01T08:00:00.000Z',
         },
       ]);
+    });
+
+    // findByReference (ADR-0137): поиск по короткому номеру повторяет видимость
+    // findOne, отличается лишь ключом поиска (reference вместо UUID-id).
+    it('finds an ACTIVE listing by its reference number', async () => {
+      prisma.listing.findUnique.mockResolvedValue(detailRow);
+
+      const result = await service.findByReference(100042, undefined);
+
+      expect(prisma.listing.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { reference: 100042 } }),
+      );
+      expect(result).toMatchObject({ id: LISTING_ID, reference: 100042 });
+    });
+
+    it('throws 404 NOT_FOUND when no listing has that reference', async () => {
+      prisma.listing.findUnique.mockResolvedValue(null);
+
+      await expectCode(
+        service.findByReference(999999, undefined),
+        ApiErrorCode.NOT_FOUND,
+      );
     });
   });
 

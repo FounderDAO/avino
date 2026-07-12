@@ -191,6 +191,8 @@ export interface PriceHistoryEntry {
 
 export interface ListingDetailResponse {
   id: string;
+  /** Публичный человекочитаемый номер объявления (ADR-0137). */
+  reference: number;
   status: ListingStatus;
   transaction_type: TransactionType;
   property_type: PropertyType;
@@ -240,6 +242,7 @@ export interface ListingDetailResponse {
 
 const LISTING_DETAIL_SELECT = {
   id: true,
+  reference: true,
   ownerId: true,
   agencyId: true,
   // Контакт автора (TASK-210, ADR-0069): телефон, профиль и роли владельца.
@@ -809,7 +812,39 @@ export class ListingsService {
       where: { id: listingId },
       select: LISTING_DETAIL_SELECT,
     });
+    return this.resolveDetail(listing, viewer, langParam, acceptLanguage);
+  }
 
+  /**
+   * `GET /api/v1/listings/by-ref/:reference` — публичная карточка по короткому
+   * человекочитаемому номеру объявления (ADR-0137). Видимость и выбор перевода —
+   * идентичны {@link findOne} (тот же приватный хвост); отличается лишь то, что
+   * объявление ищется по `reference`, а не по UUID.
+   */
+  async findByReference(
+    reference: number,
+    viewer: AuthenticatedUser | undefined,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<ListingDetailResponse> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { reference },
+      select: LISTING_DETAIL_SELECT,
+    });
+    return this.resolveDetail(listing, viewer, langParam, acceptLanguage);
+  }
+
+  /**
+   * Общий хвост detail-выдачи: проверка видимости (DELETED/непубличные статусы),
+   * выбор языка перевода и имени района, сборка ответа. Используется и findOne
+   * (по id), и findByReference (по номеру).
+   */
+  private async resolveDetail(
+    listing: ListingDetailRow | null,
+    viewer: AuthenticatedUser | undefined,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<ListingDetailResponse> {
     const notFound = new NotFoundException({
       code: ApiErrorCode.NOT_FOUND,
       message: 'Listing not found',
@@ -1105,6 +1140,7 @@ export class ListingsService {
     );
     return {
       id: listing.id,
+      reference: listing.reference,
       contact: this.buildContact(listing.owner),
       status: listing.status,
       transaction_type: listing.transactionType,

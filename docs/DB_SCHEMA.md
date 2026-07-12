@@ -244,6 +244,7 @@ Indexes:
 ```text
 listings
 - id                   uuid PK
+- reference            int NOT NULL UNIQUE  (public human-readable no., seq START 100000; ADR-0137)
 - owner_id             uuid FK -> users(id) ON DELETE RESTRICT   (creator)
 - agency_id            uuid FK -> agencies(id) ON DELETE SET NULL NULL
 - transaction_type     transaction_type NOT NULL
@@ -270,6 +271,7 @@ listings
 - created_at           timestamptz NOT NULL
 - updated_at           timestamptz NOT NULL
 Indexes:
+- UNIQUE (reference)
 - (status), (property_type), (transaction_type), (price), (city_id),
   (district_id), (owner_id), (agency_id)
 - (promotion_type), (promotion_expires_at)

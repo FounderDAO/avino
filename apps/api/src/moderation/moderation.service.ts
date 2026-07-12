@@ -55,6 +55,8 @@ export interface AdminListingOwner {
  */
 export interface AdminListingListItem {
   id: string;
+  /** Публичный человекочитаемый номер объявления (ADR-0137); поиск по нему в админке. */
+  reference: number;
   status: ListingStatus;
   transaction_type: TransactionType;
   property_type: PropertyType;
@@ -146,6 +148,7 @@ const REQUIRED_LANGUAGES: readonly Language[] = Object.values(Language);
 
 const LISTING_LIST_SELECT = {
   id: true,
+  reference: true,
   ownerId: true,
   status: true,
   transactionType: true,
@@ -230,6 +233,8 @@ export class ModerationService {
     if (query.status) where.status = query.status;
     if (query.property_type) where.propertyType = query.property_type;
     if (query.transaction_type) where.transactionType = query.transaction_type;
+    // Точный поиск по короткому номеру объявления (ADR-0137) — «найти быстро по id».
+    if (query.reference !== undefined) where.reference = query.reference;
     if (query.q) {
       where.translations = {
         some: { title: { contains: query.q, mode: 'insensitive' } },
@@ -468,6 +473,7 @@ export class ModerationService {
       : null;
     return {
       id: listing.id,
+      reference: listing.reference,
       status: listing.status,
       transaction_type: listing.transactionType,
       property_type: listing.propertyType,

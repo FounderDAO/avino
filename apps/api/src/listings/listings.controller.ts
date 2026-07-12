@@ -5,6 +5,7 @@ import {
   Headers,
   HttpCode,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -81,6 +82,28 @@ export class ListingsController {
     @Query() query: ListMyListingsQueryDto,
   ): Promise<PaginatedResponse<ListingListItem>> {
     return this.listingsService.findMine(userId, query);
+  }
+
+  /**
+   * `GET /api/v1/listings/by-ref/:reference` — публичная карточка по короткому
+   * человекочитаемому номеру (ADR-0137). Объявлен ДО `@Get(':id')`, чтобы
+   * двухсегментный путь не перехватывался UUID-роутом. Видимость и выбор
+   * перевода — как у `GET :id`.
+   */
+  @Get('by-ref/:reference')
+  @UseGuards(OptionalJwtAuthGuard)
+  findByReference(
+    @Param('reference', ParseIntPipe) reference: number,
+    @CurrentUser() viewer: AuthenticatedUser | undefined,
+    @Query('lang') lang?: string,
+    @Headers('accept-language') acceptLanguage?: string,
+  ): Promise<ListingDetailResponse> {
+    return this.listingsService.findByReference(
+      reference,
+      viewer,
+      lang,
+      acceptLanguage,
+    );
   }
 
   /**
