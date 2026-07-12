@@ -23,7 +23,7 @@
   "nav": {
     "buy": "Купить",
     "rent": "Аренда",
-    "newBuildings": "Новостройки",
+    "newConstruction": "Новостройки",
     "map": "Карта",
     "sell": "Продать",
     "help": "Помощь",
@@ -62,7 +62,7 @@
     "forBuyers": "Покупателям",
     "buy": "Купить",
     "rent": "Снять",
-    "newBuildings": "Новостройки",
+    "newConstruction": "Новостройки",
     "mortgage": "Ипотека",
     "forProfessionals": "Профессионалам",
     "postProperty": "Разместить объект",
@@ -129,7 +129,7 @@
     "categories": {
       "APARTMENT": "Квартиры",
       "HOUSE": "Дома",
-      "NEW_BUILDING": "Новостройки",
+      "NEW_CONSTRUCTION": "Новостройки",
       "COMMERCIAL": "Коммерческая",
       "LAND": "Участки"
     },
@@ -265,6 +265,8 @@
       "apply": "Применить",
       "areaTitle": "Площадь, м²",
       "yearTitle": "Год постройки",
+      "newConstruction": "Новостройка",
+      "newConstructionHint": "Дом построен за последние 3 года или ещё строится",
       "floorTitle": "Этаж",
       "notFirstFloor": "Не первый этаж",
       "notLastFloor": "Не последний этаж",
@@ -579,6 +581,7 @@
       "floor": "Этаж",
       "totalFloors": "Этажность",
       "yearBuilt": "Год постройки",
+      "yearBuiltHint": "Если дом ещё строится — укажите планируемый год сдачи",
       "currency": "Валюта",
       "currencyUSD": "$ USD",
       "currencyUZS": "сум UZS",
@@ -1080,7 +1083,6 @@
     "propertyType": {
       "APARTMENT": "Квартира",
       "HOUSE": "Дом",
-      "NEW_BUILDING": "Новостройка",
       "LAND": "Участок",
       "COMMERCIAL": "Коммерция"
     },

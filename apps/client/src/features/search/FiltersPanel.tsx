@@ -27,6 +27,8 @@ export interface FiltersPanelValues {
   lotAreaMax?: string;
   yearMin?: string;
   yearMax?: string;
+  /** «Новостройка» — год постройки за последние 3 года или в будущем (недострой). */
+  newConstruction?: boolean;
   floorMin?: string;
   floorMax?: string;
   notFirstFloor?: boolean;
@@ -142,6 +144,14 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
           fromLabel={t('rangeFrom')}
           toLabel={t('rangeTo')}
         />
+        <div className="mt-2">
+          <CheckboxRow
+            label={t('newConstruction')}
+            checked={draft.newConstruction ?? false}
+            onChange={(checked) => patch({ newConstruction: checked || undefined })}
+          />
+          <p className="mt-1 pl-6 text-[12px] text-muted-foreground">{t('newConstructionHint')}</p>
+        </div>
       </Section>
 
       {/* 3. Этаж + чекбоксы */}

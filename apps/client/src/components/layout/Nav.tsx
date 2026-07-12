@@ -12,7 +12,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { key: 'sale', labelKey: 'buy', href: '/search?tx=SALE' },
   { key: 'rent', labelKey: 'rent', href: '/search?tx=RENT' },
-  { key: 'new', labelKey: 'newBuildings', href: '/search?tx=SALE&type=NEW_BUILDING' },
+  { key: 'new', labelKey: 'newConstruction', href: '/search?tx=SALE&new_construction=true' },
   { key: 'sell', labelKey: 'sell', href: '/sell' },
   { key: 'help', labelKey: 'help', href: '/help' },
 ];

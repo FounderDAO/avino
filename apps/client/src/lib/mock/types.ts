@@ -16,15 +16,14 @@ export type TransactionType = 'SALE' | 'RENT';
 export type PropertyType =
   | 'APARTMENT'
   | 'HOUSE'
-  | 'NEW_BUILDING'
   | 'LAND'
   | 'COMMERCIAL';
 
-/** Все типы недвижимости (порядок — как в выпадающих списках UI). */
+/** Все типы недвижимости (порядок — как в выпадающих списках UI).
+ * «Новостройка» — НЕ тип, а вычисляемая категория (`?new_construction=true`). */
 export const PROPERTY_TYPES: PropertyType[] = [
   'APARTMENT',
   'HOUSE',
-  'NEW_BUILDING',
   'LAND',
   'COMMERCIAL',
 ];
@@ -278,6 +277,8 @@ export interface ListingFilter {
   totalFloorsMax?: number;
   yearMin?: number;
   yearMax?: number;
+  /** «Новостройка» — год постройки за последние 3 года или в будущем (недострой). */
+  newConstruction?: boolean;
   /** Источник объявления (мультивыбор: оба → без фильтра). */
   listingSource?: ('OWNER' | 'AGENCY')[];
   toursEnabled?: boolean;

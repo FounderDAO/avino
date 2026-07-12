@@ -215,7 +215,8 @@ describe('missingRequiredFields', () => {
     floor: '',
     isBasement: false,
     totalFloors: '',
-    year: '',
+    // Год постройки обязателен для квартир/домов (категория «новостройка»).
+    year: '2020',
     price: '100000',
     currency: 'USD' as const,
     lang: 'RU' as const,
@@ -244,5 +245,15 @@ describe('missingRequiredFields', () => {
   it('не требует комнаты для участка (LAND)', () => {
     const missing = missingRequiredFields({ ...FULL_FORM, type: 'LAND', rooms: '' }, 1);
     expect(missing).not.toContain('rooms');
+  });
+
+  it('требует год постройки для квартиры', () => {
+    const missing = missingRequiredFields({ ...FULL_FORM, year: '' }, 1);
+    expect(missing).toContain('year');
+  });
+
+  it('не требует год постройки для участка (LAND)', () => {
+    const missing = missingRequiredFields({ ...FULL_FORM, type: 'LAND', rooms: '', year: '' }, 1);
+    expect(missing).not.toContain('year');
   });
 });

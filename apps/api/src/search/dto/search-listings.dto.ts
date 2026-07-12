@@ -43,6 +43,13 @@ export const BATHROOMS_MIN_VALUES = [1, 1.5, 2, 2.5, 3, 4];
 export const LISTING_SOURCES = ['OWNER', 'AGENCY'] as const;
 export type ListingSource = (typeof LISTING_SOURCES)[number];
 
+/**
+ * «Новостройка» (`?new_construction=true`) — вычисляемая категория, не
+ * PropertyType: зданию МЕНЬШЕ этого числа лет (year_built за последние
+ * N-1 календарных лет или в будущем — недострой «сдача в 2028»).
+ */
+export const NEW_CONSTRUCTION_MAX_AGE_YEARS = 3;
+
 /** query-строка → массив (single или повторяющийся параметр). */
 const toArray = ({ value }: { value: unknown }) =>
   value === undefined ? undefined : Array.isArray(value) ? value : [value];
@@ -225,6 +232,12 @@ export class SearchListingsQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) total_floors_max?: number;
   @IsOptional() @Type(() => Number) @IsInt() year_min?: number;
   @IsOptional() @Type(() => Number) @IsInt() year_max?: number;
+
+  /**
+   * Новостройка: year_built за последние {@link NEW_CONSTRUCTION_MAX_AGE_YEARS}
+   * лет либо в будущем (недострой). Порог вычисляет сервер — URL стабилен.
+   */
+  @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() new_construction?: boolean;
 
   /**
    * Источник: ['OWNER'] → agency_id IS NULL; ['AGENCY'] → IS NOT NULL; оба/пусто → без фильтра.

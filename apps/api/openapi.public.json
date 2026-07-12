@@ -1016,6 +1016,14 @@
             }
           },
           {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "listing_source",
             "required": false,
             "in": "query",
@@ -1301,6 +1309,14 @@
             "in": "query",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           },
           {
@@ -1619,6 +1635,14 @@
             "in": "query",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           },
           {
@@ -2001,6 +2025,14 @@
             }
           },
           {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "listing_source",
             "required": false,
             "in": "query",
@@ -2277,6 +2309,14 @@
             "in": "query",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           },
           {
@@ -2628,6 +2668,14 @@
             "in": "query",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           },
           {

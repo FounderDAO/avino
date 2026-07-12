@@ -1806,3 +1806,110 @@ describe('SearchService price filter FX-normalization (integration)', () => {
     expect(ids).toHaveLength(2);
   });
 });
+
+/**
+ * Integration-тесты фильтра «новостройка» (`?new_construction=true`).
+ * Категория вычисляемая: year_built >= текущий год − (MAX_AGE − 1), т.е. зданию
+ * меньше NEW_CONSTRUCTION_MAX_AGE_YEARS лет ЛИБО год в будущем (недострой).
+ * Годы фикстур считаются от текущего года — тест не протухает 1 января.
+ *
+ * Изоляция — уникальный CITY_ID_NEWC; данные удаляются в afterAll.
+ */
+describe('GET /search — new_construction (вычисляемая «новостройка»)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY_ID_NEWC = '44444444-5555-4444-8777-000000000902';
+  const NOW_YEAR = new Date().getFullYear();
+
+  const ID = {
+    fresh:    'aaaaaaaa-0005-4000-8000-000000000902', // NOW_YEAR-1 — новостройка
+    boundary: 'bbbbbbbb-0005-4000-8000-000000000902', // NOW_YEAR-2 — граница, ещё новостройка
+    tooOld:   'cccccccc-0005-4000-8000-000000000902', // NOW_YEAR-3 — уже НЕ новостройка
+    future:   'dddddddd-0005-4000-8000-000000000902', // NOW_YEAR+2 — недострой, новостройка
+    noYear:   'eeeeeeee-0005-4000-8000-000000000902', // year_built NULL — не попадает
+  };
+
+  let ownerId: string;
+
+  async function createYearListing(id: string, yearBuilt: number | null): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: '100000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_NEWC,
+        promotionType: PromotionType.NORMAL,
+        promotionExpiresAt: null,
+        rooms: 2,
+        area: '60.00',
+        yearBuilt,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `newc-${id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_NEWC } });
+
+    const owner = await prisma.user.create({ data: { phone: '+998900000902' } });
+    ownerId = owner.id;
+
+    await createYearListing(ID.fresh, NOW_YEAR - 1);
+    await createYearListing(ID.boundary, NOW_YEAR - 2);
+    await createYearListing(ID.tooOld, NOW_YEAR - 3);
+    await createYearListing(ID.future, NOW_YEAR + 2);
+    await createYearListing(ID.noYear, null);
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_NEWC } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('new_construction=true → свежие и будущие (недострой), без старых и NULL', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_NEWC,
+      new_construction: true,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.fresh);
+    expect(ids).toContain(ID.boundary);
+    expect(ids).toContain(ID.future);
+    expect(ids.has(ID.tooOld)).toBe(false);
+    expect(ids.has(ID.noYear)).toBe(false);
+    expect(ids.size).toBe(3);
+  });
+
+  it('без фильтра — все 5 листингов города', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_NEWC,
+      limit: 100,
+    });
+    expect(result.data).toHaveLength(5);
+  });
+});

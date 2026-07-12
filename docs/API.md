@@ -407,6 +407,10 @@ Body:
 - `price`/`area` — строки-Decimal (никогда float, ADR-002). `latitude`/`longitude`
   — источник для `location` (PostGIS синхронизируется на бэке, ADR-001).
 - Координаты берутся только из map-picker, **не** из EXIF фото (ADR-008).
+- `year_built` **обязателен** для `property_type = APARTMENT | HOUSE` (иначе 400
+  `VALIDATION_ERROR`): категория «новостройка» вычисляется из него. Значение
+  **может быть в будущем** — недострой («сдача в 2028», квартиру перепродают до
+  сдачи дома). Для `LAND | COMMERCIAL` — опционален.
 
 201:
 ```json
@@ -588,12 +592,13 @@ Query-фильтры (`ARCHITECTURE` §12):
 | `q` | string | свободный текст (TASK-208, ADR-0067): ILIKE-подстрока (pg_trgm GIN, case-insensitive) по `listing_translations.title`/`description` на **любом** языке (uz/ru/en) и по `listings.address`; пустая строка игнорируется; максимум 200 символов |
 | `city_id`, `district_id` | uuid | локация |
 | `transaction_type` | `SALE \| RENT` | |
-| `property_type` | `APARTMENT \| HOUSE \| NEW_BUILDING \| LAND \| COMMERCIAL` | |
+| `property_type` | `APARTMENT \| HOUSE \| LAND \| COMMERCIAL` | `NEW_BUILDING` удалён: «новостройка» — не тип, а вычисляемая категория (см. `new_construction`) |
 | `price_min`, `price_max` | decimal | в пределах `currency`, без FX |
 | `currency` | `UZS \| USD` | валюта диапазона цен |
 | `area_min`, `area_max` | decimal | |
 | `rooms` | int (повтор.) | число комнат, **повторяющийся** параметр → OR/IN (`rooms=2&rooms=3&rooms=5`). Каждое **0..4 — ТОЧНОЕ** совпадение (`4` = ровно 4, **BREAKING** vs прежнего «4+»); **`5` = «5+»** (`rooms >= 5`). Одиночный скаляр совместим. Для «4+» — `rooms_min=4`. TASK-247/ADR-0133 |
 | `floor`, `total_floors`, `year_built` | int | |
+| `new_construction` | bool | «Новостройка»: `year_built` за последние 3 календарных года **или в будущем** (недострой — «сдача в 2028»). Порог вычисляет сервер (URL стабилен); `year_built IS NULL` не проходит. Работает во всех поисковых эндпоинтах (`/search`, `/search/bounds`, `/search/radius`, `/search/polygon`, `/search/clusters`, price-distribution) |
 | `feature_ids` | uuid[] | амenities (CSV или повтор параметра) |
 | `points` | string | необязательная нарисованная территория `lat,lng;lat,lng;…` (≥3 вершин); пересечение с контуром (`ST_Within`) поверх остальных фильтров и bbox. Тот же формат, что `/search/polygon`; невалидная строка → `400 VALIDATION_ERROR`. Принимается и в `/search/bounds`. TASK-249/ADR-0133 |
 | `promotion_type` | `NORMAL \| TOP \| VIP` | фильтр по тиру (опц.) |

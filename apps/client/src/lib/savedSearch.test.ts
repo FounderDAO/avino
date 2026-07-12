@@ -47,4 +47,20 @@ describe('filtersToSearchHref — точное восстановление', ()
     const qs = new URLSearchParams(href.split('?')[1]);
     expect(qs.getAll('type')).toEqual(['APARTMENT']);
   });
+
+  it('восстанавливает new_construction=true (и описывает чипом)', () => {
+    const href = filtersToSearchHref({ new_construction: true });
+    const qs = new URLSearchParams(href.split('?')[1]);
+    expect(qs.get('new_construction')).toBe('true');
+    expect(describeFilters({ new_construction: true }, t)).toContain(
+      'search.filters.newConstruction',
+    );
+  });
+
+  it('legacy property_type=NEW_BUILDING (тип упразднён) → new_construction=true без type', () => {
+    const href = filtersToSearchHref({ property_type: 'NEW_BUILDING' });
+    const qs = new URLSearchParams(href.split('?')[1] ?? '');
+    expect(qs.getAll('type')).toEqual([]);
+    expect(qs.get('new_construction')).toBe('true');
+  });
 });
