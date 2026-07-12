@@ -78,6 +78,8 @@ export interface SourceListing {
 /** Строка таблицы объявлений в админке (порт admin-data.js → listings). */
 export interface AdminListing {
   id: string;
+  /** Публичный человекочитаемый номер объявления (ADR-0137); «—» без источника. */
+  reference?: number | string;
   title: string;
   photo: string;
   /** Отформатированная цена без суффикса (например «$98 000»). */

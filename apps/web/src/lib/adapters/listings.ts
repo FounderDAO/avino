@@ -133,6 +133,8 @@ export function rowToAdminListing(r: AdminListingRow): AdminListing {
   };
   return {
     id: r.id,
+    // Публичный номер объявления (ADR-0137); старый бэкенд без поля → «—».
+    reference: r.reference ?? DASH,
     title: r.title,
     // Главное фото из списка (sign-on-read, ADR-0086); нет фото / старый бэкенд
     // без поля → брендовый плейсхолдер.
