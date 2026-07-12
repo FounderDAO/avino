@@ -23,7 +23,7 @@
   "nav": {
     "buy": "Buy",
     "rent": "Rent",
-    "newBuildings": "New buildings",
+    "newConstruction": "New construction",
     "map": "Map",
     "sell": "Sell",
     "help": "Help",
@@ -62,7 +62,7 @@
     "forBuyers": "For buyers",
     "buy": "Buy",
     "rent": "Rent",
-    "newBuildings": "New buildings",
+    "newConstruction": "New construction",
     "mortgage": "Mortgage",
     "forProfessionals": "For professionals",
     "postProperty": "List a property",
@@ -129,7 +129,7 @@
     "categories": {
       "APARTMENT": "Apartments",
       "HOUSE": "Houses",
-      "NEW_BUILDING": "New buildings",
+      "NEW_CONSTRUCTION": "New construction",
       "COMMERCIAL": "Commercial",
       "LAND": "Land plots"
     },
@@ -265,6 +265,8 @@
       "apply": "Apply",
       "areaTitle": "Area, m²",
       "yearTitle": "Year built",
+      "newConstruction": "New construction",
+      "newConstructionHint": "Built within the last 3 years or still under construction",
       "floorTitle": "Floor",
       "notFirstFloor": "Not first floor",
       "notLastFloor": "Not last floor",
@@ -579,6 +581,7 @@
       "floor": "Floor",
       "totalFloors": "Total floors",
       "yearBuilt": "Year built",
+      "yearBuiltHint": "If the building is still under construction, enter the planned completion year",
       "currency": "Currency",
       "currencyUSD": "$ USD",
       "currencyUZS": "UZS",
@@ -1080,7 +1083,6 @@
     "propertyType": {
       "APARTMENT": "Apartment",
       "HOUSE": "House",
-      "NEW_BUILDING": "New building",
       "LAND": "Land",
       "COMMERCIAL": "Commercial"
     },

@@ -42,7 +42,7 @@ const TID = (i) => `e3100000-0000-4000-8000-${pad12(i)}`;          // translatio
 const MID = (i, k) => `e3200000-000${k}-4000-8000-${pad12(i)}`;    // media (k: 0..2)
 
 // Вариативность карточек.
-const TYPES = ['APARTMENT', 'HOUSE', 'NEW_BUILDING'];
+const TYPES = ['APARTMENT', 'HOUSE', 'APARTMENT'];
 const AREAS = ['45.00', '62.50', '88.00'];
 const ROOMS = [2, 3, 4];
 

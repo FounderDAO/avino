@@ -69,7 +69,6 @@ const BATHROOM_OPTIONS = ['1', '1.5', '2', '2.5', '3', '4+'] as const;
 const TYPE_ICONS: Record<PropertyType, typeof HomeIcon> = {
   APARTMENT: Building,
   HOUSE: HomeIcon,
-  NEW_BUILDING: Building,
   LAND: Trees,
   COMMERCIAL: Store,
 };
@@ -225,6 +224,7 @@ export type RequiredField =
   | 'location'
   | 'area'
   | 'rooms'
+  | 'year'
   | 'price'
   | 'photos';
 
@@ -241,6 +241,9 @@ export function missingRequiredFields(f: EditForm, photoCount: number): Required
   if (!f.regionId || !f.districtId) missing.push('location');
   if (!f.area) missing.push('area');
   if (!noRooms && !f.rooms) missing.push('rooms');
+  // Год постройки обязателен для квартир/домов (категория «новостройка»
+  // вычисляется из него на бэке); может быть будущим — недострой.
+  if (!noRooms && !f.year) missing.push('year');
   if (!f.price) missing.push('price');
   if (photoCount === 0) missing.push('photos');
   return missing;
@@ -364,6 +367,7 @@ export function ListingEdit({
     location: t('fieldLocation'),
     area: tNew('fields.area.label'),
     rooms: tNew('fields.rooms.label'),
+    year: tNew('fields.yearBuilt'),
     price: tNew('fields.price.label'),
     photos: tNew('fields.photos'),
   };
@@ -610,7 +614,7 @@ export function ListingEdit({
                   onChange={(e) => set('totalFloors', e.target.value.replace(/\D/g, ''))}
                 />
               </FormField>
-              <FormField label={tNew('fields.yearBuilt')}>
+              <FormField label={tNew('fields.yearBuilt')} hint={tNew('fields.yearBuiltHint')}>
                 <Field
                   placeholder="2022"
                   inputMode="numeric"

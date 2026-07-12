@@ -82,6 +82,8 @@ export interface FilterValues {
   lotAreaMax?: string;
   yearMin?: string;
   yearMax?: string;
+  /** «Новостройка» — год постройки за последние 3 года или в будущем (недострой). */
+  newConstruction?: boolean;
   floorMin?: string;
   floorMax?: string;
   totalFloorsMin?: string;
@@ -246,7 +248,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
   const extraActive = Boolean(
     values.areaMin || values.areaMax ||
     values.lotAreaMin || values.lotAreaMax ||
-    values.yearMin || values.yearMax ||
+    values.yearMin || values.yearMax || values.newConstruction ||
     values.floorMin || values.floorMax ||
     values.totalFloorsMin || values.totalFloorsMax ||
     values.notFirstFloor || values.notLastFloor ||
@@ -267,6 +269,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     lotAreaMax: values.lotAreaMax,
     yearMin: values.yearMin,
     yearMax: values.yearMax,
+    newConstruction: values.newConstruction,
     floorMin: values.floorMin,
     floorMax: values.floorMax,
     notFirstFloor: values.notFirstFloor,
@@ -298,6 +301,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
       setOne('lot_area_max', next.lotAreaMax);
       setOne('year_min', next.yearMin);
       setOne('year_max', next.yearMax);
+      setOne('new_construction', next.newConstruction ? 'true' : undefined);
       setOne('floor_min', next.floorMin);
       setOne('floor_max', next.floorMax);
       setOne('total_floors_min', next.totalFloorsMin);
@@ -329,6 +333,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
       lot_area_max: undefined,
       year_min: undefined,
       year_max: undefined,
+      new_construction: undefined,
       floor_min: undefined,
       floor_max: undefined,
       total_floors_min: undefined,
@@ -378,6 +383,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     if (values.totalFloorsMax) filters.total_floors_max = values.totalFloorsMax;
     if (values.yearMin) filters.year_min = values.yearMin;
     if (values.yearMax) filters.year_max = values.yearMax;
+    if (values.newConstruction) filters.new_construction = true;
     if (values.notFirstFloor) filters.not_first_floor = true;
     if (values.notLastFloor) filters.not_last_floor = true;
     if (values.listingSource && values.listingSource.length > 0) filters.listing_source = values.listingSource;

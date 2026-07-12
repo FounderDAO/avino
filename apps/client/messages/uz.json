@@ -23,7 +23,7 @@
   "nav": {
     "buy": "Sotib olish",
     "rent": "Ijara",
-    "newBuildings": "Yangi binolar",
+    "newConstruction": "Yangi qurilish",
     "map": "Xarita",
     "sell": "Sotish",
     "help": "Yordam",
@@ -62,7 +62,7 @@
     "forBuyers": "Xaridorlarga",
     "buy": "Sotib olish",
     "rent": "Ijaraga olish",
-    "newBuildings": "Yangi binolar",
+    "newConstruction": "Yangi qurilish",
     "mortgage": "Ipoteka",
     "forProfessionals": "Mutaxassislarga",
     "postProperty": "Obyekt joylash",
@@ -129,7 +129,7 @@
     "categories": {
       "APARTMENT": "Kvartiralar",
       "HOUSE": "Uylar",
-      "NEW_BUILDING": "Yangi binolar",
+      "NEW_CONSTRUCTION": "Yangi qurilish",
       "COMMERCIAL": "Tijorat obyektlari",
       "LAND": "Yer uchastkalari"
     },
@@ -265,6 +265,8 @@
       "apply": "Qo'llash",
       "areaTitle": "Maydon, m²",
       "yearTitle": "Qurilish yili",
+      "newConstruction": "Yangi qurilish",
+      "newConstructionHint": "Uy so'nggi 3 yil ichida qurilgan yoki hali qurilmoqda",
       "floorTitle": "Qavat",
       "notFirstFloor": "Birinchi qavat emas",
       "notLastFloor": "Oxirgi qavat emas",
@@ -579,6 +581,7 @@
       "floor": "Qavat",
       "totalFloors": "Qavatlar soni",
       "yearBuilt": "Qurilgan yili",
+      "yearBuiltHint": "Uy hali qurilayotgan bo'lsa — topshirish rejalashtirilgan yilni kiriting",
       "currency": "Valyuta",
       "currencyUSD": "$ USD",
       "currencyUZS": "so'm UZS",
@@ -1080,7 +1083,6 @@
     "propertyType": {
       "APARTMENT": "Kvartira",
       "HOUSE": "Uy",
-      "NEW_BUILDING": "Yangi bino",
       "LAND": "Yer uchastkasi",
       "COMMERCIAL": "Tijorat"
     },

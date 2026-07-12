@@ -70,13 +70,11 @@ enum TransactionType {
   RENT
 }
 
-/// Тип недвижимости (DB_SCHEMA.md §3). Значения совпадают с контрактом §3;
-/// NEW_BUILDING присутствует в БД-контракте (расхождение с packages/shared
-/// фиксируется отдельной задачей — см. DONE.md TASK-035).
+/// Тип недвижимости (DB_SCHEMA.md §3). NEW_BUILDING удалён: «новостройка» —
+/// вычисляемая категория по year_built (`?new_construction=true`), не тип.
 enum PropertyType {
   APARTMENT
   HOUSE
-  NEW_BUILDING
   LAND
   COMMERCIAL
 }

@@ -220,7 +220,6 @@ export function buildListingBody(
 const TYPE_ICONS: Record<PropertyType, typeof HomeIcon> = {
   APARTMENT: Building,
   HOUSE: HomeIcon,
-  NEW_BUILDING: Building,
   LAND: Trees,
   COMMERCIAL: Store,
 };
@@ -368,7 +367,9 @@ export function ListingNew({
         // Точка на карте — необязательное уточнение.
         return Boolean(f.address.trim()) && Boolean(f.regionId) && Boolean(f.districtId);
       case 3:
-        return Boolean(f.area && (noRooms || f.rooms));
+        // Год постройки обязателен для квартир/домов (категория «новостройка»
+        // вычисляется из него на бэке); может быть будущим — недострой.
+        return Boolean(f.area && (noRooms || (f.rooms && f.year)));
       case 4:
         return Boolean(f.price);
       case 5:
@@ -655,7 +656,7 @@ export function ListingNew({
                     onChange={(e) => set('totalFloors', e.target.value.replace(/\D/g, ''))}
                   />
                 </FormField>
-                <FormField label={t('fields.yearBuilt')}>
+                <FormField label={t('fields.yearBuilt')} hint={t('fields.yearBuiltHint')}>
                   <Field
                     placeholder="2022"
                     inputMode="numeric"

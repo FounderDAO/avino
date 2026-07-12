@@ -112,8 +112,8 @@ describe('FiltersPanel', () => {
 
     // Находим чекбокс по aria-label его label или по позиции среди checkboxes
     const checkboxes = screen.getAllByRole('checkbox');
-    // порядок: notFirstFloor (0), notLastFloor (1), sourceOwner (2), sourceAgency (3), toursEnabled (4)
-    const notFirstFloor = checkboxes[0];
+    // порядок: newConstruction (0), notFirstFloor (1), notLastFloor (2), sourceOwner (3), sourceAgency (4), toursEnabled (5)
+    const notFirstFloor = checkboxes[1];
     expect(notFirstFloor).not.toBeChecked();
 
     await user.click(notFirstFloor);
@@ -122,6 +122,22 @@ describe('FiltersPanel', () => {
     await user.click(screen.getByTestId('filters-apply'));
     const callArg = onApply.mock.calls[0][0] as FiltersPanelValues;
     expect(callArg.notFirstFloor).toBe(true);
+  });
+
+  it('чекбокс «Новостройка» эмитит newConstruction=true', async () => {
+    const user = userEvent.setup();
+    const onApply = vi.fn();
+
+    render(
+      <FiltersPanel values={emptyValues} onApply={onApply} onReset={vi.fn()} />,
+    );
+
+    const newConstruction = screen.getAllByRole('checkbox')[0];
+    await user.click(newConstruction);
+    expect(newConstruction).toBeChecked();
+
+    await user.click(screen.getByTestId('filters-apply'));
+    expect((onApply.mock.calls[0][0] as FiltersPanelValues).newConstruction).toBe(true);
   });
 
   it('listingSource — мультивыбор: можно выбрать оба источника', async () => {
@@ -134,8 +150,8 @@ describe('FiltersPanel', () => {
     );
 
     const checkboxes = screen.getAllByRole('checkbox');
-    const sourceOwner = checkboxes[2]; // 0=notFirst, 1=notLast, 2=owner
-    const sourceAgency = checkboxes[3];
+    const sourceOwner = checkboxes[3]; // 0=newConstruction, 1=notFirst, 2=notLast, 3=owner
+    const sourceAgency = checkboxes[4];
 
     // Выбираем оба источника
     await user.click(sourceOwner);

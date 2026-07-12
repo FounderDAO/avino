@@ -33,7 +33,7 @@ import { BASE } from '@/lib/seo/base';
 import { routing } from '@/i18n/routing';
 
 /** Семантические параметры поиска — остаются в canonical (формируют лендинги). */
-const SEMANTIC_PARAMS = ['tx', 'type', 'district_id'] as const;
+const SEMANTIC_PARAMS = ['tx', 'type', 'district_id', 'new_construction'] as const;
 
 export async function generateMetadata({
   params,
@@ -91,7 +91,6 @@ export async function generateMetadata({
 const PROPERTY_TYPES: PropertyType[] = [
   'APARTMENT',
   'HOUSE',
-  'NEW_BUILDING',
   'LAND',
   'COMMERCIAL',
 ];
@@ -178,6 +177,13 @@ export default async function SearchPage({
     PROPERTY_TYPES.includes(t as PropertyType),
   );
 
+  // «Новостройка» — вычисляемая категория (?new_construction=true). Legacy-ссылки
+  // ?type=NEW_BUILDING (тип удалён из PropertyType) маппим на неё же.
+  const newConstruction =
+    first(sp.new_construction) === 'true' || rawTypes.includes('NEW_BUILDING')
+      ? true
+      : undefined;
+
   const rawParking = Array.isArray(sp.parking_type)
     ? sp.parking_type
     : sp.parking_type ? [sp.parking_type] : [];
@@ -246,6 +252,7 @@ export default async function SearchPage({
     totalFloorsMax: toNum(totalFloorsMaxRaw),
     yearMin: toNum(yearMinRaw),
     yearMax: toNum(yearMaxRaw),
+    newConstruction,
     notFirstFloor,
     notLastFloor,
     toursEnabled,
@@ -309,6 +316,7 @@ export default async function SearchPage({
     totalFloorsMax: totalFloorsMaxRaw,
     yearMin: yearMinRaw,
     yearMax: yearMaxRaw,
+    newConstruction,
     notFirstFloor,
     notLastFloor,
     toursEnabled,

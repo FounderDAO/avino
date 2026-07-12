@@ -30,7 +30,7 @@ const photoUrl = (s) => `https://picsum.photos/seed/${s}/1024/768`;
 const thumbUrl = (s) => `https://picsum.photos/seed/${s}/320/240`;
 
 // Вариативность данных (площадь с разными хвостами — проверка trailing-zeros).
-const TYPES = ['APARTMENT', 'HOUSE', 'NEW_BUILDING'];
+const TYPES = ['APARTMENT', 'HOUSE', 'APARTMENT'];
 const AREAS = ['45.00', '52.50', '60.00', '74.30', '88.00', '120.50', '38.00', '99.90'];
 const ROOMS = [1, 2, 3, 4, 5];
 const DISTRICT_NAMES = [

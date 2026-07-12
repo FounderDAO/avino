@@ -25,7 +25,7 @@ const COLS: {
     links: [
       { labelKey: 'buy', href: '/search?tx=SALE' },
       { labelKey: 'rent', href: '/search?tx=RENT' },
-      { labelKey: 'newBuildings', href: '/search?tx=SALE&type=NEW_BUILDING' },
+      { labelKey: 'newConstruction', href: '/search?tx=SALE&new_construction=true' },
       { labelKey: 'mortgage', href: '/help' },
     ],
   },

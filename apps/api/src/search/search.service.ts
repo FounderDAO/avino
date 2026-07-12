@@ -24,7 +24,11 @@ import {
   RadiusSearchQueryDto,
 } from './dto/geo-search.dto';
 import { polygonVerticesFromFilters } from './dto/polygon-ring.util';
-import { SearchListingsQueryDto, SortMode } from './dto/search-listings.dto';
+import {
+  NEW_CONSTRUCTION_MAX_AGE_YEARS,
+  SearchListingsQueryDto,
+  SortMode,
+} from './dto/search-listings.dto';
 import {
   PriceBucketDto,
   PriceDistributionQueryDto,
@@ -1323,6 +1327,15 @@ export class SearchService {
       conds.push(Prisma.sql`year_built >= ${query.year_min}`);
     if (query.year_max !== undefined)
       conds.push(Prisma.sql`year_built <= ${query.year_max}`);
+
+    // Новостройка — вычисляемая категория: зданию меньше 3 лет ЛИБО год
+    // постройки в будущем (недострой — «сдача в 2028»). NULL year_built не
+    // проходит. Порог считаем на сервере, чтобы URL был стабильным
+    // (?new_construction=true, без «протухающего» года на клиенте).
+    if (query.new_construction === true)
+      conds.push(
+        Prisma.sql`year_built >= ${new Date().getFullYear() - NEW_CONSTRUCTION_MAX_AGE_YEARS + 1}`,
+      );
 
     // Zillow Phase 1: источник (собственник / агентство)
     if (query.listing_source !== undefined && query.listing_source.length === 1)

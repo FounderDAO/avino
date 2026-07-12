@@ -219,7 +219,11 @@ const TR_ID = (g, li) => `5a21${li}000-0000-4000-8000-${pad12(g)}`; // li: 0=RU 
 const MEDIA_ID = (g, k) => `5a3${k}0000-0000-4000-8000-${pad12(g)}`; // k: 0..4
 
 // ───────────────────────────── Генерация спеки ──────────────────────────────
-const PT_CYCLE = ['APARTMENT', 'APARTMENT', 'NEW_BUILDING', 'HOUSE', 'APARTMENT', 'COMMERCIAL', 'APARTMENT', 'LAND', 'NEW_BUILDING', 'HOUSE'];
+const PT_CYCLE = ['APARTMENT', 'APARTMENT', 'APARTMENT', 'HOUSE', 'APARTMENT', 'COMMERCIAL', 'APARTMENT', 'LAND', 'APARTMENT', 'HOUSE'];
+// «Новостройка» — вычисляемая категория (year_built за последние 3 года или в
+// будущем — недострой), не PropertyType. Часть квартир сидируем новостройками.
+const NOW_YEAR = new Date().getFullYear();
+const NEW_CONSTRUCTION_MIN_YEAR = NOW_YEAR - 2;
 const PARKING = ['YARD', 'COVERED', 'GARAGE', 'UNDERGROUND'];
 const AMENITIES = ['AIR_CONDITIONING', 'FURNITURE', 'APPLIANCES', 'INTERNET', 'ELEVATOR', 'BALCONY', 'HEATING', 'SECURITY'];
 // Возраст карточки в днях (дробное < 1 → «Новое»). Цикл покрывает все ветки
@@ -229,7 +233,7 @@ const AGE_DAYS_CYCLE = [0.08, 0.5, 1, 3, 7, 12, 18, 26, 45, 80, 150, 300, 600, 1
 const ptFor = (g) => PT_CYCLE[(g - 1) % PT_CYCLE.length];
 
 function txFor(g, pt) {
-  if (pt === 'LAND' || pt === 'NEW_BUILDING') return 'SALE';
+  if (pt === 'LAND') return 'SALE';
   const r = g % 5;
   return r === 1 || r === 4 ? 'RENT' : 'SALE';
 }
@@ -242,7 +246,7 @@ function statusFor(g) {
 
 function currencyFor(g, tx, pt) {
   if (pt === 'LAND') return 'UZS';
-  if (tx === 'SALE' && (pt === 'NEW_BUILDING' || g % 3 === 0)) return 'USD';
+  if (tx === 'SALE' && g % 3 === 0) return 'USD';
   if (tx === 'RENT' && pt === 'APARTMENT' && g % 4 === 0) return 'USD';
   return 'UZS';
 }
@@ -258,7 +262,9 @@ function dims(g, pt) {
   const totalFloors = pt === 'HOUSE' ? 2 : 5 + (g % 12);
   const floor = pt === 'HOUSE' ? 1 : 1 + (g % totalFloors);
   const area = pt === 'HOUSE' ? `${120 + (g % 8) * 20}.00` : `${38 + (g % 7) * 9}.00`;
-  const yearBuilt = pt === 'NEW_BUILDING' ? 2023 + (g % 4) : 2005 + (g % 18);
+  // Каждая ~5-я квартира — новостройка: NOW_YEAR-2 … NOW_YEAR+2 (будущий год = недострой).
+  const yearBuilt =
+    pt === 'APARTMENT' && g % 5 === 2 ? NEW_CONSTRUCTION_MIN_YEAR + ((g >> 2) % 5) : 2005 + (g % 18);
   return { area, rooms, floor, totalFloors, yearBuilt };
 }
 
@@ -266,7 +272,7 @@ function bathroomsFor(g, pt) {
   if (pt === 'LAND') return null;
   if (pt === 'HOUSE') return 2 + (g % 3); // 2..4
   if (pt === 'COMMERCIAL') return 1 + (g % 2); // 1..2
-  return 1 + (g % 3); // квартира/новостройка: 1..3
+  return 1 + (g % 3); // квартира: 1..3
 }
 
 function parkingFor(g, pt) {
@@ -324,7 +330,7 @@ const TOUR_WINDOWS = [
   { start: '15:00', end: '18:00' },
 ];
 
-function titles(pt, d, rooms, area, zhk) {
+function titles(pt, d, rooms, area, zhk, isNewConstruction) {
   const sot = parseFloat(area) / 100;
   const m2 = parseFloat(area);
   if (pt === 'LAND') {
@@ -341,7 +347,7 @@ function titles(pt, d, rooms, area, zhk) {
       EN: `${m2} m² commercial space in ${d.nameEn}`,
     };
   }
-  if (pt === 'NEW_BUILDING') {
+  if (pt === 'APARTMENT' && isNewConstruction) {
     return {
       RU: `${rooms}-комн. квартира в ЖК «${zhk}», ${d.nameRu}`,
       UZ: `${d.nameUz}, «${zhk}» TJM, ${rooms} xonali kvartira`,
@@ -425,7 +431,6 @@ function descs(g, pt, tx, d) {
 
 const MEDIA_PLAN = {
   APARTMENT: ['building', 'living', 'kitchen', 'bedroom', 'bathroom'],
-  NEW_BUILDING: ['building', 'living', 'kitchen', 'bedroom', 'bathroom'],
   HOUSE: ['house', 'garden', 'living', 'kitchen', 'bedroom'],
   COMMERCIAL: ['office', 'retail', 'building', 'living'],
   LAND: ['land', 'land', 'building'],
@@ -560,7 +565,10 @@ async function upsertListing(g, region, district, now) {
     },
   });
 
-  const t = titles(pt, district, dim.rooms, dim.area, zhk);
+  const t = titles(
+    pt, district, dim.rooms, dim.area, zhk,
+    dim.yearBuilt != null && dim.yearBuilt >= NEW_CONSTRUCTION_MIN_YEAR,
+  );
   const ds = descs(g, pt, tx, district);
   const LANGS = [['RU', 0], ['UZ', 1], ['EN', 2]];
   for (const [lang, li] of LANGS) {

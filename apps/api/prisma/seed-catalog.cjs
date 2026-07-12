@@ -204,13 +204,17 @@ const TR_ID = (i, li) => `ca21${li}000-0000-4000-8000-${pad12(i)}`; // li: 0=RU 
 const MEDIA_ID = (i, k) => `ca3${k}0000-0000-4000-8000-${pad12(i)}`; // k: 0..4
 
 // ───────────────────────────── Генерация спеки ──────────────────────────────
-const PT_CYCLE = ['APARTMENT', 'APARTMENT', 'NEW_BUILDING', 'HOUSE', 'APARTMENT', 'COMMERCIAL', 'APARTMENT', 'LAND', 'NEW_BUILDING', 'HOUSE'];
+const PT_CYCLE = ['APARTMENT', 'APARTMENT', 'APARTMENT', 'HOUSE', 'APARTMENT', 'COMMERCIAL', 'APARTMENT', 'LAND', 'APARTMENT', 'HOUSE'];
+// «Новостройка» — вычисляемая категория (year_built за последние 3 года или в
+// будущем — недострой), не PropertyType. Часть квартир сидируем новостройками.
+const NOW_YEAR = new Date().getFullYear();
+const NEW_CONSTRUCTION_MIN_YEAR = NOW_YEAR - 2;
 
 function ptFor(i) {
   return PT_CYCLE[(i - 1) % PT_CYCLE.length];
 }
 function txFor(i, pt) {
-  if (pt === 'LAND' || pt === 'NEW_BUILDING') return 'SALE';
+  if (pt === 'LAND') return 'SALE';
   const r = i % 5;
   return r === 1 || r === 4 ? 'RENT' : 'SALE';
 }
@@ -221,7 +225,7 @@ function statusFor(i) {
 }
 function currencyFor(i, tx, pt) {
   if (pt === 'LAND') return 'UZS';
-  if (tx === 'SALE' && (pt === 'NEW_BUILDING' || i % 3 === 0)) return 'USD';
+  if (tx === 'SALE' && i % 3 === 0) return 'USD';
   if (tx === 'RENT' && pt === 'APARTMENT' && i % 4 === 0) return 'USD';
   return 'UZS';
 }
@@ -236,7 +240,9 @@ function dims(i, pt) {
   const totalFloors = pt === 'HOUSE' ? 2 : 5 + (i % 12);
   const floor = pt === 'HOUSE' ? 1 : 1 + (i % totalFloors);
   const area = pt === 'HOUSE' ? `${120 + (i % 8) * 20}.00` : `${38 + (i % 7) * 9}.00`;
-  const yearBuilt = pt === 'NEW_BUILDING' ? 2023 + (i % 4) : 2005 + (i % 18);
+  // Каждая ~5-я квартира — новостройка: NOW_YEAR-2 … NOW_YEAR+2 (будущий год = недострой).
+  const yearBuilt =
+    pt === 'APARTMENT' && i % 5 === 2 ? NEW_CONSTRUCTION_MIN_YEAR + ((i >> 2) % 5) : 2005 + (i % 18);
   return { area, rooms, floor, totalFloors, yearBuilt };
 }
 function priceFor(i, tx, pt, cur) {
@@ -256,7 +262,7 @@ function priceFor(i, tx, pt, cur) {
   return `${base}.00`;
 }
 
-function titles(pt, d, rooms, area, zhk) {
+function titles(pt, d, rooms, area, zhk, isNewConstruction) {
   const sot = parseFloat(area) / 100;
   const m2 = parseFloat(area);
   if (pt === 'LAND') {
@@ -273,7 +279,7 @@ function titles(pt, d, rooms, area, zhk) {
       EN: `${m2} m² commercial space in ${d.nameEn}`,
     };
   }
-  if (pt === 'NEW_BUILDING') {
+  if (pt === 'APARTMENT' && isNewConstruction) {
     return {
       RU: `${rooms}-комн. квартира в ЖК «${zhk}», ${d.nameRu}`,
       UZ: `${d.nameUz}, «${zhk}» TJM, ${rooms} xonali kvartira`,
@@ -357,7 +363,6 @@ function descs(i, pt, tx, d) {
 
 const MEDIA_PLAN = {
   APARTMENT: ['building', 'living', 'kitchen', 'bedroom', 'bathroom'],
-  NEW_BUILDING: ['building', 'living', 'kitchen', 'bedroom', 'bathroom'],
   HOUSE: ['house', 'garden', 'living', 'kitchen', 'bedroom'],
   COMMERCIAL: ['office', 'retail', 'building', 'living'],
   LAND: ['land', 'land', 'building'],
@@ -458,7 +463,10 @@ async function upsertListing(i, districts, now) {
     },
   });
 
-  const t = titles(pt, d, dim.rooms, dim.area, zhk);
+  const t = titles(
+    pt, d, dim.rooms, dim.area, zhk,
+    dim.yearBuilt != null && dim.yearBuilt >= NEW_CONSTRUCTION_MIN_YEAR,
+  );
   const ds = descs(i, pt, tx, d);
   const LANGS = [['RU', 0], ['UZ', 1], ['EN', 2]];
   for (const [lang, li] of LANGS) {

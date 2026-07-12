@@ -156,6 +156,10 @@ export function ActiveFilters({ values, districts, regions }: ActiveFiltersProps
     chips.push({ key: 'year', label, param: '__year' });
   }
 
+  if (values.newConstruction) {
+    chips.push({ key: 'new_construction', label: t('newConstruction'), param: 'new_construction' });
+  }
+
   if (values.notFirstFloor) {
     chips.push({ key: 'not_first_floor', label: t('notFirstFloor'), param: 'not_first_floor' });
   }

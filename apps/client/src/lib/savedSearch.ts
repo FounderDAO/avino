@@ -103,6 +103,8 @@ export function describeFilters(filters: SavedSearchFilters, t: T): string {
   else if (yearMin) parts.push(`${t('search.filters.yearTitle')}: ${t('search.filters.rangeFrom')} ${yearMin}`);
   else if (yearMax) parts.push(`${t('search.filters.yearTitle')}: ${t('search.filters.rangeTo')} ${yearMax}`);
 
+  if (filters.new_construction) parts.push(t('search.filters.newConstruction'));
+
   // listing_source — массив (мультивыбор); старые записи могли хранить строку.
   const sources = Array.isArray(filters.listing_source)
     ? (filters.listing_source as string[])
@@ -141,13 +143,23 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
 
   set('tx', asString(filters.transaction_type));
   // Мультивыбор типа: повторяем ?type= для каждого, иначе фолбэк на одиночный.
-  const propertyTypes = Array.isArray(filters.property_types)
-    ? (filters.property_types as unknown[]).filter(isPropertyType)
+  const rawTypes = Array.isArray(filters.property_types)
+    ? (filters.property_types as unknown[])
     : [];
+  const propertyTypes = rawTypes.filter(isPropertyType);
   if (propertyTypes.length > 0) {
     for (const pt of propertyTypes) params.append('type', pt);
-  } else {
+  } else if (asString(filters.property_type) !== 'NEW_BUILDING') {
     set('type', asString(filters.property_type));
+  }
+  // Legacy: сохранённые поиски с упразднённым типом NEW_BUILDING →
+  // вычисляемая категория «новостройка».
+  if (
+    filters.new_construction ||
+    rawTypes.includes('NEW_BUILDING') ||
+    asString(filters.property_type) === 'NEW_BUILDING'
+  ) {
+    params.set('new_construction', 'true');
   }
   set('region_id', asString(filters.region_id));
   set('district_id', asString(filters.district_id));

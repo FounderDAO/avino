@@ -62,7 +62,6 @@ export const MVP_LISTING_STATUSES = [
 export const PROPERTY_TYPES = [
   PropertyType.APARTMENT,
   PropertyType.HOUSE,
-  PropertyType.NEW_BUILDING,
   PropertyType.COMMERCIAL,
   PropertyType.LAND,
 ] as const;

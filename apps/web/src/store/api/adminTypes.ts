@@ -19,7 +19,6 @@ export type TransactionType = 'SALE' | 'RENT';
 export type PropertyType =
   | 'APARTMENT'
   | 'HOUSE'
-  | 'NEW_BUILDING'
   | 'LAND'
   | 'COMMERCIAL';
 export type ListingStatus =

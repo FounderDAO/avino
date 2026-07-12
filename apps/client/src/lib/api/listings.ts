@@ -464,6 +464,7 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   if (filter.totalFloorsMax != null) params.set('total_floors_max', String(filter.totalFloorsMax));
   if (filter.yearMin != null) params.set('year_min', String(filter.yearMin));
   if (filter.yearMax != null) params.set('year_max', String(filter.yearMax));
+  if (filter.newConstruction) params.set('new_construction', 'true');
   if (filter.listingSource && filter.listingSource.length > 0) {
     for (const s of filter.listingSource) params.append('listing_source', s);
   }

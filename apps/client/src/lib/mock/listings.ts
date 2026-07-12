@@ -39,7 +39,7 @@ export const LISTINGS: Listing[] = [
     createdAt: '2026-06-10T11:00:00Z',
   },
   {
-    id: 'av-1002', tx: 'SALE', type: 'NEW_BUILDING', promo: 'TOP',
+    id: 'av-1002', tx: 'SALE', type: 'APARTMENT', promo: 'TOP',
     price: '98000', currency: 'USD', area: '64', rooms: 2, floor: 5, totalFloors: 16, year: 2025,
     district: 'Мирзо-Улугбекский', address: 'Мирзо-Улугбек, ЖК «Boulevard», блок C',
     lat: 41.3275, lng: 69.334, photos: setOf('b'),
@@ -94,7 +94,7 @@ export const LISTINGS: Listing[] = [
     createdAt: '2026-06-08T11:00:00Z',
   },
   {
-    id: 'av-1007', tx: 'SALE', type: 'NEW_BUILDING', promo: 'VIP',
+    id: 'av-1007', tx: 'SALE', type: 'APARTMENT', promo: 'VIP',
     price: '165000', currency: 'USD', area: '95', rooms: 3, floor: 12, totalFloors: 24, year: 2024,
     district: 'Шайхантахурский', address: 'Tashkent City, башня «Nest One»',
     lat: 41.311, lng: 69.238, photos: setOf('b'),

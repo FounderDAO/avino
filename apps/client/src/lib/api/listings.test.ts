@@ -412,4 +412,9 @@ describe('buildSearchParams — Zillow-фильтры (Task 4)', () => {
     expect(p.getAll('listing_source')).toEqual(['OWNER', 'AGENCY']);
     expect(p.get('tours_enabled')).toBe('true');
   });
+
+  it('newConstruction → new_construction=true; отсутствие — параметра нет', () => {
+    expect(buildSearchParams({ newConstruction: true }, 24).get('new_construction')).toBe('true');
+    expect(buildSearchParams({}, 24).has('new_construction')).toBe(false);
+  });
 });
