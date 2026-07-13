@@ -49,6 +49,8 @@ describe('TokenService', () => {
       refreshToken: {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
+        findMany: jest.fn(),
+        groupBy: jest.fn(),
         update: jest.fn().mockResolvedValue({}),
         create: jest.fn().mockResolvedValue({}),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -94,9 +96,9 @@ describe('TokenService', () => {
       expect(prisma.refreshToken.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ userId: 'u1', familyId: 'fam1' }),
       });
-      // свежие роли в новом access-токене
+      // свежие роли и family текущей сессии в новом access-токене (ADR-0143)
       expect(jwt.signAsync).toHaveBeenCalledWith(
-        { sub: 'u1', roles: ['USER'] },
+        { sub: 'u1', roles: ['USER'], fid: 'fam1' },
         expect.objectContaining({ secret: 'access-secret' }),
       );
     });
@@ -189,6 +191,105 @@ describe('TokenService', () => {
       const userId = await service.revokeSession(TOKEN);
 
       expect(userId).toBeNull();
+      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listSessions (ADR-0143)', () => {
+    it('maps active rows to sessions: login time from groupBy, is_current by fid', async () => {
+      const t1 = new Date('2026-07-01T00:00:00Z');
+      const t2 = new Date('2026-07-10T00:00:00Z');
+      prisma.refreshToken.findMany.mockResolvedValue([
+        // DESC по createdAt: свежая ротация fam1, затем fam2 без ротаций
+        {
+          familyId: 'fam1',
+          createdAt: t2,
+          userAgent: 'Chrome',
+          ip: '1.1.1.1',
+        },
+        { familyId: 'fam2', createdAt: t1, userAgent: null, ip: null },
+      ]);
+      prisma.refreshToken.groupBy.mockResolvedValue([
+        { familyId: 'fam1', _min: { createdAt: t1 } },
+        { familyId: 'fam2', _min: { createdAt: t1 } },
+      ]);
+
+      const sessions = await service.listSessions('u1', 'fam1');
+
+      expect(prisma.refreshToken.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'u1',
+          revokedAt: null,
+          expiresAt: { gt: expect.any(Date) },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(sessions).toEqual([
+        {
+          familyId: 'fam1',
+          createdAt: t1,
+          lastRotatedAt: t2,
+          userAgent: 'Chrome',
+          ip: '1.1.1.1',
+          isCurrent: true,
+        },
+        {
+          familyId: 'fam2',
+          createdAt: t1,
+          lastRotatedAt: t1,
+          userAgent: null,
+          ip: null,
+          isCurrent: false,
+        },
+      ]);
+    });
+
+    it('marks nothing current when the access token carries no fid (pre-ADR-0143)', async () => {
+      const t = new Date();
+      prisma.refreshToken.findMany.mockResolvedValue([
+        { familyId: 'fam1', createdAt: t, userAgent: null, ip: null },
+      ]);
+      prisma.refreshToken.groupBy.mockResolvedValue([
+        { familyId: 'fam1', _min: { createdAt: t } },
+      ]);
+
+      const sessions = await service.listSessions('u1', null);
+
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].isCurrent).toBe(false);
+    });
+
+    it('returns [] without extra queries when the user has no active rows', async () => {
+      prisma.refreshToken.findMany.mockResolvedValue([]);
+
+      await expect(service.listSessions('u1', 'fam1')).resolves.toEqual([]);
+      expect(prisma.refreshToken.groupBy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('revokeUserFamily (ADR-0143)', () => {
+    it('revokes an own family and returns true', async () => {
+      prisma.refreshToken.findFirst.mockResolvedValue({ id: 'tok1' });
+
+      await expect(service.revokeUserFamily('u1', 'fam1')).resolves.toBe(true);
+
+      // Принадлежность проверяется парой familyId+userId
+      expect(prisma.refreshToken.findFirst).toHaveBeenCalledWith({
+        where: { familyId: 'fam1', userId: 'u1' },
+        select: { id: true },
+      });
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { familyId: 'fam1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+
+    it("returns false for another user's or unknown family without revoking", async () => {
+      prisma.refreshToken.findFirst.mockResolvedValue(null);
+
+      await expect(service.revokeUserFamily('u1', 'fam-alien')).resolves.toBe(
+        false,
+      );
       expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
     });
   });
