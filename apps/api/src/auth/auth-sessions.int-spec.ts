@@ -143,4 +143,48 @@ describe('Auth sessions management (integration, ADR-0143)', () => {
       true,
     );
   });
+
+  it('evicts the least-recently-active family when logins exceed the limit', async () => {
+    // Лимит 3 (вместо дефолтных 5), чтобы не плодить сессии; ConfigService
+    // читается на каждом вызове, поэтому достаточно подменить cfg.
+    cfg['jwt.maxSessions'] = 3;
+    // created_at сравнивается с миллисекундной точностью — разносим выпуски.
+    const tick = () => new Promise((r) => setTimeout(r, 5));
+    const login = (userAgent: string) =>
+      tokenService.issueSession({ userId: otherId, roles: ['USER'], userAgent });
+    try {
+      const s1 = await login('dev1');
+      await tick();
+      const s2 = await login('dev2');
+      await tick();
+      // Ротация s1: по последней активности s1 теперь свежее s2.
+      await tokenService.rotateSession(s1.refreshToken);
+      await tick();
+      const s3 = await login('dev3');
+      await tick();
+      // 4-й логин сверх лимита → вытесняется s2 (давнее всех активна), не s1.
+      const s4 = await login('dev4');
+
+      const sessions = await tokenService.listSessions(otherId);
+      const fams = sessions.map((s) => s.familyId);
+      expect(fams).toHaveLength(3);
+      expect(fams).toEqual(
+        expect.arrayContaining(
+          [s1, s3, s4].map((s) => fidOf(s.refreshToken)),
+        ),
+      );
+      expect(fams).not.toContain(fidOf(s2.refreshToken));
+
+      // Refresh вытесненного устройства мёртв (401 на следующем обновлении).
+      const dead = tokenService.rotateSession(s2.refreshToken);
+      await expect(dead).rejects.toBeInstanceOf(HttpException);
+      try {
+        await dead;
+      } catch (e) {
+        expect((e as HttpException).getStatus()).toBe(401);
+      }
+    } finally {
+      delete cfg['jwt.maxSessions'];
+    }
+  });
 });

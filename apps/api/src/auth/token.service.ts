@@ -72,12 +72,22 @@ export class TokenService {
   /**
    * Выпустить новую сессию (новая family) и сохранить refresh-строку.
    * Используется при успешном OTP-логине (TASK-042).
+   *
+   * Лимит сессий (ADR-0143): активных family у пользователя не больше
+   * `jwt.maxSessions` (env `AUTH_MAX_SESSIONS`, дефолт 5). Схема «создать,
+   * потом отрезать хвост» в одной транзакции: новая строка вставляется как
+   * обычно, затем family сортируются по последней активности
+   * (`max(created_at)` = момент последней ротации) и всё за пределами первых
+   * maxSessions отзывается. Логин никогда не отклоняется; вытесненное
+   * устройство получит 401 на следующем refresh. Подрезка идемпотентна —
+   * гонку параллельных логинов чинит следующий же логин.
    */
   async issueSession(input: IssueSessionInput): Promise<IssuedTokens> {
     const accessTtl = this.config.get<number>('jwt.accessTtl') ?? 900;
     const refreshTtl = this.config.get<number>('jwt.refreshTtl') ?? 2592000;
     const accessSecret = this.config.get<string>('jwt.accessSecret')!;
     const refreshSecret = this.config.get<string>('jwt.refreshSecret')!;
+    const maxSessions = this.config.get<number>('jwt.maxSessions') ?? 5;
 
     const familyId = randomUUID();
     // jti = id строки refresh_tokens: связывает токен с его записью в БД и даёт
@@ -96,16 +106,42 @@ export class TokenService {
       { secret: refreshSecret, expiresIn: refreshTtl, jwtid: tokenId },
     );
 
-    await this.prisma.refreshToken.create({
-      data: {
-        id: tokenId,
-        userId: input.userId,
-        tokenHash: hashRefreshToken(refreshToken, refreshSecret),
-        familyId,
-        userAgent: input.userAgent ?? null,
-        ip: input.ip ? input.ip.slice(0, 64) : null,
-        expiresAt: new Date(Date.now() + refreshTtl * 1000),
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.refreshToken.create({
+        data: {
+          id: tokenId,
+          userId: input.userId,
+          tokenHash: hashRefreshToken(refreshToken, refreshSecret),
+          familyId,
+          userAgent: input.userAgent ?? null,
+          ip: input.ip ? input.ip.slice(0, 64) : null,
+          expiresAt: new Date(Date.now() + refreshTtl * 1000),
+        },
+      });
+
+      // Только что созданная family по активности самая свежая, поэтому skip
+      // maxSessions отдаёт ровно вытесняемый хвост (может быть пустым).
+      const evicted = await tx.refreshToken.groupBy({
+        by: ['familyId'],
+        where: {
+          userId: input.userId,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        _max: { createdAt: true },
+        orderBy: { _max: { createdAt: 'desc' } },
+        skip: maxSessions,
+      });
+      if (evicted.length > 0) {
+        await tx.refreshToken.updateMany({
+          where: {
+            userId: input.userId,
+            familyId: { in: evicted.map((g) => g.familyId) },
+            revokedAt: null,
+          },
+          data: { revokedAt: new Date() },
+        });
+      }
     });
 
     return { accessToken, refreshToken, expiresIn: accessTtl };
