@@ -1913,3 +1913,83 @@ describe('GET /search — new_construction (вычисляемая «новос�
     expect(result.data).toHaveLength(5);
   });
 });
+
+/**
+ * Integration-тест локализованного `address` в карточках выдачи (ADR-0147, PR-2 Task 8).
+ * Канонический `address` (RU) хранится всегда; `address_en` — перевод, может быть `null`.
+ * Контракт: `language === EN` → `addressEn ?? address`, иначе (включая UZ, у которого
+ * своего перевода адреса нет) — всегда канонический `address`.
+ *
+ * Изоляция — уникальный CITY_ID_ADDR; данные удаляются в afterAll.
+ */
+describe('SearchService address localization (integration, ADR-0147)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY_ID_ADDR = '44444444-5555-4444-8777-000000000903';
+
+  const ID = {
+    listing: 'aaaaaaaa-0006-4000-8000-000000000903',
+  };
+
+  const ADDRESS_RU = 'Ташкент, Чиланзар, ул. Сеул, 7/1';
+  const ADDRESS_EN = 'Tashkent, Chilanzar, Seul koʻchasi, 7/1';
+
+  let ownerId: string;
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_ADDR } });
+
+    const owner = await prisma.user.create({ data: { phone: '+998900000903' } });
+    ownerId = owner.id;
+
+    await prisma.listing.create({
+      data: {
+        id: ID.listing,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: '100000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_ADDR,
+        promotionType: PromotionType.NORMAL,
+        address: ADDRESS_RU,
+        addressEn: ADDRESS_EN,
+        translations: {
+          create: [
+            { language: Language.RU, title: 'addr-ru', source: TranslationSource.USER },
+            { language: Language.UZ, title: 'addr-uz', source: TranslationSource.USER },
+            { language: Language.EN, title: 'addr-en', source: TranslationSource.USER },
+          ],
+        },
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_ADDR } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('address отдаётся по языку: en → address_en, uz → фолбэк ru (ADR-0147)', async () => {
+    const ru = await service.search({ city_id: CITY_ID_ADDR, limit: 100 }, 'ru');
+    const en = await service.search({ city_id: CITY_ID_ADDR, limit: 100 }, 'en');
+    const uz = await service.search({ city_id: CITY_ID_ADDR, limit: 100 }, 'uz');
+
+    expect(ru.data[0].address).toBe(ADDRESS_RU);
+    expect(en.data[0].address).toBe(ADDRESS_EN);
+    // UZ не имеет собственного перевода адреса — фолбэк на канонический RU.
+    expect(uz.data[0].address).toBe(ADDRESS_RU);
+  });
+});
