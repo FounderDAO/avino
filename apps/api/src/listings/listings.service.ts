@@ -281,6 +281,9 @@ const LISTING_DETAIL_SELECT = {
   totalFloors: true,
   yearBuilt: true,
   address: true,
+  // Адрес на английском (ADR-0147): используется в detail при language === EN,
+  // аналогично search-выдаче (Task 8).
+  addressEn: true,
   cityId: true,
   districtId: true,
   latitude: true,
@@ -1208,7 +1211,12 @@ export class ListingsService {
       city_id: listing.cityId,
       district_id: listing.districtId,
       district_name: districtName,
-      address: listing.address,
+      // Адрес по языку (ADR-0147): для EN отдаём addressEn (если заполнен),
+      // иначе — канонический RU address; для остальных языков — всегда RU.
+      address:
+        language === Language.EN
+          ? (listing.addressEn ?? listing.address)
+          : listing.address,
       latitude: listing.latitude?.toFixed(6) ?? null,
       longitude: listing.longitude?.toFixed(6) ?? null,
       promotion_type: listing.promotionType,
