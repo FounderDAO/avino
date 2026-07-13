@@ -10,6 +10,7 @@ import {
   setCredentials,
   selectAccessToken,
   selectRefreshToken,
+  readPersistedRefreshToken,
 } from '../slices/authSlice';
 import type { RefreshResponse } from './authApi';
 
@@ -60,7 +61,12 @@ async function refreshTokens(
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
-        const refreshToken = selectRefreshToken(api.getState() as RootState);
+        // localStorage — общий для вкладок источник истины: после ротации в
+        // соседней вкладке Redux-снапшот протухает, а повторная ротация старым
+        // токеном = TOKEN_REUSED → отзыв всей family (docs/API.md §3).
+        const refreshToken =
+          readPersistedRefreshToken() ??
+          selectRefreshToken(api.getState() as RootState);
         if (!refreshToken) return false;
 
         const result = await rawBaseQuery(
