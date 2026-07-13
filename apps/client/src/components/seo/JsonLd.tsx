@@ -9,10 +9,11 @@ interface JsonLdProps {
 }
 
 export function JsonLd({ data }: JsonLdProps) {
+  // JSON.stringify не экранирует `<`: строка `</script>` в пользовательском
+  // поле (title/desc/address объявления) вырвалась бы из тега → stored XSS.
+  // Unicode-escape (u003c) эквивалентен для JSON-парсеров, но безопасен в теге.
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json }} />
   );
 }
