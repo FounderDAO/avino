@@ -257,6 +257,7 @@ const SEARCH_SELECT = {
   cityId: true,
   districtId: true,
   address: true,
+  addressEn: true,
   latitude: true,
   longitude: true,
   promotionType: true,
@@ -1440,7 +1441,12 @@ export class SearchService {
       lot_area: listing.lotArea?.toFixed(2) ?? null,
       city_id: listing.cityId,
       district_id: listing.districtId,
-      address: listing.address,
+      // Локализованный адрес (ADR-0147): EN — перевод с фолбэком на канон;
+      // остальные языки (включая UZ, у которого своего перевода адреса нет) — канон RU.
+      address:
+        language === Language.EN
+          ? (listing.addressEn ?? listing.address)
+          : listing.address,
       latitude: listing.latitude?.toFixed(6) ?? null,
       longitude: listing.longitude?.toFixed(6) ?? null,
       promotion_type: listing.promotionType,
