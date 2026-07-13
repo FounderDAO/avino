@@ -1,6 +1,6 @@
 /**
  * /account/[tab] — личный кабинет Avino (только моки, без авторизации).
- * Валидный tab ∈ {favorites, my-listings, saved, notifications, inbox, profile, settings}.
+ * Валидный tab ∈ {favorites, my-listings, saved, notifications, inbox, profile, settings, devices, tours}.
  * Невалидный → notFound(). Рендерит AccountLayout + контент активной вкладки.
  *
  * 'use client': часть вкладок завязана на стор/локальное состояние, поэтому
@@ -18,6 +18,7 @@ import { Notifications } from '@/features/account/Notifications';
 import { Inbox } from '@/features/account/Inbox';
 import { Profile } from '@/features/account/Profile';
 import { Settings } from '@/features/account/Settings';
+import { Devices } from '@/features/account/Devices';
 import Tours from '@/features/account/Tours';
 
 /** Карта «таб → компонент контента». Ключи = допустимые значения params.tab. */
@@ -29,6 +30,7 @@ const TAB_CONTENT: Record<string, React.ComponentType> = {
   notifications: Notifications,
   profile: Profile,
   settings: Settings,
+  devices: Devices,
   tours: Tours,
 };
 
