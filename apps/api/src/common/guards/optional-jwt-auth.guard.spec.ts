@@ -49,11 +49,19 @@ describe('OptionalJwtAuthGuard', () => {
   });
 
   it('attaches user from a valid bearer token', async () => {
-    jwt.verifyAsync.mockResolvedValue({ sub: 'u1', roles: ['USER'] });
+    jwt.verifyAsync.mockResolvedValue({
+      sub: 'u1',
+      roles: ['USER'],
+      fid: 'fam1',
+    });
     const { ctx, request } = contextWith({ authorization: 'Bearer good' });
 
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
-    expect(request.user).toEqual({ id: 'u1', roles: ['USER'] });
+    expect(request.user).toEqual({
+      id: 'u1',
+      roles: ['USER'],
+      sessionFamilyId: 'fam1',
+    });
   });
 
   it('rejects an invalid bearer token with 401 (does not silently downgrade to guest)', async () => {

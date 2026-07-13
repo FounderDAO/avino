@@ -20,6 +20,7 @@ import { verifyOtpCode } from './otp-hash.util';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 import { TokenService } from './token.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { SessionResponse } from './dto/session-response.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { MeResponse } from './dto/me-response.dto';
 import { isReviewerBypass, type OtpBypassConfig } from './otp-bypass.util';
@@ -402,6 +403,60 @@ export class AuthService {
         },
       });
     }
+  }
+
+  /**
+   * Активные сессии пользователя (`GET /api/v1/auth/sessions`, ADR-0143).
+   * Делегирует {@link TokenService.listSessions}; `currentFamilyId` — `fid`
+   * предъявленного access-токена (метит `is_current`).
+   */
+  async listSessions(
+    userId: string,
+    currentFamilyId?: string | null,
+  ): Promise<SessionResponse[]> {
+    const sessions = await this.tokenService.listSessions(
+      userId,
+      currentFamilyId,
+    );
+    return sessions.map((s) => ({
+      id: s.familyId,
+      created_at: s.createdAt.toISOString(),
+      last_rotated_at: s.lastRotatedAt.toISOString(),
+      user_agent: s.userAgent,
+      ip: s.ip,
+      is_current: s.isCurrent,
+    }));
+  }
+
+  /**
+   * Отозвать сессию по id family (`DELETE /api/v1/auth/sessions/:fid`,
+   * ADR-0143) → 204. Family чужого пользователя или несуществующая → 404
+   * NOT_FOUND (существование чужой сессии не раскрывается). Успешный отзыв
+   * пишется в `audit_logs` (`action='SESSION_REVOKED'`).
+   */
+  async revokeSessionById(
+    userId: string,
+    familyId: string,
+    ip: string,
+    userAgent?: string,
+  ): Promise<void> {
+    const revoked = await this.tokenService.revokeUserFamily(userId, familyId);
+    if (!revoked) {
+      throw new HttpException(
+        { code: ApiErrorCode.NOT_FOUND, message: 'Session not found' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: userId,
+        action: 'SESSION_REVOKED',
+        entityType: 'refresh_token_family',
+        entityId: familyId,
+        ip: ip ? ip.slice(0, 64) : null,
+        userAgent: userAgent ?? null,
+      },
+    });
   }
 
   /**

@@ -30,6 +30,20 @@ export interface IssueSessionInput {
   userAgent?: string | null;
 }
 
+/** Активная сессия (session family) пользователя — `GET /auth/sessions` (ADR-0143). */
+export interface SessionInfo {
+  /** id family (`fid`) — публичный идентификатор сессии. */
+  familyId: string;
+  /** Момент логина: `created_at` первой строки family. */
+  createdAt: Date;
+  /** Момент последней ротации: `created_at` активной строки family. */
+  lastRotatedAt: Date;
+  userAgent: string | null;
+  ip: string | null;
+  /** family совпадает с `fid` предъявленного access-токена. */
+  isCurrent: boolean;
+}
+
 /**
  * TokenService — выпуск access/refresh-токенов и хранение refresh-сессии
  * (TASK-042, ADR-0010, ARCHITECTURE §6).
@@ -70,8 +84,10 @@ export class TokenService {
     // TASK-043 опору для ротации/reuse-detection.
     const tokenId = randomUUID();
 
+    // `fid` в access-токене помечает session family: `GET /auth/sessions`
+    // отличает по нему текущую сессию без предъявления refresh-токена (ADR-0143).
     const accessToken = await this.jwt.signAsync(
-      { sub: input.userId, roles: input.roles },
+      { sub: input.userId, roles: input.roles, fid: familyId },
       { secret: accessSecret, expiresIn: accessTtl },
     );
 
@@ -187,7 +203,7 @@ export class TokenService {
 
     const newTokenId = randomUUID();
     const accessToken = await this.jwt.signAsync(
-      { sub: row.userId, roles },
+      { sub: row.userId, roles, fid: row.familyId },
       { secret: accessSecret, expiresIn: accessTtl },
     );
     const newRefreshToken = await this.jwt.signAsync(
@@ -235,6 +251,74 @@ export class TokenService {
     }
     await this.revokeFamily(row.familyId);
     return row.userId;
+  }
+
+  /**
+   * Активные сессии пользователя (`GET /api/v1/auth/sessions`, ADR-0143).
+   *
+   * Сессия = session family с активной строкой `refresh_tokens` (`revoked_at
+   * IS NULL AND expires_at > now()`). Инвариант ротации ({@link rotateSession}:
+   * старая строка отзывается в той же транзакции, где создаётся новая) держит в
+   * family максимум одну активную строку — она и описывает сессию: её
+   * `created_at` — момент последней ротации, `user_agent`/`ip` — последнее
+   * известное устройство. Момент логина — `min(created_at)` по family.
+   */
+  async listSessions(
+    userId: string,
+    currentFamilyId?: string | null,
+  ): Promise<SessionInfo[]> {
+    const rows = await this.prisma.refreshToken.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (rows.length === 0) {
+      return [];
+    }
+
+    // На случай нарушения инварианта (гонка ротаций) family схлопывается до
+    // самой свежей активной строки: rows отсортированы DESC, берём первую.
+    const latestByFamily = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      if (!latestByFamily.has(row.familyId)) {
+        latestByFamily.set(row.familyId, row);
+      }
+    }
+
+    const firstRows = await this.prisma.refreshToken.groupBy({
+      by: ['familyId'],
+      where: { userId, familyId: { in: [...latestByFamily.keys()] } },
+      _min: { createdAt: true },
+    });
+    const familyCreatedAt = new Map(
+      firstRows.map((g) => [g.familyId, g._min.createdAt]),
+    );
+
+    return [...latestByFamily.values()].map((row) => ({
+      familyId: row.familyId,
+      createdAt: familyCreatedAt.get(row.familyId) ?? row.createdAt,
+      lastRotatedAt: row.createdAt,
+      userAgent: row.userAgent,
+      ip: row.ip,
+      isCurrent: row.familyId === currentFamilyId,
+    }));
+  }
+
+  /**
+   * Отозвать session family пользователя (`DELETE /api/v1/auth/sessions/:fid`,
+   * ADR-0143). Family должна принадлежать `userId`: чужая или несуществующая →
+   * `false` (роут отвечает 404, не раскрывая существование чужой сессии).
+   * Уже отозванная своя family → `true` (идемпотентность, как logout).
+   */
+  async revokeUserFamily(userId: string, familyId: string): Promise<boolean> {
+    const row = await this.prisma.refreshToken.findFirst({
+      where: { familyId, userId },
+      select: { id: true },
+    });
+    if (!row) {
+      return false;
+    }
+    await this.revokeFamily(familyId);
+    return true;
   }
 
   /** Отозвать все ещё активные токены session family (reuse / logout). */

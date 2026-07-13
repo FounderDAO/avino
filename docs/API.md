@@ -205,6 +205,39 @@ Body: `{ "refresh_token": "eyJ..." }` → 204 No Content.
 ```
 Errors: `401 UNAUTHORIZED`.
 
+### GET /api/v1/auth/sessions
+
+Активные сессии (session families refresh-токенов) текущего пользователя
+(ADR-0143). Auth: **Bearer**. `is_current` метится по `fid` предъявленного
+access-токена (refresh-токен не передаётся).
+
+200:
+```json
+[
+  {
+    "id": "3f1c...-fid",
+    "created_at": "2026-07-01T10:00:00.000Z",
+    "last_rotated_at": "2026-07-12T08:30:00.000Z",
+    "user_agent": "Mozilla/5.0 ...",
+    "ip": "203.0.113.7",
+    "is_current": true
+  }
+]
+```
+`created_at` — момент логина, `last_rotated_at` — последняя ротация refresh
+(равно `created_at`, если ротаций не было). Errors: `401 UNAUTHORIZED`.
+
+### DELETE /api/v1/auth/sessions/:fid
+
+Отозвать конкретную сессию по её id (session family, ADR-0143). Auth: **Bearer**.
+Только свою: чужой или несуществующий `fid` → `404 NOT_FOUND` (существование
+чужой сессии не раскрывается). После отзыва refresh-токены family перестают
+ротироваться (`401 TOKEN_REUSED` на `/auth/refresh`); повторный отзыв своей
+family идемпотентен.
+
+204 No Content. Errors: `400 VALIDATION_ERROR` (не-UUID `fid`),
+`401 UNAUTHORIZED`, `404 NOT_FOUND`.
+
 ---
 
 ## 4. Common conventions

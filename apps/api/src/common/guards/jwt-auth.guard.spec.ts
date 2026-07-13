@@ -34,22 +34,34 @@ describe('JwtAuthGuard', () => {
   });
 
   it('attaches user from a valid access token', async () => {
-    jwt.verifyAsync.mockResolvedValue({ sub: 'u1', roles: ['USER', 'ADMIN'] });
+    jwt.verifyAsync.mockResolvedValue({
+      sub: 'u1',
+      roles: ['USER', 'ADMIN'],
+      fid: 'fam1',
+    });
     const { ctx, request } = contextWith({ authorization: 'Bearer good.token' });
 
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
     expect(jwt.verifyAsync).toHaveBeenCalledWith('good.token', {
       secret: ACCESS_SECRET,
     });
-    expect(request.user).toEqual({ id: 'u1', roles: ['USER', 'ADMIN'] });
+    expect(request.user).toEqual({
+      id: 'u1',
+      roles: ['USER', 'ADMIN'],
+      sessionFamilyId: 'fam1',
+    });
   });
 
-  it('defaults roles to [] when token has none', async () => {
+  it('defaults roles to [] and sessionFamilyId to null when token has none', async () => {
     jwt.verifyAsync.mockResolvedValue({ sub: 'u2' });
     const { ctx, request } = contextWith({ authorization: 'Bearer t' });
 
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
-    expect(request.user).toEqual({ id: 'u2', roles: [] });
+    expect(request.user).toEqual({
+      id: 'u2',
+      roles: [],
+      sessionFamilyId: null,
+    });
   });
 
   it('accepts a case-insensitive bearer scheme', async () => {

@@ -24,12 +24,19 @@ export interface AuthenticatedUser {
   id: string;
   /** Роли пользователя на момент выпуска токена. */
   roles: UserRole[];
+  /**
+   * Session family (`fid`) access-токена — по нему `GET /auth/sessions` метит
+   * текущую сессию `is_current` (ADR-0143). `null` для access-токенов, выпущенных
+   * до ADR-0143 (исчезают в течение accessTtl после деплоя).
+   */
+  sessionFamilyId?: string | null;
 }
 
 /** Полезная нагрузка access-JWT (выпускается {@link TokenService}). */
 interface AccessPayload {
   sub: string;
   roles?: string[];
+  fid?: string;
 }
 
 /** Минимальный структурный тип запроса — без зависимости от `@types/express`. */
@@ -86,6 +93,7 @@ export class JwtAuthGuard implements CanActivate {
     request.user = {
       id: payload.sub,
       roles: (payload.roles ?? []) as UserRole[],
+      sessionFamilyId: typeof payload.fid === 'string' ? payload.fid : null,
     };
     return true;
   }
