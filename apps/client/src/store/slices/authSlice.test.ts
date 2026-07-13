@@ -47,3 +47,30 @@ describe('authSlice: пересоздание store (ремонт при сме�
     expect(selectIsAuthenticated(store2.getState())).toBe(false);
   });
 });
+
+describe('authSlice: access-токен только в памяти (ADR-0142)', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('access не попадает в localStorage и не переживает пересоздание store', () => {
+    const store1 = makeStore();
+    store1.dispatch(
+      setCredentials({ access_token: 'access-1', refresh_token: 'refresh-1' }),
+    );
+    expect(window.localStorage.getItem('avino.client.access_token')).toBeNull();
+
+    // Новый store: авторизован (по refresh), но access восстановится только
+    // через ротацию — в state его быть не должно.
+    const store2 = makeStore();
+    expect(selectIsAuthenticated(store2.getState())).toBe(true);
+    expect(store2.getState().auth.accessToken).toBeNull();
+    expect(store2.getState().auth.refreshToken).toBe('refresh-1');
+  });
+
+  it('легаси access-токен (код до ADR-0142) вычищается при создании store', () => {
+    window.localStorage.setItem('avino.client.access_token', 'stale-access');
+    makeStore();
+    expect(window.localStorage.getItem('avino.client.access_token')).toBeNull();
+  });
+});
