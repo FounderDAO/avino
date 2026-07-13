@@ -921,6 +921,7 @@
       "notifications": "Notifications",
       "profile": "Profile",
       "settings": "Settings",
+      "devices": "Devices",
       "tours": "My tours"
     },
     "userCard": {
@@ -1126,6 +1127,23 @@
         "title": "Notification sound",
         "text": "Play a sound on a new message or notification"
       }
+    },
+    "devices": {
+      "title": "My devices",
+      "subtitle": "Active sessions of your account. End a session if you don't recognize the device.",
+      "authTitle": "Sign in to see your devices",
+      "authText": "Devices signed in to your account will appear here.",
+      "goHome": "Go to homepage",
+      "empty": "No active sessions",
+      "unknownDevice": "Unknown device",
+      "current": "Current session",
+      "signedIn": "Signed in",
+      "lastActive": "Last active",
+      "revoke": "Sign out",
+      "confirmRevoke": "End this session? The device will be signed out.",
+      "revoked": "Session ended",
+      "alreadyRevoked": "Session already ended",
+      "revokeError": "Couldn't end the session"
     },
     "tours": {
       "upcoming": "Upcoming tours",

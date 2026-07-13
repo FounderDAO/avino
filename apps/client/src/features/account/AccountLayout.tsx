@@ -11,7 +11,7 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import { CalendarDays, Home, Heart, Bell, MessageCircle, User, Settings as SettingsIcon } from 'lucide-react';
+import { CalendarDays, Home, Heart, Bell, MessageCircle, MonitorSmartphone, User, Settings as SettingsIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
@@ -35,6 +35,7 @@ export const ACCOUNT_TABS: AccountTab[] = [
   { key: 'notifications', labelKey: 'notifications', icon: Bell },
   { key: 'profile', labelKey: 'profile', icon: User },
   { key: 'settings', labelKey: 'settings', icon: SettingsIcon },
+  { key: 'devices', labelKey: 'devices', icon: MonitorSmartphone },
   { key: 'tours', labelKey: 'tours', icon: CalendarDays },
 ];
 

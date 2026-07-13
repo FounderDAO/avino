@@ -921,6 +921,7 @@
       "notifications": "Bildirishnomalar",
       "profile": "Profil",
       "settings": "Sozlamalar",
+      "devices": "Qurilmalar",
       "tours": "Mening turlarim"
     },
     "userCard": {
@@ -1126,6 +1127,23 @@
         "title": "Bildirishnoma tovushi",
         "text": "Yangi xabar yoki bildirishnoma kelganda signal chalinsin"
       }
+    },
+    "devices": {
+      "title": "Mening qurilmalarim",
+      "subtitle": "Hisobingizning faol sessiyalari. Notanish qurilma bo'lsa, sessiyani yakunlang.",
+      "authTitle": "Qurilmalarni ko'rish uchun tizimga kiring",
+      "authText": "Hisobingizga kirilgan qurilmalar shu yerda ko'rinadi.",
+      "goHome": "Bosh sahifaga",
+      "empty": "Faol sessiyalar yo'q",
+      "unknownDevice": "Noma'lum qurilma",
+      "current": "Joriy sessiya",
+      "signedIn": "Kirish",
+      "lastActive": "Faollik",
+      "revoke": "Yakunlash",
+      "confirmRevoke": "Bu sessiya yakunlansinmi? Qurilma hisobdan chiqariladi.",
+      "revoked": "Sessiya yakunlandi",
+      "alreadyRevoked": "Sessiya allaqachon yakunlangan",
+      "revokeError": "Sessiyani yakunlab bo'lmadi"
     },
     "tours": {
       "upcoming": "Rejalashtirilgan turlar",

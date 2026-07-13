@@ -37,6 +37,7 @@ export const SUPPRESSED_ENDPOINTS: ReadonlySet<string> = new Set([
   'updateTourStatus', // IncomingTourModal (инлайн) / Tours, UpcomingTourCard (ручной toast)
   'submitAgentApplication', // BecomeAgent (инлайн)
   'getMyAgentApplication', // BecomeAgent/лимит-модалка — 404 у новичка не должен давать тост
+  'revokeSession', // Devices (ручной toast; 404 = «уже завершена», не ошибка)
   // Фон/инфраструктура.
   'refresh',
   'logout',
