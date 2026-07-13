@@ -20,7 +20,7 @@ import {
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
-import { DistrictsService } from '../geo';
+import { AddressResolverService, DistrictsService, normalizeAddress } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
@@ -452,6 +452,7 @@ export class ListingsService {
     private readonly districts: DistrictsService,
     private readonly uploads: UploadsService,
     private readonly activeLimit: ActiveListingLimitService,
+    private readonly addressResolver: AddressResolverService,
   ) {}
 
   /** `POST /api/v1/listings` — создать объявление (статус `NEW`). */
@@ -481,6 +482,7 @@ export class ListingsService {
         ),
       },
     };
+    await this.applyAddress(data, dto);
 
     // Авто-апгрейд автора до OWNER при первом объявлении и сама запись — в одной
     // транзакции (ADR-0083). Это позволяет свежему USER публиковать сразу, не
@@ -608,7 +610,7 @@ export class ListingsService {
   ): Promise<ListingResponse> {
     const existing = await this.prisma.listing.findFirst({
       where: { id: listingId, status: { not: ListingStatus.DELETED } },
-      select: { id: true, ownerId: true, originalLanguage: true, status: true, toursEnabled: true, tourWindows: true, price: true, currency: true },
+      select: { id: true, ownerId: true, originalLanguage: true, status: true, toursEnabled: true, tourWindows: true, price: true, currency: true, districtId: true },
     });
     if (!existing) {
       throw new NotFoundException({
@@ -630,6 +632,11 @@ export class ListingsService {
     validateToursInput(effectiveEnabled, effectiveWindows);
 
     const data: Prisma.ListingUpdateInput = this.toScalarData(dto);
+    await this.applyAddress(
+      data as { address?: string | null; addressEn?: string | null },
+      dto,
+      existing,
+    );
 
     const translationData = this.toTranslationData(dto.translation);
     if (translationData) {
@@ -970,6 +977,44 @@ export class ListingsService {
       return true;
     }
     return viewer.roles.some((role) => PRIVILEGED_VIEW_ROLES.includes(role));
+  }
+
+  /**
+   * Адрес объявления (ADR-0147): координаты в dto → реверс-геокод ru+en
+   * (AddressResolverService); геокодер молчит → строковая нормализация
+   * присланного текста, addressEn сбрасывается (мог протухнуть против нового
+   * ru). Правка только текста без координат ре-геокод НЕ вызывает — ручная
+   * правка владельца уважается (но чистится нормализатором).
+   */
+  private async applyAddress(
+    data: { address?: string | null; addressEn?: string | null },
+    dto: {
+      latitude?: string;
+      longitude?: string;
+      address?: string;
+      district_id?: string;
+    },
+    existing?: { districtId: string | null } | null,
+  ): Promise<void> {
+    const coordsTouched =
+      dto.latitude !== undefined && dto.longitude !== undefined;
+    if (coordsTouched) {
+      const districtId = dto.district_id ?? existing?.districtId ?? null;
+      const resolved = await this.addressResolver.resolve(
+        dto.latitude as string,
+        dto.longitude as string,
+        districtId,
+      );
+      if (resolved) {
+        data.address = resolved.address;
+        data.addressEn = resolved.addressEn;
+        return;
+      }
+    }
+    if (dto.address !== undefined) {
+      data.address = normalizeAddress(dto.address);
+      data.addressEn = null;
+    }
   }
 
   /** DTO (snake_case) → Prisma scalar data (camelCase). Пропускает undefined. */

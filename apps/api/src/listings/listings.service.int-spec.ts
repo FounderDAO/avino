@@ -6,7 +6,7 @@ import {
   TransactionType,
   TranslationSource,
 } from '@prisma/client';
-import { DistrictsService } from '../geo';
+import { AddressResolverService, DistrictsService } from '../geo';
 import { PrismaService } from '../prisma';
 import { ActiveListingLimitService } from '../settings';
 import { TranslationsService } from '../translations';
@@ -23,6 +23,12 @@ const uploadsStub = {
 const activeLimitStub = {
   getLimit: async () => 0,
 } as unknown as ActiveListingLimitService;
+
+// Геокодер здесь не тестируется (ADR-0147) — null = недоступен, адрес идёт
+// строковым фолбэком через normalizeAddress.
+const addressResolverStub = {
+  resolve: async () => null,
+} as unknown as AddressResolverService;
 
 /**
  * Integration-тесты контактного блока детальной (TASK-210, ADR-0069) на живом
@@ -44,6 +50,7 @@ describe('ListingsService contact block (integration, TASK-210)', () => {
     districts,
     uploadsStub,
     activeLimitStub,
+    addressResolverStub,
   );
 
   const CITY_ID = '55555555-3333-4444-8555-000000000210';
