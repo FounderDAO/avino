@@ -5,6 +5,7 @@ import { apiErrorToastMiddleware } from './apiErrorToastMiddleware';
 import favoritesReducer from './favoritesSlice';
 import currencyReducer from './currencySlice';
 import { authReducer } from './slices/authSlice';
+import { mortgageReducer } from './slices/mortgageSlice';
 import territoryReducer from './territorySlice';
 import resultPricesReducer from './resultPricesSlice';
 import sortReducer from './sortSlice';
@@ -17,6 +18,7 @@ export const makeStore = () => {
       favorites: favoritesReducer,
       currency: currencyReducer,
       auth: authReducer,
+      mortgage: mortgageReducer,
       territory: territoryReducer,
       resultPrices: resultPricesReducer,
       sort: sortReducer,
