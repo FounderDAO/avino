@@ -82,6 +82,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-avino}:${POSTGRES_PASSWORD:-avino}@postgres:5432/${POSTGRES_DB:-avino}?schema=public
       REDIS_URL: redis://redis:6379
       CORS_ORIGINS: http://localhost:3000,http://localhost:3001
+      # Серверный ключ Yandex Geocoder (нормализация адреса, ADR-0147) — из
+      # корневого .env; пусто → геокодинг деградирует без падения.
+      YANDEX_MAPS_API_KEY: ${YANDEX_MAPS_API_KEY:-}
     ports:
       - "${API_PORT:-4000}:4000"
     restart: unless-stopped

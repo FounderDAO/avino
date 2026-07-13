@@ -511,7 +511,12 @@ async function upsertListing(g, region, district, now) {
 
   const zhk = ZHK[g % ZHK.length];
   const street = STREETS[g % STREETS.length];
-  const address = `${region.nameRu}, ${district.nameRu}, ${street}, ${(g % 80) + 1}`;
+  const houseNo = (g % 80) + 1;
+  // Канонический формат адреса (ADR-0147): без «город »/«… shahri», регион = locality.
+  const cityRu = region.nameRu.replace(/^(город|г\.)\s+/i, '');
+  const cityEn = region.nameEn.replace(/\s+shahri$/i, '');
+  const address = `${cityRu}, ${district.nameRu}, ${street}, ${houseNo}`;
+  const addressEn = `${cityEn}, ${district.nameEn}, ${street}, ${houseNo}`;
 
   // Возраст карточки → createdAt (для DaysBadge); publishedAt = createdAt у ACTIVE.
   const ageDays = AGE_DAYS_CYCLE[(g - 1) % AGE_DAYS_CYCLE.length];
@@ -538,6 +543,7 @@ async function upsertListing(g, region, district, now) {
     latitude,
     longitude,
     address,
+    addressEn,
     createdAt,
     publishedAt,
     promotionType,
