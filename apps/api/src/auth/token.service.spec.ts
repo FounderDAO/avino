@@ -18,6 +18,7 @@ describe('TokenService', () => {
     'jwt.refreshSecret': REFRESH_SECRET,
     'jwt.accessTtl': 900,
     'jwt.refreshTtl': 2592000,
+    'jwt.maxSessions': 5,
   };
 
   let jwt: any;
@@ -62,7 +63,11 @@ describe('TokenService', () => {
           roles: [{ role: { code: 'USER' } }],
         }),
       },
-      $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
+      $transaction: jest.fn((arg: unknown) =>
+        typeof arg === 'function'
+          ? (arg as (tx: unknown) => Promise<unknown>)(prisma)
+          : Promise.all(arg as Promise<unknown>[]),
+      ),
     };
     service = new TokenService(jwt, config, prisma);
   });
@@ -75,6 +80,61 @@ describe('TokenService', () => {
       expect((e as HttpException).getResponse()).toMatchObject({ code });
     }
   }
+
+  describe('issueSession (session limit, ADR-0143)', () => {
+    const input = {
+      userId: 'u1',
+      roles: ['USER'],
+      ip: '127.0.0.1',
+      userAgent: 'agent',
+    };
+
+    it('keeps all sessions when the limit is not exceeded', async () => {
+      prisma.refreshToken.groupBy.mockResolvedValue([]);
+
+      const result = await service.issueSession(input);
+
+      expect(result).toEqual({
+        accessToken: 'new-access',
+        refreshToken: 'new-refresh',
+        expiresIn: 900,
+      });
+      expect(prisma.refreshToken.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ userId: 'u1' }),
+      });
+      // Хвост за лимитом пуст → ничего не отзываем
+      expect(prisma.refreshToken.groupBy).toHaveBeenCalledWith({
+        by: ['familyId'],
+        where: {
+          userId: 'u1',
+          revokedAt: null,
+          expiresAt: { gt: expect.any(Date) },
+        },
+        _max: { createdAt: true },
+        orderBy: { _max: { createdAt: 'desc' } },
+        skip: 5,
+      });
+      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('revokes families beyond the newest maxSessions by last activity', async () => {
+      prisma.refreshToken.groupBy.mockResolvedValue([
+        { familyId: 'fam-stale-1', _max: { createdAt: new Date() } },
+        { familyId: 'fam-stale-2', _max: { createdAt: new Date() } },
+      ]);
+
+      await service.issueSession(input);
+
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'u1',
+          familyId: { in: ['fam-stale-1', 'fam-stale-2'] },
+          revokedAt: null,
+        },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+  });
 
   describe('rotateSession', () => {
     it('rotates: revokes the presented token and issues a new pair in the family', async () => {

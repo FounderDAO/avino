@@ -227,6 +227,11 @@ access-токена (refresh-токен не передаётся).
 `created_at` — момент логина, `last_rotated_at` — последняя ротация refresh
 (равно `created_at`, если ротаций не было). Errors: `401 UNAUTHORIZED`.
 
+Лимит: активных сессий не больше `AUTH_MAX_SESSIONS` (дефолт 5). Логин сверх
+лимита не отклоняется — тихо отзывается сессия, дольше всех неактивная по
+`last_rotated_at`; её устройство получит `401` на следующем `/auth/refresh`
+(ADR-0143).
+
 ### DELETE /api/v1/auth/sessions/:fid
 
 Отозвать конкретную сессию по её id (session family, ADR-0143). Auth: **Bearer**.

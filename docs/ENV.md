@@ -140,6 +140,7 @@ worker are full NO-OP when off (no Redis connection, no schedule). See ADR-0099.
 | JWT_REFRESH_SECRET   | yes  | yes    | no     | (set)   | Signing secret for long-lived refresh token |
 | JWT_ACCESS_TTL       | no   | no     | no     | 900     | Access token TTL, seconds (default 15m)     |
 | JWT_REFRESH_TTL      | no   | no     | no     | 2592000 | Refresh token TTL, seconds (default 30d)    |
+| AUTH_MAX_SESSIONS    | no   | no     | no     | 5       | Max active sessions per user; oldest by activity is evicted on login (ADR-0143) |
 
 ```text
 - Access and refresh use DIFFERENT secrets. Refresh tokens are stored hashed

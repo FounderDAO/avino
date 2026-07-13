@@ -46,7 +46,20 @@ Accepted
    Повторный отзыв своей family идемпотентен (204). Отзыв — существующим
    `revokeFamily`; успех пишется в `audit_logs`
    (`action='SESSION_REVOKED'`, `entity_type='refresh_token_family'`).
-3. **`fid` добавлен в payload access-токена** (`issueSession`/`rotateSession`),
+3. **Лимит активных сессий** (дополнение 2026-07-13): у пользователя не больше
+   `AUTH_MAX_SESSIONS` (config `jwt.maxSessions`, дефолт 5) активных family.
+   Enforcement — в `issueSession` (единственная точка создания family; ротация
+   новых не создаёт) по схеме «создать, потом отрезать хвост» в одной
+   транзакции: после вставки новой строки family сортируются по последней
+   активности (`max(created_at)` = последняя ротация) и всё за пределами первых
+   maxSessions отзывается существующим механизмом `revoked_at`. Логин никогда
+   не отклоняется (UX-паттерн Google/банков: не блокировать вход из-за забытого
+   устройства); вытесняется реально заброшенная сессия, а не самая ранняя по
+   дате логина. Подрезка идемпотентна и самочинится: гонка параллельных логинов
+   максимум кратковременно превышает лимит до следующего логина. Альтернатива
+   «отклонять новый логин с ошибкой лимита» отвергнута: хуже UX, требует
+   клиентского флоу разблокировки.
+4. **`fid` добавлен в payload access-токена** (`issueSession`/`rotateSession`),
    guard кладёт его в `request.user.sessionFamilyId`. Это решает `is_current`
    без предъявления refresh-токена (альтернативы отвергнуты: refresh в body у
    GET — ломает семантику и гоняет секрет; отдельный `POST /auth/sessions/current`
@@ -84,7 +97,8 @@ Follow-ups (вне этого PR):
 ## Related files
 
 - apps/api/src/auth/token.service.ts — `SessionInfo`, `listSessions`,
-  `revokeUserFamily`, `fid` в access-payload
+  `revokeUserFamily`, `fid` в access-payload, лимит сессий в `issueSession`
+- apps/api/src/config/configuration.ts, env.validation.ts — `AUTH_MAX_SESSIONS`
 - apps/api/src/auth/auth.service.ts — `listSessions` (маппинг контракта),
   `revokeSessionById` (404 + audit)
 - apps/api/src/auth/auth.controller.ts — `GET /auth/sessions`,
