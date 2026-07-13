@@ -47,6 +47,8 @@ import { PriceHistory } from './PriceHistory';
 import { ContactCard } from './ContactCard';
 import { DetailMap } from './DetailMap';
 import { DetailPrice } from './DetailPrice';
+import { MortgageEstBar } from './MortgageEstBar';
+import { MortgagePaymentCard } from './MortgagePaymentCard';
 import { ShareButton } from './ShareButton';
 import { ViewTracker } from './ViewTracker';
 
@@ -185,6 +187,9 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
           {/* Цена */}
           <DetailPrice listing={listing} />
 
+          {/* Est-полоска ипотеки (только продажа, спека §6.1) */}
+          <MortgageEstBar listing={listing} />
+
           {/* Характеристики строкой */}
           {parts.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center text-[15.5px] font-medium text-muted-foreground">
@@ -217,6 +222,9 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
 
           {/* Ключевые факты */}
           <Facts listing={listing} className="mt-6" />
+
+          {/* Карточка «Ежемесячный платёж» (только продажа, спека §6.2) */}
+          <MortgagePaymentCard listing={listing} className="mt-7" />
 
           {/* История цены (ADR-0121) */}
           <PriceHistory listing={listing} />
