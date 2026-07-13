@@ -1033,6 +1033,34 @@ describe('ListingsService', () => {
       ]);
     });
 
+    // Адрес по языку в detail (ADR-0147, Task 9): аналогично search-выдаче
+    // (Task 8) — при lang=en отдаём addressEn, если он заполнен; для других
+    // языков (в т.ч. UZ, у которого нет своего address-поля) — канонический RU address.
+    it('returns addressEn for lang=en, and the canonical RU address for other languages', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        address: 'Ташкент, Чиланзар, ул. Сеул, 7/1',
+        addressEn: 'Tashkent, Chilanzar, Seul koʻchasi, 7/1',
+        translations: [
+          ...detailRow.translations,
+          {
+            language: Language.UZ,
+            title: '2 xonali kvartira',
+            description: 'Yorugʻ',
+            addressNote: 'metro yaqinida',
+            featuresText: 'balkon',
+          },
+        ],
+      });
+
+      const en = await service.findOne(LISTING_ID, undefined, 'en');
+      expect(en.address).toBe('Tashkent, Chilanzar, Seul koʻchasi, 7/1');
+
+      const uz = await service.findOne(LISTING_ID, undefined, 'uz');
+      expect(uz.language).toBe(Language.UZ);
+      expect(uz.address).toBe('Ташкент, Чиланзар, ул. Сеул, 7/1');
+    });
+
     // findByReference (ADR-0137): поиск по короткому номеру повторяет видимость
     // findOne, отличается лишь ключом поиска (reference вместо UUID-id).
     it('finds an ACTIVE listing by its reference number', async () => {
