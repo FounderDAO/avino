@@ -1,17 +1,20 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   HttpCode,
   HttpStatus,
   Ip,
+  Param,
+  ParseUUIDPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../common/decorators';
-import { JwtAuthGuard } from '../common/guards';
+import { JwtAuthGuard, AuthenticatedUser } from '../common/guards';
 import { AuthService, RefreshResult, VerifyOtpResult } from './auth.service';
 import { GoogleAuthService } from './google-auth.service';
 import { AppleAuthService } from './apple-auth.service';
@@ -20,6 +23,7 @@ import { GoogleLoginDto } from './dto/google-login.dto';
 import { AppleLoginDto } from './dto/apple-login.dto';
 import { MeResponse } from './dto/me-response.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { SessionResponse } from './dto/session-response.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
@@ -117,6 +121,38 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser('id') userId: string): Promise<MeResponse> {
     return this.authService.getMe(userId);
+  }
+
+  /**
+   * Активные сессии текущего пользователя (ADR-0143). `is_current` метится по
+   * `fid` предъявленного access-токена — refresh-токен не передаётся. Токены,
+   * выпущенные до ADR-0143, `fid` не несут → все сессии `is_current=false` до
+   * ближайшей ротации.
+   */
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  sessions(@CurrentUser() user: AuthenticatedUser): Promise<SessionResponse[]> {
+    return this.authService.listSessions(user.id, user.sessionFamilyId);
+  }
+
+  /**
+   * Отозвать конкретную сессию (session family) по её id (ADR-0143) → 204.
+   * Только свою: чужой/несуществующий `fid` → 404 NOT_FOUND (существование
+   * чужой сессии не раскрывается). Refresh-токены family перестают ротироваться
+   * (401 на `/auth/refresh`).
+   * Throttle: 20 req/60s (M-3).
+   */
+  @Delete('sessions/:fid')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  revokeSession(
+    @CurrentUser('id') userId: string,
+    @Param('fid', new ParseUUIDPipe()) fid: string,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent?: string,
+  ): Promise<void> {
+    return this.authService.revokeSessionById(userId, fid, ip, userAgent);
   }
 
   /**
