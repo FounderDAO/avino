@@ -68,6 +68,14 @@ services:
     logging: *default-logging
     mem_limit: ${API_MEM_LIMIT:-2g}
     cpus: ${API_CPUS:-2.0}
+    # WS /rt: 1 сокет = 1 fd — фиксируем лимит, не полагаясь на дефолт хоста.
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    # Мягкий drain при деплое: на SIGTERM сервер успевает отдать close-фрейм,
+    # клиенты уходят в reconnect сразу, а не по 20-секундному pingTimeout.
+    stop_grace_period: 30s
     environment:
       NODE_ENV: production
       # Реальные origin'ы браузерных клиентов (админка + публичный портал).

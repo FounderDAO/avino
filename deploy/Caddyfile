@@ -25,5 +25,9 @@
 # API (apps/api, NestJS)
 {$DOMAIN_API} {
 	encode zstd gzip
-	reverse_proxy api:4000
+	reverse_proxy api:4000 {
+		# Reload конфига Caddy по умолчанию рвёт проксируемые WebSocket (/rt);
+		# задержка даёт соединениям пережить reload (PROD.md §6.2).
+		stream_close_delay 12h
+	}
 }
