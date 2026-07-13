@@ -14,7 +14,10 @@ import { userRoom } from './realtime.types';
  * токен в handleConnection. Успех → сокет джойнит `user:<id>` и получает
  * инвалидации; провал → дисконнект (клиент переподключится после ротации).
  */
-@WebSocketGateway({ namespace: '/rt' })
+// pingInterval/pingTimeout зафиксированы явно (= дефолты socket.io v4): ping
+// каждые 25 c держит WS живым внутри 100-секундного idle-окна Cloudflare Free —
+// апгрейд socket.io или «оптимизация» не должны молча вывести ping за лимит.
+@WebSocketGateway({ namespace: '/rt', pingInterval: 25000, pingTimeout: 20000 })
 export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
   constructor(
     private readonly authenticator: WsAuthenticator,

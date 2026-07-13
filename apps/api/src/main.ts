@@ -71,6 +71,9 @@ async function bootstrap() {
   const redisIoAdapter = new RedisIoAdapter(app);
   await redisIoAdapter.connectToRedis();
   app.useWebSocketAdapter(redisIoAdapter);
+  // Мягкий drain при деплое: на SIGTERM закрываем сервер корректно — WS-клиенты
+  // получают close-фрейм и реконнектятся сразу, а не по pingTimeout.
+  app.enableShutdownHooks();
   const port = config.get<number>('app.port') ?? 4000;
   await app.listen(port);
   // eslint-disable-next-line no-console
