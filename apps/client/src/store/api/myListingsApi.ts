@@ -47,6 +47,7 @@ export interface MineItem {
   rooms: number | null;
   city_id: string | null;
   district_id: string | null;
+  address: string | null;
   promotion_type: PromotionType;
   promotion_expires_at: string | null;
   original_language: string;
