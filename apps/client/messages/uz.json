@@ -547,6 +547,7 @@
       "badge": "Ilgari surish",
       "title": "TOP va VIP bilan tezroq soting",
       "subtitle": "E'lonni qidiruv natijalarida yuqoriga ko'taring va 5 barobargacha ko'proq ko'rishlar oling.",
+      "priceFrom": "{price}dan",
       "top": {
         "text": "Qidiruv ro'yxatida oddiy e'lonlardan yuqorida",
         "price": "50 000 so'mdan"
@@ -876,7 +877,18 @@
       "title": "Javob topolmadingizmi?",
       "text": "Qo'llab-quvvatlash xizmatiga yozing — har kuni 9:00 dan 21:00 gacha javob beramiz. Email: <b>Support@avino.uz</b>",
       "write": "Qo'llab-quvvatlashga yozish",
-      "openChat": "Chatni ochish"
+      "openChat": "Chatni ochish",
+      "modalTitle": "Qo'llab-quvvatlashga yozish",
+      "nameLabel": "Ism",
+      "contactLabel": "Telefon yoki email",
+      "contactPlaceholder": "+998 ... yoki you@mail.uz",
+      "messageLabel": "Xabar",
+      "contactRequired": "Telefon yoki email kiriting — javobni o'sha yerga yozamiz.",
+      "messageRequired": "Savolingizni yozing — shunda yordam bera olamiz.",
+      "submit": "Yuborish",
+      "success": "Rahmat! Murojaat qabul qilindi — 9:00 dan 21:00 gacha javob beramiz.",
+      "error": "Yuborib bo'lmadi. Yana urinib ko'ring.",
+      "close": "Yopish"
     }
   },
   "listingEdit": {
