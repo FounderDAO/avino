@@ -128,7 +128,8 @@ function ListingRow({ l, promotionsEnabled }: { l: Listing; promotionsEnabled: b
           <StatusPill s={l.status} />
           <PromoBadge promo={l.promo} />
         </div>
-        <div className="truncate text-base font-bold">{l.title}</div>
+        {/* Заголовок карточки — чистый адрес; title («тип, площадь, адрес») — фолбэк для объявлений без адреса. */}
+        <div className="truncate text-base font-bold">{l.address || l.title}</div>
         <div className="mt-[3px] text-[13.5px] text-muted-foreground">
           {fmt.price(l)} · {l.district}
         </div>
