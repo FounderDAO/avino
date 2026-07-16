@@ -55,6 +55,14 @@ function emptyDraft(): FiltersPanelValues {
   return {};
 }
 
+/**
+ * Секция «Комнаты и санузлы» СКРЫТА (не удалена) по просьбе клиента:
+ * оба фильтра переехали в дропдаун «Комнаты» (Beds & Baths по-зилловски),
+ * дублировать их в панели не нужно. Вернуть — поставить true.
+ * Логика draft/apply/reset для roomsMin/bathroomsMin сохранена.
+ */
+const SHOW_ROOMS_AND_BATHROOMS = false;
+
 // ─── Компонент ───────────────────────────────────────────────────────────────
 
 export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
@@ -93,20 +101,22 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
       {/* Прокручиваемое тело: скроллится только контент, футер закреплён снизу */}
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
 
-      {/* 0. Комнаты и санузлы */}
-      <Section title={t('roomsAndBathrooms')}>
-        <BedroomsControl
-          value={draft.roomsMin}
-          exact={false}
-          showExact={false}
-          onChange={({ value }) => patch({ roomsMin: value })}
-        />
-        <div className="mt-2 text-[12.5px] font-bold text-muted-foreground">{t('bathrooms')}</div>
-        <BathroomsControl
-          value={draft.bathroomsMin}
-          onChange={(value) => patch({ bathroomsMin: value })}
-        />
-      </Section>
+      {/* 0. Комнаты и санузлы — скрыто флагом SHOW_ROOMS_AND_BATHROOMS (см. выше) */}
+      {SHOW_ROOMS_AND_BATHROOMS && (
+        <Section title={t('roomsAndBathrooms')}>
+          <BedroomsControl
+            value={draft.roomsMin}
+            exact={false}
+            showExact={false}
+            onChange={({ value }) => patch({ roomsMin: value })}
+          />
+          <div className="mt-2 text-[12.5px] font-bold text-muted-foreground">{t('bathrooms')}</div>
+          <BathroomsControl
+            value={draft.bathroomsMin}
+            onChange={(value) => patch({ bathroomsMin: value })}
+          />
+        </Section>
+      )}
 
       {/* 1. Площадь, м² */}
       <Section title={t('areaTitle')}>

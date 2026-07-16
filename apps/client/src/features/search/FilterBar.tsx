@@ -40,6 +40,7 @@ import { suggestionToLocation } from './locationParams';
 import { TriggerButton } from './TriggerButton';
 import { ActiveFilters } from './ActiveFilters';
 import { BedroomsControl } from './controls/BedroomsControl';
+import { BathroomsControl } from './controls/BathroomsControl';
 import { HomeTypeMultiSelect } from './controls/HomeTypeMultiSelect';
 import { FiltersPanel, type FiltersPanelValues } from './FiltersPanel';
 import { PriceFilter } from './PriceFilter';
@@ -113,6 +114,10 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Дропдаун «Фильтры» управляемый: «Применить» закрывает панель
+  // (кнопки внутри FiltersPanel — не DropdownItem, Radix сам их не закрывает).
+  const [moreOpen, setMoreOpen] = React.useState(false);
 
   /** Записывает изменения в URL query (удаляет пустые значения). */
   const setParams = React.useCallback(
@@ -253,7 +258,9 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     values.totalFloorsMin || values.totalFloorsMax ||
     values.notFirstFloor || values.notLastFloor ||
     values.toursEnabled || (values.listingSource?.length ?? 0) > 0 ||
-    values.bathroomsMin || values.isBasement ||
+    // bathroomsMin не подсвечивает «Фильтры»: секция в панели скрыта,
+    // санузлы сигналит чип «Комнаты» (см. SHOW_ROOMS_AND_BATHROOMS).
+    values.isBasement ||
     (values.parkingTypes?.length ?? 0) > 0 ||
     (values.amenities?.length ?? 0) > 0,
   );
@@ -507,16 +514,20 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
             onReset={() => setParams({ priceMin: undefined, priceMax: undefined, currency: undefined })}
           />
 
-          {/* Комнаты — BedroomsControl */}
+          {/* Комнаты и санузлы в одном дропдауне (по-зилловски «Beds & Baths»);
+              ширина подобрана так, чтобы каждый ряд пилюль был одной линией. */}
           <Dropdown>
             <DropdownTrigger asChild>
               <TriggerButton
                 label={roomsLabel}
-                active={roomsActive}
+                active={roomsActive || values.bathroomsMin != null}
                 data-testid="filter-rooms"
               />
             </DropdownTrigger>
-            <DropdownContent align="start" className="w-[260px] p-4">
+            <DropdownContent align="start" className="w-[min(440px,92vw)] p-4">
+              <div className="mb-2 text-[12.5px] font-bold text-muted-foreground">
+                {tSearch('filters.rooms')}
+              </div>
               <BedroomsControl
                 value={roomsValue}
                 exact={roomsExact}
@@ -529,6 +540,13 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
                     setParams({ rooms_min: value, rooms: undefined });
                   }
                 }}
+              />
+              <div className="mb-2 mt-4 text-[12.5px] font-bold text-muted-foreground">
+                {tSearch('filters.bathrooms')}
+              </div>
+              <BathroomsControl
+                value={values.bathroomsMin}
+                onChange={(value) => setParams({ bathrooms_min: value })}
               />
             </DropdownContent>
           </Dropdown>
@@ -561,8 +579,10 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
             </DropdownTrigger>
             <DropdownContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto p-2">
               {/* DropdownItem (Radix Item): меню закрывается по выбору — сырой <button> не закрывал. */}
+              {/* «Все регионы» пишем сентинелом ?region_id=all: пустой параметр
+                  вернул бы дефолтный Ташкент (см. search/page.tsx). */}
               <DropdownItem
-                onSelect={() => setParams({ region_id: undefined, district_id: undefined })}
+                onSelect={() => setParams({ region_id: 'all', district_id: undefined })}
                 selected={!values.regionId}
                 className="text-[14.5px]"
               >
@@ -623,7 +643,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
           </Dropdown>
 
           {/* ⚙ Фильтры — FiltersPanel в прокручиваемом дропдауне */}
-          <Dropdown>
+          <Dropdown open={moreOpen} onOpenChange={setMoreOpen}>
             <DropdownTrigger asChild>
               <TriggerButton
                 label={tSearch('filters.moreFilters')}
@@ -634,11 +654,15 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
             </DropdownTrigger>
             <DropdownContent
               align="start"
-              className="w-[min(360px,92vw)] overflow-hidden p-0"
+              // 440px — чтобы ряды пилюль «Комнаты»/«Санузлы» помещались одной линией.
+              className="w-[min(440px,92vw)] overflow-hidden p-0"
             >
               <FiltersPanel
                 values={panelValues}
-                onApply={handlePanelApply}
+                onApply={(next) => {
+                  handlePanelApply(next);
+                  setMoreOpen(false);
+                }}
                 onReset={handlePanelReset}
               />
             </DropdownContent>

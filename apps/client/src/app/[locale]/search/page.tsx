@@ -108,6 +108,9 @@ function first(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
 }
 
+/** Код региона «город Ташкент» в /geo/regions — дефолтная локация выдачи. */
+const TASHKENT_REGION_CODE = 'toshkent-shahri';
+
 /** searchParams в Next 15 — Promise. */
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -137,8 +140,11 @@ export default async function SearchPage({
   // Район теперь фильтруется по UUID (`?district_id=`, GET /search) — справочник
   // отдаёт id (ADR-0068). Имя для отображения резолвится в FilterBar по списку.
   const districtId = first(sp.district_id) || undefined;
-  // Регион — UI-уровень каскада «Регион → Район»; API не принимает region_id напрямую.
-  const regionId = first(sp.region_id) || undefined;
+  // Регион: UUID для `?region_id=` (API принимает его напрямую) или сентинел
+  // 'all' — явный выбор «Все регионы», отключающий дефолтный Ташкент (см. ниже).
+  const regionIdRaw = first(sp.region_id) || undefined;
+  const allRegions = regionIdRaw === 'all';
+  const regionId = allRegions ? undefined : regionIdRaw;
   const query = first(sp.query) || undefined;
   const view: 'list' | 'map' = first(sp.view) === 'map' ? 'map' : 'list';
 
@@ -225,6 +231,37 @@ export default async function SearchPage({
   );
   const listingSource = listingSourceArr.length > 0 ? listingSourceArr : undefined;
 
+  // Viewport-режим (Zillow): bbox из URL восстанавливает область карты и выдачу.
+  // Явный гео-фильтр главнее bbox (bbox игнорируется — как boundary у Zillow).
+  const initialBounds =
+    !districtId && !regionId
+      ? parseBoundsParams(
+          first(sp.sw_lat),
+          first(sp.sw_lng),
+          first(sp.ne_lat),
+          first(sp.ne_lng),
+        )
+      : null;
+
+  // Saved-search: нарисованная территория восстанавливается из ?points=.
+  const initialPolygon = deserializePolygonRing(first(sp.points)) ?? undefined;
+
+  // Справочники грузим ДО поиска: дефолтная локация резолвится по code региона.
+  const [districts, regions] = await Promise.all([
+    getDistricts(locale),
+    getRegions(locale),
+  ]);
+
+  // Дефолтная локация по-зилловски: без явной гео-привязки (район/регион/
+  // «Все регионы»/текстовый запрос/bbox/полигон) выдача ограничивается Ташкентом —
+  // как и карта по умолчанию, независимо от количества результатов.
+  // Явный выбор «Все регионы» приходит как ?region_id=all и дефолт отключает.
+  const defaultRegionId =
+    !districtId && !regionId && !allRegions && !query && !initialBounds && !initialPolygon
+      ? regions.find((r) => r.code === TASHKENT_REGION_CODE)?.id
+      : undefined;
+  const effectiveRegionId = regionId ?? defaultRegionId;
+
   // ----- Данные из реального API -----
   // Первая страница (limit=SEARCH_PAGE_SIZE) + meta (total/next_cursor): курсор прокидываем в
   // клиентскую дозагрузку «Показать ещё» (TASK-199).
@@ -233,7 +270,7 @@ export default async function SearchPage({
     type,
     types: types.length > 0 ? types : undefined,
     districtId,
-    regionId,
+    regionId: effectiveRegionId,
     roomsExact: rooms,
     roomsMin,
     bathroomsMin,
@@ -262,34 +299,15 @@ export default async function SearchPage({
     isBasement,
   };
 
-  // Viewport-режим (Zillow): bbox из URL восстанавливает область карты и выдачу.
-  // Явный гео-фильтр главнее bbox (bbox игнорируется — как boundary у Zillow).
-  const initialBounds =
-    !districtId && !regionId
-      ? parseBoundsParams(
-          first(sp.sw_lat),
-          first(sp.sw_lng),
-          first(sp.ne_lat),
-          first(sp.ne_lng),
-        )
-      : null;
-
-  // Saved-search: нарисованная территория восстанавливается из ?points=.
-  const initialPolygon = deserializePolygonRing(first(sp.points)) ?? undefined;
-
-  const [page, districts, regions] = await Promise.all([
-    initialBounds
-      ? searchListingsByBounds(filter, initialBounds, locale, 100).then(
-          (listings): SearchListingsPage => ({
-            listings,
-            total: listings.length,
-            nextCursor: null,
-          }),
-        )
-      : searchListingsPage(filter, locale),
-    getDistricts(locale),
-    getRegions(locale),
-  ]);
+  const page = await (initialBounds
+    ? searchListingsByBounds(filter, initialBounds, locale, 100).then(
+        (listings): SearchListingsPage => ({
+          listings,
+          total: listings.length,
+          nextCursor: null,
+        }),
+      )
+    : searchListingsPage(filter, locale));
 
   // Значения для FilterBar (цена и диапазоны — строкой, как в инпутах).
   const filterValues: FilterValues = {
@@ -297,7 +315,8 @@ export default async function SearchPage({
     type,
     types: types.length > 0 ? types : undefined,
     districtId,
-    regionId,
+    // Дефолтный Ташкент показываем и в UI (чип «Регион», каскад районов).
+    regionId: effectiveRegionId,
     rooms,
     roomsMin,
     bathroomsMin,
@@ -352,6 +371,7 @@ export default async function SearchPage({
         filter={filter}
         initialBounds={initialBounds}
         initialPolygon={initialPolygon}
+        regionIsDefault={defaultRegionId != null}
       />
     </div>
   );

@@ -79,6 +79,12 @@ export interface SearchResultsProps {
   initialBounds?: LatLngBounds | null;
   /** Восстановленная из ?points= нарисованная территория (saved-search open). */
   initialPolygon?: LatLng[] | null;
+  /**
+   * filter.regionId — ДЕФОЛТНЫЙ Ташкент (search/page.tsx), а не выбор пользователя.
+   * Ограничивает только SSR-выдачу/дозагрузку; карта ведёт себя как без гео-фильтра
+   * (viewport-режим активен, без autoFit, bounds-запросы без региона).
+   */
+  regionIsDefault?: boolean;
 }
 
 export function SearchResults({
@@ -91,6 +97,7 @@ export function SearchResults({
   loading,
   initialBounds = null,
   initialPolygon = null,
+  regionIsDefault = false,
 }: SearchResultsProps) {
   const t = useTranslations('search');
   const tCommon = useTranslations('common');
@@ -108,6 +115,17 @@ export function SearchResults({
     const { sort: _ignoredSort, ...rest } = filter;
     return { ...rest, currency: displayCurrency };
   }, [filter, displayCurrency]);
+  // Для bounds/polygon-запросов дефолтный Ташкент снимаем: пользователь двигает
+  // карту или рисует территорию → выдача следует за гео-жестом (по-зилловски),
+  // регион не липнет. Дозагрузка «Показать ещё» остаётся на filterWithCurrency —
+  // в рамках SSR-выдачи («· Ташкент»).
+  const geoQueryFilter = React.useMemo<ListingFilter>(
+    () =>
+      regionIsDefault
+        ? { ...filterWithCurrency, regionId: undefined }
+        : filterWithCurrency,
+    [filterWithCurrency, regionIsDefault],
+  );
   // Режим рисования территории + нарисованное кольцо (как на /map).
   const [drawing, setDrawing] = React.useState(false);
   const [polygon, setPolygon] = React.useState<LatLng[] | null>(null);
@@ -124,18 +142,20 @@ export function SearchResults({
   // ── Viewport-режим (Zillow): список = видимая область карты ──
   // Активен только без явного гео-фильтра и территории; активация — жестом
   // пользователя на карте (или сразу, если SSR восстановил bbox из URL).
-  const geoFilterActive = Boolean(filter.districtId || filter.regionId);
+  const geoFilterActive = Boolean(
+    filter.districtId || (filter.regionId && !regionIsDefault),
+  );
   // Автоподгон карты под маркеры нужен ТОЛЬКО когда пользователь задал локацию
   // (район/регион или текстовый запрос) — тогда фокусируемся на результатах. В
   // «чистом» дефолте (без локации) НЕ фитим: карта остаётся на дефолт-центре
   // Ташкента (MapView), иначе autoFit растянул бы вид на объявления по всей
   // стране, хотя выдача по умолчанию — «· Ташкент».
   const hasLocationIntent = Boolean(
-    filter.districtId || filter.regionId || filter.query,
+    filter.districtId || (filter.regionId && !regionIsDefault) || filter.query,
   );
   const vp = useViewportSearch({
     mode: 'gesture',
-    filter: filterWithCurrency,
+    filter: geoQueryFilter,
     geoFilterActive,
     polygonActive: Boolean(points),
     syncUrl: true,
@@ -179,7 +199,7 @@ export function SearchResults({
   // SSR-выдачу по фильтрам. Смена фильтров при активной территории автоматически
   // рефетчит (ключ кэша = points + filterWithCurrency).
   const { data: polygonData, isFetching } = useSearchByPolygonQuery(
-    points ? { points, filter: filterWithCurrency, limit: 100 } : skipToken,
+    points ? { points, filter: geoQueryFilter, limit: 100 } : skipToken,
   );
 
   // ── Пагинация по keyset-курсору (TASK-199) ──

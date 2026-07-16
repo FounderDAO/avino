@@ -207,8 +207,10 @@ export function ActiveFilters({ values, districts, regions }: ActiveFiltersProps
 
   const handleRemove = (chip: ChipDef) => {
     if (chip.param === 'region_id') {
-      // Сброс региона также снимает выбранный район (каскад).
-      setParams({ region_id: undefined, district_id: undefined });
+      // Сброс региона также снимает выбранный район (каскад). Пишем сентинел
+      // 'all': пустой region_id вернул бы дефолтный Ташкент (см. search/page.tsx),
+      // и чип нельзя было бы убрать.
+      setParams({ region_id: 'all', district_id: undefined });
     } else if (chip.param === '__price') {
       setParams({ priceMin: undefined, priceMax: undefined });
     } else if (chip.param === '__types') {

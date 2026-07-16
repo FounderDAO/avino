@@ -435,6 +435,7 @@
     "close": "Close"
   },
   "mortgage": {
+    "backToListing": "Back to listing",
     "title": "Mortgage calculator",
     "estMonthly": "Mortgage ≈ {monthly}/mo",
     "estCta": "Estimate mortgage",

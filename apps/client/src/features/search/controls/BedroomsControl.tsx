@@ -53,10 +53,10 @@ export function BedroomsControl({ value, exact, showExact = true, onChange }: Be
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Ряд пилюль */}
-      <div className="flex flex-wrap gap-2">
+      {/* Ряд пилюль — одной линией без переноса (контейнер должен быть ≥ ~320px) */}
+      <div className="flex flex-nowrap gap-1.5 overflow-x-auto">
         {/* «Любое» */}
-        <Pill active={value === undefined} onClick={handleAny}>
+        <Pill active={value === undefined} onClick={handleAny} className="shrink-0 px-3">
           {t('any')}
         </Pill>
         {BEDROOM_OPTIONS.map((opt) => (
@@ -64,6 +64,7 @@ export function BedroomsControl({ value, exact, showExact = true, onChange }: Be
             key={opt.value}
             active={value === opt.value}
             onClick={() => handlePill(opt.value)}
+            className="shrink-0 px-3"
           >
             {opt.label}
           </Pill>

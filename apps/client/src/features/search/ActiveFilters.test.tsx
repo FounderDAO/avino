@@ -394,7 +394,7 @@ describe('ActiveFilters', () => {
     expect(screen.getByText('unknown-id')).toBeInTheDocument();
   });
 
-  it('клик × на чипе региона удаляет region_id И district_id из URL', async () => {
+  it('клик × на чипе региона пишет region_id=all и удаляет district_id из URL', async () => {
     const user = userEvent.setup();
     render(
       <ActiveFilters
@@ -410,7 +410,9 @@ describe('ActiveFilters', () => {
     await user.click(removeBtns[0]);
     expect(mockReplace).toHaveBeenCalledOnce();
     const calledUrl: string = mockReplace.mock.calls[0][0] as string;
-    expect(calledUrl).not.toMatch(/region_id=/);
+    // Сентинел 'all' — явный выбор «Все регионы»; пустой region_id вернул бы
+    // дефолтный Ташкент (см. search/page.tsx) и чип нельзя было бы убрать.
+    expect(calledUrl).toMatch(/region_id=all/);
     expect(calledUrl).not.toMatch(/district_id=/);
   });
 
