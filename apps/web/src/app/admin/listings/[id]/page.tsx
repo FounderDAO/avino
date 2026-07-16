@@ -163,6 +163,10 @@ export default function ListingDetailPage() {
   ];
 
   const act = async (action: ModerationAction) => {
+    if (action === 'APPROVE' && !translationsComplete) {
+      toast('Сначала сгенерируйте переводы на все языки');
+      return;
+    }
     if (action === 'REJECT' && !reason) {
       toast('Выберите причину отклонения');
       return;
@@ -336,15 +340,21 @@ export default function ListingDetailPage() {
                 {REJECT_REASON_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
               {status !== 'ACTIVE' && (
-                <button
-                  className="abtn abtn-ok"
-                  style={{ width: '100%' }}
-                  disabled={isActing || !translationsComplete}
-                  title={translationsComplete ? undefined : 'Сначала сгенерируйте переводы на все языки'}
-                  onClick={() => act('APPROVE')}
-                >
-                  <IC.Check size={17} /> Опубликовать
-                </button>
+                <>
+                  {!translationsComplete && (
+                    <div className="row gap-8" style={{ background: 'var(--warn-bg)', color: 'var(--warn)', borderRadius: 10, padding: '10px 13px', fontSize: 13, fontWeight: 600, alignItems: 'center' }}>
+                      <IC.Alert size={16} style={{ flexShrink: 0 }} /> Перед публикацией сгенерируйте переводы на все языки (UZ, RU, EN)
+                    </div>
+                  )}
+                  <button
+                    className="abtn abtn-ok"
+                    style={{ width: '100%' }}
+                    disabled={isActing}
+                    onClick={() => act('APPROVE')}
+                  >
+                    <IC.Check size={17} /> Опубликовать
+                  </button>
+                </>
               )}
               {status !== 'REJECTED' && <button className="abtn abtn-danger" style={{ width: '100%' }} disabled={isActing} onClick={() => act('REJECT')}><IC.X size={17} /> Отклонить</button>}
               {status !== 'DRAFT' && <button className="abtn abtn-outline" style={{ width: '100%' }} disabled={isActing} onClick={() => act('SEND_TO_DRAFT')}>В черновики</button>}

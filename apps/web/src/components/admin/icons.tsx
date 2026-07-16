@@ -30,6 +30,7 @@ import {
   Send,
   MessageSquare,
   Megaphone,
+  TriangleAlert,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -59,6 +60,7 @@ export const IC = {
   Send,
   MessageSquare,
   Megaphone,
+  Alert: TriangleAlert,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof IC;
