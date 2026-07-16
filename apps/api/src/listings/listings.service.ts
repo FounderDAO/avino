@@ -351,6 +351,7 @@ export interface ListingListItem {
   is_basement: boolean;
   city_id: string | null;
   district_id: string | null;
+  address: string | null;
   promotion_type: PromotionType;
   promotion_expires_at: string | null;
   original_language: Language;
@@ -388,6 +389,7 @@ const LISTING_LIST_SELECT = {
   isBasement: true,
   cityId: true,
   districtId: true,
+  address: true,
   promotionType: true,
   promotionExpiresAt: true,
   publishedAt: true,
@@ -1126,6 +1128,7 @@ export class ListingsService {
       is_basement: listing.isBasement,
       city_id: listing.cityId,
       district_id: listing.districtId,
+      address: listing.address,
       promotion_type: listing.promotionType,
       promotion_expires_at: listing.promotionExpiresAt?.toISOString() ?? null,
       original_language: listing.originalLanguage,
