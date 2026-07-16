@@ -44,12 +44,13 @@ function isActive(pathname: string, href: string): boolean {
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  // Живые счётчики очереди модерации (NEW-листинги) и новых жалоб для бейджей —
-  // те же источники, что KPI «На проверке» / «Жалобы» на дашборде;
-  // инвалидируются после каждой модерации/обработки жалобы.
+  // Живые счётчики очередей для бейджей: NEW-листинги (модерация), новые жалобы,
+  // новые обращения в поддержку и заявки агентов — из /admin/stats (тег Admin),
+  // инвалидируются после каждой модерации/обработки жалобы/обращения/заявки.
   const { data: stats } = useGetAdminStatsQuery();
   const moderationCount = stats?.listings_new ?? 0;
   const complaintsCount = stats?.complaints_new ?? 0;
+  const supportCount = stats?.support_requests_new ?? 0;
   const agentAppsCount = stats?.agent_applications_new ?? 0;
   // Реальный пользователь в футере (раньше был зашит «Модератор admin@avino.uz»).
   const { data: me } = useGetMeQuery();
@@ -77,9 +78,11 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                   ? moderationCount
                   : href === '/admin/complaints'
                     ? complaintsCount
-                    : href === '/admin/agent-applications'
-                      ? agentAppsCount
-                      : 0;
+                    : href === '/admin/support'
+                      ? supportCount
+                      : href === '/admin/agent-applications'
+                        ? agentAppsCount
+                        : 0;
               return (
                 <Link key={href} href={href} className={'a-navitem' + (isActive(pathname, href) ? ' active' : '')} onClick={onClose}>
                   <Icon size={19} strokeWidth={1.9} /> {label}

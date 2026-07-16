@@ -1305,11 +1305,15 @@ Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
 #### GET /api/v1/admin/stats
 Сводные счётчики дашборда админ-панели (ADMIN-15). Auth: **MODERATOR / ADMIN**.
 Без query-параметров.
-200 → `{ listings_new, complaints_new, users_total, promotions_active }`:
+200 → `{ listings_new, complaints_new, users_total, promotions_active,
+listings_active, listings_archived, listings_sale, listings_rent,
+agent_applications_new, support_requests_new }`:
 - `listings_new` — листинги в очереди модерации (`ListingStatus.NEW`);
 - `complaints_new` — необработанные жалобы (`ComplaintStatus.NEW`);
 - `users_total` — все пользователи (как `meta.total` в `/admin/users` без фильтра);
-- `promotions_active` — активные промо VIP/TOP (`PromotionStatus.ACTIVE`).
+- `promotions_active` — активные промо VIP/TOP (`PromotionStatus.ACTIVE`);
+- `agent_applications_new` — заявки «Стать агентом» в очереди (`PENDING`);
+- `support_requests_new` — новые обращения в поддержку (`SupportRequestStatus.NEW`).
 
 #### GET /api/v1/admin/analytics
 Ряды для графиков дашборда и лента «Последних действий» (ADR-0101). Auth:

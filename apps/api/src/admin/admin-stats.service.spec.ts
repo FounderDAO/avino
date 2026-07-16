@@ -3,6 +3,7 @@ import {
   ComplaintStatus,
   ListingStatus,
   PromotionStatus,
+  SupportRequestStatus,
   TransactionType,
 } from '@prisma/client';
 import { AdminStatsService } from './admin-stats.service';
@@ -22,6 +23,7 @@ describe('AdminStatsService', () => {
       user: { count: jest.fn() },
       listingPromotion: { count: jest.fn() },
       agentApplication: { count: jest.fn() },
+      supportRequest: { count: jest.fn() },
     };
     service = new AdminStatsService(prisma);
   });
@@ -32,6 +34,7 @@ describe('AdminStatsService', () => {
     prisma.user.count.mockResolvedValue(148);
     prisma.listingPromotion.count.mockResolvedValue(5);
     prisma.agentApplication.count.mockResolvedValue(7);
+    prisma.supportRequest.count.mockResolvedValue(4);
 
     const result = await service.getStats();
 
@@ -46,6 +49,7 @@ describe('AdminStatsService', () => {
       listings_sale: 12,
       listings_rent: 12,
       agent_applications_new: 7,
+      support_requests_new: 4,
     });
 
     expect(prisma.listing.count).toHaveBeenCalledWith({
@@ -80,6 +84,9 @@ describe('AdminStatsService', () => {
     expect(prisma.agentApplication.count).toHaveBeenCalledWith({
       where: { status: AgentApplicationStatus.PENDING },
     });
+    expect(prisma.supportRequest.count).toHaveBeenCalledWith({
+      where: { status: SupportRequestStatus.NEW },
+    });
   });
 
   it('returns zeros when nothing matches', async () => {
@@ -88,6 +95,7 @@ describe('AdminStatsService', () => {
     prisma.user.count.mockResolvedValue(0);
     prisma.listingPromotion.count.mockResolvedValue(0);
     prisma.agentApplication.count.mockResolvedValue(0);
+    prisma.supportRequest.count.mockResolvedValue(0);
 
     await expect(service.getStats()).resolves.toEqual({
       listings_new: 0,
@@ -99,6 +107,7 @@ describe('AdminStatsService', () => {
       listings_sale: 0,
       listings_rent: 0,
       agent_applications_new: 0,
+      support_requests_new: 0,
     });
   });
 });

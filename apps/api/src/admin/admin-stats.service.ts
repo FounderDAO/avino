@@ -4,6 +4,7 @@ import {
   ComplaintStatus,
   ListingStatus,
   PromotionStatus,
+  SupportRequestStatus,
   TransactionType,
 } from '@prisma/client';
 import { PrismaService } from '../prisma';
@@ -25,6 +26,8 @@ import { PrismaService } from '../prisma';
  *   ровно один тип сделки).
  * - `agent_applications_new` — заявки «Стать агентом» в очереди на решение
  *                         (`AgentApplicationStatus.PENDING`).
+ * - `support_requests_new` — новые обращения в поддержку в очереди
+ *                         (`SupportRequestStatus.NEW`).
  */
 export interface AdminStatsResponse {
   listings_new: number;
@@ -36,6 +39,7 @@ export interface AdminStatsResponse {
   listings_sale: number;
   listings_rent: number;
   agent_applications_new: number;
+  support_requests_new: number;
 }
 
 /**
@@ -64,6 +68,7 @@ export class AdminStatsService {
       listingsSale,
       listingsRent,
       agentApplicationsNew,
+      supportRequestsNew,
     ] = await Promise.all([
       this.prisma.listing.count({ where: { status: ListingStatus.NEW } }),
       this.prisma.complaint.count({
@@ -92,6 +97,9 @@ export class AdminStatsService {
       this.prisma.agentApplication.count({
         where: { status: AgentApplicationStatus.PENDING },
       }),
+      this.prisma.supportRequest.count({
+        where: { status: SupportRequestStatus.NEW },
+      }),
     ]);
 
     return {
@@ -104,6 +112,7 @@ export class AdminStatsService {
       listings_sale: listingsSale,
       listings_rent: listingsRent,
       agent_applications_new: agentApplicationsNew,
+      support_requests_new: supportRequestsNew,
     };
   }
 }
