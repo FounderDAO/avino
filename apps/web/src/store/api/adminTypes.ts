@@ -446,6 +446,23 @@ export interface Complaint {
   created_at: string;
 }
 
+// ─── DTO: обращения в поддержку ─────────────────────────────────────────────
+
+export type SupportRequestStatus = 'NEW' | 'IN_REVIEW' | 'RESOLVED';
+
+/** Обращение в поддержку с формы /help (support_requests). */
+export interface SupportRequest {
+  id: string;
+  user_id: string | null;
+  name: string | null;
+  contact: string;
+  message: string;
+  status: SupportRequestStatus;
+  handled_by: string | null;
+  handled_at: string | null;
+  created_at: string;
+}
+
 // ─── DTO: логи (API.md §16) ─────────────────────────────────────────────────
 
 /** Security audit-лог (`audit_logs`, §16/ADR-004). `action` — free-form varchar. */
@@ -564,6 +581,11 @@ export interface ComplaintFilters extends PageParams {
 /** `GET /admin/agent-applications` (§21). */
 export interface AgentApplicationFilters extends PageParams {
   status?: AgentApplicationStatus;
+}
+
+/** `GET /admin/support/requests` — фильтры списка обращений. */
+export interface SupportRequestFilters extends PageParams {
+  status?: SupportRequestStatus;
 }
 
 /** `GET /admin/audit-logs` (§16). */
