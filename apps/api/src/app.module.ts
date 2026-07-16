@@ -29,6 +29,7 @@ import { RedisModule } from './redis';
 import { SavedSearchesModule } from './saved-searches';
 import { SearchModule } from './search';
 import { SettingsModule } from './settings';
+import { SupportModule } from './support';
 import { TourRequestsModule } from './tour-requests';
 import { TranslationsModule } from './translations';
 import { UploadsModule } from './uploads';
@@ -72,6 +73,7 @@ import { UsersModule } from './users/users.module';
     BroadcastsModule,
     ChatModule,
     ComplaintsModule,
+    SupportModule,
     AdminModule,
     UploadsModule,
     MediaCleanupModule,

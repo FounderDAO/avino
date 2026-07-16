@@ -3668,6 +3668,34 @@
         }
       }
     },
+    "/api/v1/support/requests": {
+      "post": {
+        "operationId": "SupportRequestsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSupportRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/agent-applications": {
       "get": {
         "operationId": "AdminAgentApplicationsController_list",
@@ -4975,6 +5003,74 @@
         }
       }
     },
+    "/api/v1/admin/support/requests": {
+      "get": {
+        "operationId": "AdminSupportRequestsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/admin/support/requests/{id}": {
+      "patch": {
+        "operationId": "AdminSupportRequestsController_updateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSupportRequestStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/stats": {
       "get": {
         "operationId": "AdminStatsController_getStats",
@@ -6147,6 +6243,29 @@
           "reason"
         ]
       },
+      "CreateSupportRequestDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "contact": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 160
+          },
+          "message": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 5000
+          }
+        },
+        "required": [
+          "contact",
+          "message"
+        ]
+      },
       "RejectAgentApplicationDto": {
         "type": "object",
         "properties": {
@@ -6376,6 +6495,17 @@
         ]
       },
       "UpdateComplaintStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "UpdateSupportRequestStatusDto": {
         "type": "object",
         "properties": {
           "status": {

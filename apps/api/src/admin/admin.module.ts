@@ -7,6 +7,7 @@ import { ModerationModule } from '../moderation';
 import { PromotionsModule } from '../promotions';
 import { RolesModule } from '../roles';
 import { SettingsModule, AdminPromotionsFlagController, AdminActiveListingLimitController, AdminMapHoverRecenterFlagController, AdminLegalConsentFlagController } from '../settings';
+import { AdminSupportRequestsController, SupportModule } from '../support';
 import { TranslationsModule } from '../translations';
 import { AdminListingPromotionsController } from './admin-listing-promotions.controller';
 import { AdminListingsController } from './admin-listings.controller';
@@ -57,6 +58,7 @@ import { AdminUsersService } from './admin-users.service';
     AuditModule,
     AgentApplicationsModule,
     ComplaintsModule,
+    SupportModule,
     TranslationsModule,
     SettingsModule,
   ],
@@ -78,6 +80,7 @@ import { AdminUsersService } from './admin-users.service';
     AdminUsersController,
     AdminLogsController,
     AdminComplaintsController,
+    AdminSupportRequestsController,
     AdminStatsController,
     AdminAnalyticsController,
   ],

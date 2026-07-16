@@ -547,6 +547,7 @@
       "badge": "Promotion",
       "title": "Sell faster with TOP and VIP",
       "subtitle": "Boost your listing higher in search results and get up to 5× more views.",
+      "priceFrom": "from {price}",
       "top": {
         "text": "Ranks above regular listings in search results",
         "price": "from 50,000 UZS"
@@ -876,7 +877,18 @@
       "title": "Didn't find an answer?",
       "text": "Write to our support team — we reply daily from 9:00 to 21:00. Email: <b>Support@avino.uz</b>",
       "write": "Contact support",
-      "openChat": "Open chat"
+      "openChat": "Open chat",
+      "modalTitle": "Contact support",
+      "nameLabel": "Name",
+      "contactLabel": "Phone or email",
+      "contactPlaceholder": "+998 ... or you@mail.uz",
+      "messageLabel": "Message",
+      "contactRequired": "Add a phone or email so we can reply.",
+      "messageRequired": "Describe your question so we can help.",
+      "submit": "Send",
+      "success": "Thanks! We received your request — we reply 9:00–21:00 daily.",
+      "error": "Could not send. Please try again.",
+      "close": "Close"
     }
   },
   "listingEdit": {
