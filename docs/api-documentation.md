@@ -567,6 +567,7 @@ curl -X POST "http://localhost:4000/api/v1/listings" \
       "is_basement": false,
       "city_id": "b1c2...",
       "district_id": "d3e4...",
+      "address": "Ташкент, Яшнабадский район, массив Городок",
       "promotion_type": "NORMAL",
       "promotion_expires_at": null,
       "original_language": "RU",
@@ -582,7 +583,7 @@ curl -X POST "http://localhost:4000/api/v1/listings" \
   "meta": { "page": 1, "limit": 20, "total": 1 }
 }
 ```
-Типы полей элемента: `rooms`/`views_count`/`calls_count`/`likes_count` → int; `bathrooms` → double; `area`/`lot_area`/`price` → String (Decimal, nullable); даты → String (ISO, `promotion_expires_at`/`published_at` nullable); `thumbnail_url` → String (nullable).
+Типы полей элемента: `rooms`/`views_count`/`calls_count`/`likes_count` → int; `bathrooms` → double; `area`/`lot_area`/`price` → String (Decimal, nullable); даты → String (ISO, `promotion_expires_at`/`published_at` nullable); `thumbnail_url`/`address` → String (nullable).
 **Ошибки:** `UNAUTHORIZED` (401); `VALIDATION_ERROR` (400) — невалидный query
 **Пример (curl):**
 ```bash
