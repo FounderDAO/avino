@@ -42,7 +42,9 @@ describe('getAgents', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('GET /agents?limit= → мапит envelope.data', async () => {
-    const fetchMock = vi.fn(async () => ({
+    // Параметр нужен для типизации: без него vi.fn выводит args как [] и
+    // обращение к mock.calls[0][0] не проходит tsc (TS2493).
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => ({
       ok: true,
       status: 200,
       json: async () => ({
