@@ -19,6 +19,7 @@ import {
 } from '@/store/api/adminSupportApi';
 import type { SupportRequestStatus } from '@/store/api/adminTypes';
 import { SUPPORT_STATUS_MAP, supportRequestToRow } from '@/lib/adapters/support';
+import type { SupportRow } from '@/lib/adapters/support';
 
 type StatusFilter = 'ALL' | SupportRequestStatus;
 
@@ -35,10 +36,75 @@ const SUCCESS_TOAST: Record<SupportRequestStatus, string> = {
   RESOLVED: 'Обращение решено',
 };
 
+/**
+ * Модалка чтения обращения: полный текст сообщения (в таблице он обрезан),
+ * автор/контакт/статус/даты и те же действия «В работу»/«Решено», что в строке.
+ */
+function SupportMessageModal({
+  row,
+  busy,
+  onSetStatus,
+  onClose,
+}: {
+  row: SupportRow;
+  busy: boolean;
+  onSetStatus: (id: string, status: SupportRequestStatus) => void;
+  onClose: () => void;
+}) {
+  const [label, color, bg] = SUPPORT_STATUS_MAP[row.status];
+  const open = row.status === 'NEW' || row.status === 'IN_REVIEW';
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(26,26,26,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} className="fade-up a-card" style={{ width: '100%', maxWidth: 560, padding: 26, borderRadius: 16 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 12 }}>
+          <div className="row gap-8" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <h2 style={{ fontSize: 22 }}>Обращение</h2>
+            <Pill bg={bg} color={color}>{label}</Pill>
+          </div>
+          <button className="aicon-btn" style={{ width: 32, height: 32, border: 'none' }} onClick={onClose}><IC.X size={18} /></button>
+        </div>
+        <div className="row" style={{ gap: 24, flexWrap: 'wrap', marginBottom: 16, fontSize: 13.5 }}>
+          <div>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 2 }}>Автор</div>
+            <div style={{ fontWeight: 600 }}>{row.author}</div>
+          </div>
+          <div>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 2 }}>Контакт</div>
+            <div className="mono">{row.contact}</div>
+          </div>
+          <div>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 2 }}>Создано</div>
+            <div>{row.created}</div>
+          </div>
+          {row.handled !== '—' && (
+            <div>
+              <div className="muted" style={{ fontSize: 12, marginBottom: 2 }}>Обработано</div>
+              <div>{row.handled} <span className="mono muted">{row.handledBy}</span></div>
+            </div>
+          )}
+        </div>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Сообщение</div>
+        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '45vh', overflowY: 'auto', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 12, padding: 14, fontSize: 14.5, lineHeight: 1.5 }}>
+          {row.message}
+        </div>
+        {open && (
+          <div className="row gap-10" style={{ marginTop: 18 }}>
+            {row.status === 'NEW' && (
+              <button className="abtn abtn-outline" style={{ flex: 1 }} disabled={busy} onClick={() => onSetStatus(row.id, 'IN_REVIEW')}>В работу</button>
+            )}
+            <button className="abtn abtn-ok" style={{ flex: 1 }} disabled={busy} onClick={() => onSetStatus(row.id, 'RESOLVED')}>Решено</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function SupportPage() {
   const toast = useToast();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [page, setPage] = useState(1);
+  const [viewing, setViewing] = useState<SupportRow | null>(null);
 
   // Смена фильтра — на первую страницу.
   useEffect(() => {
@@ -61,6 +127,7 @@ export default function SupportPage() {
     try {
       await updateStatus({ id, status }).unwrap();
       toast(SUCCESS_TOAST[status]);
+      setViewing(null);
     } catch {
       toast('Не удалось обновить обращение');
     }
@@ -97,7 +164,14 @@ export default function SupportPage() {
                   return (
                     <tr key={r.id}>
                       <td style={{ maxWidth: 380 }}>
-                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.message}>{r.message}</div>
+                        <button
+                          type="button"
+                          onClick={() => setViewing(r)}
+                          title="Открыть обращение"
+                          style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--ink)', font: 'inherit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        >
+                          {r.message}
+                        </button>
                       </td>
                       <td style={{ whiteSpace: 'nowrap' }}>{r.author}</td>
                       <td className="mono" style={{ whiteSpace: 'nowrap' }}>{r.contact}</td>
@@ -137,6 +211,14 @@ export default function SupportPage() {
           <button className="aicon-btn" style={{ width: 32, height: 32 }} disabled={pages > 0 && page >= pages} onClick={() => setPage((p) => p + 1)}><IC.ChevronRight size={16} /></button>
         </div>
       </div>
+      {viewing && (
+        <SupportMessageModal
+          row={viewing}
+          busy={isUpdating}
+          onSetStatus={onSetStatus}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
   );
 }
