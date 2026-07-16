@@ -202,10 +202,14 @@ export default function ModerationPage() {
   const [generate, { isLoading: isGenerating }] = useGenerateTranslationsMutation();
   const [saveTr, { isLoading: isSavingTr }] = useUpdateTranslationMutation();
   const presentLangs = new Set((tr?.translations ?? []).map((t) => t.language));
-  // APPROVE недоступен пока нет всех языков (дублирует серверный гейт 422).
+  // APPROVE гейтится предупреждением пока нет всех языков (дублирует серверный гейт 422).
   const translationsComplete = REQUIRED_LANGS.every((l) => presentLangs.has(l));
 
   const act = async (id: string, action: ModerationAction) => {
+    if (action === 'APPROVE' && !translationsComplete) {
+      toast('Сначала сгенерируйте переводы на все языки');
+      return;
+    }
     if (action === 'REJECT' && !reason) {
       toast('Выберите причину отклонения');
       return;
@@ -345,8 +349,13 @@ export default function ModerationPage() {
                     <option value="">— выберите причину —</option>
                     {sel.reasonOptions.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
+                  {!translationsComplete && (
+                    <div className="row gap-8" style={{ background: 'var(--warn-bg)', color: 'var(--warn)', borderRadius: 10, padding: '10px 13px', fontSize: 13.5, fontWeight: 600, marginBottom: 12, alignItems: 'center' }}>
+                      <IC.Alert size={16} style={{ flexShrink: 0 }} /> Перед публикацией сгенерируйте переводы на все языки (UZ, RU, EN)
+                    </div>
+                  )}
                   <div className="row gap-10">
-                    <button className="abtn abtn-ok" style={{ flex: 1 }} disabled={isActing || !translationsComplete} title={translationsComplete ? undefined : 'Сначала сгенерируйте переводы на все языки'} onClick={() => act(sel.id, 'APPROVE')}><IC.Check size={18} /> Одобрить</button>
+                    <button className="abtn abtn-ok" style={{ flex: 1 }} disabled={isActing} onClick={() => act(sel.id, 'APPROVE')}><IC.Check size={18} /> Одобрить</button>
                     <button className="abtn abtn-danger" style={{ flex: 1 }} disabled={isActing} onClick={() => act(sel.id, 'REJECT')}><IC.X size={18} /> Отклонить</button>
                   </div>
                   <div className="row gap-10" style={{ marginTop: 10 }}>
