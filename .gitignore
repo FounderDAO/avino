@@ -47,3 +47,6 @@ apps/design_handoff_avino/
 
 # Firebase service-account ключи (секрет)
 deploy/*firebase-adminsdk*.json
+
+# Артефакты тулинга superpowers — не код проекта, не коммитим
+docs/superpowers/

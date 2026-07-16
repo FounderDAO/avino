@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  AgentApplicationStatus,
   ComplaintStatus,
   ListingStatus,
   PromotionStatus,
@@ -22,6 +23,8 @@ import { PrismaService } from '../prisma';
  * - `listings_rent`     — активная витрина в аренду (`ACTIVE` + `RENT`).
  *   `listings_sale + listings_rent === listings_active` (у каждого объявления
  *   ровно один тип сделки).
+ * - `agent_applications_new` — заявки «Стать агентом» в очереди на решение
+ *                         (`AgentApplicationStatus.PENDING`).
  */
 export interface AdminStatsResponse {
   listings_new: number;
@@ -32,6 +35,7 @@ export interface AdminStatsResponse {
   listings_archived: number;
   listings_sale: number;
   listings_rent: number;
+  agent_applications_new: number;
 }
 
 /**
@@ -59,6 +63,7 @@ export class AdminStatsService {
       listingsArchived,
       listingsSale,
       listingsRent,
+      agentApplicationsNew,
     ] = await Promise.all([
       this.prisma.listing.count({ where: { status: ListingStatus.NEW } }),
       this.prisma.complaint.count({
@@ -84,6 +89,9 @@ export class AdminStatsService {
           transactionType: TransactionType.RENT,
         },
       }),
+      this.prisma.agentApplication.count({
+        where: { status: AgentApplicationStatus.PENDING },
+      }),
     ]);
 
     return {
@@ -95,6 +103,7 @@ export class AdminStatsService {
       listings_archived: listingsArchived,
       listings_sale: listingsSale,
       listings_rent: listingsRent,
+      agent_applications_new: agentApplicationsNew,
     };
   }
 }

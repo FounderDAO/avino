@@ -530,47 +530,61 @@ ultrathink
 PropertyCard da shaxar va manzil tuliq chiqish 
 Buy default Toshketn ko'rsatsin
 
-===========================================================
-7-Yandex pochta ochish kk company nomiga @timurkw  
-8-Eskizga tasdiqlab to'lovq qilib yuborish kk @timurkw 
-===========================================================
-2-Buy default Toshketn ko'rsatsin Mapdaxam : DONE
-10-Favorites bilan shate rasm tepasiga chiqadi Detail Modal page : DONE
-26-Navbardan Map page olib tashlash kerak : DONE
-1-PropertyCard birlamchi da shaxar va manzil tuliq chiqish : DONE
-4-Rasm to'g'ri ko'rsatish kerak Grid xolatda: DONE
-9-Detail pagedan Mapda ko'rish bosganda YandexMap da pointer turgan bo'lishi kerak new pageda : DONE
-13-Price change history date format tug'irlash kk 11.08.2023: DONE
-14-Клиент могут создать 2 активный Обьявления лучше добавить админку контроллер чтобы можно было управлять с количество лимитов  : DONE
-22-Price filter qayta check qiladi Ipoteka olib calculate olib tashlandi : DONE
-28-Profil page dan tilni olib tashlash kk : DONE
-27-https://test.avino.uz/ru/sell find agent button disabled qilish kerak "Comming soon" ko'rsatamiz : DONE
-29-My tour page ga tab qilib qo'yish kerak IN/OUT uchun : DONE
-30- /ru/sell page da Сдать в аренду bosganda ARENTA TYPE selected xolatda da bo'lish kerak forma : DONE
-18-Detail page grid image tug'irlash kerak : DONE
-17-Rent mapdati qizil emas orange da ko'rsatish kerak :DONE 
-20-Umumiy filterdagi Button fixed qilib qo'yish kk : DONE
-21-Oylik to'lov currency price dan olib tashlaymiz : DONE
-6-Garaj qulaylik bo'limidi chiqish kk Detail model page da : DONE 
-23-Filter save bir nechta saqlay oladi va qanday saqlagan bo'lsa shu xolatda ochish kk : DONE 
-5-Detail page da price tagida etaj o'rnida SELL/RENT turish kk 
-11-Sanuzel soni dublaj bo'lib qolgan 
-12-Asosiy ma'lumotlarga uy turi chiqishi kerak
-16-Qimmat arzon filter ishlamadi 
-24-Navbardan NEW BUILDINGS  olib tashlanadi ?
-25-Yangi bino -> Yangi qurilish va filter qurilgan voqti 3 dan kam bo'lsa shu categoryga kiradi 
 
+Готово, вот всё что нужно.
 
-31-Convertatsiya qilganda USD->1k da yaxlidlash kk 
-32-Admin Обьявления page da SELL/RENT filter qo'shish kk 
-33-Admin page listings da Rasm yonidan address ko'rishi kk 
-34-Admin dashboar page malumotlar dynamik real bo'lish kerak
+Запушено?
 
-# Bu uzi ishlar ekan by default
-25- Navbardan NEW BUILDINGS  olib tashlanadi ?  Yangi bino -> Yangi qurilish va filter qurilgan voqti 3 dan kam bo'lsa shu categoryga kiradi 
+Нет. Все мои правки (Faq, Sidebar, admin-stats, TranslationRow и т.д.) — только в рабочей директории, не закоммичены и не запушены. Ветка main вровень с origin/main. Значит локальный запуск пойдёт именно с этими изменениями — как раз то, что тебе нужно для проверки.
 
-15-Production uchun server tanlab shunga olib utishimiz kk 
+Почему «не работает»
 
-1-Комната Санузель Убераем  
-2- место него будет Площадь, Год постройки, Квартира/Home/Apartment и сколько стоит м²  Price/м² если частный дом посчитаем от Цена/жилой помешения
-3-Гараж уходить на удобству 
+Скорее всего запускал docker compose up без --profile app. У сервисов api/web/client/migrate стоит profiles: ["app"], поэтому без флага поднимаются только postgres и redis, а приложений нет.
+
+Команда для локального запуска
+
+docker compose --profile app up -d
+
+Образы уже собраны — пересборки не будет. Compose сам соблюдёт порядок: postgres/redis → migrate (миграции) → api → web/client.
+
+Куда заходить:
+
+┌───────────────────────────┬─────────────────────────────────────┐
+│          Сервис           │                 URL                 │
+├───────────────────────────┼─────────────────────────────────────┤
+│ Клиент (публичный портал) │ http://localhost:3001               │
+├───────────────────────────┼─────────────────────────────────────┤
+│ Админка (web)             │ http://localhost:3000               │
+├───────────────────────────┼─────────────────────────────────────┤
+│ API                       │ http://localhost:4000/api/v1/health │
+└───────────────────────────┴─────────────────────────────────────┘
+
+Смотреть логи / остановить:
+docker compose --profile app logs -f          # логи всех сервисов
+docker compose --profile app logs -f web      # только админка
+docker compose --profile app down             # остановить
+
+Подсказка: можешь запустить прямо тут, набрав в промпте ! docker compose --profile app up -d — вывод попадёт в сессию, и я помогу разобрать, если что-то не поднимется.
+
+Подтверждено: PID 49607 — это твой локально запущенный API (apps/api/dist/main, вне докера), он и держит порт 4000.
+
+Освободи порт и подними docker:
+
+kill 49607
+docker compose --profile app up -d
+
+Или без запоминания PID (убьёт любого, кто сидит на 4000):
+
+lsof -ti tcp:4000 | xargs kill
+docker compose --profile app up -d
+
+Если процесс перезапустится сам (его родитель PID 83124 — возможно pnpm dev/watcher), значит где-то в другом терминале крутится pnpm dev — останови его там (Ctrl-C), иначе он снова займёт 4000.
+
+postgres и redis уже подняты — compose их переиспользует, доберёт только migrate → api → web/client. После старта:
+- клиент → http://localhost:3001
+- админка → http://localhost:3000
+- API → http://localhost:4000/api/v1/health
+
+Если что-то из контейнеров упадёт — пришли docker compose --profile app logs api (или нужный сервис), гляну.
+
+kill 49607 && docker compose --profile app up -d

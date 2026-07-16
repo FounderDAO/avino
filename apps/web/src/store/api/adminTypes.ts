@@ -656,6 +656,8 @@ export interface AdminStats {
   listings_sale: number;
   /** Активная витрина в аренду (`ACTIVE` + `RENT`). */
   listings_rent: number;
+  /** Заявки «Стать агентом» в очереди на решение (`PENDING`). */
+  agent_applications_new: number;
 }
 
 /** Один помесячный бакет ряда «объявления за год» (12 точек, старые→новые). */
