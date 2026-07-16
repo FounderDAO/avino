@@ -13,7 +13,8 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { ChevronLeft } from 'lucide-react';
+import { Link, useRouter } from '@/i18n/navigation';
 import { useAppDispatch } from '@/store/hooks';
 import { setDownPct, setRatePct, setSalary, setYears } from '@/store/slices/mortgageSlice';
 import { useListingMortgage } from '@/lib/useMortgage';
@@ -101,6 +102,14 @@ export function MortgageForm({ listing }: MortgageFormProps) {
 
   return (
     <div className="mx-auto max-w-[560px] px-6 py-10">
+      {/* Назад к объявлению — Link (не router.back), чтобы работал и прямой заход по URL. */}
+      <Link
+        href={`/listing/${listing.id}`}
+        className="mb-4 inline-flex items-center gap-1.5 text-[14.5px] font-bold text-teal hover:text-teal-deep"
+      >
+        <ChevronLeft size={18} /> {t('backToListing')}
+      </Link>
+
       <h1 className="text-2xl font-extrabold text-ink">{t('title')}</h1>
 
       <div className="mt-5">

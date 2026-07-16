@@ -76,7 +76,8 @@ export interface DetailProps {
   listing: Listing;
   /** Если не передан — показываем только ссылку «Назад к поиску» (backward-compat). */
   breadcrumb?: DetailBreadcrumb;
-  /** Встроенный режим (внутри модалки): без крошки/«Назад»/fade-up, ширину задаёт модалка. */
+  /** Встроенный режим (внутри модалки): шапка целиком в тулбаре ListingModal,
+      без fade-up; ширину задаёт модалка. */
   embedded?: boolean;
 }
 
@@ -112,26 +113,21 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
       {/* Регистрирует просмотр (POST /listings/:id/view, LAST_CHANGED_API.md §2). Без UI. */}
       <ViewTracker id={listing.id} />
 
-      {/* Внутри модалки своя шапка → крошку и «Назад» скрываем; избранное + Share оставляем. */}
-      {embedded ? (
-        <div className="mb-3 flex justify-end gap-2">
-          <FavButton
-            listingId={listing.id}
-            size={38}
-            className="border border-border bg-surface shadow-sm hover:bg-surface-2"
-          />
-          <ShareButton listing={listing} />
-        </div>
-      ) : (
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          {breadcrumbItems ? <Breadcrumb items={breadcrumbItems} /> : null}
-          <div className="flex items-center gap-3">
+      {/* Внутри модалки вся шапка (назад/избранное/шеринг) — в тулбаре ListingModal.
+          На полной странице одной линией (по-зилловски): слева «Назад к поиску» +
+          крошка, справа избранное + шеринг. */}
+      {!embedded && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
             <Link
               href={backHref}
               className="inline-flex items-center gap-1.5 text-[14.5px] font-bold text-teal hover:text-teal-deep"
             >
               <ChevronLeft size={18} /> {t('backToSearch')}
             </Link>
+            {breadcrumbItems ? <Breadcrumb items={breadcrumbItems} /> : null}
+          </div>
+          <div className="flex items-center gap-3">
             <FavButton
               listingId={listing.id}
               size={38}

@@ -70,8 +70,9 @@ export function Gallery({ photos, alt, className }: GalleryProps) {
       <div
         className={cn(
           'grid grid-cols-1 gap-2 overflow-hidden rounded-card',
-          // Фикс-пропорция контейнера на sm+ даёт мозаике равные по высоте колонки.
-          showMosaic && 'sm:aspect-[2/1] sm:grid-cols-2',
+          // Пропорции Zillow: контейнер 8:3 при двух колонках даёт левому фото
+          // и тайлам мозаики 2×2 соотношение 4:3 (gap-2 = 8px, как у Zillow).
+          showMosaic && 'sm:aspect-[8/3] sm:grid-cols-2',
         )}
       >
         {/*

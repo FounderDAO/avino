@@ -435,6 +435,7 @@
     "close": "Yopish"
   },
   "mortgage": {
+    "backToListing": "E’longa qaytish",
     "title": "Ipoteka kalkulyatori",
     "estMonthly": "Oyiga ≈ {monthly}",
     "estCta": "Ipotekani hisoblash",

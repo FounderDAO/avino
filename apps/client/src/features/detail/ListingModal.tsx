@@ -2,22 +2,28 @@
  * ListingModal — клиентская оболочка деталки в модальном окне (intercepting route).
  * Десктоп: центрированная панель max-w-1100/max-h-92vh со своим скроллом.
  * Мобайл (<lg): полноэкранный лист h-dvh. Закрытие (Esc/фон/✕/Назад) → router.back().
- * Тулбар: ссылка «Открыть страницу ↗» (полная страница в новой вкладке) + ✕.
+ * Тулбар одной линией (по-зилловски): слева «Назад к поиску» (закрывает модалку),
+ * справа избранное + шеринг + «Открыть страницу ↗» + ✕.
  */
 'use client';
 
 import * as React from 'react';
 import { Dialog } from 'radix-ui';
 import { useTranslations } from 'next-intl';
-import { ExternalLink } from 'lucide-react';
+import { ChevronLeft, ExternalLink } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
+import { FavButton } from '@/components/ui/fav-button';
+import { ShareButton } from './ShareButton';
+import type { Listing } from '@/lib/mock/types';
 
 export interface ListingModalProps {
   listingId: string;
+  /** Без листинга (напр. 404 внутри модалки) избранное и шеринг не рендерим. */
+  listing?: Listing;
   children: React.ReactNode;
 }
 
-export function ListingModal({ listingId, children }: ListingModalProps) {
+export function ListingModal({ listingId, listing, children }: ListingModalProps) {
   const t = useTranslations('listing');
   const tCommon = useTranslations('common');
   const router = useRouter();
@@ -62,23 +68,39 @@ export function ListingModal({ listingId, children }: ListingModalProps) {
         >
           <Dialog.Title className="sr-only">{t('modalTitle')}</Dialog.Title>
 
-          {/* Тулбар */}
-          <div className="sticky top-0 z-10 flex items-center justify-end gap-1 border-b border-border/60 bg-surface/95 px-3 py-2 backdrop-blur">
-            <Link
-              href={`/listing/${listingId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-[13.5px] font-bold text-teal hover:bg-surface-2"
-            >
-              <ExternalLink size={15} strokeWidth={2.2} />
-              {t('openFullPage')}
-            </Link>
-            <Dialog.Close
-              aria-label={tCommon('close')}
-              className="rounded-full p-2 text-muted-foreground hover:bg-surface-2 hover:text-ink"
-            >
-              ✕
+          {/* Тулбар одной линией: «Назад к поиску» ← … → избранное/шеринг/страница/✕ */}
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/60 bg-surface/95 px-3 py-2 backdrop-blur">
+            <Dialog.Close className="inline-flex items-center gap-1 rounded-pill px-2.5 py-1.5 text-[13.5px] font-bold text-teal hover:bg-surface-2">
+              <ChevronLeft size={17} strokeWidth={2.2} />
+              {t('backToSearch')}
             </Dialog.Close>
+            <div className="flex items-center gap-1.5">
+              {listing && (
+                <>
+                  <FavButton
+                    listingId={listing.id}
+                    size={38}
+                    className="border border-border bg-surface shadow-sm hover:bg-surface-2"
+                  />
+                  <ShareButton listing={listing} />
+                </>
+              )}
+              <Link
+                href={`/listing/${listingId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-[13.5px] font-bold text-teal hover:bg-surface-2"
+              >
+                <ExternalLink size={15} strokeWidth={2.2} />
+                {t('openFullPage')}
+              </Link>
+              <Dialog.Close
+                aria-label={tCommon('close')}
+                className="rounded-full p-2 text-muted-foreground hover:bg-surface-2 hover:text-ink"
+              >
+                ✕
+              </Dialog.Close>
+            </div>
           </div>
 
           {/* Контент со скроллом */}
