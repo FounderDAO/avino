@@ -680,6 +680,8 @@ export interface AdminStats {
   listings_rent: number;
   /** Заявки «Стать агентом» в очереди на решение (`PENDING`). */
   agent_applications_new: number;
+  /** Новые обращения в поддержку в очереди (`SupportRequestStatus.NEW`). */
+  support_requests_new: number;
 }
 
 /** Один помесячный бакет ряда «объявления за год» (12 точек, старые→новые). */
