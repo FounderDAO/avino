@@ -1,11 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { configureStore } from '@reduxjs/toolkit';
-import { createApi } from '@reduxjs/toolkit/query';
+import { createApi, type BaseQueryFn } from '@reduxjs/toolkit/query';
 import { apiErrorToastMiddleware } from './apiErrorToastMiddleware';
 import { subscribeApiErrors, type ApiErrorEvent } from '@/lib/apiErrorToastBus';
 
-/** BaseQuery, всегда падающий унифицированным error-envelope API. */
-const failingBaseQuery = async () => ({
+/**
+ * BaseQuery, всегда падающий унифицированным error-envelope API.
+ * Явный тип BaseQueryFn обязателен: из голой функции RTK Query выводит
+ * тип данных `undefined`, и `mutation<void, void>({ query })` не проходит tsc.
+ */
+const failingBaseQuery: BaseQueryFn<string, void> = async () => ({
   error: {
     status: 500,
     data: { error: { code: 'INTERNAL', message: 'boom', request_id: 'r-1' } },
