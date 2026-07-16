@@ -21,6 +21,14 @@ const CATS = [
 
 type CatKey = (typeof CATS)[number]['key'];
 
+/**
+ * Нормализация текста для поиска: нижний регистр + удаление апострофов всех
+ * начертаний. В узбекской латинице слова пишутся с апострофом (e'lon, o', g'),
+ * а пользователи набирают запрос без него ("elon") — без нормализации подстрока
+ * не находится, и поиск «ничего не находит».
+ */
+const normalize = (s: string) => s.toLowerCase().replace(/['’‘ʻʼ`´]/g, '');
+
 /** Список вопросов-ответов [категория, ключ help.faq.items.{key}]. */
 const FAQ: ReadonlyArray<readonly [CatKey, string]> = [
   ['buyers', 'favorites'],
@@ -46,11 +54,21 @@ export function Faq() {
     ([, key]) =>
       [key, t(`faq.items.${key}.q`), t(`faq.items.${key}.a`)] as const,
   );
-  if (q) {
-    const needle = q.toLowerCase();
-    items = items.filter(([, question, answer]) =>
-      (question + answer).toLowerCase().includes(needle),
-    );
+  // Поиск по словам, а не по всей фразе: запрос вроде «elon qanday joylash
+  // mumkin» — это набор слов, а не точная подстрока ответа. Считаем, сколько
+  // слов запроса встретилось в вопросе+ответе (после нормализации апострофов).
+  const tokens = normalize(q).split(/\s+/).filter(Boolean);
+  if (tokens.length) {
+    const scored = items
+      .map((it) => {
+        const hay = normalize(it[1] + ' ' + it[2]);
+        return [it, tokens.filter((w) => hay.includes(w)).length] as const;
+      })
+      .filter(([, hits]) => hits > 0);
+    // Показываем самые релевантные — с максимальным числом совпавших слов
+    // (для «elon qanday joylash mumkin» это ровно вопрос про размещение).
+    const best = scored.reduce((mx, [, hits]) => Math.max(mx, hits), 0);
+    items = scored.filter(([, hits]) => hits === best).map(([it]) => it);
   }
 
   return (

@@ -125,13 +125,14 @@ export default function AdminLoginPage() {
     >
       <div style={{ width: '100%', maxWidth: 420 }}>
         <div className="row" style={{ justifyContent: 'center', gap: 10, marginBottom: 24 }}>
-          <span
-            style={{
-              width: 40, height: 40, borderRadius: 12, background: 'var(--red)',
-              color: '#fff', fontWeight: 800, fontSize: 18, display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-            }}
-          >A</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/avino-appicon.svg"
+            alt="Avino"
+            width={40}
+            height={40}
+            style={{ width: 40, height: 40, borderRadius: 12, display: 'block' }}
+          />
           <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>Avino</span>
         </div>
 
