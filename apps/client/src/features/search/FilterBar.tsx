@@ -38,7 +38,6 @@ import { SearchAutocomplete } from './SearchAutocomplete';
 import { useGeoSuggest, type Suggestion } from './useGeoSuggest';
 import { suggestionToLocation } from './locationParams';
 import { TriggerButton } from './TriggerButton';
-import { ActiveFilters } from './ActiveFilters';
 import { BedroomsControl } from './controls/BedroomsControl';
 import { BathroomsControl } from './controls/BathroomsControl';
 import { HomeTypeMultiSelect } from './controls/HomeTypeMultiSelect';
@@ -699,8 +698,6 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
 
         </div>
       </div>
-      {/* Ряд активных фильтр-чипов под скролл-баром. */}
-      <ActiveFilters values={values} districts={districts} regions={regions} />
       {/* Вход для гостя, нажавшего «Сохранить поиск». */}
       <LoginModal
         open={loginOpen}
