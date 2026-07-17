@@ -29,7 +29,7 @@ describe('ContactDetailsGate', () => {
     };
     render(<ContactDetailsGate />);
     expect(screen.getByLabelText('contactGate.firstName')).toHaveValue('Ali');
-    expect(screen.getByLabelText('contactGate.phone')).toHaveValue('+998901234567');
+    expect(screen.getByLabelText('contactGate.phone')).toHaveValue('+998 90 123 45 67');
   });
 
   it('submit заблокирован, пока не заполнены все три поля', () => {
@@ -66,7 +66,7 @@ describe('ContactDetailsGate', () => {
 
     expect(screen.getByLabelText('contactGate.firstName')).toHaveValue('Ali');
     expect(screen.getByLabelText('contactGate.lastName')).toHaveValue('Valiev');
-    expect(screen.getByLabelText('contactGate.phone')).toHaveValue('+998901234567');
+    expect(screen.getByLabelText('contactGate.phone')).toHaveValue('+998 90 123 45 67');
   });
 
   it('показывает текст ошибки, если PATCH реджектится', async () => {
