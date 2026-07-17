@@ -125,6 +125,20 @@ describe('LoginModal — выбор канала входа', () => {
     );
   });
 
+  it('маскирует ввод телефона и держит кнопку задизейбленной до 9 цифр', async () => {
+    const user = userEvent.setup();
+    render(<LoginModal open onOpenChange={vi.fn()} />);
+
+    const input = screen.getByPlaceholderText('+998 90 123 45 67');
+    await user.type(input, '90123');
+    expect(input).toHaveValue('+998 90 123');
+    expect(screen.getByRole('button', { name: 'Получить код' })).toBeDisabled();
+
+    await user.type(input, '4567');
+    expect(input).toHaveValue('+998 90 123 45 67');
+    expect(screen.getByRole('button', { name: 'Получить код' })).toBeEnabled();
+  });
+
   it('переключение на Email шлёт channel EMAIL на request и verify, затем закрывает модалку', async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
