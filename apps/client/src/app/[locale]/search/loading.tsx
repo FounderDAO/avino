@@ -14,12 +14,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function SearchLoading() {
   return (
     /* Совпадает с внешним контейнером SearchResults */
-    <div className="relative flex h-[calc(100dvh-var(--header-h)-70px)] min-h-[480px]">
+    <div className="relative flex h-[calc(100dvh-var(--header-h)-var(--filterbar-h)-1px)] min-h-[480px]">
       {/* ---- Плейсхолдер карты (слева) — hidden на мобайле, как в SearchResults ---- */}
-      <div className="relative h-full hidden lg:block lg:w-1/2 bg-[#e8ede9]" />
+      <div className="relative h-full hidden lg:block lg:w-3/5 bg-[#e8ede9]" />
 
       {/* ---- Колонка списка (справа) ---- */}
-      <div className="min-w-0 overflow-y-auto w-full lg:w-1/2 lg:max-w-[50%]">
+      <div className="min-w-0 overflow-y-auto w-full lg:w-2/5 lg:max-w-[40%]">
         {/* Заголовок + счётчик */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 px-5 pb-3 pt-[18px]">
           <div className="flex flex-col gap-2">

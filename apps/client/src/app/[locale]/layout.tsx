@@ -1,7 +1,7 @@
 /**
  * Корневой layout публичного портала Avino (под [locale]-префиксом).
  * Inter (latin + cyrillic), next-intl provider, Redux/RTK Provider,
- * chrome (Header + Footer), колоночная раскладка min-h-dvh.
+ * Header + FooterGate (футер скрыт по маршруту на /map и /search), колоночная раскладка min-h-dvh.
  */
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
