@@ -11,7 +11,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
 import { StoreProvider } from '@/store/StoreProvider';
 import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
+import { FooterGate } from '@/components/layout/FooterGate';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { BASE } from '@/lib/seo/base';
 import '../globals.css';
@@ -93,7 +93,8 @@ export default async function RootLayout({ children, modal, params }: LayoutProp
             <div className="flex min-h-dvh flex-col">
               <Header />
               <main className="flex-1">{children}</main>
-              <Footer />
+              {/* Футер по маршруту: на /map и /search скрыт (Zillow-сплит) */}
+              <FooterGate />
             </div>
             {modal}
           </StoreProvider>
