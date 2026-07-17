@@ -24,7 +24,7 @@ vi.mock('@/i18n/navigation', () => ({
 vi.mock('next-intl/server', () => ({
   getLocale: vi.fn(async () => 'ru'),
   getTranslations: vi.fn(async () => (key: string) =>
-    key === 'districts.title' ? 'Популярные районы Ташкента' : key,
+    key === 'districts.title' ? 'Популярные места Ташкента' : key,
   ),
 }));
 
