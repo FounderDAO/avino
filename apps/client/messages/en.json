@@ -737,7 +737,7 @@
       "firstName": "First name",
       "lastName": "Last name",
       "phone": "Phone",
-      "phonePlaceholder": "+998 90 123-45-67",
+      "phonePlaceholder": "+998 90 123 45 67",
       "submit": "Continue",
       "saving": "Saving…",
       "error": "Could not save your details. Please try again."

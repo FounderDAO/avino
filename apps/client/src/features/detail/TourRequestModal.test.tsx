@@ -22,7 +22,7 @@ describe('TourRequestModal', () => {
   it('предзаполняет имя и телефон из профиля', () => {
     render(<TourRequestModal listing={listing} open onOpenChange={vi.fn()} />);
     expect((screen.getByLabelText(ru.tourRequest.name) as HTMLInputElement).value).toBe('Tap Links');
-    expect((screen.getByLabelText(ru.tourRequest.phone) as HTMLInputElement).value).toBe('+998901112233');
+    expect((screen.getByLabelText(ru.tourRequest.phone) as HTMLInputElement).value).toBe('+998 90 111 22 33');
   });
 
   it('отправляет заявку с выбранными датой и окном', () => {
