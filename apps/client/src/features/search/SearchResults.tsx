@@ -311,8 +311,10 @@ export function SearchResults({
     : null;
 
   return (
-    // Рабочая область сплита занимает высоту вьюпорта под хедером и фильтр-баром.
-    <div className="relative flex h-[calc(100dvh-var(--header-h)-61px)] min-h-[480px]">
+    // Рабочая область сплита занимает высоту вьюпорта под хедером и фильтр-баром:
+    // 70px = фильтр-бар 69px (py-3 + контент + border-b) + 1px бордер хедера.
+    // Иначе документ выше вьюпорта и body скроллится (панель рисования уезжает).
+    <div className="relative flex h-[calc(100dvh-var(--header-h)-70px)] min-h-[480px]">
       {/* ---- Карта (слева) ---- */}
       <div
         className={cn(

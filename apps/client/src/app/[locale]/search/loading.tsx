@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function SearchLoading() {
   return (
     /* Совпадает с внешним контейнером SearchResults */
-    <div className="relative flex h-[calc(100dvh-var(--header-h)-61px)] min-h-[480px]">
+    <div className="relative flex h-[calc(100dvh-var(--header-h)-70px)] min-h-[480px]">
       {/* ---- Плейсхолдер карты (слева) — hidden на мобайле, как в SearchResults ---- */}
       <div className="relative h-full hidden lg:block lg:w-1/2 bg-[#e8ede9]" />
 

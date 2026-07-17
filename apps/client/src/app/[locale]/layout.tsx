@@ -32,9 +32,11 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
+// Полный LayoutProps (не Pick): сгенерированная проверка Next (.next/types)
+// требует, чтобы параметр generateMetadata принимал все пропсы layout.
 export async function generateMetadata({
   params,
-}: Pick<LayoutProps, 'params'>): Promise<Metadata> {
+}: LayoutProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'meta' });
   return {
