@@ -6,7 +6,9 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import logoIcon from '@/assets/logo/avino-appicon.svg';
 import { IC, type LucideIcon } from './icons';
 import { useGetAdminStatsQuery } from '@/store/api/adminStatsApi';
 import { useGetMeQuery } from '@/store/api/authApi';
@@ -59,8 +61,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     <aside className={'a-side' + (open ? ' open' : '')}>
       <div className="a-side-head row" style={{ justifyContent: 'space-between' }}>
         <div className="row gap-12" style={{ gap: 10 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/avino-appicon.svg" alt="Avino" width={32} height={32} style={{ width: 32, height: 32, borderRadius: 9, display: 'block' }} />
+          <Image src={logoIcon} alt="Avino" width={32} height={32} priority style={{ width: 32, height: 32, borderRadius: 9, display: 'block' }} />
           <span style={{ fontSize: 19, fontWeight: 900, letterSpacing: '-.04em', color: '#fff' }}>avino</span>
           <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', color: 'var(--red)', background: 'rgba(224,60,66,.16)', padding: '3px 7px', borderRadius: 6 }}>ADMIN</span>
         </div>

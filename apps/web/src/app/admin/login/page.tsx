@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useDispatch } from 'react-redux';
 import type { AppDispatch } from '@/store/store';
 import { setCredentials } from '@/store/slices/authSlice';
@@ -11,6 +12,7 @@ import {
 } from '@/store/api/authApi';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import { IC } from '@/components/admin/icons';
+import logoIcon from '@/assets/logo/avino-appicon.svg';
 
 /**
  * Логин админа — passwordless OTP по EMAIL (API.md §3, коды ошибок §17).
@@ -125,12 +127,12 @@ export default function AdminLoginPage() {
     >
       <div style={{ width: '100%', maxWidth: 420 }}>
         <div className="row" style={{ justifyContent: 'center', gap: 10, marginBottom: 24 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/avino-appicon.svg"
+          <Image
+            src={logoIcon}
             alt="Avino"
             width={40}
             height={40}
+            priority
             style={{ width: 40, height: 40, borderRadius: 12, display: 'block' }}
           />
           <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>Avino</span>
