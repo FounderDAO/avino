@@ -12,9 +12,11 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Link } from '@/i18n/navigation';
 import { Field } from '@/components/ui/field';
+import { PhoneField } from '@/components/ui/phone-field';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAppSelector } from '@/store/hooks';
+import { formatUzPhone, uzPhoneE164 } from '@/lib/phone-mask';
 import {
   selectCurrentUser,
   selectIsAuthenticated,
@@ -86,7 +88,7 @@ export function Profile() {
     setForm({
       firstName: user.profile.first_name ?? '',
       lastName: user.profile.last_name ?? '',
-      phone: user.profile.contact_phone ?? user.phone ?? '',
+      phone: formatUzPhone(user.profile.contact_phone ?? user.phone ?? ''),
       email: user.email ?? '',
     });
   }, [user]);
@@ -188,7 +190,7 @@ export function Profile() {
         // на бэке: displayName ?? first+last) — иначе display_name из Google
         // навсегда перекрывал бы отредактированные Имя/Фамилию.
         display_name: null,
-        contact_phone: form.phone.trim() || null,
+        contact_phone: uzPhoneE164(form.phone) || null,
       }).unwrap();
 
       // Пользователь: только при изменении email.
@@ -267,7 +269,11 @@ export function Profile() {
           </div>
           <div>
             <label className="mb-[7px] block text-[13px] font-bold">{t('profile.phone')}</label>
-            <Field value={form.phone} onChange={(e) => set('phone', e.target.value)} />
+            <PhoneField
+              value={form.phone}
+              onChange={(v) => set('phone', v)}
+              placeholder="+998 90 123 45 67"
+            />
           </div>
           <div>
             <label className="mb-[7px] block text-[13px] font-bold">{t('profile.email')}</label>
