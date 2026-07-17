@@ -80,6 +80,9 @@ services:
       NODE_ENV: production
       # Реальные origin'ы браузерных клиентов (админка + публичный портал).
       CORS_ORIGINS: https://${DOMAIN_ADMIN},https://${DOMAIN_CLIENT}
+      # Прод шлёт реальные SMS через Eskiz — явно гасим Telegram-доставку OTP
+      # (в базовом compose она включена дефолтом для локалки).
+      OTP_TELEGRAM_DELIVERY: "false"
 
   web:
     build:

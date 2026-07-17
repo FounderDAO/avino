@@ -85,6 +85,10 @@ services:
       # Серверный ключ Yandex Geocoder (нормализация адреса, ADR-0147) — из
       # корневого .env; пусто → геокодинг деградирует без падения.
       YANDEX_MAPS_API_KEY: ${YANDEX_MAPS_API_KEY:-}
+      # Локальный дефолт: OTP по телефону доставляется в Telegram (admin-чат),
+      # минуя Eskiz и master-тоггл sms_enabled. Переопределяется в .env; prod
+      # overlay ставит false (реальные SMS), staging — true.
+      OTP_TELEGRAM_DELIVERY: ${OTP_TELEGRAM_DELIVERY:-true}
     ports:
       - "${API_PORT:-4000}:4000"
     restart: unless-stopped
