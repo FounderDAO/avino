@@ -4,11 +4,13 @@ import * as React from 'react';
 import { Dialog } from 'radix-ui';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { PhoneField } from '@/components/ui/phone-field';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
 import { useCreateTourRequestMutation, useGetTakenSlotsQuery } from '@/store/api/tourRequestsApi';
 import { getApiError } from '@/store/api/apiError';
+import { formatUzPhone, uzPhoneComplete, uzPhoneE164 } from '@/lib/phone-mask';
 import type { Listing } from '@/lib/mock/types';
 import { takenWindowKeys, windowKey } from './tour-slots';
 
@@ -40,7 +42,7 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
   const windows = React.useMemo(() => listing.tourWindows ?? [], [listing.tourWindows]);
 
   const initialName = user?.profile?.display_name ?? user?.profile?.first_name ?? '';
-  const initialPhone = user?.profile?.contact_phone ?? user?.phone ?? '';
+  const initialPhone = formatUzPhone(user?.profile?.contact_phone ?? user?.phone ?? '');
 
   const [name, setName] = React.useState(initialName);
   const [phone, setPhone] = React.useState(initialPhone);
@@ -78,7 +80,7 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
   React.useEffect(() => {
     if (open && !prevOpen.current) {
       setName(user?.profile?.display_name ?? user?.profile?.first_name ?? '');
-      setPhone(user?.profile?.contact_phone ?? user?.phone ?? '');
+      setPhone(formatUzPhone(user?.profile?.contact_phone ?? user?.phone ?? ''));
       setDate('');
       setWindowIdx(0);
       setMessage(t('messageDefault'));
@@ -97,7 +99,7 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
 
   const submit = React.useCallback(async () => {
     setError(null);
-    if (!phone.trim()) { setError(t('phoneRequired')); return; }
+    if (!uzPhoneComplete(phone)) { setError(t('phoneRequired')); return; }
     const w = windows[windowIdx];
     if (!w) { setError(t('windowRequired')); return; }
     if (!date) { setError(t('dateRequired')); return; }
@@ -108,7 +110,7 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
         window_start: w.start,
         window_end: w.end,
         requester_name: name.trim(),
-        requester_phone: phone.trim(),
+        requester_phone: uzPhoneE164(phone),
         message: message.trim() || undefined,
       }).unwrap();
       setDone(true);
@@ -155,12 +157,11 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
 
               <label className="flex flex-col gap-1 text-[13px] font-semibold">
                 {t('phone')} *
-                <input
+                <PhoneField
                   aria-label={t('phone')}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  inputMode="tel"
-                  placeholder="+998 ..."
+                  onChange={setPhone}
+                  placeholder="+998 90 123 45 67"
                   className="rounded-lg border border-border bg-bg px-3 py-2 text-[15px] font-normal"
                 />
               </label>
