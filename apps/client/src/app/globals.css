@@ -84,6 +84,9 @@
 
   /* ---- Layout ---- */
   --header-h: 68px;
+  /* Фактическая высота фильтр-бара /search (py-3 + пилюли + border-b). При
+     правке FilterBar перемерить: сплит /search считает высоту от неё. */
+  --filterbar-h: 69px;
 }
 
 .dark {

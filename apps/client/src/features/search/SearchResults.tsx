@@ -22,6 +22,7 @@ import { PropertyCard } from '@/features/search/PropertyCard';
 import { PropertyCardSkeleton } from '@/features/search/PropertyCardSkeleton';
 import { SortControl } from '@/features/search/SortControl';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'next/navigation';
@@ -310,8 +311,10 @@ export function SearchResults({
     : null;
 
   return (
-    // Рабочая область сплита занимает высоту вьюпорта под хедером и фильтр-баром.
-    <div className="relative flex h-[calc(100dvh-var(--header-h)-61px)] min-h-[480px]">
+    // Рабочая область сплита занимает высоту вьюпорта под хедером и фильтр-баром:
+    // вьюпорт минус хедер (+1px его border-b) минус фильтр-бар (--filterbar-h).
+    // Иначе документ выше вьюпорта и body скроллится (панель рисования уезжает).
+    <div className="relative flex h-[calc(100dvh-var(--header-h)-var(--filterbar-h)-1px)] min-h-[480px]">
       {/* ---- Карта (слева) ---- */}
       <div
         className={cn(
@@ -399,11 +402,13 @@ export function SearchResults({
       {/* ---- Колонка со списком (справа, свой скролл) ---- */}
       <div
         className={cn(
-          'min-w-0 overflow-y-auto',
+          // flex-col + overscroll-contain: футер прижат к низу, докрутка списка
+          // не скроллит страницу (Zillow, спека 2026-07-17).
+          'flex min-w-0 flex-col overflow-y-auto overscroll-contain',
           // Десктоп: 40% (уже карты → карточки уже и ниже, видно больше). Мобайл:
-          // вся ширина, скрыт когда показана карта.
+          // вся ширина, скрыт когда показана карта. lg:flex — не перебить flex-col.
           'w-full lg:w-2/5 lg:max-w-[40%]',
-          mobView === 'map' && 'hidden lg:block',
+          mobView === 'map' && 'hidden lg:flex',
         )}
       >
         {/* Заголовок + счётчик + сортировка (Zillow-стиль, Task 9) */}
@@ -489,6 +494,12 @@ export function SearchResults({
             </p>
           </div>
         )}
+
+        {/* Компактный футер внизу скроллящейся колонки (Zillow, спека 2026-07-17);
+            mt-auto прижимает его к низу при короткой/пустой выдаче. */}
+        <div className="mt-auto">
+          <Footer variant="panel" />
+        </div>
       </div>
 
       {/* ---- Мобильный переключатель Список / Карта ---- */}
