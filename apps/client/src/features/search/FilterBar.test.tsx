@@ -8,7 +8,7 @@
  * - @/store/hooks (useAppSelector) — не авторизован по умолчанию
  * - @/store/api/savedSearchesApi (useCreateSavedSearchMutation)
  * - @/lib/useCurrencyPreference — возвращает 'UZS'
- * - SearchAutocomplete, ActiveFilters, BedroomsControl,
+ * - SearchAutocomplete, BedroomsControl,
  *   HomeTypeMultiSelect, FiltersPanel — заглушки
  * - useGeoSuggest — пустые подсказки
  */
@@ -85,10 +85,6 @@ vi.mock('./SearchAutocomplete', () => ({
   SearchAutocomplete: ({ placeholder }: { placeholder: string }) => (
     <input type="text" placeholder={placeholder} aria-label="search-stub" />
   ),
-}));
-
-vi.mock('./ActiveFilters', () => ({
-  ActiveFilters: () => null,
 }));
 
 vi.mock('./useGeoSuggest', () => ({

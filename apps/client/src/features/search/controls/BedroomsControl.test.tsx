@@ -1,7 +1,7 @@
 /**
  * Тесты для BedroomsControl.
  *
- * Мокируем next-intl (useTranslations) по образцу ActiveFilters.test.tsx:
+ * Мокируем next-intl (useTranslations):
  * t('key') → 'namespace.key' (или просто 'key' без namespace).
  */
 import { render, screen, fireEvent } from '@testing-library/react';
