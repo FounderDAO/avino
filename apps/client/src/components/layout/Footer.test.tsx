@@ -26,8 +26,8 @@ describe('Footer', () => {
       render(<Footer variant={variant} />);
       expect(screen.getByRole('contentinfo')).toBeInTheDocument();
       expect(screen.getByText('slogan')).toBeInTheDocument();
-      // 16 ссылок колонок + 4 соц-иконки
-      expect(screen.getAllByRole('link')).toHaveLength(20);
+      // 13 ссылок колонок (3 временно скрыты: careers, press, safeDeal) + 4 соц-иконки
+      expect(screen.getAllByRole('link')).toHaveLength(17);
     },
   );
 
