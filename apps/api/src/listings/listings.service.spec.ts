@@ -4,7 +4,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  Amenity,
   Currency,
   Language,
   ListingStatus,
@@ -784,7 +783,7 @@ describe('ListingsService', () => {
       districtId: 'd1',
       latitude: new Prisma.Decimal('41.35'),
       longitude: new Prisma.Decimal('69.29'),
-      amenities: [Amenity.ELEVATOR],
+      amenities: ['ELEVATOR'],
       promotionType: PromotionType.VIP,
       promotionExpiresAt: new Date('2026-06-20T00:00:00.000Z'),
       publishedAt: new Date('2026-06-01T10:00:00.000Z'),
@@ -981,12 +980,12 @@ describe('ListingsService', () => {
     it('detail отдаёт amenities из БД', async () => {
       prisma.listing.findUnique.mockResolvedValue({
         ...detailRow,
-        amenities: [Amenity.ELEVATOR, Amenity.INTERNET],
+        amenities: ['ELEVATOR', 'INTERNET'],
       });
 
       const result = await service.findOne(LISTING_ID, undefined);
 
-      expect(result.amenities).toEqual([Amenity.ELEVATOR, Amenity.INTERNET]);
+      expect(result.amenities).toEqual(['ELEVATOR', 'INTERNET']);
     });
 
     it('detail отдаёт пустой amenities если массив пуст', async () => {
@@ -1090,11 +1089,11 @@ describe('ListingsService', () => {
 
       await service.create(OWNER_ID, {
         ...validCreate,
-        amenities: [Amenity.ELEVATOR, Amenity.INTERNET],
+        amenities: ['ELEVATOR', 'INTERNET'],
       } as any);
 
       const data = prisma.listing.create.mock.calls[0][0].data;
-      expect(data.amenities).toEqual([Amenity.ELEVATOR, Amenity.INTERNET]);
+      expect(data.amenities).toEqual(['ELEVATOR', 'INTERNET']);
     });
 
     it('passes amenities through to Prisma on update', async () => {
@@ -1108,11 +1107,11 @@ describe('ListingsService', () => {
       prisma.listing.update.mockResolvedValue(dbListing);
 
       await service.update(OWNER_ID, LISTING_ID, {
-        amenities: [Amenity.FURNITURE, Amenity.HEATING],
+        amenities: ['FURNITURE', 'HEATING'],
       } as any);
 
       const data = prisma.listing.update.mock.calls[0][0].data;
-      expect(data.amenities).toEqual([Amenity.FURNITURE, Amenity.HEATING]);
+      expect(data.amenities).toEqual(['FURNITURE', 'HEATING']);
     });
   });
 

@@ -6,7 +6,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  Amenity,
   Currency,
   Language,
   ListingStatus,
@@ -60,7 +59,7 @@ interface ListingScalarInput {
   rooms?: number;
   bathrooms?: number;
   parking_type?: ParkingType;
-  amenities?: Amenity[];
+  amenities?: string[];
   floor?: number;
   is_basement?: boolean;
   total_floors?: number;
@@ -100,7 +99,7 @@ interface ListingScalarData {
   rooms?: number;
   bathrooms?: number;
   parkingType?: ParkingType;
-  amenities?: Amenity[];
+  amenities?: string[];
   floor?: number;
   isBasement?: boolean;
   totalFloors?: number;
@@ -205,7 +204,7 @@ export interface ListingDetailResponse {
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
-  amenities: Amenity[];
+  amenities: string[];
   floor: number | null;
   is_basement: boolean;
   total_floors: number | null;

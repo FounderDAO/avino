@@ -48,19 +48,22 @@ enum ParkingType {
   UNDERGROUND
 }
 
-/// Удобства объявления (ADR-0111, Zillow Phase 2). Мультизначный enum-массив на
-/// listings.amenities. Фиксированный UI-словарь (лейблы i18n на клиенте), как
-/// PropertyType/ParkingType. Добавление значения — non-breaking (ADR-0008).
-enum Amenity {
-  AIR_CONDITIONING
-  FURNITURE
-  APPLIANCES
-  INTERNET
-  ELEVATOR
-  BALCONY
-  HEATING
-  SECURITY
-  POOL
+/// Справочник удобств объявления. Управляется из админки (CRUD): код стабилен и
+/// неизменяем (listings.amenities хранит его), лейблы RU/UZ/EN редактируемы,
+/// is_active — флаг видимости (soft-hide). Заменил фиксированный enum Amenity.
+model Amenity {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  labelRu   String   @map("label_ru")
+  labelUz   String   @map("label_uz")
+  labelEn   String   @map("label_en")
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("amenities")
+  @@index([isActive, sortOrder])
 }
 
 /// Тип сделки по объявлению (DB_SCHEMA.md §3). Создаётся как Postgres enum
@@ -494,7 +497,7 @@ model Listing {
   rooms              Int?                                   @db.SmallInt
   bathrooms          Decimal?                               @db.Decimal(3, 1)
   parkingType        ParkingType?                           @map("parking_type")
-  amenities          Amenity[]
+  amenities          String[]
   floor              Int?                                   @db.SmallInt
   isBasement         Boolean                                @default(false) @map("is_basement")
   totalFloors        Int?                                   @map("total_floors") @db.SmallInt

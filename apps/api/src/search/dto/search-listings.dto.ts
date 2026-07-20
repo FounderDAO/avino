@@ -15,7 +15,6 @@ import {
   Min,
 } from 'class-validator';
 import {
-  Amenity,
   Currency,
   ParkingType,
   PromotionType,
@@ -226,8 +225,8 @@ export class SearchListingsQueryDto {
   @IsOptional()
   @Transform(toArray)
   @IsArray()
-  @IsEnum(Amenity, { each: true })
-  amenities?: Amenity[];
+  @IsString({ each: true })
+  amenities?: string[];
 
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_min?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_max?: number;
