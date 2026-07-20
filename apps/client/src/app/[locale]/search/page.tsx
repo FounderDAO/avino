@@ -25,7 +25,7 @@ import type {
   SortOption,
   TransactionType,
 } from '@/lib/mock/types';
-import { AMENITIES, PARKING_TYPES } from '@/lib/mock/types';
+import { PARKING_TYPES } from '@/lib/mock/types';
 import { FilterBar, type FilterValues } from '@/features/search/FilterBar';
 import { SearchResults } from '@/features/search/SearchResults';
 import { alternatesFor } from '@/lib/seo/alternates';
@@ -197,12 +197,13 @@ export default async function SearchPage({
     PARKING_TYPES.includes(p as ParkingType),
   );
 
-  const rawAmenities = Array.isArray(sp.amenities)
+  // Справочник удобств динамический (Task 5, GET /amenities) — отфильтровать
+  // коды по статичному списку больше нельзя, передаём как есть. Неизвестный код
+  // /search не отвергает (DTO принимает любые строки), но и не матчит — выдача
+  // будет пустой.
+  const amenities: Amenity[] = Array.isArray(sp.amenities)
     ? sp.amenities
     : sp.amenities ? [sp.amenities] : [];
-  const amenities = rawAmenities.filter((a): a is Amenity =>
-    AMENITIES.includes(a as Amenity),
-  );
 
   // Строковые диапазоны (в FilterValues остаются строками, в ListingFilter → числа).
   const areaMinRaw = first(sp.area_min);

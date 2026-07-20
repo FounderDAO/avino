@@ -33,7 +33,6 @@ import { Chip } from '@/components/ui/pill';
 import { cn } from '@/lib/utils';
 import { propertyTypeLabel } from '@/lib/format';
 import {
-  AMENITIES,
   PARKING_TYPES,
   PROPERTY_TYPES,
   type Amenity,
@@ -42,6 +41,8 @@ import {
   type PropertyType,
   type TransactionType,
 } from '@/lib/mock';
+import { useListAmenitiesQuery } from '@/store/api/amenitiesApi';
+import { amenityLabel } from '@/lib/amenities';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import { getApiError } from '@/store/api/apiError';
@@ -300,6 +301,7 @@ export function ListingEdit({
   const tEnums = useTranslations('enums');
   const tUnits = useTranslations('units');
   const locale = useLocale();
+  const { data: amenities = [] } = useListAmenitiesQuery();
   const router = useRouter();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
@@ -548,20 +550,20 @@ export function ListingEdit({
           </FormField>
           <FormField label={tNew('fields.amenities.label')}>
             <div className="flex flex-wrap gap-2">
-              {AMENITIES.map((a) => (
+              {amenities.map((a) => (
                 <Chip
-                  key={a}
-                  active={f.amenities.includes(a)}
+                  key={a.code}
+                  active={f.amenities.includes(a.code)}
                   onClick={() =>
                     set(
                       'amenities',
-                      f.amenities.includes(a)
-                        ? f.amenities.filter((v) => v !== a)
-                        : ([...f.amenities, a] as Amenity[]),
+                      f.amenities.includes(a.code)
+                        ? f.amenities.filter((v) => v !== a.code)
+                        : [...f.amenities, a.code],
                     )
                   }
                 >
-                  {tEnums(`amenities.${a}`)}
+                  {amenityLabel(a, locale)}
                 </Chip>
               ))}
             </div>

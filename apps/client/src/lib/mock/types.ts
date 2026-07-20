@@ -33,30 +33,12 @@ export type ParkingType = 'YARD' | 'COVERED' | 'GARAGE' | 'UNDERGROUND';
 /** Все типы парковки (порядок — как в выпадающих списках UI). */
 export const PARKING_TYPES: ParkingType[] = ['YARD', 'COVERED', 'GARAGE', 'UNDERGROUND'];
 
-/** Удобства объявления (ADR-0111, Zillow Phase 2; POOL — LAST_CHANGED_API.md §1). */
-export type Amenity =
-  | 'AIR_CONDITIONING'
-  | 'FURNITURE'
-  | 'APPLIANCES'
-  | 'INTERNET'
-  | 'ELEVATOR'
-  | 'BALCONY'
-  | 'HEATING'
-  | 'SECURITY'
-  | 'POOL';
-
-/** Все удобства (порядок — как в UI). */
-export const AMENITIES: Amenity[] = [
-  'AIR_CONDITIONING',
-  'FURNITURE',
-  'APPLIANCES',
-  'INTERNET',
-  'ELEVATOR',
-  'BALCONY',
-  'HEATING',
-  'SECURITY',
-  'POOL',
-];
+/**
+ * Код удобства — доменный алиас, а НЕ union: справочник динамический и живёт в
+ * БД (Task 5, GET /amenities), поэтому набор значений компилятору неизвестен.
+ * Валидность кода проверяет только бэкенд (422 на create/update листинга).
+ */
+export type Amenity = string;
 
 export type ListingStatus =
   | 'NEW'

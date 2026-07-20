@@ -1323,17 +1323,6 @@
       "COVERED": "Covered",
       "GARAGE": "Garage",
       "UNDERGROUND": "Underground"
-    },
-    "amenities": {
-      "AIR_CONDITIONING": "Air conditioning",
-      "FURNITURE": "Furniture",
-      "APPLIANCES": "Appliances",
-      "INTERNET": "Internet",
-      "ELEVATOR": "Elevator",
-      "BALCONY": "Balcony",
-      "HEATING": "Heating",
-      "SECURITY": "Security",
-      "POOL": "Pool"
     }
   },
   "breadcrumb": {
