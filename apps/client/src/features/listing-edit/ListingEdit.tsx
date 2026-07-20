@@ -397,13 +397,16 @@ export function ListingEdit({
 
       // 3. Загрузить новые фото; собрать итоговый порядок media id.
       const finalOrder: string[] = [];
+      let mediaFailures = 0;
       for (const p of photos) {
         if (p.file) {
           try {
             const created = await addMedia({ listingId: id, file: p.file }).unwrap();
             finalOrder.push(created.id);
           } catch {
-            /* одно фото не загрузилось — продолжаем с остальными */
+            // Одно фото не загрузилось — продолжаем с остальными, но сбой не
+            // замалчиваем: иначе сохранение выглядит успешным без фото.
+            mediaFailures += 1;
           }
         } else {
           finalOrder.push(p.id);
@@ -419,6 +422,9 @@ export function ListingEdit({
         }
       }
 
+      if (mediaFailures > 0) {
+        toast.error(tToasts('mediaUploadFailed', { count: mediaFailures }));
+      }
       toast.success(tToasts('listingSaved'));
       router.push('/account/my-listings');
     } catch (e) {
