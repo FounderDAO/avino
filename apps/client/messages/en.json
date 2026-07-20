@@ -464,7 +464,19 @@
     "subtitle": "{count, plural, one {# verified agent} other {# verified agents}}",
     "showMore": "Show more",
     "loadingMore": "Loading…",
-    "empty": "No agents yet"
+    "empty": "No agents yet",
+    "searchPlaceholder": "Search by name or agency",
+    "sort": {
+      "active": "Most active first",
+      "name": "By name (A–Z)"
+    },
+    "found": "{count, plural, one {# agent found} other {# agents found}}",
+    "noResults": "No agents match your search",
+    "resetSearch": "Reset search",
+    "privateAgent": "Private agent",
+    "activeListings": "{count, plural, one {# active listing} other {# active listings}}",
+    "viewProfile": "Profile",
+    "viewListings": "Listings"
   },
   "agentProfile": {
     "meta": {

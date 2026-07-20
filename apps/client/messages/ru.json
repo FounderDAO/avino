@@ -464,7 +464,19 @@
     "subtitle": "{count, plural, one {# проверенный агент} few {# проверенных агента} many {# проверенных агентов} other {# проверенных агента}}",
     "showMore": "Показать ещё",
     "loadingMore": "Загрузка…",
-    "empty": "Агентов пока нет"
+    "empty": "Агентов пока нет",
+    "searchPlaceholder": "Поиск по имени или агентству",
+    "sort": {
+      "active": "Сначала активные",
+      "name": "По имени (А–Я)"
+    },
+    "found": "{count, plural, one {Найден # агент} few {Найдено # агента} many {Найдено # агентов} other {Найдено # агента}}",
+    "noResults": "По вашему запросу агентов не нашлось",
+    "resetSearch": "Сбросить поиск",
+    "privateAgent": "Частный маклер",
+    "activeListings": "{count, plural, one {# активное объявление} few {# активных объявления} many {# активных объявлений} other {# активных объявления}}",
+    "viewProfile": "Профиль",
+    "viewListings": "Объявления"
   },
   "agentProfile": {
     "meta": {
