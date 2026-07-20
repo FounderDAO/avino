@@ -95,6 +95,16 @@ describe('ListingsService', () => {
           profile: { firstName: 'Али', lastName: 'Валиев', contactPhone: null },
         }),
       },
+      // Справочник удобств (Task 4): дефолт «любой запрошенный код валиден»
+      // (эхо запрошенных кодов), чтобы базовые create/update-тесты amenities не
+      // задевало. Кейсы валидации ниже переопределяют mockResolvedValue напрямую.
+      amenity: {
+        findMany: jest.fn().mockImplementation(({ where }: any) =>
+          Promise.resolve(
+            ((where?.code?.in ?? []) as string[]).map((code) => ({ code })),
+          ),
+        ),
+      },
     };
     // create() оборачивает апгрейд роли + запись листинга в один $transaction;
     // мок прокидывает тот же prisma как tx-клиент (callback-форма).
@@ -1112,6 +1122,67 @@ describe('ListingsService', () => {
 
       const data = prisma.listing.update.mock.calls[0][0].data;
       expect(data.amenities).toEqual(['FURNITURE', 'HEATING']);
+    });
+
+    it('create отклоняет неизвестный код удобства (422)', async () => {
+      // Справочник знает только INTERNET — NOPE не найден.
+      prisma.amenity.findMany.mockResolvedValue([{ code: 'INTERNET' }]);
+
+      await expectCode(
+        service.create(OWNER_ID, {
+          ...validCreate,
+          amenities: ['INTERNET', 'NOPE'],
+        } as any),
+        ApiErrorCode.VALIDATION_ERROR,
+      );
+      expect(prisma.listing.create).not.toHaveBeenCalled();
+    });
+
+    it('create отклоняет скрытый код удобства (is_active=false не возвращается findMany)', async () => {
+      // Запрос уже фильтрует isActive:true — скрытый код просто не приходит.
+      prisma.amenity.findMany.mockResolvedValue([]);
+
+      await expectCode(
+        service.create(OWNER_ID, {
+          ...validCreate,
+          amenities: ['HIDDEN_CODE'],
+        } as any),
+        ApiErrorCode.VALIDATION_ERROR,
+      );
+    });
+
+    it('update отклоняет неизвестный код удобства (422)', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.amenity.findMany.mockResolvedValue([]);
+
+      await expectCode(
+        service.update(OWNER_ID, LISTING_ID, {
+          amenities: ['NOPE'],
+        } as any),
+        ApiErrorCode.VALIDATION_ERROR,
+      );
+      expect(prisma.listing.update).not.toHaveBeenCalled();
+    });
+
+    it('update без amenities в DTO не запрашивает справочник (поле не тронуто)', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, { rooms: 3 } as any);
+
+      expect(prisma.amenity.findMany).not.toHaveBeenCalled();
     });
   });
 

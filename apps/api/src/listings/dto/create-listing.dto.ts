@@ -139,7 +139,9 @@ export class CreateListingDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsString({ each: true })
+  @MaxLength(80, { each: true })
   amenities?: string[];
 
   @IsOptional()
