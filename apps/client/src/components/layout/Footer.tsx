@@ -45,7 +45,7 @@ const COLS: {
       { label: 'Avino Pro', href: '/sell' },
       { labelKey: 'postProperty', href: '/sell' },
       { labelKey: 'pricing', href: '/sell' },
-      { labelKey: 'advertisers', href: '/help' },
+      { labelKey: 'advertisers', href: '/advertise' },
     ],
   },
   {
