@@ -1,19 +1,19 @@
 /**
- * Districts — популярные районы на главной: размытое фото + «матовое стекло».
+ * Districts — популярные районы города Ташкента на главной: размытое фото +
+ * «матовое стекло».
  *
- * Раньше карточка показывала случайное Unsplash-фото (чужие города) с подписью
- * снизу. Теперь фото размыто (blur) и служит цветовым фоном, а название района
- * — по центру в glassmorphism-чипе (backdrop-blur). Проверяем: ссылки на
- * /search?district_id=, blur-класс на фото, название в стеклянном чипе,
- * пустой список районов → секция не рендерится.
+ * Подборка теперь курируемая и статичная (НЕ из GET /geo/districts) — раньше в
+ * сетку попадали случайные районы всей страны с непереведённым `name_en`
+ * («… tumani»). Проверяем: рендерятся ровно 6 центральных районов Ташкента,
+ * ссылки на /search?district_id=, blur-класс на фото, имя в стеклянном чипе,
+ * и что в EN имена чистые (Mirabad, а не «… tumani»).
  *
  * Districts — async server component: рендерим через `render(await Districts())`
- * с моками next-intl/server и слоя гео-API.
+ * с моками next-intl/server.
  */
 import * as React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import type { District } from '@/lib/mock/types';
 
 vi.mock('@/i18n/navigation', () => ({
   Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -21,50 +21,47 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }));
 
+const getLocale = vi.fn(async () => 'ru');
 vi.mock('next-intl/server', () => ({
-  getLocale: vi.fn(async () => 'ru'),
+  getLocale: () => getLocale(),
   getTranslations: vi.fn(async () => (key: string) =>
     key === 'districts.title' ? 'Популярные места Ташкента' : key,
   ),
 }));
 
-const getDistricts = vi.fn<(locale: string) => Promise<District[]>>();
-vi.mock('@/lib/api/geo', () => ({
-  getDistricts: (locale: string) => getDistricts(locale),
-}));
-
 import { Districts } from './Districts';
 
-const DISTRICTS: District[] = [
-  { id: 'd-1', name: 'Акалтынский район' },
-  { id: 'd-2', name: 'Алатский район' },
-];
-
-describe('Districts (размытое фото + стеклянный чип с названием)', () => {
-  beforeEach(() => {
-    getDistricts.mockReset();
-  });
-
-  it('карточка ссылается на /search?district_id=, фото размыто, имя — в стеклянном чипе', async () => {
-    getDistricts.mockResolvedValue(DISTRICTS);
+describe('Districts (курируемые районы Ташкента: размытое фото + стеклянный чип)', () => {
+  it('рендерит 6 районов Ташкента; плитка ссылается на /search?district_id=, фото размыто, имя — в стеклянном чипе', async () => {
+    getLocale.mockResolvedValue('ru');
     const { container } = render(await Districts());
 
-    // Ссылки плиток не изменились.
-    const link = screen.getByRole('link', { name: /Акалтынский район/ });
-    expect(link).toHaveAttribute('href', '/search?tx=SALE&district_id=d-1');
+    // Ровно 6 плиток (сетка 3×2), все — ссылки на поиск по district_id.
+    const links = screen.getAllByRole('link');
+    expect(links).toHaveLength(6);
+
+    // Мирабад — курируемый район Ташкента с фиксированным UUID.
+    const link = screen.getByRole('link', { name: /Мирабад/ });
+    expect(link).toHaveAttribute(
+      'href',
+      '/search?tx=SALE&district_id=d0000000-0000-4000-8000-000000000003',
+    );
 
     // Фото размыто (нечитаемый цветовой фон, а не «чужой город»).
     const img = container.querySelector('img');
     expect(img?.className).toContain('blur-');
 
     // Название района — в центрированном glassmorphism-чипе.
-    const chip = screen.getByText('Акалтынский район');
+    const chip = screen.getByText('Мирабад');
     expect(chip.closest('[class*="backdrop-blur"]')).not.toBeNull();
   });
 
-  it('пустой список районов → секция не рендерится', async () => {
-    getDistricts.mockResolvedValue([]);
-    const { container } = render(await Districts());
-    expect(container).toBeEmptyDOMElement();
+  it('в EN имена районов чистые (Mirabad, без суффикса «tumani»)', async () => {
+    getLocale.mockResolvedValue('en');
+    render(await Districts());
+
+    expect(screen.getByText('Mirabad')).toBeInTheDocument();
+    expect(screen.getByText('Mirzo-Ulugbek')).toBeInTheDocument();
+    expect(screen.queryByText(/tumani/i)).toBeNull();
   });
 });
