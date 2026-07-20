@@ -77,6 +77,56 @@
     "copyright": "© 2026 Avino · www.avino.uz · Support@avino.uz",
     "location": "Tashkent, Uzbekistan · Currency: UZS / $"
   },
+  "advertise": {
+    "meta": {
+      "title": "Advertise on Avino — for businesses and brands",
+      "description": "Put your brand in front of Avino's audience — property buyers and renters across Uzbekistan. Ad formats and contacts."
+    },
+    "hero": {
+      "badge": "Avino Ads",
+      "title": "Advertise on Avino",
+      "subtitle": "Show your product to thousands of people searching for property in Uzbekistan every day — in three languages, across every region.",
+      "cta": "Get in touch",
+      "note": "We reply within one business day"
+    },
+    "why": {
+      "title": "Why Avino",
+      "subtitle": "Uzbekistan's leading property platform for your message",
+      "audienceTitle": "The right audience",
+      "audienceText": "Our users are choosing homes, mortgages and moving — the perfect moment for developers, banks, renovation and related services.",
+      "reachTitle": "Nationwide reach",
+      "reachText": "Tashkent and every region, with an interface in Russian, Uzbek and English — your message lands where you need it.",
+      "premiumTitle": "Premium formats",
+      "premiumText": "From banners to branded special projects — we'll match the format to your goal and budget."
+    },
+    "formats": {
+      "title": "Ad formats",
+      "subtitle": "Pick what solves your task",
+      "bannerTitle": "Banners",
+      "bannerText": "Prominent ad blocks on the home page, in search and on listing pages.",
+      "featuredTitle": "Featured placement",
+      "featuredText": "Promote listings to the top of results with TOP/VIP status for maximum attention.",
+      "brandTitle": "Branded blocks",
+      "brandText": "Your logo and offer inside relevant sections — mortgage, new builds, services.",
+      "specialTitle": "Special projects",
+      "specialText": "Custom integrations and turnkey campaigns — let's shape the idea together."
+    },
+    "steps": {
+      "title": "How to start",
+      "step1Title": "Reach out",
+      "step1Text": "Describe your task by email or on Telegram — a couple of lines is enough.",
+      "step2Title": "We pick a format",
+      "step2Text": "We'll propose placement and terms for your goal and budget.",
+      "step3Title": "We launch",
+      "step3Text": "We approve the creatives and start the campaign."
+    },
+    "contact": {
+      "title": "Ready to advertise?",
+      "text": "Write to us — we'll discuss formats and terms for your task. A phone line is coming later; for now reach us by email and Telegram.",
+      "emailLabel": "Email",
+      "telegramLabel": "Telegram"
+    }
+  },
   "auth": {
     "title": "Log in to Avino",
     "phoneDescription": "Enter your phone number — we'll send a confirmation code by SMS.",

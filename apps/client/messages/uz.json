@@ -77,6 +77,56 @@
     "copyright": "© 2026 Avino · www.avino.uz · Support@avino.uz",
     "location": "Toshkent, O'zbekiston · Valyuta: so'm / $"
   },
+  "advertise": {
+    "meta": {
+      "title": "Avinoda reklama — biznes va brendlar uchun",
+      "description": "Brendingizni Avino auditoriyasiga taqdim eting — O'zbekiston bo'ylab ko'chmas mulk xaridorlari va ijarachilariga. Reklama formatlari va aloqa."
+    },
+    "hero": {
+      "badge": "Avino Ads",
+      "title": "Avinoda reklama",
+      "subtitle": "Mahsulotingizni har kuni O'zbekistonda uy-joy qidirayotgan minglab odamga ko'rsating — uch tilda, barcha hududlarda.",
+      "cta": "Biz bilan bog'laning",
+      "note": "Ish kuni davomida javob beramiz"
+    },
+    "why": {
+      "title": "Nega Avino",
+      "subtitle": "Reklamangiz uchun O'zbekistondagi yetakchi ko'chmas mulk platformasi",
+      "audienceTitle": "Aniq auditoriya",
+      "audienceText": "Foydalanuvchilarimiz uy, ipoteka va ko'chishni tanlaydi — quruvchilar, banklar, ta'mirlash va tegishli xizmatlar uchun ideal payt.",
+      "reachTitle": "Butun O'zbekiston bo'ylab qamrov",
+      "reachText": "Toshkent va barcha hududlar, rus, o'zbek va ingliz tillaridagi interfeys — xabaringiz kerakli joyga yetib boradi.",
+      "premiumTitle": "Premium formatlar",
+      "premiumText": "Bannerlardan brend maxsus loyihalarigacha — formatni maqsad va byudjetingizga moslaymiz."
+    },
+    "formats": {
+      "title": "Reklama formatlari",
+      "subtitle": "Vazifangizni hal qiladiganini tanlang",
+      "bannerTitle": "Bannerlar",
+      "bannerText": "Bosh sahifada, qidiruvda va e'lon sahifalarida ko'zga tashlanadigan reklama bloklari.",
+      "featuredTitle": "Maxsus joylashtirish",
+      "featuredText": "E'lonlarni qidiruv tepasiga chiqarish va eng ko'p e'tibor uchun TOP/VIP statuslari.",
+      "brandTitle": "Brend bloklari",
+      "brandText": "Logotip va taklifingiz tematik bo'limlarda — ipoteka, yangi binolar, xizmatlar.",
+      "specialTitle": "Maxsus loyihalar",
+      "specialText": "Individual integratsiyalar va kalit topshirish kampaniyalari — g'oyani birga ishlab chiqamiz."
+    },
+    "steps": {
+      "title": "Qanday boshlash",
+      "step1Title": "Bizga yozing",
+      "step1Text": "Vazifangizni email yoki Telegram orqali yozing — bir-ikki jumla yetarli.",
+      "step2Title": "Format tanlaymiz",
+      "step2Text": "Maqsad va byudjetingizga mos joylashtirish va shartlarni taklif qilamiz.",
+      "step3Title": "Ishga tushiramiz",
+      "step3Text": "Materiallarni kelishib, kampaniyani boshlaymiz."
+    },
+    "contact": {
+      "title": "Reklama joylashtirishga tayyormisiz?",
+      "text": "Bizga yozing — vazifangiz uchun format va shartlarni muhokama qilamiz. Telefon keyinroq paydo bo'ladi, hozircha email va Telegram orqali bog'laning.",
+      "emailLabel": "Email",
+      "telegramLabel": "Telegram"
+    }
+  },
   "auth": {
     "title": "Avinoga kirish",
     "phoneDescription": "Telefon raqamingizni kiriting — SMS orqali tasdiqlash kodini yuboramiz.",
