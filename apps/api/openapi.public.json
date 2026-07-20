@@ -997,6 +997,17 @@
             }
           },
           {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
             "name": "floor_min",
             "required": false,
             "in": "query",
@@ -1298,6 +1309,17 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -1632,6 +1654,17 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -2030,6 +2063,17 @@
             }
           },
           {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
             "name": "floor_min",
             "required": false,
             "in": "query",
@@ -2322,6 +2366,17 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -2689,6 +2744,17 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -3486,6 +3552,27 @@
         }
       }
     },
+    "/api/v1/amenities": {
+      "get": {
+        "operationId": "AmenitiesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/agents": {
       "get": {
         "operationId": "AgentsController_list",
@@ -3813,7 +3900,7 @@
           "amenities": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "string"
             }
           },
           "floor": {
@@ -3941,7 +4028,7 @@
           "amenities": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "string"
             }
           },
           "floor": {

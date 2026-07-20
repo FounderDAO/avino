@@ -1367,6 +1367,7 @@ agent_applications_new, support_requests_new }`:
 | `MEDIA_LIMIT_EXCEEDED` | 422 | Превышено число файлов на листинг |
 | `AGENT_APPLICATION_PENDING` | 409 | Заявка «Стать агентом» уже на рассмотрении |
 | `ALREADY_AGENT` | 409 | У пользователя уже есть роль AGENT/AGENCY |
+| `AMENITY_CODE_TAKEN` | 409 | `code` удобства уже занят (или не удалось сгенерировать slug из label_en) |
 | `INTERNAL_ERROR` | 500 | Внутренняя ошибка |
 
 Примеры тел:
@@ -1594,3 +1595,47 @@ Approve/reject создают уведомление `AGENT_APPLICATION_RESOLVED
 GET /api/v1/search?agent_id=u1&transaction_type=SALE
 ```
 200 → тот же envelope/card-shape, что `/search` (§9); только `status = ACTIVE`.
+
+## 22. Amenities (справочник удобств)
+
+Справочник удобств объявления (ADR-0111): таблица `amenities`
+(`code`/`label_ru`/`label_uz`/`label_en`/`is_active`/`sort_order`), а не enum.
+Soft-delete-only — скрытие через `PATCH { is_active:false }`, жёсткого `DELETE`
+нет. Сортировка списков — `sort_order asc, code asc`.
+
+Контракт элемента (везде одинаковый, snake_case):
+```json
+{ "id": "am1", "code": "PARKING", "label_ru": "Парковка",
+  "label_uz": "Avtoturargoh", "label_en": "Parking",
+  "is_active": true, "sort_order": 0 }
+```
+
+### GET /api/v1/amenities
+Публичный список для форм/фильтров. Auth: **public**. Только `is_active =
+true`. 200 → массив элементов (без пагинации).
+
+### GET /api/v1/admin/amenities
+Полный список (активные + скрытые). Auth: **ADMIN**. 200 → массив элементов.
+
+### POST /api/v1/admin/amenities
+Создать удобство. Auth: **ADMIN**.
+```json
+{ "label_ru": "Парковка", "label_uz": "Avtoturargoh", "label_en": "Parking",
+  "sort_order": 0 }
+```
+`label_ru`/`label_uz`/`label_en` обязательны. `code` опционален — если не
+передан, генерируется slug из `label_en` (UPPER_SNAKE, напр. `Video
+surveillance` → `VIDEO_SURVEILLANCE`); если передан вручную — только
+`A-Z0-9_`, начинается с буквы. `sort_order` (default `0`) и `is_active`
+(default `true`) опциональны.
+201 → созданный элемент. Errors: `400 VALIDATION_ERROR`,
+`409 AMENITY_CODE_TAKEN` (`code` уже занят, §17).
+
+### PATCH /api/v1/admin/amenities/:id
+Править лейблы/порядок/видимость. Auth: **ADMIN**. `code` неизменяем — DTO его
+не принимает.
+```json
+{ "is_active": false }
+```
+200 → обновлённый элемент. Errors: `400 VALIDATION_ERROR`,
+`404 NOT_FOUND`.

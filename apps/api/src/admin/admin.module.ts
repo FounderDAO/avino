@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AdminAgentApplicationsController } from '../agent-applications/admin-agent-applications.controller';
 import { AgentApplicationsModule } from '../agent-applications';
+import { AdminAmenitiesController, AmenitiesModule } from '../amenities';
 import { AuditModule } from '../audit';
 import { AdminComplaintsController, ComplaintsModule } from '../complaints';
 import { ModerationModule } from '../moderation';
@@ -49,6 +50,8 @@ import { AdminUsersService } from './admin-users.service';
  * (MODERATOR/ADMIN, TASK-132); бизнес-логика живёт в {@link ComplaintsService}.
  * {@link AdminAgentApplicationsController} + `AgentApplicationsModule` —
  * модерация заявок «Стать агентом» (ADR-0140, API.md §21).
+ * {@link AdminAmenitiesController} + `AmenitiesModule` — CRUD справочника
+ * удобств (ADR-0111, API.md §22).
  */
 @Module({
   imports: [
@@ -57,6 +60,7 @@ import { AdminUsersService } from './admin-users.service';
     PromotionsModule,
     AuditModule,
     AgentApplicationsModule,
+    AmenitiesModule,
     ComplaintsModule,
     SupportModule,
     TranslationsModule,
@@ -64,6 +68,7 @@ import { AdminUsersService } from './admin-users.service';
   ],
   controllers: [
     AdminAgentApplicationsController,
+    AdminAmenitiesController,
     AdminListingsController,
     AdminPromotionsController,
     AdminPromotionsOverviewController,
