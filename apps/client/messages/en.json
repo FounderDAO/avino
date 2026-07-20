@@ -202,7 +202,8 @@
     "agents": {
       "title": "Agents and agencies",
       "subtitle": "Verified real estate agents and agencies",
-      "listingsCount": "{count, plural, one {# listing} other {# listings}}"
+      "listingsCount": "{count, plural, one {# listing} other {# listings}}",
+      "seeAll": "All agents ({count})"
     },
     "cta": {
       "title": "Selling or renting out a property?",
@@ -453,6 +454,17 @@
       "viewsAria": "Views: {count}",
       "likesAria": "Favorited: {count}"
     }
+  },
+  "agentsCatalog": {
+    "meta": {
+      "title": "Real estate agents and agencies — Avino",
+      "description": "Directory of verified real estate agents and agencies in Uzbekistan. Contacts, listings and experience."
+    },
+    "title": "Agents and agencies",
+    "subtitle": "{count, plural, one {# verified agent} other {# verified agents}}",
+    "showMore": "Show more",
+    "loadingMore": "Loading…",
+    "empty": "No agents yet"
   },
   "agentProfile": {
     "meta": {

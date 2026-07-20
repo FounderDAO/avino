@@ -56,7 +56,7 @@ export default async function HomePage({
   // Рекомендованные (VIP/TOP в приоритете), свежее в аренде, районы для
   // автокомплита локации в Hero (выбор района → /search?district_id=) и
   // каталог агентов для блока «Агенты» (по числу активных объявлений, §21).
-  const [featured, rent, districts, agents] = await Promise.all([
+  const [featured, rent, districts, agentsPage] = await Promise.all([
     getFeaturedListings(8, locale),
     searchListings({ tx: 'RENT' }, locale),
     getDistricts(locale),
@@ -78,7 +78,7 @@ export default async function HomePage({
         listings={prioritizePhotos(rent)}
       />
       <Districts />
-      <Agents agents={agents} />
+      <Agents agents={agentsPage.agents} total={agentsPage.total} />
       <AgentCTA />
       <Faq />
     </div>

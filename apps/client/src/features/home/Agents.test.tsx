@@ -55,7 +55,7 @@ const AGENTS: Agent[] = [
 
 describe('Agents (блок «Агенты» на главной, реальный API)', () => {
   it('рендерит карточки по пропсам, ссылки ведут на /agents/:id', () => {
-    renderAgents({ agents: AGENTS });
+    renderAgents({ agents: AGENTS, total: AGENTS.length });
 
     const link1 = screen.getByRole('link', { name: /Дилноза Каримова/ });
     expect(link1).toHaveAttribute('href', '/agents/ag-1');
@@ -69,7 +69,7 @@ describe('Agents (блок «Агенты» на главной, реальны�
   });
 
   it('avatarUrl есть → <img>, нет → инициал имени', () => {
-    const { container } = renderAgents({ agents: AGENTS });
+    const { container } = renderAgents({ agents: AGENTS, total: AGENTS.length });
 
     // decorative alt="" → роль "presentation", не "img" — берём через querySelector.
     const img = container.querySelector('img');
@@ -79,14 +79,26 @@ describe('Agents (блок «Агенты» на главной, реальны�
   });
 
   it('agencyName = null → строка агентства скрыта', () => {
-    renderAgents({ agents: AGENTS });
+    renderAgents({ agents: AGENTS, total: AGENTS.length });
     // У ag-2 (agencyName: null) нет второй строки с названием агентства.
     expect(screen.queryByText('Estate Group')).toBeInTheDocument();
     expect(screen.queryByText(/null/i)).not.toBeInTheDocument();
   });
 
+  it('агентов больше, чем показано → ссылка на полный каталог с общим числом', () => {
+    renderAgents({ agents: AGENTS, total: 37 });
+
+    const seeAll = screen.getByRole('link', { name: /Все агенты \(37\)/ });
+    expect(seeAll).toHaveAttribute('href', '/agents');
+  });
+
+  it('показаны все агенты → ссылки на каталог нет (вести некуда)', () => {
+    renderAgents({ agents: AGENTS, total: AGENTS.length });
+    expect(screen.queryByRole('link', { name: /Все агенты/ })).not.toBeInTheDocument();
+  });
+
   it('пустой список агентов → блок не рендерится', () => {
-    const { container } = renderAgents({ agents: [] });
+    const { container } = renderAgents({ agents: [], total: 0 });
     expect(container).toBeEmptyDOMElement();
   });
 });

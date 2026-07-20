@@ -41,7 +41,7 @@ describe('mapAgent', () => {
 describe('getAgents', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('GET /agents?limit= → мапит envelope.data', async () => {
+  it('GET /agents?limit= → мапит envelope.data и отдаёт meta.total', async () => {
     // Параметр нужен для типизации: без него vi.fn выводит args как [] и
     // обращение к mock.calls[0][0] не проходит tsc (TS2493).
     const fetchMock = vi.fn(async (_input: RequestInfo | URL) => ({
@@ -49,23 +49,35 @@ describe('getAgents', () => {
       status: 200,
       json: async () => ({
         data: [SAMPLE],
-        meta: { page: 1, limit: 20, total: 1 },
+        meta: { page: 1, limit: 20, total: 37 },
       }),
     }));
     vi.stubGlobal('fetch', fetchMock);
 
     const out = await getAgents(20);
-    expect(out).toEqual([mapAgent(SAMPLE)]);
+    expect(out).toEqual({ agents: [mapAgent(SAMPLE)], total: 37 });
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/agents?limit=20');
   });
 
-  it('деградирует до пустого списка при ошибке API', async () => {
+  it('page попадает в query (вторая страница каталога)', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [], meta: { page: 2, limit: 24, total: 37 } }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await getAgents(24, 2);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('page=2');
+  });
+
+  it('деградирует до пустой страницы при ошибке API', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({ ok: false, status: 500, statusText: 'Internal' })),
     );
     const out = await getAgents(20);
-    expect(out).toEqual([]);
+    expect(out).toEqual({ agents: [], total: 0 });
   });
 });
 

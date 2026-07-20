@@ -202,7 +202,8 @@
     "agents": {
       "title": "Agentlar va agentliklar",
       "subtitle": "Tasdiqlangan rieltorlar va ko'chmas mulk agentliklari",
-      "listingsCount": "{count, plural, other {# ta e'lon}}"
+      "listingsCount": "{count, plural, other {# ta e'lon}}",
+      "seeAll": "Barcha agentlar ({count})"
     },
     "cta": {
       "title": "Uy-joy sotyapsizmi yoki ijaraga beryapsizmi?",
@@ -453,6 +454,17 @@
       "viewsAria": "Ko'rishlar soni: {count}",
       "likesAria": "Sevimlilarga qo'shilgan: {count}"
     }
+  },
+  "agentsCatalog": {
+    "meta": {
+      "title": "Ko'chmas mulk agentlari va agentliklari — Avino",
+      "description": "O'zbekistonning tasdiqlangan ko'chmas mulk agentlari va agentliklari katalogi. Kontaktlar, e'lonlar va ish tajribasi."
+    },
+    "title": "Agentlar va agentliklar",
+    "subtitle": "{count, plural, other {# ta tasdiqlangan agent}}",
+    "showMore": "Yana ko'rsatish",
+    "loadingMore": "Yuklanmoqda…",
+    "empty": "Hozircha agentlar yo'q"
   },
   "agentProfile": {
     "meta": {
