@@ -53,13 +53,30 @@ export function mapAgent(api: ApiAgent): Agent {
 }
 
 /**
- * Публичный каталог агентов (сортировка по числу активных объявлений, §21).
- * GET /api/v1/agents?limit=. При ошибке API (5xx/4xx/сеть) деградирует до
- * пустого списка вместо краха SSR — как getDistricts/getRegions в geo.ts.
+ * Размер страницы каталога /agents (SSR + «Показать ещё»). API допускает max 100.
+ * Живёт здесь, а не в AgentsCatalog: тот модуль — `'use client'`, и его экспорты
+ * на сервере превращаются в клиентские ссылки (константа приезжает функцией-
+ * заглушкой и улетает в query как `limit=function(){…}` → 400 VALIDATION_ERROR).
+ * Зеркалит SEARCH_PAGE_SIZE в lib/api/listings.ts.
  */
-export async function getAgents(limit: number): Promise<Agent[]> {
+export const AGENTS_PAGE_SIZE = 24;
+
+/** Страница каталога агентов: сами агенты + общее число (для «Показать ещё»). */
+export interface AgentsPage {
+  agents: Agent[];
+  total: number;
+}
+
+/**
+ * Публичный каталог агентов (сортировка по числу активных объявлений, §21).
+ * GET /api/v1/agents?limit=&page=. `total` нужен и главной (ссылка «Все агенты
+ * (N)»), и каталогу /agents (условие показа кнопки «Показать ещё»).
+ * При ошибке API (5xx/4xx/сеть) деградирует до пустой страницы вместо краха
+ * SSR — как getDistricts/getRegions в geo.ts.
+ */
+export async function getAgents(limit: number, page = 1): Promise<AgentsPage> {
   try {
-    const res = await fetch(`${resolveApiBase()}/agents?limit=${limit}`, {
+    const res = await fetch(`${resolveApiBase()}/agents?limit=${limit}&page=${page}`, {
       next: { revalidate: 3600 },
       headers: { Accept: 'application/json' },
     });
@@ -67,10 +84,10 @@ export async function getAgents(limit: number): Promise<Agent[]> {
       throw new Error(`API ${res.status} ${res.statusText} for /agents`);
     }
     const env = (await res.json()) as ApiAgentsEnvelope;
-    return env.data.map(mapAgent);
+    return { agents: env.data.map(mapAgent), total: env.meta.total };
   } catch (err) {
-    console.error('[agents] catalog fetch failed, degrading to empty list', err);
-    return [];
+    console.error('[agents] catalog fetch failed, degrading to empty page', err);
+    return { agents: [], total: 0 };
   }
 }
 
