@@ -6,10 +6,27 @@
  */
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Camera, X } from 'lucide-react';
 import { PhotoImg } from '@/components/ui/photo-img';
+
+/**
+ * Ограничения ниже зеркалят серверные (`listing-media.service.ts`): API режет
+ * MIME по allow-list (415), размер (413) и число медиа (422). Проверяем их на
+ * клиенте, чтобы пользователь узнал о проблеме при выборе файлов, а не после
+ * публикации — HEIC с iPhone проходит `accept="image/*"`, но отвергается API.
+ */
+const ACCEPTED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_PHOTOS = 20;
+
+/** Сколько файлов отклонено и почему (для сообщения под дропзоной). */
+interface RejectedCounts {
+  type: number;
+  size: number;
+  limit: number;
+}
 
 /** Одно фото в загрузчике. */
 export interface UploadPhoto {
@@ -30,14 +47,33 @@ const uid = () => Math.random().toString(36).slice(2);
 export function PhotoUploader({ photos, setPhotos }: PhotoUploaderProps) {
   const t = useTranslations('listingNew');
   const dragIdx = useRef<number | null>(null);
+  const [rejected, setRejected] = useState<RejectedCounts | null>(null);
 
-  /** Добавить выбранные файлы (до 20 всего), создав blob-URL. */
+  /**
+   * Добавить выбранные файлы, создав blob-URL. Файлы с неподдерживаемым типом
+   * или размером отбрасываются, лишние сверх MAX_PHOTOS — тоже; счётчики
+   * попадают в сообщение под дропзоной.
+   */
   const onFiles = (files: FileList | null) => {
     if (!files) return;
-    const arr = [...files]
-      .slice(0, 20)
+
+    const counts: RejectedCounts = { type: 0, size: 0, limit: 0 };
+    const accepted: File[] = [];
+    for (const f of files) {
+      if (!ACCEPTED_MIME.includes(f.type)) counts.type += 1;
+      else if (f.size > MAX_FILE_SIZE_BYTES) counts.size += 1;
+      else accepted.push(f);
+    }
+
+    const free = Math.max(0, MAX_PHOTOS - photos.length);
+    counts.limit = Math.max(0, accepted.length - free);
+
+    const arr = accepted
+      .slice(0, free)
       .map((f) => ({ id: uid(), url: URL.createObjectURL(f), file: f }));
-    setPhotos((p) => [...p, ...arr].slice(0, 20));
+    if (arr.length) setPhotos((p) => [...p, ...arr]);
+
+    setRejected(counts.type || counts.size || counts.limit ? counts : null);
   };
 
   const remove = (id: string) => setPhotos((p) => p.filter((x) => x.id !== id));
@@ -69,12 +105,30 @@ export function PhotoUploader({ photos, setPhotos }: PhotoUploaderProps) {
         <div className="text-[13px] text-muted-foreground">{t('photoUploader.dropHint')}</div>
         <input
           type="file"
-          accept="image/*"
+          accept={ACCEPTED_MIME.join(',')}
           multiple
           className="hidden"
-          onChange={(e) => onFiles(e.target.files)}
+          onChange={(e) => {
+            onFiles(e.target.files);
+            // Сброс value: иначе повторный выбор файла с тем же именем (например
+            // после конвертации HEIC → JPG) не вызовет change.
+            e.target.value = '';
+          }}
         />
       </label>
+
+      {rejected && (
+        <div
+          role="alert"
+          className="mt-3 space-y-1 rounded-input bg-red/5 px-3.5 py-2.5 text-[13px] text-red"
+        >
+          {rejected.type > 0 && <p>{t('photoUploader.rejectedType', { count: rejected.type })}</p>}
+          {rejected.size > 0 && <p>{t('photoUploader.rejectedSize', { count: rejected.size })}</p>}
+          {rejected.limit > 0 && (
+            <p>{t('photoUploader.rejectedLimit', { count: rejected.limit, max: MAX_PHOTOS })}</p>
+          )}
+        </div>
+      )}
 
       {photos.length > 0 && (
         <div className="mt-3.5 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2.5">

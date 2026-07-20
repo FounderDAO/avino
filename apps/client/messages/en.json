@@ -749,10 +749,13 @@
     },
     "photoUploader": {
       "dropTitle": "Drag photos here or click to choose",
-      "dropHint": "JPG/PNG, up to 20 photos. The first photo is the cover.",
+      "dropHint": "JPG, PNG or WebP up to 10 MB. Up to 20 photos. The first photo is the cover.",
       "cover": "Cover",
       "makeCover": "Make cover",
-      "remove": "Remove"
+      "remove": "Remove",
+      "rejectedType": "Skipped {count} file(s). Only JPG, PNG and WebP are supported — iPhone HEIC files must be converted.",
+      "rejectedSize": "Skipped {count} file(s). A single photo must not exceed 10 MB.",
+      "rejectedLimit": "Skipped {count} file(s). You can add at most {max} photos."
     },
     "map": {
       "marker": "Property location",
@@ -788,7 +791,10 @@
       "loginRequired": "Sign in to publish your listing.",
       "guestHint": "To publish a listing, sign in to your account (the sign-in button is in the header).",
       "profileIncomplete": "Fill in your first name, last name and phone in your profile to post a listing.",
-      "activeListingLimit": "You've reached your active listings limit. Unpublish one of your current listings to post a new one."
+      "activeListingLimit": "You've reached your active listings limit. Unpublish one of your current listings to post a new one.",
+      "mediaUnsupportedType": "Reason: unsupported format. Upload JPG, PNG or WebP.",
+      "mediaTooLarge": "Reason: the file is larger than 10 MB. Reduce the photo size.",
+      "mediaLimit": "Reason: the limit of 20 photos per listing has been reached."
     },
     "limitModal": {
       "title": "Listing limit reached",
@@ -1393,6 +1399,7 @@
     "savedSearchRenamed": "Search renamed",
     "avatarUpdated": "Photo updated",
     "avatarRemoved": "Photo removed",
-    "avatarActionFailed": "Couldn't update the photo. Please try again."
+    "avatarActionFailed": "Couldn't update the photo. Please try again.",
+    "mediaUploadFailed": "Failed to upload {count} photo(s). Your other changes were saved."
   }
 }

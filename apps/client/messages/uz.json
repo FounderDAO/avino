@@ -749,10 +749,13 @@
     },
     "photoUploader": {
       "dropTitle": "Fotolarni shu yerga tashlang yoki tanlash uchun bosing",
-      "dropHint": "JPG/PNG, 20 tagacha foto. Birinchi foto — muqova.",
+      "dropHint": "JPG, PNG yoki WebP, 10 MB gacha. 20 tagacha foto. Birinchi foto — muqova.",
       "cover": "Muqova",
       "makeCover": "Muqova qilish",
-      "remove": "O'chirish"
+      "remove": "O'chirish",
+      "rejectedType": "{count} ta fayl o‘tkazib yuborildi. Faqat JPG, PNG va WebP qo‘llab-quvvatlanadi — iPhone’dagi HEIC formatini konvertatsiya qilish kerak.",
+      "rejectedSize": "{count} ta fayl o‘tkazib yuborildi. Bitta fotoning hajmi 10 MB dan oshmasligi kerak.",
+      "rejectedLimit": "{count} ta fayl o‘tkazib yuborildi. Ko‘pi bilan {max} ta foto qo‘shish mumkin."
     },
     "map": {
       "marker": "Obyekt nuqtasi",
@@ -788,7 +791,10 @@
       "loginRequired": "E'lonni chop etish uchun tizimga kiring.",
       "guestHint": "E'lonni chop etish uchun hisobingizga kiring (kirish tugmasi — sahifa yuqorisida).",
       "profileIncomplete": "E'lon joylash uchun profilda ism, familiya va telefonni to'ldiring.",
-      "activeListingLimit": "Faol e'lonlar limitiga yetdingiz. Yangi e'lon joylash uchun mavjudlardan birini e'londan olib tashlang."
+      "activeListingLimit": "Faol e'lonlar limitiga yetdingiz. Yangi e'lon joylash uchun mavjudlardan birini e'londan olib tashlang.",
+      "mediaUnsupportedType": "Sababi: qo‘llab-quvvatlanmaydigan format. JPG, PNG yoki WebP yuklang.",
+      "mediaTooLarge": "Sababi: fayl 10 MB dan katta. Foto hajmini kichraytiring.",
+      "mediaLimit": "Sababi: bitta e’longa 20 ta foto chegarasiga yetildi."
     },
     "limitModal": {
       "title": "Faol e'lonlar limitiga yetdingiz",
@@ -1393,6 +1399,7 @@
     "savedSearchRenamed": "Qidiruv qayta nomlandi",
     "avatarUpdated": "Surat yangilandi",
     "avatarRemoved": "Surat o'chirildi",
-    "avatarActionFailed": "Suratni yangilab bo'lmadi. Yana urinib ko'ring."
+    "avatarActionFailed": "Suratni yangilab bo'lmadi. Yana urinib ko'ring.",
+    "mediaUploadFailed": "{count} ta fotoni yuklab bo‘lmadi. Qolgan o‘zgarishlar saqlandi."
   }
 }

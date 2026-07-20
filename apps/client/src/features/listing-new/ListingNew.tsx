@@ -22,7 +22,7 @@ import {
   useUploadListingMediaMutation,
   type CreateListingBody,
 } from '@/store/api/createListingApi';
-import { getApiError } from '@/store/api/apiError';
+import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import {
   Building,
   Check,
@@ -313,6 +313,8 @@ export function ListingNew({
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Сколько фото не загрузилось (объявление при этом создано).
   const [mediaFailures, setMediaFailures] = useState(0);
+  // Код первой ошибки загрузки — чтобы объяснить причину, а не только факт.
+  const [mediaErrorCode, setMediaErrorCode] = useState<string | null>(null);
 
   const apiError = getApiError(createError);
   // Страховочный 422 PROFILE_INCOMPLETE от createListing: гейт выше уже должен
@@ -324,6 +326,17 @@ export function ListingNew({
       : apiError?.code === 'ACTIVE_LISTING_LIMIT_REACHED'
         ? t('errors.activeListingLimit')
         : apiError?.message;
+
+  // Причина сбоя загрузки фото по стабильному коду API (415/413/422); для
+  // прочих кодов и транспортных сбоев показываем только факт без объяснения.
+  const mediaFailureReason =
+    mediaErrorCode === 'UNSUPPORTED_MEDIA_TYPE'
+      ? t('errors.mediaUnsupportedType')
+      : mediaErrorCode === 'FILE_TOO_LARGE'
+        ? t('errors.mediaTooLarge')
+        : mediaErrorCode === 'MEDIA_LIMIT_EXCEEDED'
+          ? t('errors.mediaLimit')
+          : null;
 
   // Достигнут лимит активных объявлений (422 ACTIVE_LISTING_LIMIT_REACHED) —
   // заметная модалка с CTA «Стать агентом» поверх инлайн-текста apiErrorMessage
@@ -356,6 +369,7 @@ export function ListingNew({
   const handlePublish = async () => {
     setSubmitError(null);
     setMediaFailures(0);
+    setMediaErrorCode(null);
 
     if (!isAuthenticated) {
       setSubmitError(t('errors.loginRequired'));
@@ -366,15 +380,18 @@ export function ListingNew({
       const { id } = await createListing(buildBody()).unwrap();
 
       let failures = 0;
+      let firstErrorCode: string | null = null;
       for (const ph of f.photos) {
         if (!ph.file) continue; // демо-фото без File пропускаем
         try {
           await uploadMedia({ listingId: id, file: ph.file }).unwrap();
-        } catch {
+        } catch (e) {
           failures += 1;
+          firstErrorCode ??= getApiErrorCode(e as Parameters<typeof getApiErrorCode>[0]);
         }
       }
       setMediaFailures(failures);
+      setMediaErrorCode(firstErrorCode);
       setDone(true);
     } catch {
       // Ошибка создания — error-envelope покажется через apiError.
@@ -469,9 +486,10 @@ export function ListingNew({
           {t('success.body', { title: f.title.trim() || autoTitle })}
         </p>
         {mediaFailures > 0 && (
-          <p className="mx-auto mb-6 max-w-[460px] rounded-input bg-red/5 px-4 py-3 text-[13.5px] text-red">
-            {t('success.mediaFailures', { count: mediaFailures })}
-          </p>
+          <div className="mx-auto mb-6 max-w-[460px] space-y-1 rounded-input bg-red/5 px-4 py-3 text-[13.5px] text-red">
+            <p>{t('success.mediaFailures', { count: mediaFailures })}</p>
+            {mediaFailureReason && <p>{mediaFailureReason}</p>}
+          </div>
         )}
         <div className="flex flex-wrap justify-center gap-3">
           <Button asChild size="lg">
