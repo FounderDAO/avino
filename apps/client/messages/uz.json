@@ -464,7 +464,19 @@
     "subtitle": "{count, plural, other {# ta tasdiqlangan agent}}",
     "showMore": "Yana ko'rsatish",
     "loadingMore": "Yuklanmoqda…",
-    "empty": "Hozircha agentlar yo'q"
+    "empty": "Hozircha agentlar yo'q",
+    "searchPlaceholder": "Ism yoki agentlik bo'yicha qidirish",
+    "sort": {
+      "active": "Avval faollari",
+      "name": "Ism bo'yicha (A–Z)"
+    },
+    "found": "{count, plural, other {# ta agent topildi}}",
+    "noResults": "So'rovingiz bo'yicha agentlar topilmadi",
+    "resetSearch": "Qidiruvni tozalash",
+    "privateAgent": "Xususiy makler",
+    "activeListings": "{count, plural, other {# ta faol e'lon}}",
+    "viewProfile": "Profil",
+    "viewListings": "E'lonlar"
   },
   "agentProfile": {
     "meta": {
