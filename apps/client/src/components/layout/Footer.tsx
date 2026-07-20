@@ -25,8 +25,9 @@ const COLS: {
     headingKey: 'aboutCompany',
     links: [
       { labelKey: 'aboutUs', href: '/help' },
-      { labelKey: 'careers', href: '/help' },
-      { labelKey: 'press', href: '/help' },
+      // Временно скрыто: careers, press
+      // { labelKey: 'careers', href: '/help' },
+      // { labelKey: 'press', href: '/help' },
       { labelKey: 'contacts', href: '/help' },
     ],
   },
@@ -52,7 +53,8 @@ const COLS: {
     headingKey: 'help',
     links: [
       { labelKey: 'support', href: '/help' },
-      { labelKey: 'safeDeal', href: '/help' },
+      // Временно скрыто: safeDeal
+      // { labelKey: 'safeDeal', href: '/help' },
       { labelKey: 'terms', href: '/legal/terms' },
       { labelKey: 'privacy', href: '/legal/privacy' },
     ],
