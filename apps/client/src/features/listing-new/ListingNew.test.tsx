@@ -145,7 +145,11 @@ vi.mock('next-intl', () => {
   return { useTranslations: resolve, useLocale: () => 'ru' };
 });
 
-import { ListingNew, buildListingBody } from './ListingNew';
+import {
+  ListingNew,
+  buildListingBody,
+  describeListingValidationErrors,
+} from './ListingNew';
 import type { FormState } from './ListingNew';
 
 const emptyProps = { regions: [], districts: [] };
@@ -340,5 +344,75 @@ describe('ListingNew wizard (variant B)', () => {
     expect(
       screen.queryByText((ru as any).listingNew.limitModal.becomeAgent),
     ).toBeNull();
+  });
+});
+
+describe('describeListingValidationErrors', () => {
+  // Заглушка t: возвращает сам ключ — так проверяем маппинг label/reason.
+  const idT = (k: string) => k;
+
+  it('пустой/отсутствующий details → пустой список', () => {
+    expect(describeListingValidationErrors(undefined, idT)).toEqual([]);
+    expect(describeListingValidationErrors([], idT)).toEqual([]);
+  });
+
+  it('дедуплицирует одно поле и сортирует пункты по шагу визарда', () => {
+    const items = describeListingValidationErrors(
+      [
+        { field: 'price', issue: 'a' },
+        { field: 'year_built', issue: 'b' },
+        { field: 'price', issue: 'dup' },
+      ],
+      idT,
+    );
+    expect(items.map((i) => i.key)).toEqual(['year_built', 'price']);
+    expect(items[0]).toMatchObject({
+      key: 'year_built',
+      label: 'fields.yearBuilt',
+      reason: 'validation.reasons.yearBuilt',
+      step: 3,
+    });
+    expect(items[1]).toMatchObject({
+      key: 'price',
+      reason: 'validation.reasons.price',
+      step: 4,
+    });
+  });
+
+  it('нормализует индексы массивов в пути поля (tour_windows.0.start)', () => {
+    const [item] = describeListingValidationErrors(
+      [{ field: 'tour_windows.0.start', issue: 'HH:MM' }],
+      idT,
+    );
+    expect(item).toMatchObject({
+      key: 'tour_windows.start',
+      label: 'validation.tourWindow',
+      step: 6,
+    });
+  });
+
+  it('вложенное translation.title → шаг «Описание» (6)', () => {
+    const [item] = describeListingValidationErrors(
+      [{ field: 'translation.title', issue: 'empty' }],
+      idT,
+    );
+    expect(item).toMatchObject({ label: 'fields.title.label', step: 6 });
+  });
+
+  it('неизвестное поле → показываем по имени с дефолтной причиной, последним', () => {
+    const items = describeListingValidationErrors(
+      [
+        { field: 'mystery_field', issue: '?' },
+        { field: 'area', issue: 'x' },
+      ],
+      idT,
+    );
+    // area (шаг 3) раньше неизвестного (шаг = длина STEPS = 7).
+    expect(items.map((i) => i.key)).toEqual(['area', 'mystery_field']);
+    expect(items[1]).toMatchObject({
+      key: 'mystery_field',
+      label: 'mystery_field',
+      reason: 'validation.reasons.default',
+    });
   });
 });

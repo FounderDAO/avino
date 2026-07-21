@@ -796,6 +796,23 @@
       "mediaTooLarge": "Reason: the file is larger than 10 MB. Reduce the photo size.",
       "mediaLimit": "Reason: the limit of 20 photos per listing has been reached."
     },
+    "validation": {
+      "title": "Couldn't publish. Check these fields:",
+      "generic": "Please check that the fields are filled in correctly and try again.",
+      "networkError": "Couldn't reach the server. Check your connection and try again.",
+      "unknownError": "Couldn't publish the listing. Please try again.",
+      "region": "Region",
+      "district": "District",
+      "tourWindow": "Tour time",
+      "reasons": {
+        "default": "check the value",
+        "price": "enter a valid price",
+        "area": "enter the area in m²",
+        "yearBuilt": "required for apartments and houses",
+        "region": "select a region",
+        "district": "select a district"
+      }
+    },
     "limitModal": {
       "title": "Listing limit reached",
       "body": "Individuals can post up to {limit} active listings. Register as an agent — post without limits, your listings get a realtor badge, and your profile is added to the Avino agents directory.",

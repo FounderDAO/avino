@@ -9,7 +9,7 @@
  */
 'use client';
 
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useAppSelector } from '@/store/hooks';
 import {
@@ -22,7 +22,12 @@ import {
   useUploadListingMediaMutation,
   type CreateListingBody,
 } from '@/store/api/createListingApi';
-import { getApiError, getApiErrorCode } from '@/store/api/apiError';
+import {
+  getApiError,
+  getApiErrorCode,
+  isNetworkError,
+  type ApiErrorDetail,
+} from '@/store/api/apiError';
 import {
   Building,
   Check,
@@ -226,6 +231,86 @@ export function buildListingBody(
   return body;
 }
 
+/**
+ * Мета по каждому серверному полю тела POST /listings: как назвать его
+ * пользователю (`labelKey` — ключ в словаре `listingNew`), на каком шаге визарда
+ * оно заполняется (`step` — для перехода) и опциональная понятная причина
+ * (`reasonKey`). Ключ карты — нормализованный путь поля из `details[].field`
+ * (индексы массивов срезаны: `tour_windows.0.start` → `tour_windows.start`).
+ */
+const FIELD_META: Record<
+  string,
+  { labelKey: string; step: number; reasonKey?: string }
+> = {
+  transaction_type: { labelKey: 'fields.txType', step: 1 },
+  property_type: { labelKey: 'fields.propertyType', step: 1 },
+  address: { labelKey: 'fields.address.label', step: 2 },
+  'translation.address_note': { labelKey: 'fields.address.label', step: 2 },
+  city_id: { labelKey: 'validation.region', step: 2, reasonKey: 'validation.reasons.region' },
+  district_id: { labelKey: 'validation.district', step: 2, reasonKey: 'validation.reasons.district' },
+  latitude: { labelKey: 'fields.mapPoint', step: 2 },
+  longitude: { labelKey: 'fields.mapPoint', step: 2 },
+  rooms: { labelKey: 'fields.rooms.label', step: 3 },
+  bathrooms: { labelKey: 'fields.bathrooms.label', step: 3 },
+  parking_type: { labelKey: 'fields.parking.label', step: 3 },
+  amenities: { labelKey: 'fields.amenities.label', step: 3 },
+  area: { labelKey: 'fields.area.label', step: 3, reasonKey: 'validation.reasons.area' },
+  lot_area: { labelKey: 'fields.lotArea.label', step: 3 },
+  living_area: { labelKey: 'fields.livingArea.label', step: 3 },
+  non_living_area: { labelKey: 'fields.nonLivingArea.label', step: 3 },
+  floor: { labelKey: 'fields.floor', step: 3 },
+  total_floors: { labelKey: 'fields.totalFloors', step: 3 },
+  year_built: { labelKey: 'fields.yearBuilt', step: 3, reasonKey: 'validation.reasons.yearBuilt' },
+  price: { labelKey: 'fields.price.label', step: 4, reasonKey: 'validation.reasons.price' },
+  currency: { labelKey: 'fields.currency', step: 4 },
+  original_language: { labelKey: 'fields.lang.label', step: 6 },
+  'translation.title': { labelKey: 'fields.title.label', step: 6 },
+  'translation.description': { labelKey: 'fields.desc.label', step: 6 },
+  'tour_windows.start': { labelKey: 'validation.tourWindow', step: 6 },
+  'tour_windows.end': { labelKey: 'validation.tourWindow', step: 6 },
+};
+
+/** Пункт списка ошибок валидации, готовый к отрисовке. */
+export interface ValidationItem {
+  key: string;
+  label: string;
+  reason: string;
+  step: number;
+}
+
+/** Срезает индексы массивов из пути поля: `tour_windows.0.start` → `tour_windows.start`. */
+const normalizeField = (field: string): string =>
+  field.replace(/\.\d+(?=\.|$)/g, '');
+
+/**
+ * Превращает `details[]` из error-envelope VALIDATION_ERROR в человекочитаемый,
+ * дедуплицированный и отсортированный по шагам список: какое поле поправить,
+ * почему и на каком шаге визарда. Неизвестные поля показываем по имени с
+ * дефолтной причиной, чтобы пользователь всё равно видел конкретику.
+ * Вынесено из компонента для юнит-тестирования.
+ */
+export function describeListingValidationErrors(
+  details: ApiErrorDetail[] | undefined,
+  t: (key: string) => string,
+): ValidationItem[] {
+  if (!details?.length) return [];
+  const seen = new Set<string>();
+  const items: ValidationItem[] = [];
+  for (const d of details) {
+    const key = normalizeField(d.field);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const meta = FIELD_META[key];
+    items.push({
+      key,
+      label: meta ? t(meta.labelKey) : key,
+      reason: t(meta?.reasonKey ?? 'validation.reasons.default'),
+      step: meta?.step ?? STEPS.length,
+    });
+  }
+  return items.sort((a, b) => a.step - b.step);
+}
+
 /** Иконки типов недвижимости. */
 const TYPE_ICONS: Record<PropertyType, typeof HomeIcon> = {
   APARTMENT: Building,
@@ -327,15 +412,43 @@ export function ListingNew({
   const [mediaErrorCode, setMediaErrorCode] = useState<string | null>(null);
 
   const apiError = getApiError(createError);
+  // Пер-полевой разбор VALIDATION_ERROR: какое поле поправить, почему и на каком
+  // шаге. Пусто для прочих ошибок — тогда показываем одиночный текст ниже.
+  const validationItems = useMemo(
+    () =>
+      describeListingValidationErrors(
+        apiError?.code === 'VALIDATION_ERROR' ? apiError.details : undefined,
+        t,
+      ),
+    [apiError, t],
+  );
+
   // Страховочный 422 PROFILE_INCOMPLETE от createListing: гейт выше уже должен
   // был перехватить неполный профиль, но getMe мог не успеть перечитаться —
-  // показываем тот же текст, что и на гейте.
+  // показываем тот же текст, что и на гейте. VALIDATION_ERROR локализуем сами
+  // (не даём утечь английскому «Invalid request body»); детальный список полей
+  // рендерится отдельно, этот текст — фолбэк, когда details пусты.
   const apiErrorMessage =
     apiError?.code === 'PROFILE_INCOMPLETE'
       ? t('errors.profileIncomplete')
       : apiError?.code === 'ACTIVE_LISTING_LIMIT_REACHED'
         ? t('errors.activeListingLimit')
-        : apiError?.message;
+        : apiError?.code === 'VALIDATION_ERROR'
+          ? t('validation.generic')
+          : apiError?.message;
+
+  // Единый текст ошибки, когда нет пер-полевого списка. Раньше при сетевом сбое
+  // (getApiError → null) не показывалось ничего — публикация молча падала;
+  // теперь всегда есть внятное сообщение.
+  const hasValidationList = validationItems.length > 0;
+  const genericErrorText = hasValidationList
+    ? null
+    : (apiErrorMessage ??
+      (createError
+        ? isNetworkError(createError)
+          ? t('validation.networkError')
+          : t('validation.unknownError')
+        : submitError));
 
   // Причина сбоя загрузки фото по стабильному коду API (415/413/422); для
   // прочих кодов и транспортных сбоев показываем только факт без объяснения.
@@ -943,10 +1056,30 @@ export function ListingNew({
           )}
         </div>
 
-        {/* Ошибки публикации (валидация 400 / доступ 403 / гость / прочее) */}
-        {step === TOTAL && (apiError || submitError) && (
+        {/* Ошибки публикации: пер-полевой список при VALIDATION_ERROR — какое
+          поле поправить, почему и переход на нужный шаг по клику. */}
+        {step === TOTAL && hasValidationList && (
+          <div className="mt-4 rounded-input bg-red/5 px-4 py-3 text-[13.5px] text-red">
+            <p className="font-semibold">{t('validation.title')}</p>
+            <ul className="mt-1.5 flex flex-col gap-1">
+              {validationItems.map((it) => (
+                <li key={it.key}>
+                  <button
+                    type="button"
+                    onClick={() => setStep(it.step)}
+                    className="text-left font-medium underline-offset-2 hover:underline"
+                  >
+                    {it.label} — {it.reason}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {/* Прочие ошибки (доступ 403 / гость / сеть / прочее) — один текст. */}
+        {step === TOTAL && !hasValidationList && genericErrorText && (
           <p className="mt-4 rounded-input bg-red/5 px-4 py-3 text-[13.5px] text-red">
-            {apiErrorMessage ?? submitError}
+            {genericErrorText}
           </p>
         )}
         {step === TOTAL && !isAuthenticated && !submitError && !apiError && (
