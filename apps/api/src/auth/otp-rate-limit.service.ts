@@ -5,20 +5,30 @@ import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { RedisService } from '../redis';
 
 /**
+ * Лестница cooldown между повторными запросами кода на один контакт:
+ * множители базового `OTP_RESEND_COOLDOWN` по номеру запроса в rolling-окне.
+ * 1-й → ×1 (60с), 2-й → ×2, 3-й → ×5, 4-й и далее → ×10.
+ */
+const RESEND_COOLDOWN_MULTIPLIERS = [1, 2, 5, 10] as const;
+
+/** Суточный кап кодов на один контакт (rolling-окно от первого запроса). */
+const DAILY_REQUEST_CAP = 5;
+const DAILY_WINDOW_S = 86_400;
+
+/**
  * Rate-limit запросов OTP (TASK-041, DB_SCHEMA §15, ARCHITECTURE §23).
  *
- * Две независимые оси, как требует контракт «per destination + per IP» (API.md §3):
- * - **per destination** — cooldown между запросами на один контакт
- *   (`OTP_RESEND_COOLDOWN`): защищает конкретный номер/почту от SMS-bombing;
+ * Оси защиты, как требует контракт «per destination + per IP» (API.md §3):
+ * - **per destination** — прогрессивный cooldown между запросами на один
+ *   контакт (лестница {@link RESEND_COOLDOWN_MULTIPLIERS} от
+ *   `OTP_RESEND_COOLDOWN`) + суточный кап {@link DAILY_REQUEST_CAP} кодов за
+ *   rolling-24ч (ADR-0150): защищают номер/почту от SMS-bombing и бюджет SMS;
  * - **per IP** — счётчик в фиксированном окне (`RATE_LIMIT_WINDOW` /
  *   `RATE_LIMIT_MAX`): защищает от перебора получателей с одного источника.
  *
  * Хранилище — Redis (атомарные INCR/EXPIRE, TTL переживает рестарт API).
  * Превышение любой оси → `429 RATE_LIMITED` (единый error-envelope).
- *
- * Примечание: суточный объёмный cap на один контакт — отдельная мера hardening
- * (см. ADR-0012), здесь намеренно не реализован, чтобы не плодить недокументи-
- * рованные env-кнобы.
+ * Лестница и кап — константы в коде, без env-кнобок (кроме базового cooldown).
  */
 @Injectable()
 export class OtpRateLimitService {
@@ -44,6 +54,17 @@ export class OtpRateLimitService {
       );
     }
 
+    // Суточный кап на контакт (SMS-bombing + бюджет SMS): счётчик ведёт
+    // startCooldown; здесь только читаем. >= cap → 429 до истечения окна.
+    const reqKey = this.requestCountKey(channel, destination);
+    const reqCount = Number((await this.redis.get(reqKey)) ?? 0);
+    if (reqCount >= DAILY_REQUEST_CAP) {
+      const ttl = await this.redis.ttl(reqKey);
+      throw this.rateLimited(
+        `Daily code limit for this contact reached. Try again in ${ttl}s`,
+      );
+    }
+
     const window = this.configService.get<number>('rateLimit.window') ?? 60;
     const max = this.configService.get<number>('rateLimit.max') ?? 100;
     const ipKey = this.ipKey(ip);
@@ -58,13 +79,25 @@ export class OtpRateLimitService {
 
   /**
    * Запустить cooldown на контакт после успешной постановки кода в доставку.
-   * Возвращает длительность cooldown (для `resend_after` в ответе API).
+   * Длительность прогрессивная — ступень лестницы по номеру запроса в
+   * rolling-окне 24ч (счётчик и есть база суточного капа). Возвращает
+   * длительность cooldown (для `resend_after` в ответе API).
    */
   async startCooldown(
     channel: OtpChannel,
     destination: string,
   ): Promise<number> {
-    const cooldown = this.configService.get<number>('otp.resendCooldown') ?? 60;
+    const base = this.configService.get<number>('otp.resendCooldown') ?? 60;
+
+    // Номер запроса в rolling-окне: INCR + TTL 24ч от первого запроса.
+    const reqKey = this.requestCountKey(channel, destination);
+    const count = await this.redis.incr(reqKey);
+    if (count === 1) {
+      await this.redis.expire(reqKey, DAILY_WINDOW_S);
+    }
+
+    const idx = Math.min(count - 1, RESEND_COOLDOWN_MULTIPLIERS.length - 1);
+    const cooldown = base * RESEND_COOLDOWN_MULTIPLIERS[idx];
     await this.redis.set(
       this.cooldownKey(channel, destination),
       '1',
@@ -147,6 +180,10 @@ export class OtpRateLimitService {
 
   private cooldownKey(channel: OtpChannel, destination: string): string {
     return `otp:cooldown:${channel}:${destination}`;
+  }
+
+  private requestCountKey(channel: OtpChannel, destination: string): string {
+    return `otp:req:${channel}:${destination}`;
   }
 
   private ipKey(ip: string): string {
