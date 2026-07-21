@@ -43,7 +43,7 @@ Related ADR:
 
 Status: DONE
 Branch: feat/admin-legal-documents
-PR: pending
+PR: #422
 
 Files changed:
 - apps/api/prisma/schema.prisma
