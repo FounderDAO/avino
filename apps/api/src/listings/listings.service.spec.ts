@@ -418,6 +418,38 @@ describe('ListingsService', () => {
     });
   });
 
+  describe('getActiveListingQuota', () => {
+    it('AGENT/AGENCY — без лимита (blocked=false), счёт не запрашивается', async () => {
+      prisma.userRole.count.mockResolvedValue(1); // pro-роль есть
+      const q = await service.getActiveListingQuota('owner-1');
+      expect(q).toEqual({ limit: 0, used: 0, blocked: false });
+      expect(prisma.listing.count).not.toHaveBeenCalled();
+    });
+
+    it('лимит 0 = без ограничения → blocked=false', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      activeLimit.getLimit.mockResolvedValue(0);
+      const q = await service.getActiveListingQuota('owner-1');
+      expect(q).toEqual({ limit: 0, used: 0, blocked: false });
+    });
+
+    it('used < limit → blocked=false', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      activeLimit.getLimit.mockResolvedValue(2);
+      prisma.listing.count.mockResolvedValue(1);
+      const q = await service.getActiveListingQuota('owner-1');
+      expect(q).toEqual({ limit: 2, used: 1, blocked: false });
+    });
+
+    it('used >= limit → blocked=true', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      activeLimit.getLimit.mockResolvedValue(2);
+      prisma.listing.count.mockResolvedValue(2);
+      const q = await service.getActiveListingQuota('owner-1');
+      expect(q).toEqual({ limit: 2, used: 2, blocked: true });
+    });
+  });
+
   describe('update', () => {
     it('updates own listing scalar fields and the author translation', async () => {
       prisma.listing.findFirst.mockResolvedValue({
