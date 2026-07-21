@@ -552,6 +552,24 @@
         }
       }
     },
+    "/api/v1/listings/quota": {
+      "get": {
+        "operationId": "ListingsController_getQuota",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingQuotaDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/listings/{id}": {
       "get": {
         "operationId": "ListingsController_findOne",
@@ -4002,6 +4020,25 @@
           "price",
           "currency",
           "translation"
+        ]
+      },
+      "ListingQuotaDto": {
+        "type": "object",
+        "properties": {
+          "used": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "blocked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "used",
+          "limit",
+          "blocked"
         ]
       },
       "UpdateListingTranslationDto": {
