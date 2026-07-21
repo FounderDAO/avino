@@ -124,6 +124,7 @@ enum OtpChannel {
 enum OtpPurpose {
   LOGIN
   CONTACT_CHANGE
+  CONTACT_PHONE_CHANGE
 }
 
 /// Источник перевода объявления (DB_SCHEMA.md §3, ADR-005). USER — авторский
@@ -342,6 +343,7 @@ model UserProfile {
   // avatarUrl.
   avatarStorageKey  String?   @map("avatar_storage_key")
   contactPhone      String?   @map("contact_phone") @db.VarChar(20)
+  contactPhoneVerified Boolean @default(false) @map("contact_phone_verified")
   preferredLanguage Language? @map("preferred_language")
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
