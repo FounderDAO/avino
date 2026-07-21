@@ -22,6 +22,7 @@ import {
 } from '../common/guards';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
+import { ListingQuotaDto } from './dto/listing-quota.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { OwnerStatusDto } from './dto/owner-status.dto';
 import {
@@ -104,6 +105,18 @@ export class ListingsController {
       lang,
       acceptLanguage,
     );
+  }
+
+  /**
+   * `GET /api/v1/listings/quota` — квота активных объявлений текущего
+   * пользователя (Bearer). Объявлен ДО `:id`, чтобы статический путь не
+   * перехватывался параметрическим роутом. Проактивный agent-gate визарда:
+   * `blocked=true` → клиент сразу показывает модалку «Стать агентом».
+   */
+  @Get('quota')
+  @UseGuards(JwtAuthGuard)
+  getQuota(@CurrentUser('id') userId: string): Promise<ListingQuotaDto> {
+    return this.listingsService.getActiveListingQuota(userId);
   }
 
   /**

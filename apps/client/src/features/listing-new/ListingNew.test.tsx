@@ -66,6 +66,18 @@ vi.mock('@/store/api/publicSettingsApi', () => ({
     isLoading: false,
   }),
 }));
+// Квота активных объявлений (проактивный agent-gate). По умолчанию — не на
+// лимите (blocked:false), тесты блока переопределяют перед render.
+let mockQuota: unknown = {
+  data: { used: 0, limit: 3, blocked: false },
+  isLoading: false,
+};
+beforeEach(() => {
+  mockQuota = { data: { used: 0, limit: 3, blocked: false }, isLoading: false };
+});
+vi.mock('@/store/api/listingsQuotaApi', () => ({
+  useGetListingQuotaQuery: () => mockQuota,
+}));
 vi.mock('@/store/api/usersApi', () => ({
   useUpdateProfileMutation: () => [vi.fn(), { isLoading: false }],
 }));
@@ -312,5 +324,21 @@ describe('ListingNew wizard (variant B)', () => {
     };
     rerender(<ListingNew {...emptyProps} />);
     expect(screen.getByText('Достигнут лимит объявлений')).toBeInTheDocument();
+  });
+
+  it('проактивный лимит: blocked=true → модалка «Стать агентом» сразу на маунте', () => {
+    mockQuota = { data: { used: 3, limit: 3, blocked: true }, isLoading: false };
+    render(<ListingNew {...emptyProps} />);
+    // Кнопка CTA модалки (ru: listingNew.limitModal.becomeAgent).
+    expect(
+      screen.getByText((ru as any).listingNew.limitModal.becomeAgent),
+    ).toBeInTheDocument();
+  });
+
+  it('не на лимите: blocked=false → модалка лимита НЕ показана', () => {
+    render(<ListingNew {...emptyProps} />);
+    expect(
+      screen.queryByText((ru as any).listingNew.limitModal.becomeAgent),
+    ).toBeNull();
   });
 });

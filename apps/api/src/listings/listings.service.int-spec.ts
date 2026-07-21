@@ -154,3 +154,155 @@ describe('ListingsService contact block (integration, TASK-210)', () => {
     });
   });
 });
+
+/**
+ * Integration-тест проактивного agent-gate `ListingsService.getActiveListingQuota`
+ * (.superpowers/sdd/task-2-brief.md) на живом PostgreSQL. Сервис-уровень (без
+ * HTTP/guard/config-модуля — как остальные int-spec'и репозитория, см.
+ * agent-applications.int-spec.ts): метод использует только
+ * `prisma.userRole.count`, `activeLimit.getLimit()` и `prisma.listing.count`,
+ * поэтому конструируем `ListingsService` напрямую со стабами для
+ * зависимостей, которых он не трогает.
+ *
+ * Изоляция — уникальный `city_id`; данные удаляются в `afterAll`. Лимит
+ * задаётся стабом `activeLimit.getLimit`, а не через `app_settings` — не
+ * трогаем общий ключ `ACTIVE_LISTING_LIMIT_KEY`, который может читаться
+ * соседними прогонами.
+ */
+describe('ListingsService.getActiveListingQuota (integration)', () => {
+  const prisma = new PrismaService();
+  let limit = 2;
+  const activeLimit = {
+    getLimit: async () => limit,
+  } as unknown as ActiveListingLimitService;
+  const listings = new ListingsService(
+    prisma,
+    {} as unknown as TranslationsService,
+    {} as unknown as DistrictsService,
+    {} as unknown as UploadsService,
+    activeLimit,
+    {} as unknown as AddressResolverService,
+  );
+
+  const CITY_ID = '77777777-3333-4444-8555-000000000230';
+
+  let plainUserId: string;
+  let blockedUserId: string;
+  let agentUserId: string;
+
+  async function createActiveListing(
+    id: string,
+    ownerId: string,
+    status: ListingStatus = ListingStatus.ACTIVE,
+  ): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status,
+        originalLanguage: Language.RU,
+        price: '100000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID,
+        amenities: [],
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `c230-${id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID } });
+
+    // Роль AGENT: idempotent upsert как в харнесе листингов/agent-applications
+    // — переживает уже засиженную роль.
+    const agentRole = await prisma.role.upsert({
+      where: { code: 'AGENT' },
+      update: {},
+      create: { code: 'AGENT' },
+    });
+
+    const plainUser = await prisma.user.create({ data: { phone: '+998901230231' } });
+    plainUserId = plainUser.id;
+
+    const blockedUser = await prisma.user.create({ data: { phone: '+998901230232' } });
+    blockedUserId = blockedUser.id;
+
+    const agentUser = await prisma.user.create({
+      data: {
+        phone: '+998901230233',
+        roles: { create: [{ role: { connect: { id: agentRole.id } } }] },
+      },
+    });
+    agentUserId = agentUser.id;
+  });
+
+  afterAll(async () => {
+    // Листинги — раньше пользователей (owner FK ON DELETE RESTRICT); user_roles
+    // каскадно удаляются вместе с пользователем.
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID } });
+    const userIds = [plainUserId, blockedUserId, agentUserId].filter(
+      (id): id is string => Boolean(id),
+    );
+    for (const id of userIds) {
+      await prisma.user.delete({ where: { id } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('обычный пользователь с used < limit → blocked=false', async () => {
+    limit = 2;
+    await createActiveListing('c3333333-0000-4000-8000-000000000231', plainUserId);
+
+    const quota = await listings.getActiveListingQuota(plainUserId);
+    expect(quota).toEqual({ limit: 2, used: 1, blocked: false });
+  });
+
+  it('обычный пользователь с used >= limit → blocked=true', async () => {
+    limit = 2;
+    await createActiveListing(
+      'c3333333-0000-4000-8000-000000000234',
+      blockedUserId,
+      ListingStatus.ACTIVE,
+    );
+    await createActiveListing(
+      'c3333333-0000-4000-8000-000000000235',
+      blockedUserId,
+      ListingStatus.NEW,
+    );
+
+    const quota = await listings.getActiveListingQuota(blockedUserId);
+    expect(quota.blocked).toBe(true);
+    expect(quota.used).toBeGreaterThanOrEqual(quota.limit);
+  });
+
+  it('пользователь с ролью AGENT → blocked=false, used=0, независимо от лимита', async () => {
+    limit = 1;
+    await createActiveListing('c3333333-0000-4000-8000-000000000236', agentUserId);
+    await createActiveListing(
+      'c3333333-0000-4000-8000-000000000237',
+      agentUserId,
+      ListingStatus.NEW,
+    );
+
+    const quota = await listings.getActiveListingQuota(agentUserId);
+    expect(quota).toEqual({ limit: 0, used: 0, blocked: false });
+  });
+
+  it('limit=0 (без ограничения) для обычного пользователя → blocked=false', async () => {
+    limit = 0;
+
+    const quota = await listings.getActiveListingQuota(plainUserId);
+    expect(quota).toEqual({ limit: 0, used: 0, blocked: false });
+  });
+});

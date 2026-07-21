@@ -570,12 +570,14 @@ export class ListingsService {
   }
 
   /**
-   * Лимит активных объявлений обычного клиента (admin-настраиваемый,
-   * `active_listing_limit` в app_settings, default 2). «Занятым слотом»
-   * считаем ACTIVE + на модерации NEW. Профессионалов (AGENT/AGENCY) лимит не
-   * касается; лимит `0` = без ограничения. Превышение → `422`.
+   * Квота активных объявлений текущего пользователя. Источник правды для
+   * реактивного лимита (`ensureActiveListingQuota`) и проактивного gate-эндпоинта
+   * `GET /listings/quota`. «Занятый слот» = ACTIVE + NEW-на-модерации.
+   * AGENT/AGENCY и лимит `0` → без ограничения (`blocked:false`).
    */
-  private async ensureActiveListingQuota(ownerId: string): Promise<void> {
+  async getActiveListingQuota(
+    ownerId: string,
+  ): Promise<{ limit: number; used: number; blocked: boolean }> {
     // Агент/агентство публикуют без ограничения.
     const proRoleCount = await this.prisma.userRole.count({
       where: {
@@ -583,10 +585,10 @@ export class ListingsService {
         role: { code: { in: [UserRole.AGENT, UserRole.AGENCY] } },
       },
     });
-    if (proRoleCount > 0) return;
+    if (proRoleCount > 0) return { limit: 0, used: 0, blocked: false };
 
     const limit = await this.activeLimit.getLimit();
-    if (limit <= 0) return; // 0 = без лимита
+    if (limit <= 0) return { limit, used: 0, blocked: false }; // 0 = без лимита
 
     const used = await this.prisma.listing.count({
       where: {
@@ -594,7 +596,17 @@ export class ListingsService {
         status: { in: [ListingStatus.ACTIVE, ListingStatus.NEW] },
       },
     });
-    if (used >= limit) {
+    return { limit, used, blocked: used >= limit };
+  }
+
+  /**
+   * Лимит активных объявлений обычного клиента (admin-настраиваемый,
+   * `active_listing_limit` в app_settings, default 2). Превышение → `422`.
+   * Определение квоты и pro-исключение — в {@link getActiveListingQuota}.
+   */
+  private async ensureActiveListingQuota(ownerId: string): Promise<void> {
+    const { limit, blocked } = await this.getActiveListingQuota(ownerId);
+    if (blocked) {
       throw new HttpException(
         {
           code: ApiErrorCode.ACTIVE_LISTING_LIMIT_REACHED,

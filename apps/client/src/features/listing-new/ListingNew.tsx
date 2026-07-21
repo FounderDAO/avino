@@ -51,6 +51,7 @@ import {
   type TransactionType,
 } from '@/lib/mock';
 import { useListAmenitiesQuery } from '@/store/api/amenitiesApi';
+import { useGetListingQuotaQuery } from '@/store/api/listingsQuotaApi';
 import { amenityLabel } from '@/lib/amenities';
 import { LoginModal } from '@/components/layout/LoginModal';
 import { LimitReachedModal } from './LimitReachedModal';
@@ -297,6 +298,13 @@ export function ListingNew({
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const currentUser = useAppSelector(selectCurrentUser);
   const profileComplete = isProfileCompleteForListing(currentUser);
+  // Проактивный agent-gate: квота активных объявлений текущего пользователя.
+  // blocked=true → сразу открываем модалку лимита (см. эффект ниже), не давая
+  // заполнять форму впустую. Гость skip'ается — его перехватывает loginOpen.
+  const { data: quota } = useGetListingQuotaQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const proactiveBlock = isAuthenticated && quota?.blocked === true;
   // Гейт авторизации: /sell/new доступна только вошедшим. Гостю сразу открываем
   // модалку входа — но через эффект (после монтирования), чтобы не было SSR/
   // гидрационного мелькания модалки у уже залогиненных пользователей.
@@ -351,6 +359,12 @@ export function ListingNew({
       setLimitModalOpen(true);
     }
   }, [createError, apiError]);
+
+  // Проактивно: пользователь уже на лимите → открыть модалку сразу на маунте.
+  // Отдельный эффект (не смешиваем с реактивным 422), завязан на quota.
+  useEffect(() => {
+    if (proactiveBlock) setLimitModalOpen(true);
+  }, [proactiveBlock]);
 
   // Автозаголовок вместо скрытого поля «Заголовок»: тип + площадь + адрес
   // (адрес обязателен на шаге 2, поэтому строка всегда непустая).
@@ -968,7 +982,10 @@ export function ListingNew({
       </div>
       <LimitReachedModal
         open={limitModalOpen}
-        onClose={() => setLimitModalOpen(false)}
+        onClose={() => {
+          setLimitModalOpen(false);
+          if (proactiveBlock) router.push('/account/my-listings');
+        }}
       />
     </>
   );
