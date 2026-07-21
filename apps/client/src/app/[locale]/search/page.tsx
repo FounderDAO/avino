@@ -14,6 +14,7 @@
  */
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { getAgentById } from '@/lib/api/agents';
 import { getDistricts, getRegions } from '@/lib/api/geo';
 import { searchListingsPage, searchListingsByBounds, type SearchListingsPage } from '@/lib/api/listings';
 import { deserializePolygonRing, parseBoundsParams } from '@/lib/geo';
@@ -55,7 +56,8 @@ export async function generateMetadata({
     sp.total_floors_min || sp.total_floors_max ||
     sp.year_min || sp.year_max ||
     sp.lot_area_min || sp.lot_area_max ||
-    sp.listing_source || sp.tours_enabled || sp.is_basement || sp.parking_type || sp.amenities,
+    sp.listing_source || sp.tours_enabled || sp.is_basement || sp.parking_type || sp.amenities ||
+    sp.agent_id,
   );
 
   // Canonical: оставляем только семантические параметры (strip sort/view/cursor/price/rooms).
@@ -146,6 +148,10 @@ export default async function SearchPage({
   const allRegions = regionIdRaw === 'all';
   const regionId = allRegions ? undefined : regionIdRaw;
   const query = first(sp.query) || undefined;
+  // Объявления конкретного агента (`?agent_id=`, кнопка «Объявления» в /agents,
+  // API.md §21): фильтр по owner_id на бэке, buildSearchParams прокидывает его
+  // во все виды поиска (страница/bbox/радиус/дозагрузка).
+  const agentId = first(sp.agent_id) || undefined;
   const view: 'list' | 'map' = first(sp.view) === 'map' ? 'map' : 'list';
 
   /** Парсит строку в число; undefined если нет или NaN. */
@@ -248,17 +254,21 @@ export default async function SearchPage({
   const initialPolygon = deserializePolygonRing(first(sp.points)) ?? undefined;
 
   // Справочники грузим ДО поиска: дефолтная локация резолвится по code региона.
-  const [districts, regions] = await Promise.all([
+  // Агент нужен только для заголовка выдачи, поэтому любая ошибка (404 на
+  // несуществующем id, 400 на кривом uuid) деградирует в общий заголовок.
+  const [districts, regions, agent] = await Promise.all([
     getDistricts(locale),
     getRegions(locale),
+    agentId ? getAgentById(agentId).catch(() => null) : Promise.resolve(null),
   ]);
 
   // Дефолтная локация по-зилловски: без явной гео-привязки (район/регион/
   // «Все регионы»/текстовый запрос/bbox/полигон) выдача ограничивается Ташкентом —
   // как и карта по умолчанию, независимо от количества результатов.
   // Явный выбор «Все регионы» приходит как ?region_id=all и дефолт отключает.
+  // Фильтр по агенту тоже отключает дефолт: его объявления могут быть где угодно.
   const defaultRegionId =
-    !districtId && !regionId && !allRegions && !query && !initialBounds && !initialPolygon
+    !districtId && !regionId && !allRegions && !query && !initialBounds && !initialPolygon && !agentId
       ? regions.find((r) => r.code === TASHKENT_REGION_CODE)?.id
       : undefined;
   const effectiveRegionId = regionId ?? defaultRegionId;
@@ -266,7 +276,7 @@ export default async function SearchPage({
   // ----- Данные из реального API -----
   // Первая страница (limit=SEARCH_PAGE_SIZE) + meta (total/next_cursor): курсор прокидываем в
   // клиентскую дозагрузку «Показать ещё» (TASK-199).
-  const filter: ListingFilter = {
+  let filter: ListingFilter = {
     tx,
     type,
     types: types.length > 0 ? types : undefined,
@@ -279,6 +289,7 @@ export default async function SearchPage({
     priceMax,
     currency,
     query,
+    agentId,
     sort,
     areaMin: toNum(areaMinRaw),
     areaMax: toNum(areaMaxRaw),
@@ -300,7 +311,7 @@ export default async function SearchPage({
     isBasement,
   };
 
-  const page = await (initialBounds
+  let page = await (initialBounds
     ? searchListingsByBounds(filter, initialBounds, locale, 100).then(
         (listings): SearchListingsPage => ({
           listings,
@@ -310,9 +321,23 @@ export default async function SearchPage({
       )
     : searchListingsPage(filter, locale));
 
+  // Кнопка «Объявления» агента ведёт на /search?agent_id= без tx, а дефолтная
+  // «Продажа» у агента-арендодателя даёт пустую выдачу при бейдже «N активных».
+  // Поэтому без явного ?tx= пустая продажа перепроверяется по аренде.
+  let effectiveTx = tx;
+  if (agentId && !first(sp.tx) && !initialBounds && page.total === 0) {
+    const rentFilter: ListingFilter = { ...filter, tx: 'RENT' };
+    const rentPage = await searchListingsPage(rentFilter, locale);
+    if (rentPage.total > 0) {
+      effectiveTx = 'RENT';
+      filter = rentFilter;
+      page = rentPage;
+    }
+  }
+
   // Значения для FilterBar (цена и диапазоны — строкой, как в инпутах).
   const filterValues: FilterValues = {
-    tx,
+    tx: effectiveTx,
     type,
     types: types.length > 0 ? types : undefined,
     districtId,
@@ -356,9 +381,20 @@ export default async function SearchPage({
   const regionName = regionId
     ? regions.find((r) => r.id === regionId)?.name
     : undefined;
-  const heading = t(tx === 'RENT' ? 'headingRent' : 'headingSale', {
-    query: districtName || regionName || query || t('defaultLocation'),
-  });
+  // Фильтр по агенту главнее локации: «Продажа/Аренда от агента · <имя>».
+  // Фолбэк имени — как в AgentRow: агентство, затем «Частный маклер».
+  let agentHeading: string | undefined;
+  if (agent) {
+    const tCatalog = await getTranslations({ locale, namespace: 'agentsCatalog' });
+    agentHeading = t(effectiveTx === 'RENT' ? 'headingAgentRent' : 'headingAgentSale', {
+      name: agent.name?.trim() || agent.agencyName || tCatalog('privateAgent'),
+    });
+  }
+  const heading =
+    agentHeading ??
+    t(effectiveTx === 'RENT' ? 'headingRent' : 'headingSale', {
+      query: districtName || regionName || query || t('defaultLocation'),
+    });
 
   return (
     <div className="fade-up">
