@@ -5,6 +5,29 @@ import {
   TRANSLATION_PROVIDER,
   TranslationProvider,
 } from './providers/translation-provider.interface';
+import type { ListingTranslationsResponse } from './translations.service';
+
+/**
+ * Итог генерации переводов (ADR-0091) — какие целевые языки затронуты. Позволяет
+ * UI показать честный тост вместо безусловного «Переводы сгенерированы».
+ */
+export interface GenerateTranslationsResult {
+  /** Целевые языки, реально (пере)сгенерированные машинным переводом. */
+  regenerated: Language[];
+  /**
+   * Целевые языки, пропущенные как правленные вручную (`is_auto_translated=false`)
+   * при вызове без `force`.
+   */
+  skipped: Language[];
+}
+
+/**
+ * Ответ `POST /api/v1/admin/listings/:id/translations/generate` — полный набор
+ * переводов (для перерисовки) плюс итог генерации ({@link GenerateTranslationsResult}).
+ */
+export interface GenerateTranslationsResponse
+  extends ListingTranslationsResponse,
+    GenerateTranslationsResult {}
 
 /** Все поддерживаемые языки (CLAUDE.md §9): объявление переводится на остальные. */
 const ALL_LANGUAGES: readonly Language[] = [
@@ -47,10 +70,25 @@ export class ListingAutoTranslator {
    * Сгенерировать машинный перевод объявления на остальные языки (ADR-0091).
    * Зовётся синхронно из admin-эндпоинта генерации. Работает для любого
    * НЕ-DELETED листинга (модератор триггерит на NEW). Идемпотентно (upsert).
-   * Целевой язык со строкой is_auto_translated=false (ручная правка модератора /
-   * авторский оригинал) НЕ перезаписывается.
+   *
+   * По умолчанию целевой язык со строкой `is_auto_translated=false` (ручная
+   * правка модератора) НЕ перезаписывается. `options.force=true` перезаписывает
+   * и такие строки — единственный способ починить листинги, у которых все языки
+   * были засеяны как `source=USER` с несвязанным текстом.
+   *
+   * КРИТИЧНО: `original_language` (авторский оригинал) исключён из целей и не
+   * переводится/не перезаписывается ни при каком `force`.
+   *
+   * Возвращает {@link GenerateTranslationsResult} — какие языки реально
+   * (пере)сгенерированы, а какие пропущены (для честного тоста в UI).
    */
-  async generateTranslations(listingId: string): Promise<void> {
+  async generateTranslations(
+    listingId: string,
+    options: { force?: boolean } = {},
+  ): Promise<GenerateTranslationsResult> {
+    const force = options.force ?? false;
+    const empty: GenerateTranslationsResult = { regenerated: [], skipped: [] };
+
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -62,7 +100,7 @@ export class ListingAutoTranslator {
 
     if (!listing || listing.status === ListingStatus.DELETED) {
       this.logger.debug(`Skipping translation for ${listingId}: missing or DELETED`);
-      return;
+      return empty;
     }
 
     const author = listing.translations.find(
@@ -70,16 +108,20 @@ export class ListingAutoTranslator {
     );
     if (!author) {
       this.logger.warn(`Listing ${listingId} has no author translation row; skipping`);
-      return;
+      return empty;
     }
 
     const from = listing.originalLanguage;
     const targets = ALL_LANGUAGES.filter((lang) => lang !== from);
 
+    const regenerated: Language[] = [];
+    const skipped: Language[] = [];
+
     for (const to of targets) {
       const existing = listing.translations.find((t) => t.language === to);
-      if (existing && !existing.isAutoTranslated) {
+      if (existing && !existing.isAutoTranslated && !force) {
         this.logger.debug(`Preserving manual translation ${listingId}/${to}`);
+        skipped.push(to);
         continue;
       }
 
@@ -95,9 +137,14 @@ export class ListingAutoTranslator {
         create: { listingId, language: to, source: this.provider.source, isAutoTranslated: true, ...data },
         update: { source: this.provider.source, isAutoTranslated: true, ...data },
       });
+      regenerated.push(to);
     }
 
-    this.logger.log(`Generated translations for listing ${listingId}`);
+    this.logger.log(
+      `Generated translations for listing ${listingId} ` +
+        `(force=${force}, regenerated=[${regenerated.join(',')}], skipped=[${skipped.join(',')}])`,
+    );
+    return { regenerated, skipped };
   }
 
   private translate(
