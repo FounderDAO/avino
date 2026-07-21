@@ -95,8 +95,9 @@ describe('ListingAutoTranslator', () => {
 
   it('skips when the listing does not exist', async () => {
     prisma.listing.findUnique.mockResolvedValue(null);
-    await service.generateTranslations(LISTING_ID);
+    const result = await service.generateTranslations(LISTING_ID);
     expect(prisma.listingTranslation.upsert).not.toHaveBeenCalled();
+    expect(result).toEqual({ regenerated: [], skipped: [] });
   });
 
   it('generates translations for a NEW listing (no ACTIVE requirement)', async () => {
@@ -132,10 +133,74 @@ describe('ListingAutoTranslator', () => {
         ],
       }),
     );
-    await service.generateTranslations(LISTING_ID);
+    const result = await service.generateTranslations(LISTING_ID);
     // EN is hand-edited → skipped; only UZ is (re)generated.
     expect(prisma.listingTranslation.upsert).toHaveBeenCalledTimes(1);
     expect(prisma.listingTranslation.upsert.mock.calls[0][0].where.listingId_language.language).toBe(Language.UZ);
+    // Result reports the honest split so the UI toast can be truthful.
+    expect(result).toEqual({ regenerated: [Language.UZ], skipped: [Language.EN] });
+  });
+
+  it('force overwrites manually-edited target languages but never the original', async () => {
+    // Reproduces the seed-junk bug: all three languages are source=USER,
+    // is_auto_translated=false with unrelated text; without force the moderator
+    // is stuck (nothing regenerates). force must rewrite every TARGET from the
+    // author row while leaving the original-language (RU) row untouched.
+    prisma.listing.findUnique.mockResolvedValue(
+      activeListing({
+        translations: [
+          { language: Language.RU, title: 'Квартира', description: 'Test post', addressNote: null, featuresText: null, isAutoTranslated: false },
+          { language: Language.UZ, title: 'JUNK-UZ', description: 'aloqasiz matn', addressNote: null, featuresText: null, isAutoTranslated: false },
+          { language: Language.EN, title: 'JUNK-EN', description: '39 Superior Street offers…', addressNote: null, featuresText: null, isAutoTranslated: false },
+        ],
+      }),
+    );
+
+    const result = await service.generateTranslations(LISTING_ID, { force: true });
+
+    // Only the two TARGET languages are upserted; RU (original) is never written.
+    expect(prisma.listingTranslation.upsert).toHaveBeenCalledTimes(2);
+    const langs = prisma.listingTranslation.upsert.mock.calls.map(
+      (c: any[]) => c[0].where.listingId_language.language,
+    );
+    expect(langs.sort()).toEqual([Language.EN, Language.UZ]);
+    expect(langs).not.toContain(Language.RU);
+
+    // EN is produced from the RU author title, never from the junk EN row.
+    expect(provider.translate).toHaveBeenCalledWith('Квартира', Language.RU, Language.EN);
+    expect(provider.translate).not.toHaveBeenCalledWith(
+      'JUNK-EN',
+      expect.anything(),
+      expect.anything(),
+    );
+    // Rewritten rows are marked machine-translated again.
+    const enCall = prisma.listingTranslation.upsert.mock.calls.find(
+      (c: any[]) => c[0].where.listingId_language.language === Language.EN,
+    )[0];
+    expect(enCall.update).toMatchObject({
+      source: TranslationSource.YANDEX,
+      isAutoTranslated: true,
+      title: 'Квартира#EN',
+    });
+    expect(result).toEqual({ regenerated: [Language.UZ, Language.EN], skipped: [] });
+  });
+
+  it('without force reports every manual target as skipped (nothing regenerated)', async () => {
+    // The stuck state: both targets are manual → button must honestly report it.
+    prisma.listing.findUnique.mockResolvedValue(
+      activeListing({
+        translations: [
+          { language: Language.RU, title: 'Квартира', description: 'Test post', addressNote: null, featuresText: null, isAutoTranslated: false },
+          { language: Language.UZ, title: 'JUNK-UZ', description: null, addressNote: null, featuresText: null, isAutoTranslated: false },
+          { language: Language.EN, title: 'JUNK-EN', description: null, addressNote: null, featuresText: null, isAutoTranslated: false },
+        ],
+      }),
+    );
+
+    const result = await service.generateTranslations(LISTING_ID);
+
+    expect(prisma.listingTranslation.upsert).not.toHaveBeenCalled();
+    expect(result).toEqual({ regenerated: [], skipped: [Language.UZ, Language.EN] });
   });
 
   it('translates from the author row even when auto rows already exist (re-run)', async () => {
