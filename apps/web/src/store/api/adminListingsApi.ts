@@ -4,6 +4,7 @@ import type { Paginated } from './pagination';
 import type {
   AdminListingRow,
   AdminListingFilters,
+  AdminListingOwner,
   ListingDetail,
   ListingModerationLogEntry,
   ModerateListingRequest,
@@ -43,6 +44,16 @@ export const adminListingsApi = adminApi.injectEndpoints({
 
     getAdminListing: build.query<ListingDetail, string>({
       query: (id) => ({ url: `/listings/${id}` }),
+      providesTags: ['Admin'],
+    }),
+
+    /**
+     * `GET /admin/listings/:id/owner` → инлайн-профиль автора (LOG.md #6).
+     * Публичный `GET /listings/:id` отдаёт только `owner_id`; имя/контакт автора
+     * для админ-детали берём этим admin-only роутом (доступен MODERATOR/ADMIN).
+     */
+    getAdminListingOwner: build.query<AdminListingOwner, string>({
+      query: (id) => ({ url: `/admin/listings/${id}/owner` }),
       providesTags: ['Admin'],
     }),
 
@@ -103,6 +114,7 @@ export const adminListingsApi = adminApi.injectEndpoints({
 export const {
   useListAdminListingsQuery,
   useGetAdminListingQuery,
+  useGetAdminListingOwnerQuery,
   useListingModerationLogsQuery,
   useModerateListingMutation,
   useGetListingTranslationsQuery,

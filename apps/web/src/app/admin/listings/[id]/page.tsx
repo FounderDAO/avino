@@ -18,6 +18,7 @@ import { useToast } from '@/components/admin/toast';
 import { TranslationRow } from '@/components/admin/TranslationRow';
 import {
   useGetAdminListingQuery,
+  useGetAdminListingOwnerQuery,
   useModerateListingMutation,
   useListingModerationLogsQuery,
   useGetListingTranslationsQuery,
@@ -30,7 +31,7 @@ import {
   useCancelPromotionMutation,
 } from '@/store/api/adminPromotionsApi';
 import { PromoteListingModal } from '@/components/admin/PromoteListingModal';
-import { detailToAdminListing, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
+import { detailToAdminListing, ownerName, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import type { AdminListingStatus } from '@/lib/mock';
 import type {
@@ -112,6 +113,10 @@ export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
   const { data, isLoading, isError, error, refetch } = useGetAdminListingQuery(id);
+  // Автор объявления (LOG.md #6): деталь `GET /listings/:id` отдаёт лишь
+  // owner_id, поэтому имя/контакт берём admin-only роутом. Мягкий фолбэк на «—»
+  // (старый бэкенд без роута / MODERATOR-доступ) — карточка не ломается.
+  const { data: owner } = useGetAdminListingOwnerQuery(id);
   const [reason, setReason] = useState('');
   const [moderate, { isLoading: isActing }] = useModerateListingMutation();
   const { data: logs, isLoading: logsLoading, isError: logsError } =
@@ -152,7 +157,10 @@ export default function ListingDetailPage() {
   /** «Параметры»: базовые поля + опциональные (жилая/нежилая площадь, цоколь) — только если есть значение. */
   const params: [string, string | number][] = [
     ['ID объявления', listing.id],
-    ['Автор', listing.agent],
+    ['Автор', owner ? ownerName(owner) : listing.agent],
+    ...(owner?.contact_phone || owner?.phone
+      ? ([['Телефон автора', owner.contact_phone ?? owner.phone ?? '—']] as [string, string][])
+      : []),
     ['Адрес', src.address],
     ['Год постройки', src.year || '—'],
     ['Этаж', src.floor ? `${src.floor}/${src.totalFloors}` : '—'],

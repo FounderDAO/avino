@@ -82,7 +82,7 @@ function fmtDate(iso: string): string {
 }
 
 /** Имя автора для колонки «Агент»: display_name → имя+фамилия → email → phone → «—». */
-function ownerName(owner: AdminListingOwner | undefined): string {
+export function ownerName(owner: AdminListingOwner | undefined): string {
   if (!owner) return DASH;
   const display = owner.display_name?.trim();
   if (display) return display;
