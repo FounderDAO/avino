@@ -22,7 +22,6 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       ['/admin/listings', 'Объявления', IC.Home],
       ['/admin/moderation', 'Модерация', IC.Check],
-      ['/admin/complaints', 'Жалобы', IC.Flag],
       ['/admin/support', 'Обращения', IC.MessageSquare],
       ['/admin/agent-applications', 'Заявки агентов', IC.UserCheck],
     ],
@@ -36,6 +35,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       ['/admin/amenities', 'Удобства', IC.Checklist],
       ['/admin/legal', 'Юр-документы', IC.FileText],
       ['/admin/logs', 'Логи', IC.ListIcon],
+      ['/admin/otp-history', 'OTP-история', IC.Clock],
       ['/admin/settings', 'Настройки', IC.Sliders],
     ],
   },
@@ -48,12 +48,11 @@ function isActive(pathname: string, href: string): boolean {
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  // Живые счётчики очередей для бейджей: NEW-листинги (модерация), новые жалобы,
-  // новые обращения в поддержку и заявки агентов — из /admin/stats (тег Admin),
-  // инвалидируются после каждой модерации/обработки жалобы/обращения/заявки.
+  // Живые счётчики очередей для бейджей: NEW-листинги (модерация), новые
+  // обращения в поддержку и заявки агентов — из /admin/stats (тег Admin),
+  // инвалидируются после каждой модерации/обработки обращения/заявки.
   const { data: stats } = useGetAdminStatsQuery();
   const moderationCount = stats?.listings_new ?? 0;
-  const complaintsCount = stats?.complaints_new ?? 0;
   const supportCount = stats?.support_requests_new ?? 0;
   const agentAppsCount = stats?.agent_applications_new ?? 0;
   // Реальный пользователь в футере (раньше был зашит «Модератор admin@avino.uz»).
@@ -79,13 +78,11 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               const count =
                 href === '/admin/moderation'
                   ? moderationCount
-                  : href === '/admin/complaints'
-                    ? complaintsCount
-                    : href === '/admin/support'
-                      ? supportCount
-                      : href === '/admin/agent-applications'
-                        ? agentAppsCount
-                        : 0;
+                  : href === '/admin/support'
+                    ? supportCount
+                    : href === '/admin/agent-applications'
+                      ? agentAppsCount
+                      : 0;
               return (
                 <Link key={href} href={href} className={'a-navitem' + (isActive(pathname, href) ? ' active' : '')} onClick={onClose}>
                   <Icon size={19} strokeWidth={1.9} /> {label}

@@ -1,4 +1,5 @@
 import { HttpException } from '@nestjs/common';
+import { OtpChannel } from '@prisma/client';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 
 /**
@@ -115,5 +116,109 @@ describe('OtpRateLimitService.recordFailedVerify', () => {
       900,
     );
     expect(redis.del).toHaveBeenCalledWith('otp:verify:fail:+998901234567');
+  });
+});
+
+describe('OtpRateLimitService.startCooldown — прогрессивная лестница', () => {
+  function makeSvc(incrValue: number) {
+    const redis: any = {
+      incr: jest.fn().mockResolvedValue(incrValue),
+      expire: jest.fn().mockResolvedValue(1),
+      set: jest.fn().mockResolvedValue('OK'),
+    };
+    const config: any = {
+      get: jest.fn((key: string) =>
+        key === 'otp.resendCooldown' ? 60 : undefined,
+      ),
+    };
+    return { svc: new OtpRateLimitService(redis, config), redis };
+  }
+
+  it('первый запрос в окне → базовый cooldown 60с и TTL окна 24ч', async () => {
+    const { svc, redis } = makeSvc(1);
+    await expect(
+      svc.startCooldown(OtpChannel.SMS, '+998901234567'),
+    ).resolves.toBe(60);
+    expect(redis.incr).toHaveBeenCalledWith('otp:req:SMS:+998901234567');
+    expect(redis.expire).toHaveBeenCalledWith(
+      'otp:req:SMS:+998901234567',
+      86_400,
+    );
+    expect(redis.set).toHaveBeenCalledWith(
+      'otp:cooldown:SMS:+998901234567',
+      '1',
+      'EX',
+      60,
+    );
+  });
+
+  it('лестница: 2-й → 120с, 3-й → 300с, 4-й и далее → 600с', async () => {
+    await expect(
+      makeSvc(2).svc.startCooldown(OtpChannel.SMS, '+998901234567'),
+    ).resolves.toBe(120);
+    await expect(
+      makeSvc(3).svc.startCooldown(OtpChannel.SMS, '+998901234567'),
+    ).resolves.toBe(300);
+    await expect(
+      makeSvc(4).svc.startCooldown(OtpChannel.SMS, '+998901234567'),
+    ).resolves.toBe(600);
+    await expect(
+      makeSvc(9).svc.startCooldown(OtpChannel.SMS, '+998901234567'),
+    ).resolves.toBe(600);
+  });
+
+  it('не первый запрос в окне — TTL окна не переустанавливается', async () => {
+    const { svc, redis } = makeSvc(3);
+    await svc.startCooldown(OtpChannel.SMS, '+998901234567');
+    expect(redis.expire).not.toHaveBeenCalled();
+  });
+});
+
+describe('OtpRateLimitService.assertCanRequest — суточный кап', () => {
+  function makeSvc(reqCount: string | null) {
+    const redis: any = {
+      // 1-й вызов ttl — cooldown-ключа нет (-2); 2-й — TTL счётчика для текста ошибки.
+      ttl: jest.fn().mockResolvedValueOnce(-2).mockResolvedValue(3600),
+      get: jest.fn().mockResolvedValue(reqCount),
+      incr: jest.fn().mockResolvedValue(1),
+      expire: jest.fn().mockResolvedValue(1),
+    };
+    const config: any = {
+      get: jest.fn((key: string) => {
+        const map: Record<string, number> = {
+          'rateLimit.window': 60,
+          'rateLimit.max': 100,
+        };
+        return map[key];
+      }),
+    };
+    return new OtpRateLimitService(redis as any, config as any);
+  }
+
+  it('пропускает, когда счётчика ещё нет', async () => {
+    await expect(
+      makeSvc(null).assertCanRequest(
+        OtpChannel.SMS,
+        '+998901234567',
+        '1.2.3.4',
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it('пропускает при count < 5', async () => {
+    await expect(
+      makeSvc('4').assertCanRequest(
+        OtpChannel.SMS,
+        '+998901234567',
+        '1.2.3.4',
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it('бросает 429 при count >= 5', async () => {
+    const svc = makeSvc('5');
+    await expect(
+      svc.assertCanRequest(OtpChannel.SMS, '+998901234567', '1.2.3.4'),
+    ).rejects.toBeInstanceOf(HttpException);
   });
 });
