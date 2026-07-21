@@ -316,6 +316,8 @@ model User {
   broadcastsReceived   Broadcast[]          @relation("BroadcastTargetUser")
   // Согласия с юр-документами (Правила+Политика); append-only аудит-след (design 2026-06-29).
   legalConsents        LegalConsent[]
+  // Юр-документы, созданные этим пользователем как админ.
+  legalDocuments       LegalDocument[]
   // Заявки «Стать агентом» (ADR-0140): поданные и рассмотренные как модератор.
   agentApplications          AgentApplication[] @relation("AgentApplicant")
   agentApplicationsModerated AgentApplication[] @relation("AgentApplicationModerator")
@@ -1148,4 +1150,44 @@ model LegalConsent {
 
   @@index([userId])
   @@map("legal_consents")
+}
+
+/// Тип юр-документа (Правила или Политика).
+enum LegalDocKind {
+  TERMS
+  PRIVACY
+}
+
+/// Статус юр-документа в жизненном цикле.
+enum LegalDocStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// legal_documents — версионируемые юр-документы (Правила/Политика), спека
+/// 2026-07-21. Инвариант: на kind ≤1 DRAFT (version 0 + unique) и ≤1 PUBLISHED;
+/// история — ARCHIVED. PUBLISHED/ARCHIVED неизменяемы — аудит-трейл для
+/// legal_consents.version.
+model LegalDocument {
+  id          String         @id @default(uuid()) @db.Uuid
+  kind        LegalDocKind
+  version     Int            @default(0)
+  status      LegalDocStatus @default(DRAFT)
+  titleRu     String         @default("") @map("title_ru")
+  titleUz     String         @default("") @map("title_uz")
+  titleEn     String         @default("") @map("title_en")
+  bodyMdRu    String         @default("") @map("body_md_ru") @db.Text
+  bodyMdUz    String         @default("") @map("body_md_uz") @db.Text
+  bodyMdEn    String         @default("") @map("body_md_en") @db.Text
+  publishedAt DateTime?      @map("published_at") @db.Timestamptz(6)
+  createdById String         @map("created_by_id") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@unique([kind, version])
+  @@index([kind, status])
+  @@map("legal_documents")
 }
