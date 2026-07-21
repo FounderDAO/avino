@@ -385,6 +385,62 @@
         }
       }
     },
+    "/api/v1/users/me/contact-phone/request": {
+      "post": {
+        "operationId": "UsersController_requestContactPhoneChange",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestContactPhoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/contact-phone/verify": {
+      "post": {
+        "operationId": "UsersController_verifyContactPhoneChange",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyContactPhoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/profile": {
       "patch": {
         "operationId": "UsersController_updateProfile",
@@ -3890,6 +3946,36 @@
           "code"
         ]
       },
+      "RequestContactPhoneDto": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string",
+            "maxLength": 32
+          }
+        },
+        "required": [
+          "destination"
+        ]
+      },
+      "VerifyContactPhoneDto": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "code": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 8
+          }
+        },
+        "required": [
+          "destination",
+          "code"
+        ]
+      },
       "UpdateProfileDto": {
         "type": "object",
         "properties": {
@@ -3908,10 +3994,6 @@
           "avatar_url": {
             "type": "string",
             "maxLength": 2048
-          },
-          "contact_phone": {
-            "type": "string",
-            "maxLength": 20
           },
           "preferred_language": {
             "type": "object"
