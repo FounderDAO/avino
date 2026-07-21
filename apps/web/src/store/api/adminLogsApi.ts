@@ -8,6 +8,8 @@ import type {
   ModerationLogFilters,
   NotificationLog,
   NotificationLogFilters,
+  OtpLog,
+  OtpLogFilters,
   PromotionLog,
   PromotionLogFilters,
 } from './adminTypes';
@@ -33,6 +35,8 @@ import type {
  *   → `Paginated<PromotionLog>` (журнал админских действий над промо).
  * - `GET /admin/notification-logs?user_id&type&channel&status&page&limit`
  *   → `Paginated<NotificationLog>` (глобальный журнал уведомлений).
+ * - `GET /admin/otp-logs?destination&page&limit` → `Paginated<OtpLog>`
+ *   (журнал OTP-запросов, ADR-0150; кода/хеша в ответе нет).
  */
 export const adminLogsApi = adminApi.injectEndpoints({
   endpoints: (build) => ({
@@ -76,6 +80,14 @@ export const adminLogsApi = adminApi.injectEndpoints({
       }),
       providesTags: ['Admin'],
     }),
+
+    listOtpLogs: build.query<Paginated<OtpLog>, OtpLogFilters>({
+      query: (filters) => ({
+        url: '/admin/otp-logs',
+        params: toQueryParams({ ...filters }),
+      }),
+      providesTags: ['Admin'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -85,4 +97,5 @@ export const {
   useListModerationLogsQuery,
   useListPromotionLogsQuery,
   useListNotificationLogsQuery,
+  useListOtpLogsQuery,
 } = adminLogsApi;

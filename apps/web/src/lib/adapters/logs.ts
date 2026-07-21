@@ -20,6 +20,10 @@ import type {
   NotificationLog,
   NotificationStatus,
   NotificationType,
+  OtpChannel,
+  OtpLog,
+  OtpLogStatus,
+  OtpPurpose,
   PromotionAdminAction,
   PromotionLog,
   PromotionType,
@@ -237,5 +241,50 @@ export function notificationLogToRow(r: NotificationLog): NotificationLogRow {
     statusLabel: NOTIFICATION_STATUS_LABEL[r.status],
     ok: r.status === 'SENT' || r.status === 'READ',
     when: fmtDate(r.sent_at ?? r.created_at),
+  };
+}
+
+// ─── OTP-журнал ──────────────────────────────────────────────────────────────
+
+export const OTP_CHANNEL_LABEL: Record<OtpChannel, string> = {
+  SMS: 'SMS',
+  EMAIL: 'Email',
+};
+
+export const OTP_PURPOSE_LABEL: Record<OtpPurpose, string> = {
+  LOGIN: 'Вход',
+  CONTACT_CHANGE: 'Смена контакта',
+};
+
+/** «Погашен» — использован или заменён новым кодом (consumed_at единый). */
+export const OTP_STATUS_LABEL: Record<OtpLogStatus, string> = {
+  ACTIVE: 'Активен',
+  CONSUMED: 'Погашен',
+  EXPIRED: 'Истёк',
+};
+
+export interface OtpLogRow {
+  id: string;
+  destination: string;
+  channelLabel: string;
+  purposeLabel: string;
+  status: OtpLogStatus;
+  statusLabel: string;
+  attempts: number;
+  user: string;
+  when: string;
+}
+
+export function otpLogToRow(log: OtpLog): OtpLogRow {
+  return {
+    id: log.id,
+    destination: log.destination,
+    channelLabel: OTP_CHANNEL_LABEL[log.channel] ?? log.channel,
+    purposeLabel: OTP_PURPOSE_LABEL[log.purpose] ?? log.purpose,
+    status: log.status,
+    statusLabel: OTP_STATUS_LABEL[log.status] ?? log.status,
+    attempts: log.attempts,
+    user: log.user_name ?? shortId(log.user_id),
+    when: fmtDate(log.created_at),
   };
 }

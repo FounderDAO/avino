@@ -757,3 +757,30 @@ export interface AdminPromotionPlan {
 export interface PromotionSettings {
   expiryIntervalHours: 6 | 12;
 }
+
+// ─── OTP-журнал (GET /admin/otp-logs) ────────────────────────────────────────
+
+export type OtpChannel = 'SMS' | 'EMAIL';
+export type OtpPurpose = 'LOGIN' | 'CONTACT_CHANGE';
+/** CONSUMED = «Погашен»: использован ИЛИ заменён более новым кодом. */
+export type OtpLogStatus = 'ACTIVE' | 'CONSUMED' | 'EXPIRED';
+
+export interface OtpLog {
+  id: string;
+  destination: string;
+  channel: OtpChannel;
+  purpose: OtpPurpose;
+  attempts: number;
+  status: OtpLogStatus;
+  user_id: string | null;
+  user_name: string | null;
+  created_at: string;
+  expires_at: string;
+  consumed_at: string | null;
+}
+
+export interface OtpLogFilters {
+  destination?: string;
+  page?: number;
+  limit?: number;
+}
