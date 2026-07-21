@@ -82,7 +82,7 @@ export interface AgentsPage {
 export async function getAgents(limit: number, page = 1): Promise<AgentsPage> {
   try {
     const res = await fetch(`${resolveApiBase()}/agents?limit=${limit}&page=${page}`, {
-      next: { revalidate: 3600 },
+      next: { revalidate: 300 },
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) {
