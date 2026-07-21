@@ -107,6 +107,38 @@ describe('ModerationService', () => {
     }
   }
 
+  describe('getListingOwner', () => {
+    it('returns the inline owner profile for an existing listing', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ owner: dbListItem.owner });
+
+      const owner = await service.getListingOwner(LISTING_ID);
+
+      expect(prisma.listing.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: LISTING_ID } }),
+      );
+      expect(owner).toEqual({
+        id: OWNER_ID,
+        display_name: 'Алишер У.',
+        first_name: 'Алишер',
+        last_name: 'Усманов',
+        email: 'seller@example.com',
+        phone: '+998901234567',
+        contact_phone: '+998907654321',
+        status: UserStatus.ACTIVE,
+        roles: ['OWNER'],
+        created_at: '2026-05-20T10:00:00.000Z',
+      });
+    });
+
+    it('throws NOT_FOUND when the listing does not exist', async () => {
+      prisma.listing.findUnique.mockResolvedValue(null);
+      await expectCode(
+        service.getListingOwner(LISTING_ID),
+        ApiErrorCode.NOT_FOUND,
+      );
+    });
+  });
+
   describe('listListings', () => {
     it('returns a paginated snake_case list with owner_id and meta.total', async () => {
       prisma.listing.findMany.mockResolvedValue([dbListItem]);

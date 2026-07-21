@@ -20,6 +20,7 @@ import { ListAdminListingsQueryDto } from '../moderation/dto/list-admin-listings
 import { ModerateListingDto } from '../moderation/dto/moderate-listing.dto';
 import {
   AdminListingListItem,
+  AdminListingOwner,
   ModerationLogResponse,
   ModerationResultResponse,
   ModerationService,
@@ -74,6 +75,18 @@ export class AdminListingsController {
     @Param('id', ParseUUIDPipe) listingId: string,
   ): Promise<ModerationLogResponse[]> {
     return this.moderationService.findLogs(listingId);
+  }
+
+  /**
+   * `GET /api/v1/admin/listings/:id/owner` — инлайн-профиль автора (item #6).
+   * Публичная деталь `GET /listings/:id` отдаёт лишь `owner_id`; имя/контакт
+   * автора для админ-детали берём отсюда (доступно MODERATOR и ADMIN).
+   */
+  @Get(':id/owner')
+  findOwner(
+    @Param('id', ParseUUIDPipe) listingId: string,
+  ): Promise<AdminListingOwner> {
+    return this.moderationService.getListingOwner(listingId);
   }
 
   /** `POST /api/v1/admin/listings/:id/translations/generate` — синхронная генерация (ADR-0091). */
