@@ -34,6 +34,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     group: 'Система',
     items: [
       ['/admin/amenities', 'Удобства', IC.Checklist],
+      ['/admin/legal', 'Юр-документы', IC.FileText],
       ['/admin/logs', 'Логи', IC.ListIcon],
       ['/admin/settings', 'Настройки', IC.Sliders],
     ],
