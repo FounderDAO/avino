@@ -118,10 +118,12 @@ enum OtpChannel {
   EMAIL
 }
 
-/// Назначение OTP-кода. В MVP только LOGIN; значения расширяются без breaking
-/// change (verify-контакт, сброс и т.п. — будущие задачи).
+/// Назначение OTP-кода. LOGIN — вход/регистрация; CONTACT_CHANGE — подтверждение
+/// владения НОВЫМ логин-контактом при смене телефона/email (verify нового
+/// значения). Значения расширяются без breaking change.
 enum OtpPurpose {
   LOGIN
+  CONTACT_CHANGE
 }
 
 /// Источник перевода объявления (DB_SCHEMA.md §3, ADR-005). USER — авторский

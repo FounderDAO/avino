@@ -16,7 +16,7 @@ import {
   formatLoginSuccess,
 } from '../telegram';
 import { normalizeContact } from './contact.util';
-import { verifyOtpCode } from './otp-hash.util';
+import { consumeActiveOtpCode } from './otp-code.util';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 import { TokenService } from './token.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -157,73 +157,15 @@ export class AuthService {
 
       const maxAttempts = this.config.get<number>('otp.maxAttempts') ?? 5;
 
-      // Последний активный код на контакт: request гасит прежние, поэтому валиден
-      // только самый свежий неиспользованный.
-      const otp = await this.prisma.otpCode.findFirst({
-        where: {
-          destination,
-          purpose: OtpPurpose.LOGIN,
-          consumedAt: null,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (!otp) {
-        throw this.otpError(
-          ApiErrorCode.OTP_INVALID,
-          HttpStatus.BAD_REQUEST,
-          'Invalid verification code',
-        );
-      }
-
-      if (otp.expiresAt.getTime() <= Date.now()) {
-        await this.prisma.otpCode.update({
-          where: { id: otp.id },
-          data: { consumedAt: new Date() },
-        });
-        throw this.otpError(
-          ApiErrorCode.OTP_EXPIRED,
-          HttpStatus.BAD_REQUEST,
-          'Verification code has expired',
-        );
-      }
-
-      if (otp.attempts >= maxAttempts) {
-        throw this.otpError(
-          ApiErrorCode.OTP_ATTEMPTS_EXCEEDED,
-          HttpStatus.TOO_MANY_REQUESTS,
-          'Too many invalid attempts, request a new code',
-        );
-      }
-
-      const matches = await verifyOtpCode(dto.code, otp.codeHash);
-      if (!matches) {
-        const attempts = otp.attempts + 1;
-        await this.prisma.otpCode.update({
-          where: { id: otp.id },
-          data: { attempts },
-        });
-        // Кумулятивный счётчик brute-force (H-1): запоминаем неудачу даже если
-        // потом запросят новый код — бюджет не сбрасывается при ре-запросе.
-        void this.rateLimitService.recordFailedVerify(destination);
-        // Если эта попытка исчерпала лимит — сразу локаут, иначе обычный мисс.
-        throw attempts >= maxAttempts
-          ? this.otpError(
-              ApiErrorCode.OTP_ATTEMPTS_EXCEEDED,
-              HttpStatus.TOO_MANY_REQUESTS,
-              'Too many invalid attempts, request a new code',
-            )
-          : this.otpError(
-              ApiErrorCode.OTP_INVALID,
-              HttpStatus.BAD_REQUEST,
-              'Invalid verification code',
-            );
-      }
-
-      // Успех: код одноразовый — гасим, чтобы повторный verify не прошёл.
-      await this.prisma.otpCode.update({
-        where: { id: otp.id },
-        data: { consumedAt: new Date() },
+      // Проверка+погашение последнего активного LOGIN-кода на контакт (request
+      // гасит прежние, поэтому валиден только самый свежий). Brute-force счётчик
+      // (H-1) — через onFailedAttempt: бюджет не сбрасывается при ре-запросе.
+      await consumeActiveOtpCode(this.prisma, {
+        destination,
+        code: dto.code,
+        purpose: OtpPurpose.LOGIN,
+        maxAttempts,
+        onFailedAttempt: (dest) => void this.rateLimitService.recordFailedVerify(dest),
       });
 
       return await this.completeLogin(dto.channel, destination, ip, userAgent);
@@ -573,13 +515,5 @@ export class AuthService {
         metadata: { channel },
       },
     });
-  }
-
-  private otpError(
-    code: ApiErrorCode,
-    status: HttpStatus,
-    message: string,
-  ): HttpException {
-    return new HttpException({ code, message }, status);
   }
 }
