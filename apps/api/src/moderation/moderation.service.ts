@@ -146,6 +146,27 @@ const MODERATABLE_STATUSES: readonly ListingStatus[] = [
 /** Все языки, для которых обязателен перевод перед публикацией (ADR-0091). */
 const REQUIRED_LANGUAGES: readonly Language[] = Object.values(Language);
 
+/**
+ * Поля автора для инлайн-профиля (см. {@link AdminListingOwner}). Вынесено, чтобы
+ * список модерации и `getListingOwner` (admin-деталь, item #6) читали один набор.
+ */
+const OWNER_SELECT = {
+  id: true,
+  email: true,
+  phone: true,
+  status: true,
+  createdAt: true,
+  roles: { select: { role: { select: { code: true } } } },
+  profile: {
+    select: {
+      firstName: true,
+      lastName: true,
+      displayName: true,
+      contactPhone: true,
+    },
+  },
+} as const;
+
 const LISTING_LIST_SELECT = {
   id: true,
   reference: true,
@@ -174,24 +195,7 @@ const LISTING_LIST_SELECT = {
     take: 1,
   },
   // Инлайн-профиль автора для карточки модерации (см. AdminListingOwner).
-  owner: {
-    select: {
-      id: true,
-      email: true,
-      phone: true,
-      status: true,
-      createdAt: true,
-      roles: { select: { role: { select: { code: true } } } },
-      profile: {
-        select: {
-          firstName: true,
-          lastName: true,
-          displayName: true,
-          contactPhone: true,
-        },
-      },
-    },
-  },
+  owner: { select: OWNER_SELECT },
 } as const;
 
 type AdminListingRow = Prisma.ListingGetPayload<{
@@ -452,6 +456,28 @@ export class ModerationService {
       reason: log.reason,
       created_at: log.createdAt.toISOString(),
     }));
+  }
+
+  /**
+   * `GET /api/v1/admin/listings/:id/owner` — инлайн-профиль автора для
+   * админ-детали (item #6, «Автор»). Публичный `GET /listings/:id` отдаёт лишь
+   * `owner_id` (PII там недопустима), поэтому имя/контакт автора берём этим
+   * admin-only роутом. Доступен и MODERATOR, и ADMIN (в отличие от ADMIN-only
+   * `GET /admin/users/:id`). Не фильтрует по статусу — админ видит автора любого
+   * листинга; отсутствующий листинг → 404.
+   */
+  async getListingOwner(id: string): Promise<AdminListingOwner> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id },
+      select: { owner: { select: OWNER_SELECT } },
+    });
+    if (!listing) {
+      throw new NotFoundException({
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Listing not found',
+      });
+    }
+    return this.toOwner(listing.owner);
   }
 
   /** Компактная карточка листинга в snake_case для админ-списка. */
