@@ -1,7 +1,9 @@
 /**
  * Profile — вкладка «Профиль».
  * Гидрируется из текущего пользователя (GET /auth/me → authSlice). Свободная
- * форма (имя/телефон для связи) сохраняется через PATCH /users/me/profile.
+ * форма (имя) сохраняется через PATCH /users/me/profile. Телефон для связи
+ * (contact_phone) в неё больше не входит — отдельная строка с OTP-подтверждением
+ * через ContactPhoneModal (docs/superpowers/plans/2026-07-22-contact-phone-otp-verification.md).
  * Логин-телефон/email (используются для входа) меняются ОТДЕЛЬНО — в блоке
  * «Аккаунт (вход)» через ContactChangeModal с подтверждением OTP-кодом на
  * новый контакт (docs/superpowers/plans/2026-07-21-contact-change-otp.md);
@@ -16,11 +18,10 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Link } from '@/i18n/navigation';
 import { Field } from '@/components/ui/field';
-import { PhoneField } from '@/components/ui/phone-field';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAppSelector } from '@/store/hooks';
-import { formatUzPhone, uzPhoneE164 } from '@/lib/phone-mask';
+import { formatUzPhone } from '@/lib/phone-mask';
 import {
   selectCurrentUser,
   selectIsAuthenticated,
@@ -32,6 +33,7 @@ import {
 } from '@/store/api/usersApi';
 import { getApiError } from '@/store/api/apiError';
 import { ContactChangeModal } from './ContactChangeModal';
+import { ContactPhoneModal } from './ContactPhoneModal';
 
 /** Разрешённые типы аватара и лимит размера — зеркалят валидацию бэкенда. */
 const AVATAR_ACCEPT = 'image/jpeg,image/png,image/webp';
@@ -41,7 +43,6 @@ const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 interface ProfileForm {
   firstName: string;
   lastName: string;
-  phone: string;
 }
 
 export function Profile() {
@@ -57,6 +58,9 @@ export function Profile() {
   // Какой логин-контакт сейчас меняется через ContactChangeModal ('SMS' —
   // телефон входа, 'EMAIL' — email входа); null — модалка закрыта.
   const [activeChannel, setActiveChannel] = React.useState<'SMS' | 'EMAIL' | null>(null);
+  // Открыта ли модалка смены публичного контакт-телефона (Task 8/9,
+  // docs/superpowers/plans/2026-07-22-contact-phone-otp-verification.md).
+  const [contactPhoneOpen, setContactPhoneOpen] = React.useState(false);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   // Локальное превью на время запроса (blob) — чтобы аватар не «моргал».
@@ -82,7 +86,6 @@ export function Profile() {
   const [form, setForm] = React.useState<ProfileForm>({
     firstName: '',
     lastName: '',
-    phone: '',
   });
   const [formError, setFormError] = React.useState<string | null>(null);
 
@@ -92,7 +95,6 @@ export function Profile() {
     setForm({
       firstName: user.profile.first_name ?? '',
       lastName: user.profile.last_name ?? '',
-      phone: formatUzPhone(user.profile.contact_phone ?? user.phone ?? ''),
     });
   }, [user]);
 
@@ -181,8 +183,9 @@ export function Profile() {
     setFormError(null);
 
     try {
-      // Профиль: имя/телефон для связи. Язык живёт на вкладке «Настройки»;
-      // логин-email больше не меняется отсюда — только через ContactChangeModal.
+      // Профиль: только имя. Телефон для связи меняется отдельно через
+      // ContactPhoneModal; язык живёт на вкладке «Настройки»; логин-email
+      // больше не меняется отсюда — только через ContactChangeModal.
       await updateProfile({
         first_name: form.firstName.trim() || null,
         last_name: form.lastName.trim() || null,
@@ -190,7 +193,6 @@ export function Profile() {
         // на бэке: displayName ?? first+last) — иначе display_name из Google
         // навсегда перекрывал бы отредактированные Имя/Фамилию.
         display_name: null,
-        contact_phone: uzPhoneE164(form.phone) || null,
       }).unwrap();
 
       toast.success(tToasts('profileSaved'));
@@ -264,12 +266,34 @@ export function Profile() {
             <Field value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />
           </div>
           <div>
-            <label className="mb-[7px] block text-[13px] font-bold">{t('profile.phone')}</label>
-            <PhoneField
-              value={form.phone}
-              onChange={(v) => set('phone', v)}
-              placeholder="+998 90 123 45 67"
-            />
+            <label className="mb-[7px] block text-[13px] font-bold">
+              {t('contactPhone.rowTitle')}
+            </label>
+            <div className="flex items-center justify-between gap-3 rounded-input border border-border/60 bg-surface px-3.5 py-2.5">
+              <div className="flex items-center gap-2 text-[14px]">
+                <span>
+                  {user?.profile.contact_phone_verified && user.profile.contact_phone
+                    ? formatUzPhone(user.profile.contact_phone)
+                    : formatUzPhone(user?.phone ?? '')}
+                </span>
+                {user?.profile.contact_phone_verified && user.profile.contact_phone && (
+                  <span className="rounded-badge bg-mint px-2 py-0.5 text-[11.5px] font-bold text-teal-deep">
+                    {t('profile.verified')}
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => setContactPhoneOpen(true)}
+              >
+                {t('profile.change')}
+              </Button>
+            </div>
+            <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+              {t('contactPhone.hint')}
+            </p>
           </div>
           {formError && (
             <p className="text-[13px] font-semibold text-red">{formError}</p>
@@ -341,6 +365,15 @@ export function Profile() {
         open={activeChannel !== null}
         onClose={() => setActiveChannel(null)}
         onSuccess={onContactChangeSuccess}
+      />
+
+      <ContactPhoneModal
+        open={contactPhoneOpen}
+        onClose={() => setContactPhoneOpen(false)}
+        onSuccess={() => {
+          setContactPhoneOpen(false);
+          toast.success(tToasts('contactChanged'));
+        }}
       />
     </div>
   );
