@@ -1184,13 +1184,17 @@
       "avatarTooLarge": "Fayl juda katta. Maksimal hajmi 10 MB.",
       "firstName": "Ism",
       "lastName": "Familiya",
-      "phone": "Telefon",
+      "phone": "Aloqa uchun telefon",
       "email": "Email",
       "language": "Interfeys tili",
-      "emailTaken": "Bu email allaqachon boshqa akkauntda ishlatilmoqda.",
       "saveError": "O'zgarishlarni saqlab bo'lmadi. Yana bir bor urinib ko'ring.",
       "saving": "Saqlanmoqda…",
-      "save": "O'zgarishlarni saqlash"
+      "save": "O'zgarishlarni saqlash",
+      "accountSection": "Hisob (kirish)",
+      "loginPhone": "Kirish uchun telefon",
+      "loginEmail": "Kirish uchun email",
+      "verified": "Tasdiqlangan",
+      "change": "O'zgartirish"
     },
     "savedSearches": {
       "title": "Saqlangan qidiruvlar",
@@ -1285,6 +1289,22 @@
         "DECLINED": "Rad etilgan",
         "CANCELLED": "Bekor qilingan"
       }
+    },
+    "contactChange": {
+      "titlePhone": "Kirish uchun telefonni o'zgartirish",
+      "titleEmail": "Kirish uchun emailni o'zgartirish",
+      "newValue": "Yangi qiymat",
+      "sendCode": "Kodni yuborish",
+      "codeLabel": "Tasdiqlash kodi",
+      "confirm": "Tasdiqlash",
+      "resendIn": "{seconds} soniyadan so'ng qayta yuborish",
+      "resend": "Qayta yuborish",
+      "close": "Yopish",
+      "invalidValue": "To'g'ri qiymat kiriting.",
+      "errTaken": "Bu kontakt boshqa akkauntda allaqachon ishlatilmoqda.",
+      "errCode": "Noto'g'ri kod. Qayta urinib ko'ring.",
+      "errExpired": "Kod muddati tugadi. Yangisini so'rang.",
+      "errAttempts": "Juda ko'p urinish. Yangi kod so'rang."
     }
   },
   "savedSearch": {
@@ -1408,6 +1428,7 @@
     "avatarUpdated": "Surat yangilandi",
     "avatarRemoved": "Surat o'chirildi",
     "avatarActionFailed": "Suratni yangilab bo'lmadi. Yana urinib ko'ring.",
+    "contactChanged": "Kirish uchun kontakt ma'lumotlari yangilandi",
     "mediaUploadFailed": "{count} ta fotoni yuklab bo‘lmadi. Qolgan o‘zgarishlar saqlandi."
   }
 }

@@ -5,23 +5,29 @@ import type { Language, MeResponse, UserProfile } from './authApi';
  * usersApi — самообслуживание текущего пользователя (docs/API.md §5, Bearer).
  *
  * Контракты:
- * - PATCH /users/me          { email?, default_language? } → 200 user (MeResponse)
- *     Ошибки: 400 (валидация), 409 CONTACT_TAKEN (email занят).
- *     Смена email триггерит OTP re-verify на бэке — просто вызываем.
+ * - PATCH /users/me          { default_language? } → 200 user (MeResponse).
+ *     Логин-email сюда больше не принимается — только через contact-change
+ *     ниже (подтверждение OTP на новый email).
  * - PATCH /users/me/profile  { first_name?, last_name?, display_name?,
  *     avatar_url?, contact_phone?, preferred_language? } → 200 profile.
  * - POST  /users/me/avatar   multipart поле `file` (image/jpeg|png|webp,
  *     ≤10 MiB) → 201 { avatar_url }. Сервер сам сохраняет ключ в профиле —
  *     отдельный PATCH avatar_url не нужен.
  * - DELETE /users/me/avatar  → 204. Сбрасывает загруженный аватар.
+ * - POST /users/me/contact-change/request { channel, destination } → 200
+ *     { request_id, channel, expires_in, resend_after }. Запрашивает OTP на
+ *     НОВЫЙ логин-телефон/email (не текущий); ошибки CONTACT_TAKEN/VALIDATION_ERROR.
+ * - POST /users/me/contact-change/verify  { channel, destination, code } →
+ *     200 обновлённый /me (та же форма, что GET /auth/me). Применяет смену
+ *     логин-контакта только после подтверждения кодом; инвалидирует
+ *     'Auth'/'User', как остальные мутации.
  *
  * snake_case в телах, enum-значения UPPERCASE (UZ|RU|EN). Все мутации
  * инвалидируют 'Auth' и 'User', чтобы GET /auth/me перечитал свежие данные.
  */
 
-/** Тело PATCH /users/me — подмножество полей пользователя. */
+/** Тело PATCH /users/me — подмножество полей пользователя (email не входит). */
 export interface UpdateUserBody {
-  email?: string;
   default_language?: Language;
 }
 
@@ -50,6 +56,30 @@ export interface LegalConsentState {
 /** Ответ POST /users/me/avatar — свежая подписанная ссылка на загруженный аватар. */
 export interface UploadAvatarResponse {
   avatar_url: string;
+}
+
+/** Канал OTP-подтверждения смены логин-контакта. */
+export type ContactChannel = 'SMS' | 'EMAIL';
+
+/** Тело `POST /users/me/contact-change/request`. */
+export interface RequestContactChangeBody {
+  channel: ContactChannel;
+  destination: string;
+}
+
+/** Ответ `POST /users/me/contact-change/request` — метаданные отправленного OTP. */
+export interface RequestContactChangeResult {
+  request_id: string;
+  channel: ContactChannel;
+  expires_in: number;
+  resend_after: number;
+}
+
+/** Тело `POST /users/me/contact-change/verify` — тот же destination + код. */
+export interface VerifyContactChangeBody {
+  channel: ContactChannel;
+  destination: string;
+  code: string;
 }
 
 export const usersApi = baseApi.injectEndpoints({
@@ -103,6 +133,27 @@ export const usersApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Auth', 'User'],
     }),
+
+    // Шаг 1: запросить OTP на новый логин-телефон/email. Ничего ещё не
+    // меняется — смена применяется только после verify, поэтому теги не
+    // инвалидируем.
+    requestContactChange: build.mutation<RequestContactChangeResult, RequestContactChangeBody>({
+      query: (body) => ({
+        url: '/users/me/contact-change/request',
+        method: 'POST',
+        body,
+      }),
+    }),
+
+    // Шаг 2: подтвердить код — сервер применяет смену и возвращает /me.
+    verifyContactChange: build.mutation<MeResponse, VerifyContactChangeBody>({
+      query: (body) => ({
+        url: '/users/me/contact-change/verify',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Auth', 'User'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -113,4 +164,6 @@ export const {
   useAcceptLegalConsentMutation,
   useUploadAvatarMutation,
   useDeleteAvatarMutation,
+  useRequestContactChangeMutation,
+  useVerifyContactChangeMutation,
 } = usersApi;

@@ -1184,13 +1184,17 @@
       "avatarTooLarge": "Image is too large. Maximum size is 10 MB.",
       "firstName": "First name",
       "lastName": "Last name",
-      "phone": "Phone",
+      "phone": "Contact phone",
       "email": "Email",
       "language": "Interface language",
-      "emailTaken": "This email is already used by another account.",
       "saveError": "Couldn't save changes. Please try again.",
       "saving": "Saving…",
-      "save": "Save changes"
+      "save": "Save changes",
+      "accountSection": "Account (sign-in)",
+      "loginPhone": "Sign-in phone",
+      "loginEmail": "Sign-in email",
+      "verified": "Verified",
+      "change": "Change"
     },
     "savedSearches": {
       "title": "Saved searches",
@@ -1285,6 +1289,22 @@
         "DECLINED": "Declined",
         "CANCELLED": "Cancelled"
       }
+    },
+    "contactChange": {
+      "titlePhone": "Change sign-in phone",
+      "titleEmail": "Change sign-in email",
+      "newValue": "New value",
+      "sendCode": "Send code",
+      "codeLabel": "Verification code",
+      "confirm": "Confirm",
+      "resendIn": "Resend in {seconds}s",
+      "resend": "Resend",
+      "close": "Close",
+      "invalidValue": "Enter a valid value.",
+      "errTaken": "This contact is already used by another account.",
+      "errCode": "Invalid code. Please try again.",
+      "errExpired": "Code expired. Request a new one.",
+      "errAttempts": "Too many attempts. Request a new code."
     }
   },
   "savedSearch": {
@@ -1408,6 +1428,7 @@
     "avatarUpdated": "Photo updated",
     "avatarRemoved": "Photo removed",
     "avatarActionFailed": "Couldn't update the photo. Please try again.",
+    "contactChanged": "Sign-in contact details updated",
     "mediaUploadFailed": "Failed to upload {count} photo(s). Your other changes were saved."
   }
 }

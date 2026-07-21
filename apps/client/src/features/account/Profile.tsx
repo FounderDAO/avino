@@ -1,7 +1,11 @@
 /**
  * Profile — вкладка «Профиль».
- * Гидрируется из текущего пользователя (GET /auth/me → authSlice) и сохраняет
- * изменения двумя PATCH-вызовами: профиль (имя/телефон) и пользователь (email).
+ * Гидрируется из текущего пользователя (GET /auth/me → authSlice). Свободная
+ * форма (имя/телефон для связи) сохраняется через PATCH /users/me/profile.
+ * Логин-телефон/email (используются для входа) меняются ОТДЕЛЬНО — в блоке
+ * «Аккаунт (вход)» через ContactChangeModal с подтверждением OTP-кодом на
+ * новый контакт (docs/superpowers/plans/2026-07-21-contact-change-otp.md);
+ * PATCH /users/me больше не принимает email.
  * Язык интерфейса живёт на вкладке «Настройки» (Settings) — здесь его нет.
  * Гость → подсказка войти.
  */
@@ -23,11 +27,11 @@ import {
 } from '@/store/slices/authSlice';
 import {
   useUpdateProfileMutation,
-  useUpdateUserMutation,
   useUploadAvatarMutation,
   useDeleteAvatarMutation,
 } from '@/store/api/usersApi';
 import { getApiError } from '@/store/api/apiError';
+import { ContactChangeModal } from './ContactChangeModal';
 
 /** Разрешённые типы аватара и лимит размера — зеркалят валидацию бэкенда. */
 const AVATAR_ACCEPT = 'image/jpeg,image/png,image/webp';
@@ -38,7 +42,6 @@ interface ProfileForm {
   firstName: string;
   lastName: string;
   phone: string;
-  email: string;
 }
 
 export function Profile() {
@@ -48,9 +51,12 @@ export function Profile() {
   const user = useAppSelector(selectCurrentUser);
 
   const [updateProfile, profileState] = useUpdateProfileMutation();
-  const [updateUser, userState] = useUpdateUserMutation();
   const [uploadAvatar, uploadState] = useUploadAvatarMutation();
   const [deleteAvatar, deleteState] = useDeleteAvatarMutation();
+
+  // Какой логин-контакт сейчас меняется через ContactChangeModal ('SMS' —
+  // телефон входа, 'EMAIL' — email входа); null — модалка закрыта.
+  const [activeChannel, setActiveChannel] = React.useState<'SMS' | 'EMAIL' | null>(null);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   // Локальное превью на время запроса (blob) — чтобы аватар не «моргал».
@@ -77,9 +83,7 @@ export function Profile() {
     firstName: '',
     lastName: '',
     phone: '',
-    email: '',
   });
-  const [emailError, setEmailError] = React.useState<string | null>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
 
   // Ре-синк формы при загрузке/обновлении пользователя.
@@ -89,13 +93,11 @@ export function Profile() {
       firstName: user.profile.first_name ?? '',
       lastName: user.profile.last_name ?? '',
       phone: formatUzPhone(user.profile.contact_phone ?? user.phone ?? ''),
-      email: user.email ?? '',
     });
   }, [user]);
 
   const set = <K extends keyof ProfileForm>(k: K, v: ProfileForm[K]) => {
     setForm((p) => ({ ...p, [k]: v }));
-    setEmailError(null);
     setFormError(null);
   };
 
@@ -118,7 +120,7 @@ export function Profile() {
     );
   }
 
-  const pending = profileState.isLoading || userState.isLoading;
+  const pending = profileState.isLoading;
   const avatarChar = (form.firstName.trim()[0] ?? 'A').toUpperCase();
 
   const avatarUrl = user?.profile.avatar_url ?? null;
@@ -176,13 +178,11 @@ export function Profile() {
   };
 
   const onSave = async () => {
-    setEmailError(null);
     setFormError(null);
 
-    const trimmedEmail = form.email.trim();
-
     try {
-      // Профиль: имя/телефон — всегда. Язык живёт на вкладке «Настройки».
+      // Профиль: имя/телефон для связи. Язык живёт на вкладке «Настройки»;
+      // логин-email больше не меняется отсюда — только через ContactChangeModal.
       await updateProfile({
         first_name: form.firstName.trim() || null,
         last_name: form.lastName.trim() || null,
@@ -193,20 +193,16 @@ export function Profile() {
         contact_phone: uzPhoneE164(form.phone) || null,
       }).unwrap();
 
-      // Пользователь: только при изменении email.
-      if (user && trimmedEmail !== (user.email ?? '')) {
-        await updateUser({ email: trimmedEmail }).unwrap();
-      }
-
       toast.success(tToasts('profileSaved'));
     } catch (err) {
       const apiErr = getApiError(err as Parameters<typeof getApiError>[0]);
-      if (apiErr?.code === 'CONTACT_TAKEN') {
-        setEmailError(t('profile.emailTaken'));
-      } else {
-        setFormError(apiErr?.message ?? t('profile.saveError'));
-      }
+      setFormError(apiErr?.message ?? t('profile.saveError'));
     }
+  };
+
+  const onContactChangeSuccess = () => {
+    setActiveChannel(null);
+    toast.success(tToasts('contactChanged'));
   };
 
   return (
@@ -275,19 +271,6 @@ export function Profile() {
               placeholder="+998 90 123 45 67"
             />
           </div>
-          <div>
-            <label className="mb-[7px] block text-[13px] font-bold">{t('profile.email')}</label>
-            <Field
-              type="email"
-              value={form.email}
-              onChange={(e) => set('email', e.target.value)}
-              aria-invalid={emailError ? true : undefined}
-            />
-            {emailError && (
-              <p className="mt-1.5 text-[13px] font-semibold text-red">{emailError}</p>
-            )}
-          </div>
-
           {formError && (
             <p className="text-[13px] font-semibold text-red">{formError}</p>
           )}
@@ -301,6 +284,64 @@ export function Profile() {
           </Button>
         </div>
       </div>
+
+      {/* Аккаунт (вход): логин-телефон/email — меняются только через OTP-подтверждение
+          нового контакта, отдельно от свободной формы выше. */}
+      <div className="mt-6 rounded-card border border-border/60 bg-surface p-6 shadow-card">
+        <h2 className="mb-4 text-[17px] font-extrabold">{t('profile.accountSection')}</h2>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[13px] font-bold">{t('profile.loginPhone')}</div>
+              <div className="mt-0.5 flex items-center gap-2 text-[14px]">
+                <span>{user?.phone ?? '—'}</span>
+                {user?.is_phone_verified && (
+                  <span className="rounded-badge bg-mint px-2 py-0.5 text-[11.5px] font-bold text-teal-deep">
+                    {t('profile.verified')}
+                  </span>
+                )}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setActiveChannel('SMS')}
+            >
+              {t('profile.change')}
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[13px] font-bold">{t('profile.loginEmail')}</div>
+              <div className="mt-0.5 flex items-center gap-2 text-[14px]">
+                <span>{user?.email ?? '—'}</span>
+                {user?.is_email_verified && (
+                  <span className="rounded-badge bg-mint px-2 py-0.5 text-[11.5px] font-bold text-teal-deep">
+                    {t('profile.verified')}
+                  </span>
+                )}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setActiveChannel('EMAIL')}
+            >
+              {t('profile.change')}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <ContactChangeModal
+        channel={activeChannel ?? 'SMS'}
+        open={activeChannel !== null}
+        onClose={() => setActiveChannel(null)}
+        onSuccess={onContactChangeSuccess}
+      />
     </div>
   );
 }
