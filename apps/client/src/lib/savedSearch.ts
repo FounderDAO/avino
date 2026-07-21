@@ -12,7 +12,7 @@
  *    неймспейса, ключи `savedSearch.*` и `enums.propertyType.*`),
  *  - filtersToSearchHref → ссылка `/search?...` для перехода в выдачу.
  */
-import { AMENITIES, PARKING_TYPES, PROPERTY_TYPES, type Amenity, type ParkingType, type PropertyType } from '@/lib/mock/types';
+import { PARKING_TYPES, PROPERTY_TYPES, type ParkingType, type PropertyType } from '@/lib/mock/types';
 import type { T } from '@/lib/format';
 
 /** Внутренний объект фильтров (произвольные ключи API.md §12). */
@@ -194,9 +194,13 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
       if (PARKING_TYPES.includes(p as ParkingType)) params.append('parking_type', p);
     }
   }
+  // Справочник удобств динамический (Task 5, GET /amenities) — клиент коды не
+  // валидирует, передаёт как есть. /search матчит их через `@> ARRAY`, поэтому
+  // код, скрытый админом после сохранения поиска, не игнорируется, а сузит
+  // выдачу до нуля — это осознанный компромисс: чинить надо в справочнике.
   if (Array.isArray(filters.amenities)) {
     for (const a of filters.amenities as string[]) {
-      if (AMENITIES.includes(a as Amenity)) params.append('amenities', a);
+      params.append('amenities', a);
     }
   }
   set('query', asString(filters.q));

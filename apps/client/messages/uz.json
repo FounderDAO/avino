@@ -1323,17 +1323,6 @@
       "COVERED": "Yopiq",
       "GARAGE": "Garaj",
       "UNDERGROUND": "Yer osti"
-    },
-    "amenities": {
-      "AIR_CONDITIONING": "Konditsioner",
-      "FURNITURE": "Mebel",
-      "APPLIANCES": "Maishiy texnika",
-      "INTERNET": "Internet",
-      "ELEVATOR": "Lift",
-      "BALCONY": "Balkon",
-      "HEATING": "Isitish",
-      "SECURITY": "Videokuzatuv",
-      "POOL": "Basseyn"
     }
   },
   "breadcrumb": {

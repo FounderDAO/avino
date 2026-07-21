@@ -1029,6 +1029,18 @@
             }
           },
           {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
             "name": "floor_min",
             "required": false,
             "in": "query",
@@ -1330,6 +1342,18 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -1664,6 +1688,18 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -2062,6 +2098,18 @@
             }
           },
           {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
             "name": "floor_min",
             "required": false,
             "in": "query",
@@ -2354,6 +2402,18 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -2721,6 +2781,18 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -3779,6 +3851,90 @@
         },
         "responses": {
           "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/amenities": {
+      "get": {
+        "operationId": "AdminAmenitiesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "AdminAmenitiesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAmenityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/amenities/{id}": {
+      "patch": {
+        "operationId": "AdminAmenitiesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAmenityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
             "description": "",
             "content": {
               "application/json": {
@@ -5151,6 +5307,27 @@
         }
       }
     },
+    "/api/v1/amenities": {
+      "get": {
+        "operationId": "AmenitiesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tour-requests": {
       "post": {
         "operationId": "TourRequestsController_create",
@@ -5688,7 +5865,8 @@
           "amenities": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "string",
+              "maxLength": 80
             }
           },
           "floor": {
@@ -5816,7 +5994,8 @@
           "amenities": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "string",
+              "maxLength": 80
             }
           },
           "floor": {
@@ -6272,6 +6451,69 @@
           "reason": {
             "type": "string",
             "maxLength": 2000
+          }
+        }
+      },
+      "CreateAmenityDto": {
+        "type": "object",
+        "properties": {
+          "label_ru": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "label_uz": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "label_en": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "code": {
+            "type": "string",
+            "pattern": "/^[A-Z][A-Z0-9_]*$/"
+          },
+          "sort_order": {
+            "type": "number",
+            "minimum": 0
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label_ru",
+          "label_uz",
+          "label_en"
+        ]
+      },
+      "UpdateAmenityDto": {
+        "type": "object",
+        "properties": {
+          "label_ru": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "label_uz": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "label_en": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "sort_order": {
+            "type": "number",
+            "minimum": 0
+          },
+          "is_active": {
+            "type": "boolean"
           }
         }
       },

@@ -17,7 +17,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { Amenity, Currency, ParkingType, PropertyType, TransactionType } from '@prisma/client';
+import { Currency, ParkingType, PropertyType, TransactionType } from '@prisma/client';
 import { TourWindowDto } from './create-listing.dto';
 import { IsHalfStep } from '../../common/validation/is-half-step';
 
@@ -117,8 +117,10 @@ export class UpdateListingDto {
 
   @IsOptional()
   @IsArray()
-  @IsEnum(Amenity, { each: true })
-  amenities?: Amenity[];
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  amenities?: string[];
 
   @IsOptional()
   @IsInt()

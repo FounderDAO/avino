@@ -69,6 +69,9 @@ vi.mock('@/store/api/publicSettingsApi', () => ({
 vi.mock('@/store/api/usersApi', () => ({
   useUpdateProfileMutation: () => [vi.fn(), { isLoading: false }],
 }));
+vi.mock('@/store/api/amenitiesApi', () => ({
+  useListAmenitiesQuery: () => ({ data: [], isLoading: false }),
+}));
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
   Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,

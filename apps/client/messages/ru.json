@@ -1323,17 +1323,6 @@
       "COVERED": "Крытая",
       "GARAGE": "Гараж",
       "UNDERGROUND": "Подземная"
-    },
-    "amenities": {
-      "AIR_CONDITIONING": "Кондиционер",
-      "FURNITURE": "Мебель",
-      "APPLIANCES": "Бытовая техника",
-      "INTERNET": "Интернет",
-      "ELEVATOR": "Лифт",
-      "BALCONY": "Балкон",
-      "HEATING": "Отопление",
-      "SECURITY": "Видеонаблюдение",
-      "POOL": "Бассейн"
     }
   },
   "breadcrumb": {

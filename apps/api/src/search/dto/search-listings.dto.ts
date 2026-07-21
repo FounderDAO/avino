@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -15,7 +16,6 @@ import {
   Min,
 } from 'class-validator';
 import {
-  Amenity,
   Currency,
   ParkingType,
   PromotionType,
@@ -226,8 +226,10 @@ export class SearchListingsQueryDto {
   @IsOptional()
   @Transform(toArray)
   @IsArray()
-  @IsEnum(Amenity, { each: true })
-  amenities?: Amenity[];
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  amenities?: string[];
 
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_min?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_max?: number;

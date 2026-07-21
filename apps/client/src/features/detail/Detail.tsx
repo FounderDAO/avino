@@ -12,26 +12,14 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import {
-  ArrowUpDown,
-  Building2,
   Check,
   ChevronLeft,
   ExternalLink,
   Eye,
-  Flame,
   Hash,
   Heart,
   MapPin,
-  ShieldCheck,
-  Snowflake,
-  Sofa,
-  SquareParking,
-  WashingMachine,
-  Waves,
-  Wifi,
-  type LucideIcon,
 } from 'lucide-react';
-import type { Amenity } from '@/lib/mock/types';
 import { Gallery } from '@/components/ui/gallery';
 import { PromoBadge } from '@/components/ui/promo-badge';
 import { SectionTitle } from '@/components/ui/section-title';
@@ -51,19 +39,8 @@ import { MortgageEstBar } from './MortgageEstBar';
 import { MortgagePaymentCard } from './MortgagePaymentCard';
 import { ShareButton } from './ShareButton';
 import { ViewTracker } from './ViewTracker';
-
-/** Иконки удобств (ADR-0111, Zillow Phase 2; POOL — LAST_CHANGED_API.md §1). */
-const AMENITY_ICON: Record<Amenity, LucideIcon> = {
-  AIR_CONDITIONING: Snowflake,
-  FURNITURE: Sofa,
-  APPLIANCES: WashingMachine,
-  INTERNET: Wifi,
-  ELEVATOR: ArrowUpDown,
-  BALCONY: Building2,
-  HEATING: Flame,
-  SECURITY: ShieldCheck,
-  POOL: Waves,
-};
+import { AmenityChips } from './AmenityChips';
+import { getAmenities } from '@/lib/api/amenities';
 
 /** Пропы хлебной крошки — передаются из page.tsx (уже имеет переводы). */
 export interface DetailBreadcrumb {
@@ -86,6 +63,8 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
   const t = await getTranslations('listing');
   const tUnits = await getTranslations('units');
   const tEnums = await getTranslations('enums');
+  // Справочник удобств — только когда есть что рендерить (Task 5); кэш 1 час.
+  const amenityOptions = listing.amenities?.length ? await getAmenities() : [];
   const parts = specs(listing, tUnits);
   const similar = await getSimilarListings(listing, 4, locale);
   // Ссылка «Назад к поиску» сохраняет тип сделки текущего объекта.
@@ -250,34 +229,21 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
             </div>
           )}
 
-          {/* Удобства (ADR-0111). Парковка любого типа показывается здесь чипом. */}
+          {/* Удобства (ADR-0111, Task 5 — динамический справочник GET /amenities).
+              Парковка любого типа показывается здесь чипом. */}
           {((listing.amenities && listing.amenities.length > 0) ||
             !!listing.parkingType) && (
             <div className="mt-7">
               <h2 className="text-[22px]">{t('amenities.title')}</h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {listing.amenities?.map((a) => {
-                  const Icon = AMENITY_ICON[a];
-                  return (
-                    <span
-                      key={a}
-                      className="inline-flex items-center gap-1.5 rounded-pill border border-border bg-surface px-3.5 py-2 text-sm font-semibold"
-                    >
-                      <Icon size={15} strokeWidth={2} className="text-teal" />
-                      {tEnums(`amenities.${a}`)}
-                    </span>
-                  );
-                })}
-                {listing.parkingType && (
-                  <span
-                    key="parking"
-                    className="inline-flex items-center gap-1.5 rounded-pill border border-border bg-surface px-3.5 py-2 text-sm font-semibold"
-                  >
-                    <SquareParking size={15} strokeWidth={2} className="text-teal" />
-                    {tEnums(`parking.${listing.parkingType}`)}
-                  </span>
-                )}
-              </div>
+              <AmenityChips
+                codes={listing.amenities ?? []}
+                options={amenityOptions}
+                locale={locale}
+                parkingType={listing.parkingType}
+                parkingLabel={
+                  listing.parkingType ? tEnums(`parking.${listing.parkingType}`) : undefined
+                }
+              />
             </div>
           )}
 

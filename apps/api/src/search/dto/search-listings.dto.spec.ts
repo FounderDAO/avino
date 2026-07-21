@@ -76,9 +76,12 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(inst.amenities).toEqual(['POOL']);
   });
 
-  it('отклоняет невалидное значение amenities', () => {
-    const { errors } = dto({ amenities: ['NOPE'] });
-    expect(errors.length).toBeGreaterThan(0);
+  it('принимает произвольный код amenities (справочник, валидация не в DTO)', () => {
+    // amenities теперь text[] справочника (не enum) — DTO пропускает любой
+    // строковый код; сверка с активным справочником делается на слое сервиса.
+    const { inst, errors } = dto({ amenities: ['NEW_CODE'] });
+    expect(errors).toHaveLength(0);
+    expect(inst.amenities).toEqual(['NEW_CODE']);
   });
 
   it('нормализует одиночный amenities в массив (toArray)', () => {

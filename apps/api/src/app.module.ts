@@ -5,6 +5,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { AdminModule } from './admin';
 import { AgentApplicationsModule } from './agent-applications';
 import { AgentsModule } from './agents';
+import { AmenitiesModule } from './amenities';
 import { BroadcastsModule } from './broadcasts';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -80,6 +81,7 @@ import { UsersModule } from './users/users.module';
     TourRequestsModule,
     AgentApplicationsModule,
     AgentsModule,
+    AmenitiesModule,
   ],
   controllers: [AppController],
   providers: [

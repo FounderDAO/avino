@@ -4,9 +4,9 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import {
-  Amenity,
   Currency,
   Language,
   ListingStatus,
@@ -60,7 +60,7 @@ interface ListingScalarInput {
   rooms?: number;
   bathrooms?: number;
   parking_type?: ParkingType;
-  amenities?: Amenity[];
+  amenities?: string[];
   floor?: number;
   is_basement?: boolean;
   total_floors?: number;
@@ -100,7 +100,7 @@ interface ListingScalarData {
   rooms?: number;
   bathrooms?: number;
   parkingType?: ParkingType;
-  amenities?: Amenity[];
+  amenities?: string[];
   floor?: number;
   isBasement?: boolean;
   totalFloors?: number;
@@ -205,7 +205,7 @@ export interface ListingDetailResponse {
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
-  amenities: Amenity[];
+  amenities: string[];
   floor: number | null;
   is_basement: boolean;
   total_floors: number | null;
@@ -468,6 +468,7 @@ export class ListingsService {
     await this.ensureProfileComplete(ownerId);
     await this.ensureActiveListingQuota(ownerId);
     validateToursInput(dto.tours_enabled ?? false, (dto.tour_windows as TourWindow[]) ?? []);
+    await this.assertAmenityCodes(dto.amenities ?? []);
     // Optional-поля даёт toScalarData; required (после спреда) выставляются явно,
     // чтобы их типы оставались non-undefined. ownerId + nested translations.create
     // резолвят data в UncheckedCreateInput (scalar FK + дочерняя relation).
@@ -605,6 +606,28 @@ export class ListingsService {
   }
 
   /**
+   * Коды удобств (`amenities`) должны существовать в справочнике и быть
+   * видимыми (`is_active=true`) — иначе `422 VALIDATION_ERROR` (справочник
+   * удобств, Task 4). Пустой список — no-op (амедства не переданы/сброшены).
+   */
+  private async assertAmenityCodes(codes: string[]): Promise<void> {
+    if (codes.length === 0) return;
+    const unique = [...new Set(codes)];
+    const found = await this.prisma.amenity.findMany({
+      where: { code: { in: unique }, isActive: true },
+      select: { code: true },
+    });
+    const ok = new Set(found.map((a) => a.code));
+    const bad = unique.filter((c) => !ok.has(c));
+    if (bad.length > 0) {
+      throw new UnprocessableEntityException({
+        code: ApiErrorCode.VALIDATION_ERROR,
+        message: `Unknown or hidden amenity codes: ${bad.join(', ')}`,
+      });
+    }
+  }
+
+  /**
    * `PATCH /api/v1/listings/:id` — обновить собственное объявление.
    * Чужое объявление → `403 FORBIDDEN`; отсутствующее/DELETED → `404 NOT_FOUND`.
    */
@@ -635,6 +658,9 @@ export class ListingsService {
       (dto.tour_windows as TourWindow[]) ??
       ((existing.tourWindows as unknown as TourWindow[]) ?? []);
     validateToursInput(effectiveEnabled, effectiveWindows);
+    if (dto.amenities !== undefined) {
+      await this.assertAmenityCodes(dto.amenities);
+    }
 
     const data: Prisma.ListingUpdateInput = this.toScalarData(dto);
     await this.applyAddress(

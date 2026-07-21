@@ -1,46 +1,49 @@
 /**
  * AmenitiesMultiSelect — мультивыбор удобств (Zillow Phase 2, ADR-0111).
- * Чекбоксы по AMENITIES; тоггл add/remove; «Снять все» → [].
+ * Чекбоксы по динамическому справочнику GET /amenities (Task 5); тоггл
+ * add/remove; «Снять все» → [].
  * Зеркало ParkingMultiSelect, но мультивыбор (toggle в массиве).
  */
 'use client';
 
 import * as React from 'react';
-import { useTranslations } from 'next-intl';
-import { AMENITIES, type Amenity } from '@/lib/mock/types';
+import { useLocale, useTranslations } from 'next-intl';
+import { useListAmenitiesQuery } from '@/store/api/amenitiesApi';
+import { amenityLabel } from '@/lib/amenities';
 import { cn } from '@/lib/utils';
 
 export interface AmenitiesMultiSelectProps {
-  value: Amenity[];
-  onChange: (next: Amenity[]) => void;
+  value: string[];
+  onChange: (next: string[]) => void;
 }
 
 export function AmenitiesMultiSelect({ value, onChange }: AmenitiesMultiSelectProps) {
-  const tEnums = useTranslations('enums');
+  const locale = useLocale();
   const tFilters = useTranslations('search.filters');
+  const { data: amenities = [] } = useListAmenitiesQuery();
 
-  const toggle = (amenity: Amenity) => {
-    if (value.includes(amenity)) onChange(value.filter((v) => v !== amenity));
-    else onChange([...value, amenity]);
+  const toggle = (code: string) => {
+    if (value.includes(code)) onChange(value.filter((v) => v !== code));
+    else onChange([...value, code]);
   };
 
   return (
     <div className="flex flex-col gap-1">
-      {AMENITIES.map((amenity) => (
+      {amenities.map((a) => (
         <label
-          key={amenity}
+          key={a.code}
           className={cn(
             'inline-flex cursor-pointer items-center gap-3 rounded-lg px-3 py-[9px] text-[14.5px] font-semibold text-ink transition-colors hover:bg-mint',
-            value.includes(amenity) && 'bg-mint',
+            value.includes(a.code) && 'bg-mint',
           )}
         >
           <input
             type="checkbox"
-            checked={value.includes(amenity)}
-            onChange={() => toggle(amenity)}
+            checked={value.includes(a.code)}
+            onChange={() => toggle(a.code)}
             className="h-4 w-4 rounded border-border accent-ink"
           />
-          {tEnums(`amenities.${amenity}`)}
+          {amenityLabel(a, locale)}
         </label>
       ))}
       {value.length > 0 && (

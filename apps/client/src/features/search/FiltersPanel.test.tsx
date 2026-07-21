@@ -16,6 +16,12 @@ vi.mock('next-intl', () => ({
   useTranslations: (_ns?: string) => {
     return (key: string) => key;
   },
+  useLocale: () => 'ru',
+}));
+
+// AmenitiesMultiSelect (вложен в FiltersPanel) тянет справочник GET /amenities.
+vi.mock('@/store/api/amenitiesApi', () => ({
+  useListAmenitiesQuery: () => ({ data: [], isLoading: false }),
 }));
 
 // ── Тестовые данные ────────────────────────────────────────────────────────────

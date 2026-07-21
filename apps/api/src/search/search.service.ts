@@ -1287,11 +1287,11 @@ export class SearchService {
       );
 
     // Zillow Phase 2: удобства (AND — есть ВСЕ выбранные; пустой/NULL-массив не матчит).
-    // Нативный тип `"Amenity"[]` (не ::text[]) — чтобы GIN-индекс listings_amenities_idx
-    // реально задействовался планировщиком (каст колонки сбил бы индекс на seq-scan).
+    // Колонка теперь text[] (справочник amenities), containment @> ARRAY[...]::text[]
+    // сохраняет GIN-индекс listings_amenities_idx (типы совпадают, каста колонки нет).
     if (query.amenities !== undefined && query.amenities.length > 0)
       conds.push(
-        Prisma.sql`amenities @> ARRAY[${Prisma.join(query.amenities)}]::"Amenity"[]`,
+        Prisma.sql`amenities @> ARRAY[${Prisma.join(query.amenities)}]::text[]`,
       );
 
     // Zillow Phase 1: диапазон площади (м²)

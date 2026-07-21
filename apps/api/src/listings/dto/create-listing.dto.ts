@@ -20,7 +20,6 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {
-  Amenity,
   Currency,
   Language,
   ParkingType,
@@ -140,8 +139,10 @@ export class CreateListingDto {
 
   @IsOptional()
   @IsArray()
-  @IsEnum(Amenity, { each: true })
-  amenities?: Amenity[];
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  amenities?: string[];
 
   @IsOptional()
   @IsInt()
