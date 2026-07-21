@@ -150,11 +150,13 @@ export function ContactCard({ listing, className }: ContactCardProps) {
             )}
           </div>
           <div className="mt-0.5">
-            {agent.pro ? (
+            {/* Бейдж Avino Pro временно скрыт до запуска продукта:
+            {agent.pro && (
               <span className="inline-block rounded-badge bg-mint px-2.5 py-1 text-[11.5px] font-extrabold text-teal-deep">
                 {t('contact.proBadge')}
               </span>
-            ) : (
+            )} */}
+            {!agent.pro && (
               <span className="text-[13px] text-muted-foreground">{t('contact.owner')}</span>
             )}
           </div>
