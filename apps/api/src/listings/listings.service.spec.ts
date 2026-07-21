@@ -431,6 +431,7 @@ describe('ListingsService', () => {
       activeLimit.getLimit.mockResolvedValue(0);
       const q = await service.getActiveListingQuota('owner-1');
       expect(q).toEqual({ limit: 0, used: 0, blocked: false });
+      expect(prisma.listing.count).not.toHaveBeenCalled();
     });
 
     it('used < limit → blocked=false', async () => {
