@@ -216,15 +216,22 @@ describe('ContactCard', () => {
     expect(screen.getByText('Показать телефон')).toBeInTheDocument();
   });
 
-  it('не показывает бейдж «Риелтор»/«Агентство», если kind === owner', () => {
+  it('не показывает бейдж «Агент»/«Агентство», если kind === owner', () => {
     render(<ContactCard listing={makeListing('+998 90 123-45-67', undefined, 'owner')} />);
-    expect(screen.queryByText('Риелтор')).not.toBeInTheDocument();
+    expect(screen.queryByText('Агент')).not.toBeInTheDocument();
     expect(screen.queryByText('Агентство')).not.toBeInTheDocument();
   });
 
-  it('показывает бейдж «Риелтор», если kind === agent', () => {
+  it('показывает бейдж «Агент», если kind === agent', () => {
     render(<ContactCard listing={makeListing('+998 90 123-45-67', undefined, 'agent')} />);
-    expect(screen.getByText('Риелтор')).toBeInTheDocument();
+    expect(screen.getByText('Агент')).toBeInTheDocument();
+  });
+
+  it('не показывает бейдж «Avino Pro» даже для pro-агента (временно скрыт)', () => {
+    const listing = makeListing('+998 90 123-45-67', undefined, 'agent');
+    listing.agent.pro = true;
+    render(<ContactCard listing={listing} />);
+    expect(screen.queryByText('Avino Pro')).not.toBeInTheDocument();
   });
 
   it('показывает бейдж «Агентство», если kind === agency', () => {
