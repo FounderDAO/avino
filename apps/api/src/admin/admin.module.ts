@@ -10,6 +10,7 @@ import { RolesModule } from '../roles';
 import { SettingsModule, AdminPromotionsFlagController, AdminActiveListingLimitController, AdminMapHoverRecenterFlagController, AdminLegalConsentFlagController } from '../settings';
 import { AdminSupportRequestsController, SupportModule } from '../support';
 import { TranslationsModule } from '../translations';
+import { AdminLegalDocumentsController, LegalDocumentsModule } from '../legal-documents';
 import { AdminListingPromotionsController } from './admin-listing-promotions.controller';
 import { AdminListingsController } from './admin-listings.controller';
 import { AdminPromotionPlansController } from './admin-promotion-plans.controller';
@@ -65,6 +66,7 @@ import { AdminUsersService } from './admin-users.service';
     SupportModule,
     TranslationsModule,
     SettingsModule,
+    LegalDocumentsModule,
   ],
   controllers: [
     AdminAgentApplicationsController,
@@ -82,6 +84,7 @@ import { AdminUsersService } from './admin-users.service';
     AdminActiveListingLimitController,
     AdminMapHoverRecenterFlagController,
     AdminLegalConsentFlagController,
+    AdminLegalDocumentsController,
     AdminUsersController,
     AdminLogsController,
     AdminComplaintsController,
