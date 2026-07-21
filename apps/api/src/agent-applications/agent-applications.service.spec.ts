@@ -25,6 +25,16 @@ const ROW_REJECTED = {
   resolvedAt: new Date('2026-06-07T00:00:00Z'),
 };
 
+const ROW_APPROVED = {
+  id: 'app-4',
+  status: AgentApplicationStatus.APPROVED,
+  agencyName: null,
+  about: 'Опытный маклер',
+  rejectReason: null,
+  createdAt: new Date('2026-06-06T00:00:00Z'),
+  resolvedAt: new Date('2026-06-07T00:00:00Z'),
+};
+
 const ROW_PENDING_FULL = {
   id: 'app-3',
   userId: USER_ID,
@@ -177,7 +187,7 @@ describe('AgentApplicationsService', () => {
   });
 
   describe('getMine', () => {
-    it('returns the latest application', async () => {
+    it('returns the latest application without a role check when not APPROVED', async () => {
       prisma.agentApplication.findFirst.mockResolvedValue(ROW_REJECTED);
 
       const res = await service.getMine(USER_ID);
@@ -186,10 +196,29 @@ describe('AgentApplicationsService', () => {
       expect(prisma.agentApplication.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ orderBy: { createdAt: 'desc' } }),
       );
+      expect(prisma.userRole.count).not.toHaveBeenCalled();
     });
 
     it('404 when the user never applied', async () => {
       prisma.agentApplication.findFirst.mockResolvedValue(null);
+
+      await expect(service.getMine(USER_ID)).rejects.toMatchObject({
+        response: { code: 'NOT_FOUND' },
+      });
+    });
+
+    it('returns an APPROVED application while the user still holds AGENT/AGENCY', async () => {
+      prisma.agentApplication.findFirst.mockResolvedValue(ROW_APPROVED);
+      prisma.userRole.count.mockResolvedValue(1);
+
+      const res = await service.getMine(USER_ID);
+
+      expect(res.status).toBe('APPROVED');
+    });
+
+    it('404 for an APPROVED application after the professional role was revoked', async () => {
+      prisma.agentApplication.findFirst.mockResolvedValue(ROW_APPROVED);
+      prisma.userRole.count.mockResolvedValue(0);
 
       await expect(service.getMine(USER_ID)).rejects.toMatchObject({
         response: { code: 'NOT_FOUND' },

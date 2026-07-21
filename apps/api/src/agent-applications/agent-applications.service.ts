@@ -153,14 +153,28 @@ export class AgentApplicationsService {
     }
   }
 
-  /** `GET /api/v1/users/me/agent-application` — последняя заявка или 404. */
+  /**
+   * `GET /api/v1/users/me/agent-application` — последняя заявка или 404.
+   * APPROVED-заявка отдаётся только пока пользователь реально держит роль
+   * AGENT/AGENCY: после отзыва роли админом она — история, а не текущий
+   * статус, и не должна блокировать повторную подачу (клиент /become-agent
+   * трактует APPROVED как «вы уже агент», а 404 — как «заявок нет» → форма).
+   */
   async getMine(userId: string): Promise<AgentApplicationResponse> {
     const row = await this.prisma.agentApplication.findFirst({
       where: { userId },
       select: APPLICATION_SELECT,
       orderBy: { createdAt: 'desc' },
     });
-    if (!row) {
+    const roleRevoked =
+      row?.status === AgentApplicationStatus.APPROVED &&
+      (await this.prisma.userRole.count({
+        where: {
+          userId,
+          role: { code: { in: [UserRole.AGENT, UserRole.AGENCY] } },
+        },
+      })) === 0;
+    if (!row || roleRevoked) {
       throw new NotFoundException({
         code: ApiErrorCode.NOT_FOUND,
         message: 'Agent application not found',
