@@ -1368,6 +1368,9 @@ agent_applications_new, support_requests_new }`:
 | `AGENT_APPLICATION_PENDING` | 409 | Заявка «Стать агентом» уже на рассмотрении |
 | `ALREADY_AGENT` | 409 | У пользователя уже есть роль AGENT/AGENCY |
 | `AMENITY_CODE_TAKEN` | 409 | `code` удобства уже занят (или не удалось сгенерировать slug из label_en) |
+| `LEGAL_DRAFT_EXISTS` | 422 | Черновик этого типа документа уже существует; удалите его или опубликуйте перед созданием нового |
+| `LEGAL_NOT_DRAFT` | 422 | Документ не в статусе DRAFT (операция доступна только для черновиков) |
+| `LEGAL_TRANSLATIONS_INCOMPLETE` | 422 | Не все 6 полей (title_ru/uz/en, body_md_ru/uz/en) заполнены для публикации |
 | `INTERNAL_ERROR` | 500 | Внутренняя ошибка |
 
 Примеры тел:
@@ -1639,3 +1642,160 @@ surveillance` → `VIDEO_SURVEILLANCE`); если передан вручную 
 ```
 200 → обновлённый элемент. Errors: `400 VALIDATION_ERROR`,
 `404 NOT_FOUND`.
+
+## 23. Legal documents (версионированные юр-документы + согласие)
+
+Юридические документы (Условия использования, Политика конфиденциальности) —
+версионируемые многоязычные тексты. Хранятся в трёх локалях (uz/ru/en) и имеют
+три статуса: DRAFT (в редакции), PUBLISHED (опубликована, заморожена),
+ARCHIVED (заменена новой версией). Старая PUBLISHED версия при публикации новой
+архивируется. При публикации с `requires_consent=true` бампится
+`legal_consent_version` — все пользователи получат блок-модалку повторного согласия
+при следующем входе.
+
+Контракт полного документа (admin, snake_case):
+```json
+{
+  "id": "uuid",
+  "kind": "TERMS" | "PRIVACY",
+  "version": 1,
+  "status": "DRAFT" | "PUBLISHED" | "ARCHIVED",
+  "published_at": "2026-07-21T12:00:00.000Z" | null,
+  "created_at": "2026-07-20T12:00:00.000Z",
+  "updated_at": "2026-07-21T12:00:00.000Z",
+  "title_ru": "Условия использования",
+  "title_uz": "Foydalanish shartlari",
+  "title_en": "Terms of Use",
+  "body_md_ru": "## Общие положения {#general}\nТекст раздела...",
+  "body_md_uz": "## Umumiy qoidalar {#general}\nBo'lim matni...",
+  "body_md_en": "## General provisions {#general}\nSection text..."
+}
+```
+
+### GET /api/v1/legal/:kind
+Получить опубликованную версию юр-документа одной локали. Auth: **public**.
+`:kind` = `terms` или `privacy` (слаги, строчные). Accept-Language определяет
+локаль (`uz*` → uz, `en*` → en, иначе ru; дефолт ru).
+
+```bash
+GET /api/v1/legal/terms
+Accept-Language: ru-RU
+```
+
+200 → контракт одной локали:
+```json
+{
+  "kind": "terms",
+  "version": 1,
+  "title": "Условия использования",
+  "body_md": "## Общие положения {#general}\nТекст раздела...",
+  "published_at": "2026-07-21T12:00:00.000Z"
+}
+```
+
+404 → `{ "code": "NOT_FOUND", "message": "..." }` — пока нет опубликованной
+версии или неизвестный kind (клиент должен иметь встроенный fallback).
+
+### GET /api/v1/admin/legal-documents
+Список всех версий (метаданные, без тел). Auth: **ADMIN**.
+
+Query parameters:
+- `?kind=TERMS` или `?kind=PRIVACY` — фильтр (опционально).
+
+200 → массив элементов (без `title_*` и `body_md_*`):
+```json
+[
+  {
+    "id": "uuid",
+    "kind": "TERMS",
+    "version": 1,
+    "status": "PUBLISHED",
+    "published_at": "2026-07-21T12:00:00.000Z",
+    "created_at": "2026-07-20T12:00:00.000Z",
+    "updated_at": "2026-07-21T12:00:00.000Z"
+  },
+  {
+    "id": "uuid",
+    "kind": "TERMS",
+    "version": 2,
+    "status": "DRAFT",
+    "published_at": null,
+    "created_at": "2026-07-21T13:00:00.000Z",
+    "updated_at": "2026-07-21T13:00:00.000Z"
+  }
+]
+```
+
+### GET /api/v1/admin/legal-documents/:id
+Получить полный документ (все 3 локали + метаданные). Auth: **ADMIN**.
+
+```bash
+GET /api/v1/admin/legal-documents/uuid
+```
+
+200 → полный контракт (см. выше). Errors: `404 NOT_FOUND`.
+
+### POST /api/v1/admin/legal-documents
+Создать черновик (DRAFT). Копирует тексты из последней PUBLISHED версии
+(если существует). Auth: **ADMIN**.
+
+Request body:
+```json
+{ "kind": "TERMS" }
+```
+
+`kind` обязателен (TERMS или PRIVACY).
+
+201 → новый DRAFT контракт. Errors: `422 LEGAL_DRAFT_EXISTS` (черновик по этому
+типу уже существует; удалите старый или опубликуйте его перед созданием нового),
+`400 VALIDATION_ERROR`.
+
+### PATCH /api/v1/admin/legal-documents/:id
+Редактировать тексты DRAFT версии (любое подмножество 6 полей). Auth: **ADMIN**.
+
+Request body (опциональные поля):
+```json
+{
+  "title_ru": "...",
+  "title_uz": "...",
+  "title_en": "...",
+  "body_md_ru": "...",
+  "body_md_uz": "...",
+  "body_md_en": "..."
+}
+```
+
+DTO допускает пустые строки — гейт непустоты применяется только при публикации
+(см. ниже `POST .../publish`, `422 LEGAL_TRANSLATIONS_INCOMPLETE`), не на PATCH.
+
+200 → обновлённый документ. Errors: `422 LEGAL_NOT_DRAFT` (документ не черновик,
+статус не DRAFT), `404 NOT_FOUND`.
+
+### POST /api/v1/admin/legal-documents/:id/publish
+Опубликовать DRAFT версию. Старая PUBLISHED архивируется (status → ARCHIVED),
+новая получает version = max+1. При `requires_consent=true` также бампится
+`legal_consent_version`. Auth: **ADMIN**.
+
+Request body:
+```json
+{ "requires_consent": true }
+```
+
+`requires_consent` обязателен (boolean: true или false). При `true` бампится
+`legal_consent_version`, что приведёт к блок-модалке согласия для всех пользователей
+при следующем входе.
+
+201 → опубликованный документ (status = PUBLISHED, version увеличена).
+Errors: `422 LEGAL_NOT_DRAFT` (только черновики можно публиковать),
+`422 LEGAL_TRANSLATIONS_INCOMPLETE` (не все 6 полей title_*/body_md_* непусты),
+`404 NOT_FOUND`.
+
+### DELETE /api/v1/admin/legal-documents/:id
+Удалить DRAFT версию. Auth: **ADMIN**.
+
+```bash
+DELETE /api/v1/admin/legal-documents/uuid
+```
+
+204 → успешно удалён. Errors: `422 LEGAL_NOT_DRAFT` (только черновики можно
+удалять), `404 NOT_FOUND`.

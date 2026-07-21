@@ -7,6 +7,7 @@ import { LegalDocument } from '@/features/legal/LegalDocument';
 import { getLegalDoc } from '@/content/legal';
 import { alternatesFor } from '@/lib/seo/alternates';
 import type { Locale } from '@/i18n/routing';
+import { fetchLegalDoc, toLegalDoc } from '@/lib/api/legal';
 
 export async function generateMetadata({
   params,
@@ -28,5 +29,8 @@ export default async function PrivacyPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  return <LegalDocument doc={getLegalDoc('privacy', locale as Locale)} locale={locale as Locale} />;
+  // API-версия (админ публиковал) или вшитый фолбэк (пусто/API недоступен).
+  const apiDoc = await fetchLegalDoc('privacy', locale);
+  const doc = apiDoc ? toLegalDoc(apiDoc) : getLegalDoc('privacy', locale as Locale);
+  return <LegalDocument doc={doc} locale={locale as Locale} />;
 }

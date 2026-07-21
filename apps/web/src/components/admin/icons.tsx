@@ -33,6 +33,7 @@ import {
   TriangleAlert,
   ListChecks,
   Pencil,
+  FileText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -65,6 +66,7 @@ export const IC = {
   Alert: TriangleAlert,
   Checklist: ListChecks,
   Edit: Pencil,
+  FileText,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof IC;

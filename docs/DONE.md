@@ -37,6 +37,73 @@ Related ADR:
 
 ---
 
+## 2026-07-21
+
+### TASK — Админ-управление юр-документами (Правила / Политика)
+
+Status: DONE
+Branch: feat/admin-legal-documents
+PR: pending
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260721130000_legal_documents/
+- apps/api/src/legal-documents/legal-documents.service.ts
+- apps/api/src/legal-documents/legal-documents.controller.ts
+- apps/api/src/legal-documents/admin-legal-documents.controller.ts
+- apps/api/src/legal-documents/legal-documents.module.ts
+- apps/api/src/legal-documents/dto/*.ts
+- apps/api/src/legal-documents/legal-documents.int-spec.ts
+- packages/shared/src/legal-markdown.ts
+- apps/client/src/lib/api/legal.ts
+- apps/client/src/app/[locale]/legal/{terms,privacy}/page.tsx
+- apps/web/src/app/admin/legal/
+- apps/web/src/store/api (RTK Query slice для `/admin/legal-documents`)
+- docs/API.md (§23)
+- docs/adr/ADR-0149-admin-legal-documents.md
+
+Summary:
+- Тексты Правил/Политики раньше были захардкожены per-locale TS-модулями —
+  любое изменение требовало деплоя. Теперь это версионируемая таблица
+  `legal_documents` (DRAFT/PUBLISHED/ARCHIVED), публикуемая из админки без
+  деплоя.
+- Ключевые роуты: публичный `GET /api/v1/legal/:kind` (terms|privacy, по
+  `Accept-Language`, 404 до первой публикации); admin CRUD
+  `/api/v1/admin/legal-documents` (список, создание черновика с префиллом,
+  PATCH, `POST /:id/publish`, DELETE черновика).
+- Publish-транзакция: гейт полноты 6 полей (title+bodyMd × ru/uz/en) → 422
+  `LEGAL_TRANSLATIONS_INCOMPLETE`; `version = max+1`; прежний PUBLISHED →
+  ARCHIVED; чекбокс «требует повторного согласия» бампает
+  `legal_consent_version` через `LegalConsentFlagService` (блок-модалка у
+  всех пользователей); audit-log `LEGAL_DOCUMENT_PUBLISH`.
+- Markdown-подмножество (`parseLegalMarkdown`, `@avino/shared`): заголовки,
+  подзаголовки, списки, абзацы — без инлайн-разметки (сознательный YAGNI,
+  инъекции исключены by construction). Общий парсер для клиентского рендера
+  и админ-предпросмотра с предупреждениями о якорях.
+- Клиент (`apps/client`) — серверный фетч (не RTK Query, `revalidate: 300`,
+  контент должен попасть в SSR-HTML); при 404/ошибке — фолбэк на вшитый
+  TS-контент, который остаётся в коде навсегда как fail-safe.
+- Админка (`apps/web`) `/admin/legal` — вкладки Правила/Политика, карточка
+  текущей PUBLISHED-версии, история версий, редактор черновика на 3 локали
+  с предпросмотром, publish-диалог с чекбоксом.
+- Live-verify пройден на локальном стеке: API-флоу (create draft → edit →
+  publish → archive prev), админка в браузере, клиентские страницы через
+  ISR (API-документ и фолбэк-путь).
+
+Commit messages:
+- feat(shared): parseLegalMarkdown + legalAnchorWarnings
+- feat(api): модель legal_documents + миграция
+- feat(api): LegalDocumentsService — draft/publish, коды ошибок
+- feat(api): публичный GET /legal/:kind + admin CRUD /admin/legal-documents
+- feat(client): страницы /legal/terms|privacy на серверном фетче + фолбэк
+- feat(web): страница /admin/legal — редактор с предпросмотром и publish-диалогом
+- docs: ADR admin-управления юр-документами
+
+Related ADR:
+- docs/adr/ADR-0149-admin-legal-documents.md
+
+---
+
 ## 2026-07-06
 
 ### TASK-251 — Динамический price filter из цен текущей выдачи (client)

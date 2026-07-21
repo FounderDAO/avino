@@ -4699,6 +4699,184 @@
         }
       }
     },
+    "/api/v1/admin/legal-documents": {
+      "get": {
+        "operationId": "AdminLegalDocumentsController_list",
+        "parameters": [
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "description": "Фильтр по типу документа (TERMS или PRIVACY); без параметра возвращаются все",
+            "schema": {
+              "enum": [
+                "TERMS",
+                "PRIVACY"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "AdminLegalDocumentsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLegalDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/legal-documents/{id}": {
+      "get": {
+        "operationId": "AdminLegalDocumentsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "AdminLegalDocumentsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLegalDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "AdminLegalDocumentsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/admin/legal-documents/{id}/publish": {
+      "post": {
+        "operationId": "AdminLegalDocumentsController_publish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishLegalDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/users": {
       "get": {
         "operationId": "AdminUsersController_list",
@@ -5321,6 +5499,41 @@
                   "items": {
                     "type": "object"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legal/{kind}": {
+      "get": {
+        "operationId": "LegalDocumentsController_get",
+        "parameters": [
+          {
+            "name": "kind",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accept-language",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
                 }
               }
             }
@@ -6698,6 +6911,51 @@
             "minimum": 1
           }
         }
+      },
+      "CreateLegalDocumentDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "UpdateLegalDocumentDto": {
+        "type": "object",
+        "properties": {
+          "title_ru": {
+            "type": "string"
+          },
+          "title_uz": {
+            "type": "string"
+          },
+          "title_en": {
+            "type": "string"
+          },
+          "body_md_ru": {
+            "type": "string"
+          },
+          "body_md_uz": {
+            "type": "string"
+          },
+          "body_md_en": {
+            "type": "string"
+          }
+        }
+      },
+      "PublishLegalDocumentDto": {
+        "type": "object",
+        "properties": {
+          "requires_consent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requires_consent"
+        ]
       },
       "UpdateAdminUserDto": {
         "type": "object",
