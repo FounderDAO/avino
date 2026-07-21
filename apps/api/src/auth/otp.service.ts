@@ -14,6 +14,7 @@ import { SmsService } from '../sms';
 import { TelegramService, formatOtpRequest } from '../telegram';
 import { normalizeContact } from './contact.util';
 import { generateOtpCode, hashOtpCode } from './otp-hash.util';
+import { createOtpCode, invalidateActiveOtpCodes } from './otp-code.util';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { isReviewerBypass, type OtpBypassConfig } from './otp-bypass.util';
@@ -123,24 +124,15 @@ export class OtpService {
     const user = await this.findActiveUser(dto.channel, destination);
 
     // Старые неиспользованные коды на этот контакт гасим — валиден только новый.
-    await this.prisma.otpCode.updateMany({
-      where: {
-        destination,
-        purpose: OtpPurpose.LOGIN,
-        consumedAt: null,
-      },
-      data: { consumedAt: new Date() },
-    });
+    await invalidateActiveOtpCodes(this.prisma, destination, OtpPurpose.LOGIN);
 
-    await this.prisma.otpCode.create({
-      data: {
-        userId: user?.id ?? null,
-        channel: dto.channel,
-        destination,
-        purpose: OtpPurpose.LOGIN,
-        codeHash,
-        expiresAt,
-      },
+    await createOtpCode(this.prisma, {
+      userId: user?.id ?? null,
+      channel: dto.channel,
+      destination,
+      purpose: OtpPurpose.LOGIN,
+      codeHash,
+      expiresAt,
     });
 
     const isNewUser = user == null;

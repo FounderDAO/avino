@@ -43,6 +43,6 @@ import { TokenService } from './token.service';
     GoogleAuthService,
     AppleAuthService,
   ],
-  exports: [OtpService, TokenService],
+  exports: [OtpService, TokenService, OtpRateLimitService],
 })
 export class AuthModule {}

@@ -361,6 +361,62 @@
         }
       }
     },
+    "/api/v1/users/me/contact-change/request": {
+      "post": {
+        "operationId": "UsersController_requestContactChange",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestContactChangeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/contact-change/verify": {
+      "post": {
+        "operationId": "UsersController_verifyContactChange",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyContactChangeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/profile": {
       "patch": {
         "operationId": "UsersController_updateProfile",
@@ -5965,14 +6021,48 @@
       "UpdateUserDto": {
         "type": "object",
         "properties": {
-          "email": {
-            "type": "string",
-            "maxLength": 255
-          },
           "default_language": {
             "type": "object"
           }
         }
+      },
+      "RequestContactChangeDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "object"
+          },
+          "destination": {
+            "type": "string",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "channel",
+          "destination"
+        ]
+      },
+      "VerifyContactChangeDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "object"
+          },
+          "destination": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "code": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 6
+          }
+        },
+        "required": [
+          "channel",
+          "destination",
+          "code"
+        ]
       },
       "UpdateProfileDto": {
         "type": "object",
