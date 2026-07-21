@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SettingsModule } from '../settings';
+import { LegalDocumentsController } from './legal-documents.controller';
 import { LegalDocumentsService } from './legal-documents.service';
 
 /**
@@ -10,6 +11,7 @@ import { LegalDocumentsService } from './legal-documents.service';
  */
 @Module({
   imports: [SettingsModule],
+  controllers: [LegalDocumentsController],
   providers: [LegalDocumentsService],
   exports: [LegalDocumentsService],
 })

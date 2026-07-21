@@ -10,6 +10,7 @@ import { ExchangeRateModule } from '../../exchange-rates/exchange-rate.module';
 import { FavoritesModule } from '../../favorites';
 import { GeoModule } from '../../geo';
 import { HealthModule } from '../../health/health.module';
+import { LegalDocumentsModule } from '../../legal-documents';
 import { ListingMediaModule } from '../../listing-media';
 import { ListingsModule } from '../../listings/listings.module';
 import { NotificationsModule } from '../../notifications';
@@ -49,6 +50,7 @@ export const PUBLIC_MODULES = [
   ExchangeRateModule,
   HealthModule,
   SettingsModule,
+  LegalDocumentsModule,
 ];
 
 /**
@@ -75,6 +77,7 @@ export const PUBLIC_PATH_PREFIXES = [
   '/api/v1/exchange-rate',
   '/api/v1/health',
   '/api/v1/settings', // покрывает /api/v1/settings/public (admin/* остаётся в internal)
+  '/api/v1/legal',
 ];
 
 /** Базовая конфигурация документа (заголовок, версия, bearer-схема). */

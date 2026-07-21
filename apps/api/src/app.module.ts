@@ -18,6 +18,7 @@ import { ExchangeRateModule } from './exchange-rates/exchange-rate.module';
 import { FavoritesModule } from './favorites';
 import { GeoModule } from './geo';
 import { HealthModule } from './health/health.module';
+import { LegalDocumentsModule } from './legal-documents';
 import { ListingMediaModule } from './listing-media';
 import { ListingsModule } from './listings/listings.module';
 import { MediaCleanupModule } from './media-cleanup/media-cleanup.module';
@@ -82,6 +83,7 @@ import { UsersModule } from './users/users.module';
     AgentApplicationsModule,
     AgentsModule,
     AmenitiesModule,
+    LegalDocumentsModule,
   ],
   controllers: [AppController],
   providers: [
