@@ -37,13 +37,15 @@ const COLS: {
       { labelKey: 'buy', href: '/search?tx=SALE' },
       { labelKey: 'rent', href: '/search?tx=RENT' },
       { labelKey: 'newConstruction', href: '/search?tx=SALE&new_construction=true' },
-      { labelKey: 'mortgage', href: '/help' },
+      // Временно скрыто: mortgage (Ипотека)
+      // { labelKey: 'mortgage', href: '/help' },
     ],
   },
   {
     headingKey: 'forProfessionals',
     links: [
-      { label: 'Avino Pro', href: '/sell' },
+      // Временно скрыто: Avino Pro
+      // { label: 'Avino Pro', href: '/sell' },
       { labelKey: 'postProperty', href: '/sell' },
       { labelKey: 'pricing', href: '/sell' },
       { labelKey: 'advertisers', href: '/advertise' },
