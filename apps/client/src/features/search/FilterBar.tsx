@@ -64,6 +64,8 @@ export interface FilterValues {
   districtId?: string;
   /** UUID выбранного региона (`?region_id=`); используется для каскада «Регион → Район». */
   regionId?: string;
+  /** Явный выбор «Все регионы» (`?region_id=all`) — отключает дефолтный Ташкент. */
+  allRegions?: boolean;
   /** Точное число комнат. */
   rooms?: number;
   /** «N+» режим комнат. */
@@ -105,9 +107,14 @@ export interface FilterBarProps {
   districts: District[];
   /** Список регионов для каскадного дропдауна (GET /geo/regions). */
   regions: Region[];
+  /**
+   * Регион дефолтной выдачи (Ташкент): когда явный регион не выбран, дропдаун
+   * «Район» показывает районы этого региона, а выбор района дописывает его в URL.
+   */
+  fallbackRegionId?: string;
 }
 
-export function FilterBar({ values, districts, regions }: FilterBarProps) {
+export function FilterBar({ values, districts, regions, fallbackRegionId }: FilterBarProps) {
   const t = useTranslations();
   const tSearch = useTranslations('search');
   const router = useRouter();
@@ -236,17 +243,25 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
   const selectedRegion = values.regionId
     ? regions.find((r) => r.id === values.regionId)
     : undefined;
-  const regionLabel = selectedRegion?.name ?? tSearch('filters.region');
-  // Список районов, отфильтрованный по выбранному региону.
-  const regionDistricts = values.regionId
-    ? districts.filter((d) => d.regionId === values.regionId)
-    : [];
+  const regionLabel =
+    selectedRegion?.name ??
+    (values.allRegions ? tSearch('filters.allRegions') : tSearch('filters.region'));
 
   // Район.
   const selectedDistrict = values.districtId
     ? districts.find((d) => d.id === values.districtId)
     : undefined;
   const districtLabel = selectedDistrict?.name ?? tSearch('filters.district');
+
+  // Регион для каскада районов: явный выбор → регион выбранного района (ссылки
+  // ?district_id= без региона) → регион дефолтной выдачи (Ташкент). Чип «Регион»
+  // при этом остаётся пустым — активен только явный values.regionId.
+  const cascadeRegionId =
+    values.regionId ?? selectedDistrict?.regionId ?? fallbackRegionId;
+  // Список районов, отфильтрованный по региону каскада.
+  const regionDistricts = cascadeRegionId
+    ? districts.filter((d) => d.regionId === cascadeRegionId)
+    : [];
 
   // ⚙ Фильтры — активен, если хоть одно поле задано.
   const extraActive = Boolean(
@@ -572,7 +587,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
             <DropdownTrigger asChild>
               <TriggerButton
                 label={regionLabel}
-                active={Boolean(values.regionId)}
+                active={Boolean(values.regionId || values.allRegions)}
                 data-testid="filter-region"
               />
             </DropdownTrigger>
@@ -582,7 +597,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
                   вернул бы дефолтный Ташкент (см. search/page.tsx). */}
               <DropdownItem
                 onSelect={() => setParams({ region_id: 'all', district_id: undefined })}
-                selected={!values.regionId}
+                selected={Boolean(values.allRegions)}
                 className="text-[14.5px]"
               >
                 {tSearch('filters.allRegions')}
@@ -612,8 +627,8 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
                 label={districtLabel}
                 active={Boolean(values.districtId)}
                 data-testid="filter-district"
-                disabled={!values.regionId}
-                title={!values.regionId ? tSearch('filters.regionRequired') : undefined}
+                disabled={!cascadeRegionId}
+                title={!cascadeRegionId ? tSearch('filters.regionRequired') : undefined}
               />
             </DropdownTrigger>
             <DropdownContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto p-2">
@@ -628,7 +643,11 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
                 <DropdownItem
                   key={d.id}
                   onSelect={() =>
+                    // Регион пишем в URL вместе с районом: иначе после выбора
+                    // района из дефолтного (не записанного в URL) Ташкента
+                    // сервер перестал бы подставлять регион и каскад ломался.
                     setParams({
+                      region_id: cascadeRegionId,
                       district_id: values.districtId === d.id ? undefined : d.id,
                     })
                   }

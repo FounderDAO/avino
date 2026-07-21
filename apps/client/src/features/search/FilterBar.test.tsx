@@ -272,6 +272,56 @@ describe('FilterBar (Zillow-раскладка)', () => {
     expect(screen.queryByText('Ангрен')).toBeNull();
   });
 
+  it('без региона, но с fallbackRegionId «Район» доступен и показывает районы дефолтного региона', async () => {
+    const user = userEvent.setup();
+    render(
+      <FilterBar
+        values={baseValues}
+        districts={districtsWithRegions}
+        regions={regions}
+        fallbackRegionId="r1"
+      />,
+    );
+    const trigger = screen.getByTestId('filter-district');
+    expect(trigger).toBeEnabled();
+    await user.click(trigger);
+    expect(screen.getByText('Юнусабадский')).toBeInTheDocument();
+    expect(screen.queryByText('Ангрен')).toBeNull();
+  });
+
+  it('выбор района без явного региона пишет в URL и region_id (fallback), и district_id', async () => {
+    const user = userEvent.setup();
+    render(
+      <FilterBar
+        values={baseValues}
+        districts={districtsWithRegions}
+        regions={regions}
+        fallbackRegionId="r1"
+      />,
+    );
+    await user.click(screen.getByTestId('filter-district'));
+    await user.click(screen.getByText('Юнусабадский'));
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+    const url = mockReplace.mock.calls[0][0] as string;
+    expect(url).toContain('region_id=r1');
+    expect(url).toContain('district_id=yuna-id');
+  });
+
+  it('чип «Регион» неактивен без явного выбора даже при fallbackRegionId', () => {
+    render(
+      <FilterBar
+        values={baseValues}
+        districts={districtsWithRegions}
+        regions={regions}
+        fallbackRegionId="r1"
+      />,
+    );
+    // Лейбл остаётся плейсхолдером 'search.filters.region' — не именем региона.
+    expect(
+      screen.getByRole('button', { name: /search\.filters\.region$/i }),
+    ).toBeInTheDocument();
+  });
+
   it('смена региона сбрасывает district_id в URL', async () => {
     // Начальный URL содержит и region_id, и district_id
     mockSearchParamsStr = 'tx=SALE&region_id=r1&district_id=yuna-id';

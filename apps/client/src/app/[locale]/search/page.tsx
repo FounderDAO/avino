@@ -267,9 +267,10 @@ export default async function SearchPage({
   // как и карта по умолчанию, независимо от количества результатов.
   // Явный выбор «Все регионы» приходит как ?region_id=all и дефолт отключает.
   // Фильтр по агенту тоже отключает дефолт: его объявления могут быть где угодно.
+  const tashkentRegionId = regions.find((r) => r.code === TASHKENT_REGION_CODE)?.id;
   const defaultRegionId =
     !districtId && !regionId && !allRegions && !query && !initialBounds && !initialPolygon && !agentId
-      ? regions.find((r) => r.code === TASHKENT_REGION_CODE)?.id
+      ? tashkentRegionId
       : undefined;
   const effectiveRegionId = regionId ?? defaultRegionId;
 
@@ -341,8 +342,11 @@ export default async function SearchPage({
     type,
     types: types.length > 0 ? types : undefined,
     districtId,
-    // Дефолтный Ташкент показываем и в UI (чип «Регион», каскад районов).
-    regionId: effectiveRegionId,
+    // Дефолтный Ташкент в UI НЕ показываем: чипы пустые, пока пользователь не
+    // выбрал локацию явно; выдача при этом остаётся Ташкентом (effectiveRegionId).
+    // Каскад районов работает через fallbackRegionId у FilterBar.
+    regionId,
+    allRegions: allRegions || undefined,
     rooms,
     roomsMin,
     bathroomsMin,
@@ -398,7 +402,12 @@ export default async function SearchPage({
 
   return (
     <div className="fade-up">
-      <FilterBar values={filterValues} districts={districts} regions={regions} />
+      <FilterBar
+        values={filterValues}
+        districts={districts}
+        regions={regions}
+        fallbackRegionId={tashkentRegionId}
+      />
       <SearchResults
         listings={page.listings}
         total={page.total}
