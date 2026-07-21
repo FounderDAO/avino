@@ -1,7 +1,3 @@
-import { INestApplication, VersioningType } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { Test } from '@nestjs/testing';
 import {
   Currency,
   Language,
@@ -10,13 +6,11 @@ import {
   TransactionType,
   TranslationSource,
 } from '@prisma/client';
-import { AppConfigModule } from '../config';
 import { AddressResolverService, DistrictsService } from '../geo';
-import { PrismaModule, PrismaService } from '../prisma';
-import { ACTIVE_LISTING_LIMIT_KEY, ActiveListingLimitService } from '../settings';
+import { PrismaService } from '../prisma';
+import { ActiveListingLimitService } from '../settings';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
-import { ListingsModule } from './listings.module';
 import { ListingsService } from './listings.service';
 
 // Медиа-подпись здесь не тестируется (ADR-0086) — echo сохранённого url, без S3.
@@ -162,35 +156,44 @@ describe('ListingsService contact block (integration, TASK-210)', () => {
 });
 
 /**
- * Integration-тест проактивного agent-gate `GET /listings/quota`
- * (.superpowers/sdd/task-2-brief.md): роут оборачивает
- * {@link ListingsService.getActiveListingQuota} Bearer-эндпоинтом. Тест
- * работает на HTTP-уровне (проверяет guard + путь, а не только сервис),
- * поэтому поднимает Nest-приложение из `AppConfigModule` + `ListingsModule`
- * (не весь `AppModule` — Redis/очереди/realtime этому роуту не нужны) и бьёт
- * по нему нативным `fetch` (Node ≥ 20, как {@link YandexTranslationProvider}):
- * `supertest` в зависимостях `@avino/api` нет, а добавлять новую зависимость
- * вне рамок задачи нельзя.
+ * Integration-тест проактивного agent-gate `ListingsService.getActiveListingQuota`
+ * (.superpowers/sdd/task-2-brief.md) на живом PostgreSQL. Сервис-уровень (без
+ * HTTP/guard/config-модуля — как остальные int-spec'и репозитория, см.
+ * agent-applications.int-spec.ts): метод использует только
+ * `prisma.userRole.count`, `activeLimit.getLimit()` и `prisma.listing.count`,
+ * поэтому конструируем `ListingsService` напрямую со стабами для
+ * зависимостей, которых он не трогает.
+ *
+ * Изоляция — уникальный `city_id`; данные удаляются в `afterAll`. Лимит
+ * задаётся стабом `activeLimit.getLimit`, а не через `app_settings` — не
+ * трогаем общий ключ `ACTIVE_LISTING_LIMIT_KEY`, который может читаться
+ * соседними прогонами.
  */
-describe('GET /listings/quota (integration)', () => {
-  let app: INestApplication;
-  let baseUrl: string;
-  let prisma: PrismaService;
-  let jwt: JwtService;
-  let accessSecret: string;
-
-  let userId: string;
-  let previousLimitValue: string | null;
+describe('ListingsService.getActiveListingQuota (integration)', () => {
+  const prisma = new PrismaService();
+  let limit = 2;
+  const activeLimit = {
+    getLimit: async () => limit,
+  } as unknown as ActiveListingLimitService;
+  const listings = new ListingsService(
+    prisma,
+    {} as unknown as TranslationsService,
+    {} as unknown as DistrictsService,
+    {} as unknown as UploadsService,
+    activeLimit,
+    {} as unknown as AddressResolverService,
+  );
 
   const CITY_ID = '77777777-3333-4444-8555-000000000230';
 
-  function signToken(sub: string): Promise<string> {
-    return jwt.signAsync({ sub, roles: [] }, { secret: accessSecret });
-  }
+  let plainUserId: string;
+  let blockedUserId: string;
+  let agentUserId: string;
 
   async function createActiveListing(
     id: string,
     ownerId: string,
+    status: ListingStatus = ListingStatus.ACTIVE,
   ): Promise<void> {
     await prisma.listing.create({
       data: {
@@ -198,7 +201,7 @@ describe('GET /listings/quota (integration)', () => {
         ownerId,
         transactionType: TransactionType.SALE,
         propertyType: PropertyType.APARTMENT,
-        status: ListingStatus.ACTIVE,
+        status,
         originalLanguage: Language.RU,
         price: '100000.00',
         currency: Currency.UZS,
@@ -218,82 +221,88 @@ describe('GET /listings/quota (integration)', () => {
   }
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppConfigModule, PrismaModule, ListingsModule],
-    }).compile();
-
-    app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api');
-    app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
-    await app.init();
-    await app.listen(0);
-    baseUrl = await app.getUrl();
-
-    prisma = app.get(PrismaService);
-    jwt = app.get(JwtService);
-    accessSecret = app.get(ConfigService).get<string>('jwt.accessSecret')!;
-
+    await prisma.$connect();
     await prisma.listing.deleteMany({ where: { cityId: CITY_ID } });
-    const user = await prisma.user.create({ data: { phone: '+998901230230' } });
-    userId = user.id;
 
-    // Запомнить лимит, который уже был в БД, чтобы восстановить его в afterAll
-    // и не оставлять состояние изменённым для соседних прогонов.
-    const existing = await prisma.appSetting.findUnique({
-      where: { key: ACTIVE_LISTING_LIMIT_KEY },
+    // Роль AGENT: idempotent upsert как в харнесе листингов/agent-applications
+    // — переживает уже засиженную роль.
+    const agentRole = await prisma.role.upsert({
+      where: { code: 'AGENT' },
+      update: {},
+      create: { code: 'AGENT' },
     });
-    previousLimitValue = existing?.value ?? null;
+
+    const plainUser = await prisma.user.create({ data: { phone: '+998901230231' } });
+    plainUserId = plainUser.id;
+
+    const blockedUser = await prisma.user.create({ data: { phone: '+998901230232' } });
+    blockedUserId = blockedUser.id;
+
+    const agentUser = await prisma.user.create({
+      data: {
+        phone: '+998901230233',
+        roles: { create: [{ role: { connect: { id: agentRole.id } } }] },
+      },
+    });
+    agentUserId = agentUser.id;
   });
 
   afterAll(async () => {
+    // Листинги — раньше пользователей (owner FK ON DELETE RESTRICT); user_roles
+    // каскадно удаляются вместе с пользователем.
     await prisma.listing.deleteMany({ where: { cityId: CITY_ID } });
-    if (userId) {
-      await prisma.user.delete({ where: { id: userId } });
+    const userIds = [plainUserId, blockedUserId, agentUserId].filter(
+      (id): id is string => Boolean(id),
+    );
+    for (const id of userIds) {
+      await prisma.user.delete({ where: { id } });
     }
-    if (previousLimitValue === null) {
-      await prisma.appSetting
-        .delete({ where: { key: ACTIVE_LISTING_LIMIT_KEY } })
-        .catch(() => undefined);
-    } else {
-      await prisma.appSetting.update({
-        where: { key: ACTIVE_LISTING_LIMIT_KEY },
-        data: { value: previousLimitValue },
-      });
-    }
-    await app.close();
+    await prisma.$disconnect();
   });
 
-  it('обычный пользователь без объявлений → blocked=false', async () => {
-    const token = await signToken(userId);
-    const res = await fetch(`${baseUrl}/api/v1/listings/quota`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toMatchObject({ used: 0, blocked: false });
-    expect(typeof body.limit).toBe('number');
+  it('обычный пользователь с used < limit → blocked=false', async () => {
+    limit = 2;
+    await createActiveListing('c3333333-0000-4000-8000-000000000231', plainUserId);
+
+    const quota = await listings.getActiveListingQuota(plainUserId);
+    expect(quota).toEqual({ limit: 2, used: 1, blocked: false });
   });
 
-  it('пользователь на лимите → blocked=true', async () => {
-    await prisma.appSetting.upsert({
-      where: { key: ACTIVE_LISTING_LIMIT_KEY },
-      update: { value: '1' },
-      create: { key: ACTIVE_LISTING_LIMIT_KEY, value: '1' },
-    });
-    await createActiveListing('c3333333-0000-4000-8000-000000000230', userId);
+  it('обычный пользователь с used >= limit → blocked=true', async () => {
+    limit = 2;
+    await createActiveListing(
+      'c3333333-0000-4000-8000-000000000234',
+      blockedUserId,
+      ListingStatus.ACTIVE,
+    );
+    await createActiveListing(
+      'c3333333-0000-4000-8000-000000000235',
+      blockedUserId,
+      ListingStatus.NEW,
+    );
 
-    const token = await signToken(userId);
-    const res = await fetch(`${baseUrl}/api/v1/listings/quota`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.blocked).toBe(true);
-    expect(body.used).toBeGreaterThanOrEqual(body.limit);
+    const quota = await listings.getActiveListingQuota(blockedUserId);
+    expect(quota.blocked).toBe(true);
+    expect(quota.used).toBeGreaterThanOrEqual(quota.limit);
   });
 
-  it('без Bearer → 401', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/listings/quota`);
-    expect(res.status).toBe(401);
+  it('пользователь с ролью AGENT → blocked=false, used=0, независимо от лимита', async () => {
+    limit = 1;
+    await createActiveListing('c3333333-0000-4000-8000-000000000236', agentUserId);
+    await createActiveListing(
+      'c3333333-0000-4000-8000-000000000237',
+      agentUserId,
+      ListingStatus.NEW,
+    );
+
+    const quota = await listings.getActiveListingQuota(agentUserId);
+    expect(quota).toEqual({ limit: 0, used: 0, blocked: false });
+  });
+
+  it('limit=0 (без ограничения) для обычного пользователя → blocked=false', async () => {
+    limit = 0;
+
+    const quota = await listings.getActiveListingQuota(plainUserId);
+    expect(quota).toEqual({ limit: 0, used: 0, blocked: false });
   });
 });
