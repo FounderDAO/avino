@@ -796,6 +796,23 @@
       "mediaTooLarge": "Sababi: fayl 10 MB dan katta. Foto hajmini kichraytiring.",
       "mediaLimit": "Sababi: bitta e’longa 20 ta foto chegarasiga yetildi."
     },
+    "validation": {
+      "title": "Chop etib bo'lmadi. Maydonlarni tekshiring:",
+      "generic": "Maydonlar to'g'ri to'ldirilganini tekshiring va qayta urinib ko'ring.",
+      "networkError": "Server bilan bog'lanib bo'lmadi. Ulanishni tekshiring va qayta urinib ko'ring.",
+      "unknownError": "E'lonni chop etib bo'lmadi. Qayta urinib ko'ring.",
+      "region": "Viloyat",
+      "district": "Tuman",
+      "tourWindow": "Ko'rsatuv vaqti",
+      "reasons": {
+        "default": "qiymatni tekshiring",
+        "price": "to'g'ri narxni kiriting",
+        "area": "maydonni m² da kiriting",
+        "yearBuilt": "kvartira va uylar uchun majburiy",
+        "region": "viloyatni tanlang",
+        "district": "tumanni tanlang"
+      }
+    },
     "limitModal": {
       "title": "Faol e'lonlar limitiga yetdingiz",
       "body": "Jismoniy shaxslar {limit} tagacha faol e'lon joylashi mumkin. Agent sifatida ro'yxatdan o'ting — cheklovsiz e'lon joylang, e'lonlaringizga rieltor belgisi qo'yiladi, profilingiz Avino agentlari ro'yxatiga tushadi.",
