@@ -5372,6 +5372,46 @@
         }
       }
     },
+    "/api/v1/admin/otp-logs": {
+      "get": {
+        "operationId": "AdminLogsController_otpLogs",
+        "parameters": [
+          {
+            "name": "destination",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 255,
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/admin/complaints": {
       "get": {
         "operationId": "AdminComplaintsController_list",
