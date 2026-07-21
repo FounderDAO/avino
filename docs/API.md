@@ -1666,9 +1666,9 @@ ARCHIVED (заменена новой версией). Старая PUBLISHED в
   "title_ru": "Условия использования",
   "title_uz": "Foydalanish shartlari",
   "title_en": "Terms of Use",
-  "body_md_ru": "# Правила...",
-  "body_md_uz": "# Qoidalar...",
-  "body_md_en": "# Rules..."
+  "body_md_ru": "## Общие положения {#general}\nТекст раздела...",
+  "body_md_uz": "## Umumiy qoidalar {#general}\nBo'lim matni...",
+  "body_md_en": "## General provisions {#general}\nSection text..."
 }
 ```
 
@@ -1688,7 +1688,7 @@ Accept-Language: ru-RU
   "kind": "terms",
   "version": 1,
   "title": "Условия использования",
-  "body_md": "# Правила...",
+  "body_md": "## Общие положения {#general}\nТекст раздела...",
   "published_at": "2026-07-21T12:00:00.000Z"
 }
 ```
@@ -1765,8 +1765,8 @@ Request body (опциональные поля):
 }
 ```
 
-Поля, которые предоставлены, должны быть непусты. При публикации все 6 полей
-должны быть непусты.
+DTO допускает пустые строки — гейт непустоты применяется только при публикации
+(см. ниже `POST .../publish`, `422 LEGAL_TRANSLATIONS_INCOMPLETE`), не на PATCH.
 
 200 → обновлённый документ. Errors: `422 LEGAL_NOT_DRAFT` (документ не черновик,
 статус не DRAFT), `404 NOT_FOUND`.

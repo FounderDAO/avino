@@ -125,6 +125,24 @@ export function LegalDraftEditor({ id, onClose }: LegalDraftEditorProps) {
 
   async function onPublish() {
     setPublishErr(null);
+    // Save-before-publish: предпросмотр рендерит локальный стейт, а publish на
+    // бэке публикует то, что реально лежит в БД. Если не сохранить черновик
+    // перед публикацией, опубликуется устаревший серверный текст, хотя админ
+    // видел в предпросмотре свежие правки — для замороженного PUBLISHED-
+    // документа с бампом согласия это недопустимо. При ошибке сохранения
+    // публикацию не начинаем.
+    try {
+      await updateDraft({
+        id,
+        body: {
+          title_ru: titleRu, title_uz: titleUz, title_en: titleEn,
+          body_md_ru: bodyRu, body_md_uz: bodyUz, body_md_en: bodyEn,
+        },
+      }).unwrap();
+    } catch (e) {
+      setPublishErr(getApiError(e as never)?.message ?? 'Не удалось сохранить черновик перед публикацией');
+      return;
+    }
     try {
       await publish({ id, requires_consent: requiresConsent }).unwrap();
       showToast('Документ опубликован');
@@ -134,6 +152,11 @@ export function LegalDraftEditor({ id, onClose }: LegalDraftEditorProps) {
       setPublishErr(getApiError(e as never)?.message ?? 'Не удалось опубликовать документ');
     }
   }
+
+  // Кросс-disable: пока идёт ЛЮБАЯ из трёх мутаций — блокируем все три
+  // кнопки действий (иначе быстрый двойной клик даёт параллельные мутации
+  // над одним черновиком).
+  const busy = saving || deleting || publishing;
 
   return (
     <div>
@@ -149,15 +172,16 @@ export function LegalDraftEditor({ id, onClose }: LegalDraftEditorProps) {
         </div>
         {!readOnly && (
           <div className="row gap-10">
-            <button className="abtn abtn-outline" style={{ opacity: deleting ? 0.6 : 1 }} disabled={deleting} onClick={onDelete}>
+            <button className="abtn abtn-outline" style={{ opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={onDelete}>
               Удалить черновик
             </button>
-            <button className="abtn abtn-outline" style={{ opacity: saving ? 0.6 : 1 }} disabled={saving} onClick={onSave}>
+            <button className="abtn abtn-outline" style={{ opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={onSave}>
               {saving ? '…' : 'Сохранить черновик'}
             </button>
             <button
               className="abtn abtn-primary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, opacity: busy ? 0.6 : 1 }}
+              disabled={busy}
               onClick={() => { setPublishErr(null); setRequiresConsent(false); setPublishOpen(true); }}
             >
               Опубликовать…
@@ -254,7 +278,7 @@ export function LegalDraftEditor({ id, onClose }: LegalDraftEditorProps) {
       {/* ── Диалог публикации ──────────────────────────────────────────────── */}
       {publishOpen && (
         <div
-          onClick={() => !publishing && setPublishOpen(false)}
+          onClick={() => !busy && setPublishOpen(false)}
           style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(26,26,26,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
         >
           <div
@@ -263,8 +287,10 @@ export function LegalDraftEditor({ id, onClose }: LegalDraftEditorProps) {
             style={{ width: '100%', maxWidth: 460, padding: 26, borderRadius: 16 }}
           >
             <div className="row" style={{ justifyContent: 'space-between', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 20 }}>Опубликовать версию {doc.version}</h2>
-              <button className="aicon-btn" style={{ width: 32, height: 32, border: 'none' }} onClick={() => setPublishOpen(false)} disabled={publishing}>
+              {/* Черновик держит version 0/предыдущую — реальный номер назначит
+                  сервер как max+1, поэтому здесь не показываем номер версии. */}
+              <h2 style={{ fontSize: 20 }}>Опубликовать новую версию</h2>
+              <button className="aicon-btn" style={{ width: 32, height: 32, border: 'none' }} onClick={() => setPublishOpen(false)} disabled={busy}>
                 <IC.X size={18} />
               </button>
             </div>
@@ -294,13 +320,13 @@ export function LegalDraftEditor({ id, onClose }: LegalDraftEditorProps) {
             <div className="row gap-10" style={{ marginTop: 18 }}>
               <button
                 className="abtn abtn-primary"
-                style={{ flex: 1, opacity: publishing ? 0.6 : 1 }}
-                disabled={publishing}
+                style={{ flex: 1, opacity: busy ? 0.6 : 1 }}
+                disabled={busy}
                 onClick={onPublish}
               >
-                {publishing ? '…' : 'Опубликовать'}
+                {saving || publishing ? '…' : 'Опубликовать'}
               </button>
-              <button className="abtn abtn-outline" onClick={() => setPublishOpen(false)} disabled={publishing}>
+              <button className="abtn abtn-outline" onClick={() => setPublishOpen(false)} disabled={busy}>
                 Отмена
               </button>
             </div>
