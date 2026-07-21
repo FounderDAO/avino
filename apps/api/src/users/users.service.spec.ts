@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   HttpException,
   PayloadTooLargeException,
   UnauthorizedException,
@@ -13,10 +12,10 @@ import { UploadedAvatarFile, UsersService } from './users.service';
 /**
  * Юнит-тесты UsersService (TASK-040, + TASK-248 аватар). Prisma и Uploads
  * мокаются — проверяются сборка `/me`-ответа (роли + профиль + avatar_url
- * приоритет storage_key), сброс is_email_verified при смене email,
- * CONTACT_TAKEN, трактовка отсутствующего/DELETED аккаунта как 401, а также
- * upload/delete аватара (allow-list MIME, лимит размера, upsert профиля,
- * best-effort очистка предыдущего объекта в R2).
+ * приоритет storage_key), обновление default_language, трактовка
+ * отсутствующего/DELETED аккаунта как 401, а также upload/delete аватара
+ * (allow-list MIME, лимит размера, upsert профиля, best-effort очистка
+ * предыдущего объекта в R2).
  */
 describe('UsersService', () => {
   const USER_ID = 'u1';
@@ -177,55 +176,10 @@ describe('UsersService', () => {
       expect(result.default_language).toBe(Language.UZ);
     });
 
-    it('resets is_email_verified when email changes', async () => {
-      prisma.user.findFirst
-        .mockResolvedValueOnce(dbUser) // current
-        .mockResolvedValueOnce(null); // uniqueness check → free
-      prisma.user.update.mockResolvedValue({
-        ...dbUser,
-        email: 'ali@mail.uz',
-        isEmailVerified: false,
-      });
-
-      await service.updateMe(USER_ID, { email: 'ali@mail.uz' });
-
-      expect(prisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: { email: 'ali@mail.uz', isEmailVerified: false },
-        }),
-      );
-    });
-
-    it('does not re-check or reset when email is unchanged', async () => {
-      const withEmail = { ...dbUser, email: 'ali@mail.uz' };
-      prisma.user.findFirst.mockResolvedValue(withEmail);
-      prisma.user.update.mockResolvedValue(withEmail);
-
-      await service.updateMe(USER_ID, { email: 'ali@mail.uz' });
-
-      // Только начальный findFirst (current); uniqueness-запрос не выполнялся.
-      expect(prisma.user.findFirst).toHaveBeenCalledTimes(1);
-      expect(prisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: {} }),
-      );
-    });
-
-    it('throws 409 CONTACT_TAKEN when email belongs to another active user', async () => {
-      // current → dbUser; uniqueness check → another user holds the email.
-      prisma.user.findFirst.mockImplementation((args: any) =>
-        args.where.id?.not === USER_ID ? { id: 'other' } : dbUser,
-      );
-
-      const promise = service.updateMe(USER_ID, { email: 'taken@mail.uz' });
-      await expect(promise).rejects.toBeInstanceOf(ConflictException);
-      try {
-        await promise;
-      } catch (e) {
-        const res = (e as HttpException).getResponse() as { code: string };
-        expect(res.code).toBe(ApiErrorCode.CONTACT_TAKEN);
-      }
-      expect(prisma.user.update).not.toHaveBeenCalled();
-    });
+    // Смена email/phone перенесена в OTP-verify-флоу
+    // (ContactChangeService, `POST /users/me/contact-change/*`), поэтому
+    // PATCH /me больше не трогает контакт — соответствующие тесты живут в
+    // contact-change.service.spec.ts.
 
     it('throws 401 UNAUTHORIZED when the account is gone/DELETED', async () => {
       prisma.user.findFirst.mockResolvedValue(null);

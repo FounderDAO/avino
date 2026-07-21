@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   Logger,
   PayloadTooLargeException,
@@ -223,9 +222,9 @@ export class UsersService {
   }
 
   /**
-   * `PATCH /api/v1/users/me` — обновление базовых полей.
-   * Смена `email` сбрасывает `is_email_verified` (нужен re-verify) и проверяет
-   * уникальность контакта среди non-DELETED аккаунтов (CONTACT_TAKEN, ADR-013).
+   * `PATCH /api/v1/users/me` — обновление базовых полей (`default_language`).
+   * Смена логин-контакта (email/phone) выполняется отдельным OTP-verify-флоу
+   * ({@link ContactChangeService}), а не здесь.
    */
   async updateMe(userId: string, dto: UpdateUserDto): Promise<UserMeResponse> {
     const current = await this.prisma.user.findFirst({
@@ -236,35 +235,10 @@ export class UsersService {
       throw this.gone();
     }
 
-    const data: {
-      email?: string;
-      isEmailVerified?: boolean;
-      defaultLanguage?: Language;
-    } = {};
+    const data: { defaultLanguage?: Language } = {};
 
     if (dto.default_language !== undefined) {
       data.defaultLanguage = dto.default_language;
-    }
-
-    // Смена email — только если значение реально меняется: иначе не сбрасываем
-    // verified-флаг и не гоняем лишний uniqueness-запрос.
-    if (dto.email !== undefined && dto.email !== current.email) {
-      const taken = await this.prisma.user.findFirst({
-        where: {
-          email: dto.email,
-          status: { not: UserStatus.DELETED },
-          id: { not: userId },
-        },
-        select: { id: true },
-      });
-      if (taken) {
-        throw new ConflictException({
-          code: ApiErrorCode.CONTACT_TAKEN,
-          message: 'Email is already in use',
-        });
-      }
-      data.email = dto.email;
-      data.isEmailVerified = false;
     }
 
     const updated = await this.prisma.user.update({

@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Ip,
   Patch,
   Post,
   UploadedFile,
@@ -11,12 +12,16 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { RequestOtpResult } from '../auth/otp.service';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
 import { ProfileResponse, ProfilesService } from '../profiles';
 import { UpdateProfileDto } from '../profiles/dto/update-profile.dto';
+import { ContactChangeService } from './contact-change.service';
 import { AcceptLegalConsentDto } from './dto/accept-legal-consent.dto';
+import { RequestContactChangeDto } from './dto/request-contact-change.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { VerifyContactChangeDto } from './dto/verify-contact-change.dto';
 import { LegalConsentService, LegalConsentState } from './legal-consent.service';
 import {
   UploadedAvatarFile,
@@ -39,6 +44,7 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly profilesService: ProfilesService,
     private readonly legalConsentService: LegalConsentService,
+    private readonly contactChangeService: ContactChangeService,
   ) {}
 
   /** `GET /api/v1/users/me` — текущий пользователь, профиль и роли. */
@@ -47,13 +53,43 @@ export class UsersController {
     return this.usersService.getMe(userId);
   }
 
-  /** `PATCH /api/v1/users/me` — базовые поля (email, default_language). */
+  /**
+   * `PATCH /api/v1/users/me` — базовые поля (`default_language`). Смена логин-
+   * контакта (телефон/email) — отдельным OTP-verify-флоу ниже, а не здесь.
+   */
   @Patch('me')
   updateMe(
     @CurrentUser('id') userId: string,
     @Body() dto: UpdateUserDto,
   ): Promise<UserMeResponse> {
     return this.usersService.updateMe(userId, dto);
+  }
+
+  /**
+   * `POST /api/v1/users/me/contact-change/request` — выписать OTP на НОВЫЙ
+   * логин-контакт (телефон при `channel=SMS`, email при `channel=EMAIL`). Смену
+   * НЕ применяет; `@Ip()` даёт IP для per-IP rate-limit.
+   */
+  @Post('me/contact-change/request')
+  requestContactChange(
+    @CurrentUser('id') userId: string,
+    @Body() dto: RequestContactChangeDto,
+    @Ip() ip: string,
+  ): Promise<RequestOtpResult> {
+    return this.contactChangeService.requestContactChange(userId, dto, ip);
+  }
+
+  /**
+   * `POST /api/v1/users/me/contact-change/verify` — подтвердить владение новым
+   * контактом кодом и применить смену; возвращает обновлённый `/me`.
+   */
+  @Post('me/contact-change/verify')
+  verifyContactChange(
+    @CurrentUser('id') userId: string,
+    @Body() dto: VerifyContactChangeDto,
+    @Ip() ip: string,
+  ): Promise<UserMeResponse> {
+    return this.contactChangeService.verifyContactChange(userId, dto, ip);
   }
 
   /** `PATCH /api/v1/users/me/profile` — профиль (создаётся, если отсутствует). */
