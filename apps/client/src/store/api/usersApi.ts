@@ -21,6 +21,14 @@ import type { Language, MeResponse, UserProfile } from './authApi';
  *     200 обновлённый /me (та же форма, что GET /auth/me). Применяет смену
  *     логин-контакта только после подтверждения кодом; инвалидирует
  *     'Auth'/'User', как остальные мутации.
+ * - POST /users/me/contact-phone/request { destination } → 200
+ *     { applied: true } (номер = верифицированному логин-телефону, смена уже
+ *     применена — инвалидируем 'Auth'/'User') ЛИБО { applied: false,
+ *     request_id, channel: 'SMS', expires_in, resend_after } (нужен код,
+ *     теги не трогаем).
+ * - POST /users/me/contact-phone/verify  { destination, code } → 200
+ *     обновлённый /me. Применяет смену публичного contact_phone и ставит
+ *     contact_phone_verified=true; инвалидирует 'Auth'/'User'.
  *
  * snake_case в телах, enum-значения UPPERCASE (UZ|RU|EN). Все мутации
  * инвалидируют 'Auth' и 'User', чтобы GET /auth/me перечитал свежие данные.
@@ -78,6 +86,28 @@ export interface RequestContactChangeResult {
 /** Тело `POST /users/me/contact-change/verify` — тот же destination + код. */
 export interface VerifyContactChangeBody {
   channel: ContactChannel;
+  destination: string;
+  code: string;
+}
+
+/** Ответ `POST /users/me/contact-phone/request`. */
+export type RequestContactPhoneResult =
+  | { applied: true }
+  | {
+      applied: false;
+      request_id: string;
+      channel: 'SMS';
+      expires_in: number;
+      resend_after: number;
+    };
+
+/** Тело `POST /users/me/contact-phone/request`. */
+export interface RequestContactPhoneBody {
+  destination: string;
+}
+
+/** Тело `POST /users/me/contact-phone/verify`. */
+export interface VerifyContactPhoneBody {
   destination: string;
   code: string;
 }
@@ -154,6 +184,27 @@ export const usersApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Auth', 'User'],
     }),
+
+    // Смена публичного контакт-телефона. request: применяет сразу (applied:true,
+    // если = верифицированному логин-телефону) — тогда инвалидируем /me; иначе
+    // шлёт OTP и ничего не меняет (теги не трогаем).
+    requestContactPhoneChange: build.mutation<RequestContactPhoneResult, RequestContactPhoneBody>({
+      query: (body) => ({
+        url: '/users/me/contact-phone/request',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (result) => (result?.applied ? ['Auth', 'User'] : []),
+    }),
+
+    verifyContactPhoneChange: build.mutation<MeResponse, VerifyContactPhoneBody>({
+      query: (body) => ({
+        url: '/users/me/contact-phone/verify',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Auth', 'User'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -166,4 +217,6 @@ export const {
   useDeleteAvatarMutation,
   useRequestContactChangeMutation,
   useVerifyContactChangeMutation,
+  useRequestContactPhoneChangeMutation,
+  useVerifyContactPhoneChangeMutation,
 } = usersApi;

@@ -30,6 +30,7 @@ const ME_BASE = {
     display_name: null,
     avatar_url: null,
     contact_phone: null,
+    contact_phone_verified: false,
     preferred_language: 'RU' as const,
   },
   legal_consent: { accepted_version: 1, accepted_at: '2026-01-01T00:00:00.000Z' },
@@ -93,6 +94,129 @@ describe('usersApi — contact-change', () => {
       url: '/users/me/contact-change/verify',
       method: 'POST',
       body: { channel: 'SMS', destination: '+998939998877', code: '123456' },
+    });
+    expect(baseQueryMock.mock.calls[2][0]).toEqual({ url: '/auth/me' });
+  });
+});
+
+describe('usersApi — contact-phone', () => {
+  beforeEach(() => {
+    baseQueryMock.mockReset();
+  });
+
+  it('requestContactPhoneChange шлёт POST /users/me/contact-phone/request с телом', async () => {
+    const result = {
+      applied: false,
+      request_id: 'r-1',
+      channel: 'SMS',
+      expires_in: 300,
+      resend_after: 60,
+    };
+    baseQueryMock.mockResolvedValueOnce({ data: result });
+
+    const store = makeStore();
+    const { data } = await store.dispatch(
+      usersApi.endpoints.requestContactPhoneChange.initiate({
+        destination: '+998901234567',
+      }),
+    );
+
+    expect(baseQueryMock).toHaveBeenCalledTimes(1);
+    expect(baseQueryMock.mock.calls[0][0]).toEqual({
+      url: '/users/me/contact-phone/request',
+      method: 'POST',
+      body: { destination: '+998901234567' },
+    });
+    expect(data).toEqual(result);
+  });
+
+  it('requestContactPhoneChange с applied:false НЕ инвалидирует Auth/User', async () => {
+    const result = {
+      applied: false,
+      request_id: 'r-1',
+      channel: 'SMS',
+      expires_in: 300,
+      resend_after: 60,
+    };
+    baseQueryMock
+      .mockResolvedValueOnce({ data: ME_BASE }) // GET /auth/me (подписка)
+      .mockResolvedValueOnce({ data: result }); // POST request
+
+    const store = makeStore();
+
+    await store.dispatch(authApi.endpoints.getMe.initiate());
+    expect(baseQueryMock).toHaveBeenCalledTimes(1);
+
+    await store.dispatch(
+      usersApi.endpoints.requestContactPhoneChange.initiate({
+        destination: '+998901234567',
+      }),
+    );
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Только 2 вызова: подписка + сам request. Рефетча /auth/me нет.
+    expect(baseQueryMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('requestContactPhoneChange с applied:true инвалидирует Auth/User — вызывает повторный /auth/me', async () => {
+    baseQueryMock
+      .mockResolvedValueOnce({ data: ME_BASE }) // GET /auth/me (подписка)
+      .mockResolvedValueOnce({ data: { applied: true } }) // POST request
+      .mockResolvedValueOnce({ data: ME_BASE }); // GET /auth/me (рефетч по инвалидации)
+
+    const store = makeStore();
+
+    await store.dispatch(authApi.endpoints.getMe.initiate());
+    expect(baseQueryMock).toHaveBeenCalledTimes(1);
+
+    const requestResult = await store
+      .dispatch(
+        usersApi.endpoints.requestContactPhoneChange.initiate({
+          destination: '+998901234567',
+        }),
+      )
+      .unwrap();
+    expect(requestResult).toEqual({ applied: true });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(baseQueryMock).toHaveBeenCalledTimes(3);
+    expect(baseQueryMock.mock.calls[2][0]).toEqual({ url: '/auth/me' });
+  });
+
+  it('verifyContactPhoneChange шлёт POST /users/me/contact-phone/verify и инвалидирует Auth/User', async () => {
+    const updated = {
+      ...ME_BASE,
+      profile: { ...ME_BASE.profile, contact_phone: '+998939998877', contact_phone_verified: true },
+    };
+    baseQueryMock
+      .mockResolvedValueOnce({ data: ME_BASE }) // GET /auth/me (подписка)
+      .mockResolvedValueOnce({ data: updated }) // POST verify
+      .mockResolvedValueOnce({ data: updated }); // GET /auth/me (рефетч по инвалидации)
+
+    const store = makeStore();
+
+    await store.dispatch(authApi.endpoints.getMe.initiate());
+    expect(baseQueryMock).toHaveBeenCalledTimes(1);
+
+    const verifyResult = await store
+      .dispatch(
+        usersApi.endpoints.verifyContactPhoneChange.initiate({
+          destination: '+998939998877',
+          code: '123456',
+        }),
+      )
+      .unwrap();
+    expect(verifyResult).toEqual(updated);
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(baseQueryMock).toHaveBeenCalledTimes(3);
+    expect(baseQueryMock.mock.calls[1][0]).toEqual({
+      url: '/users/me/contact-phone/verify',
+      method: 'POST',
+      body: { destination: '+998939998877', code: '123456' },
     });
     expect(baseQueryMock.mock.calls[2][0]).toEqual({ url: '/auth/me' });
   });
