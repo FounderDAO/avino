@@ -1309,7 +1309,6 @@
     "contactPhone": {
       "rowTitle": "Aloqa uchun telefon (e'lonlarda)",
       "modalTitle": "Aloqa uchun telefonni o'zgartirish",
-      "useLoginPhone": "Kirish telefonidan foydalanish",
       "hint": "Tasdiqlangandan so'ng e'lonlaringizda ko'rsatiladi."
     }
   },
@@ -1435,6 +1434,7 @@
     "avatarRemoved": "Surat o'chirildi",
     "avatarActionFailed": "Suratni yangilab bo'lmadi. Yana urinib ko'ring.",
     "contactChanged": "Kirish uchun kontakt ma'lumotlari yangilandi",
+    "contactPhoneUpdated": "Aloqa telefoni yangilandi",
     "mediaUploadFailed": "{count} ta fotoni yuklab bo‘lmadi. Qolgan o‘zgarishlar saqlandi."
   }
 }

@@ -372,7 +372,7 @@ export function Profile() {
         onClose={() => setContactPhoneOpen(false)}
         onSuccess={() => {
           setContactPhoneOpen(false);
-          toast.success(tToasts('contactChanged'));
+          toast.success(tToasts('contactPhoneUpdated'));
         }}
       />
     </div>

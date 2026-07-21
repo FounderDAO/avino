@@ -1309,7 +1309,6 @@
     "contactPhone": {
       "rowTitle": "Contact phone (shown on listings)",
       "modalTitle": "Change contact phone",
-      "useLoginPhone": "Use sign-in phone",
       "hint": "Shown on your listings once confirmed."
     }
   },
@@ -1435,6 +1434,7 @@
     "avatarRemoved": "Photo removed",
     "avatarActionFailed": "Couldn't update the photo. Please try again.",
     "contactChanged": "Sign-in contact details updated",
+    "contactPhoneUpdated": "Contact phone updated",
     "mediaUploadFailed": "Failed to upload {count} photo(s). Your other changes were saved."
   }
 }
