@@ -796,7 +796,8 @@ describe('ListingsService', () => {
       reference: 100042,
       ownerId: OWNER_ID,
       agencyId: null,
-      // Контакт автора (TASK-210): профиль + роль AGENT.
+      // Контакт автора (TASK-210): профиль + роль AGENT. contact_phone здесь
+      // подтверждён (ADR-0151) — иначе detail отдал бы телефон аккаунта.
       owner: {
         phone: '+998901112233',
         profile: {
@@ -804,6 +805,7 @@ describe('ListingsService', () => {
           firstName: 'Алишер',
           lastName: 'Усманов',
           contactPhone: '+998905556677',
+          contactPhoneVerified: true,
         },
         roles: [{ role: { code: 'AGENT' } }],
       },
@@ -914,6 +916,45 @@ describe('ListingsService', () => {
           type: MediaType.IMAGE,
         },
       ]);
+    });
+
+    // ADR-0151: contact_phone показывается только после OTP-подтверждения,
+    // иначе detail фолбэчится на верифицированный телефон аккаунта.
+    it('shows the verified contact_phone in contact.phone', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        owner: {
+          ...detailRow.owner,
+          profile: {
+            ...detailRow.owner.profile,
+            contactPhone: '+998905556677',
+            contactPhoneVerified: true,
+          },
+        },
+      });
+
+      const result = await service.findOne(LISTING_ID, undefined);
+
+      expect(result.contact.phone).toBe('+998905556677');
+    });
+
+    it('falls back to the account phone when contact_phone is not verified', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        owner: {
+          ...detailRow.owner,
+          phone: '+998901112233',
+          profile: {
+            ...detailRow.owner.profile,
+            contactPhone: '+998905556677',
+            contactPhoneVerified: false,
+          },
+        },
+      });
+
+      const result = await service.findOne(LISTING_ID, undefined);
+
+      expect(result.contact.phone).toBe('+998901112233');
     });
 
     it('selects the requested ?lang translation', async () => {

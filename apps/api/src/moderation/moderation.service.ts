@@ -163,6 +163,7 @@ const OWNER_SELECT = {
       lastName: true,
       displayName: true,
       contactPhone: true,
+      contactPhoneVerified: true,
     },
   },
 } as const;
@@ -531,7 +532,10 @@ export class ModerationService {
       last_name: owner.profile?.lastName ?? null,
       email: owner.email,
       phone: owner.phone,
-      contact_phone: owner.profile?.contactPhone ?? null,
+      contact_phone:
+        owner.profile?.contactPhoneVerified && owner.profile.contactPhone
+          ? owner.profile.contactPhone
+          : null,
       status: owner.status,
       roles: owner.roles.map((r) => r.role.code),
       created_at: owner.createdAt.toISOString(),

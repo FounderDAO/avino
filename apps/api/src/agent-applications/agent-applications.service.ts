@@ -66,6 +66,7 @@ const ADMIN_APPLICATION_INCLUDE = {
           avatarUrl: true,
           avatarStorageKey: true,
           contactPhone: true,
+          contactPhoneVerified: true,
         },
       },
     },
@@ -365,7 +366,10 @@ export class AgentApplicationsService {
       user: {
         id: row.user.id,
         name: profile?.displayName ?? (fullName.length > 0 ? fullName : null),
-        phone: profile?.contactPhone ?? row.user.phone ?? null,
+        phone:
+          profile?.contactPhoneVerified && profile.contactPhone
+            ? profile.contactPhone
+            : (row.user.phone ?? null),
         avatar_url: avatarUrl,
       },
     };
