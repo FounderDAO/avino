@@ -21,4 +21,8 @@ describe('LegalDocumentsController', () => {
   it('неизвестный kind → 404', async () => {
     await expect(controller.get('cookies', 'ru')).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('adversarial слаг constructor → 404 (без наследования прототипа)', async () => {
+    await expect(controller.get('constructor', 'ru')).rejects.toBeInstanceOf(NotFoundException);
+  });
 });
