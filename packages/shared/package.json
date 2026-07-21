@@ -16,10 +16,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "tsc --noEmit -p tsconfig.json",
-    "test": "echo \"no tests yet\" && exit 0"
+    "test": "vitest run"
   },
   "devDependencies": {
     "@avino/config": "workspace:*",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^2"
   }
 }
