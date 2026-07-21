@@ -33,6 +33,7 @@ import { totalPages } from '@/store/api/adminApi';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import { detailToAdminListing, rowToModerationItem } from '@/lib/adapters/listings';
 import { ROLE_LABEL } from '@/lib/adapters/users';
+import { translationResultToast } from '@/lib/translations';
 import type { UserStatus } from '@/store/api/authApi';
 import type {
   AdminListingOwner,
@@ -311,18 +312,31 @@ export default function ModerationPage() {
                 </div>
 
                 <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
-                  <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4, gap: 8, flexWrap: 'wrap' }}>
                     <h3 style={{ fontSize: 15 }}>Переводы</h3>
-                    <button
-                      className="abtn abtn-outline abtn-sm"
-                      disabled={isGenerating}
-                      onClick={async () => {
-                        try { await generate(sel.id).unwrap(); toast('Переводы сгенерированы'); }
-                        catch { toast('Не удалось сгенерировать переводы'); }
-                      }}
-                    >
-                      {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
-                    </button>
+                    <div className="row gap-8">
+                      <button
+                        className="abtn abtn-outline abtn-sm"
+                        disabled={isGenerating}
+                        onClick={async () => {
+                          try { toast(translationResultToast(await generate({ id: sel.id }).unwrap())); }
+                          catch { toast('Не удалось сгенерировать переводы'); }
+                        }}
+                      >
+                        {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
+                      </button>
+                      <button
+                        className="abtn abtn-outline abtn-sm"
+                        disabled={isGenerating}
+                        onClick={async () => {
+                          if (!window.confirm('Перевести заново все языки? Правки, внесённые вручную, будут перезаписаны машинным переводом.')) return;
+                          try { toast(translationResultToast(await generate({ id: sel.id, force: true }).unwrap(), { forced: true })); }
+                          catch { toast('Не удалось сгенерировать переводы'); }
+                        }}
+                      >
+                        Перевести заново
+                      </button>
+                    </div>
                   </div>
                   {(tr?.translations ?? []).map((t) => (
                     <TranslationRow
