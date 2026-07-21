@@ -31,6 +31,8 @@ import {
   MessageSquare,
   Megaphone,
   TriangleAlert,
+  ListChecks,
+  Pencil,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -61,6 +63,8 @@ export const IC = {
   MessageSquare,
   Megaphone,
   Alert: TriangleAlert,
+  Checklist: ListChecks,
+  Edit: Pencil,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof IC;
