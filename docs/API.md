@@ -1368,6 +1368,9 @@ agent_applications_new, support_requests_new }`:
 | `AGENT_APPLICATION_PENDING` | 409 | Заявка «Стать агентом» уже на рассмотрении |
 | `ALREADY_AGENT` | 409 | У пользователя уже есть роль AGENT/AGENCY |
 | `AMENITY_CODE_TAKEN` | 409 | `code` удобства уже занят (или не удалось сгенерировать slug из label_en) |
+| `LEGAL_DRAFT_EXISTS` | 422 | Черновик этого типа документа уже существует; удалите его или опубликуйте перед созданием нового |
+| `LEGAL_NOT_DRAFT` | 422 | Документ не в статусе DRAFT (операция доступна только для черновиков) |
+| `LEGAL_TRANSLATIONS_INCOMPLETE` | 422 | Не все 6 полей (title_ru/uz/en, body_md_ru/uz/en) заполнены для публикации |
 | `INTERNAL_ERROR` | 500 | Внутренняя ошибка |
 
 Примеры тел:
@@ -1693,7 +1696,7 @@ Accept-Language: ru-RU
 404 → `{ "code": "NOT_FOUND", "message": "..." }` — пока нет опубликованной
 версии или неизвестный kind (клиент должен иметь встроенный fallback).
 
-### Admin: GET /api/v1/admin/legal-documents
+### GET /api/v1/admin/legal-documents
 Список всех версий (метаданные, без тел). Auth: **ADMIN**.
 
 Query parameters:
@@ -1723,7 +1726,7 @@ Query parameters:
 ]
 ```
 
-### Admin: GET /api/v1/admin/legal-documents/:id
+### GET /api/v1/admin/legal-documents/:id
 Получить полный документ (все 3 локали + метаданные). Auth: **ADMIN**.
 
 ```bash
@@ -1732,7 +1735,7 @@ GET /api/v1/admin/legal-documents/uuid
 
 200 → полный контракт (см. выше). Errors: `404 NOT_FOUND`.
 
-### Admin: POST /api/v1/admin/legal-documents
+### POST /api/v1/admin/legal-documents
 Создать черновик (DRAFT). Копирует тексты из последней PUBLISHED версии
 (если существует). Auth: **ADMIN**.
 
@@ -1747,7 +1750,7 @@ Request body:
 типу уже существует; удалите старый или опубликуйте его перед созданием нового),
 `400 VALIDATION_ERROR`.
 
-### Admin: PATCH /api/v1/admin/legal-documents/:id
+### PATCH /api/v1/admin/legal-documents/:id
 Редактировать тексты DRAFT версии (любое подмножество 6 полей). Auth: **ADMIN**.
 
 Request body (опциональные поля):
@@ -1768,7 +1771,7 @@ Request body (опциональные поля):
 200 → обновлённый документ. Errors: `422 LEGAL_NOT_DRAFT` (документ не черновик,
 статус не DRAFT), `404 NOT_FOUND`.
 
-### Admin: POST /api/v1/admin/legal-documents/:id/publish
+### POST /api/v1/admin/legal-documents/:id/publish
 Опубликовать DRAFT версию. Старая PUBLISHED архивируется (status → ARCHIVED),
 новая получает version = max+1. При `requires_consent=true` также бампится
 `legal_consent_version`. Auth: **ADMIN**.
@@ -1778,14 +1781,16 @@ Request body:
 { "requires_consent": true }
 ```
 
-`requires_consent` опционален (дефолт `false`).
+`requires_consent` обязателен (boolean: true или false). При `true` бампится
+`legal_consent_version`, что приведёт к блок-модалке согласия для всех пользователей
+при следующем входе.
 
 201 → опубликованный документ (status = PUBLISHED, version увеличена).
 Errors: `422 LEGAL_NOT_DRAFT` (только черновики можно публиковать),
 `422 LEGAL_TRANSLATIONS_INCOMPLETE` (не все 6 полей title_*/body_md_* непусты),
 `404 NOT_FOUND`.
 
-### Admin: DELETE /api/v1/admin/legal-documents/:id
+### DELETE /api/v1/admin/legal-documents/:id
 Удалить DRAFT версию. Auth: **ADMIN**.
 
 ```bash
