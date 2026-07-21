@@ -1305,6 +1305,12 @@
       "errCode": "Noto'g'ri kod. Qayta urinib ko'ring.",
       "errExpired": "Kod muddati tugadi. Yangisini so'rang.",
       "errAttempts": "Juda ko'p urinish. Yangi kod so'rang."
+    },
+    "contactPhone": {
+      "rowTitle": "Aloqa uchun telefon (e'lonlarda)",
+      "modalTitle": "Aloqa uchun telefonni o'zgartirish",
+      "useLoginPhone": "Kirish telefonidan foydalanish",
+      "hint": "Tasdiqlangandan so'ng e'lonlaringizda ko'rsatiladi."
     }
   },
   "savedSearch": {

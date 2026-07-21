@@ -1305,6 +1305,12 @@
       "errCode": "Invalid code. Please try again.",
       "errExpired": "Code expired. Request a new one.",
       "errAttempts": "Too many attempts. Request a new code."
+    },
+    "contactPhone": {
+      "rowTitle": "Contact phone (shown on listings)",
+      "modalTitle": "Change contact phone",
+      "useLoginPhone": "Use sign-in phone",
+      "hint": "Shown on your listings once confirmed."
     }
   },
   "savedSearch": {
