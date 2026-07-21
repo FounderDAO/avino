@@ -256,6 +256,8 @@
     "metaDescription": "Покупка и аренда жилья в Узбекистане: фильтры, список и карта.",
     "headingSale": "Покупка жилья · {query}",
     "headingRent": "Аренда жилья · {query}",
+    "headingAgentSale": "Продажа от агента · {name}",
+    "headingAgentRent": "Аренда от агента · {name}",
     "defaultLocation": "Ташкент",
     "filters": {
       "resetAll": "Сбросить всё",

@@ -256,6 +256,8 @@
     "metaDescription": "O'zbekistonda uy-joy sotib olish va ijaraga olish: filtrlar, ro'yxat va xarita.",
     "headingSale": "Uy-joy xaridi · {query}",
     "headingRent": "Uy-joy ijarasi · {query}",
+    "headingAgentSale": "Agentdan sotuvda · {name}",
+    "headingAgentRent": "Agentdan ijaraga · {name}",
     "defaultLocation": "Toshkent",
     "filters": {
       "resetAll": "Hammasini tozalash",

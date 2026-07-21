@@ -256,6 +256,8 @@
     "metaDescription": "Buy and rent homes in Uzbekistan: filters, list and map.",
     "headingSale": "Homes for sale · {query}",
     "headingRent": "Homes for rent · {query}",
+    "headingAgentSale": "For sale by agent · {name}",
+    "headingAgentRent": "For rent by agent · {name}",
     "defaultLocation": "Tashkent",
     "filters": {
       "resetAll": "Reset all",
