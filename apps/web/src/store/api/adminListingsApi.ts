@@ -10,6 +10,7 @@ import type {
   ModerateListingRequest,
   ModerationResult,
   ListingTranslations,
+  GenerateTranslationsResult,
   TranslationEditRequest,
 } from './adminTypes';
 
@@ -82,12 +83,18 @@ export const adminListingsApi = adminApi.injectEndpoints({
 
     /**
      * `POST /admin/listings/:id/translations/generate` — запуск машинного
-     * перевода всех языков (§7/ADR-0091). Возвращает обновлённый набор переводов.
+     * перевода целевых языков (§7/ADR-0091). `force=true` перезаписывает даже
+     * правленные вручную языки (оригинал не трогается). Ответ содержит
+     * `regenerated`/`skipped` для честного тоста в UI.
      */
-    generateTranslations: build.mutation<ListingTranslations, string>({
-      query: (id) => ({
+    generateTranslations: build.mutation<
+      GenerateTranslationsResult,
+      { id: string; force?: boolean }
+    >({
+      query: ({ id, force }) => ({
         url: `/admin/listings/${id}/translations/generate`,
         method: 'POST',
+        body: { force },
       }),
       invalidatesTags: ['Admin'],
     }),

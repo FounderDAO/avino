@@ -662,6 +662,18 @@ export interface TranslationEditRequest {
   features_text?: string | null;
 }
 
+/**
+ * Ответ `POST /admin/listings/:id/translations/generate` (§7, ADR-0091).
+ * Расширяет {@link ListingTranslations} итогом генерации: `regenerated` —
+ * целевые языки, реально (пере)сгенерированные; `skipped` — пропущенные как
+ * правленные вручную (без `force`). Позволяет UI показать честный тост вместо
+ * безусловного «Переводы сгенерированы».
+ */
+export interface GenerateTranslationsResult extends ListingTranslations {
+  regenerated: TranslationLanguage[];
+  skipped: TranslationLanguage[];
+}
+
 // ─── Дашборд (ADMIN-15, §16) ─────────────────────────────────────────────────
 
 /** `GET /admin/stats` — сводные счётчики дашборда (ADMIN-15). */

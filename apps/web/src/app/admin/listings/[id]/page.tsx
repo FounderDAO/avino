@@ -32,6 +32,7 @@ import {
 } from '@/store/api/adminPromotionsApi';
 import { PromoteListingModal } from '@/components/admin/PromoteListingModal';
 import { detailToAdminListing, ownerName, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
+import { translationResultToast } from '@/lib/translations';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import type { AdminListingStatus } from '@/lib/mock';
 import type {
@@ -272,18 +273,31 @@ export default function ListingDetailPage() {
             </div>
           </div>
           <div className="a-card" style={{ padding: 22 }}>
-            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
               <h3 style={{ fontSize: 16 }}>Переводы</h3>
-              <button
-                className="abtn abtn-outline abtn-sm"
-                disabled={isGenerating}
-                onClick={async () => {
-                  try { await generate(id).unwrap(); toast('Переводы сгенерированы'); }
-                  catch { toast('Не удалось сгенерировать переводы'); }
-                }}
-              >
-                {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
-              </button>
+              <div className="row gap-8">
+                <button
+                  className="abtn abtn-outline abtn-sm"
+                  disabled={isGenerating}
+                  onClick={async () => {
+                    try { toast(translationResultToast(await generate({ id }).unwrap())); }
+                    catch { toast('Не удалось сгенерировать переводы'); }
+                  }}
+                >
+                  {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
+                </button>
+                <button
+                  className="abtn abtn-outline abtn-sm"
+                  disabled={isGenerating}
+                  onClick={async () => {
+                    if (!window.confirm('Перевести заново все языки? Правки, внесённые вручную, будут перезаписаны машинным переводом.')) return;
+                    try { toast(translationResultToast(await generate({ id, force: true }).unwrap(), { forced: true })); }
+                    catch { toast('Не удалось сгенерировать переводы'); }
+                  }}
+                >
+                  Перевести заново
+                </button>
+              </div>
             </div>
             {(tr?.translations ?? []).map((t) => (
               <TranslationRow
