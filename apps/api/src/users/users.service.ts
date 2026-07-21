@@ -79,6 +79,7 @@ interface UserWithRelations {
     avatarUrl: string | null;
     avatarStorageKey: string | null;
     contactPhone: string | null;
+    contactPhoneVerified: boolean;
     preferredLanguage: Language | null;
   } | null;
 }

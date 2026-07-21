@@ -384,6 +384,7 @@ describe('AuthService.getMe', () => {
       displayName: 'Ali V.',
       avatarUrl: null,
       contactPhone: '+998901234567',
+      contactPhoneVerified: true,
       preferredLanguage: 'RU',
     },
     legalConsents: [] as { version: number; acceptedAt: Date }[],
@@ -421,6 +422,7 @@ describe('AuthService.getMe', () => {
         display_name: 'Ali V.',
         avatar_url: null,
         contact_phone: '+998901234567',
+        contact_phone_verified: true,
         preferred_language: 'RU',
       },
       legal_consent: { accepted_version: null, accepted_at: null },
@@ -451,6 +453,7 @@ describe('AuthService.getMe', () => {
       display_name: null,
       avatar_url: null,
       contact_phone: null,
+      contact_phone_verified: false,
       preferred_language: 'UZ',
     });
   });

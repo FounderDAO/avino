@@ -10,6 +10,7 @@ export interface ProfileResponse {
   display_name: string | null;
   avatar_url: string | null;
   contact_phone: string | null;
+  contact_phone_verified: boolean;
   preferred_language: Language | null;
 }
 
@@ -20,6 +21,7 @@ interface ProfileRow {
   displayName: string | null;
   avatarUrl: string | null;
   contactPhone: string | null;
+  contactPhoneVerified: boolean;
   preferredLanguage: Language | null;
 }
 
@@ -31,6 +33,7 @@ export function toProfileResponse(profile: ProfileRow): ProfileResponse {
     display_name: profile.displayName,
     avatar_url: profile.avatarUrl,
     contact_phone: profile.contactPhone,
+    contact_phone_verified: profile.contactPhoneVerified,
     preferred_language: profile.preferredLanguage,
   };
 }
@@ -69,7 +72,6 @@ export class ProfilesService {
       lastName: dto.last_name,
       displayName: dto.display_name,
       avatarUrl: dto.avatar_url,
-      contactPhone: dto.contact_phone,
       preferredLanguage: dto.preferred_language,
     };
 

@@ -37,11 +37,6 @@ export class UpdateProfileDto {
   avatar_url?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  contact_phone?: string;
-
-  @IsOptional()
   @IsEnum(Language)
   preferred_language?: Language;
 }
