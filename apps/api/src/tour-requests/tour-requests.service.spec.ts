@@ -321,6 +321,44 @@ describe('TourRequestsService', () => {
       expect(res.data[0].owner).toEqual({ name: 'Акмаль', phone: '+998900000000' });
     });
 
+    // Правило публичного контакта (ADR-0151): при CONFIRMED телефон = верифицированный
+    // contact_phone, иначе фолбэк на телефон аккаунта.
+    it('outgoing/CONFIRMED: contactPhoneVerified=true → phone = contactPhone', async () => {
+      prisma.tourRequest.findMany.mockResolvedValue([
+        {
+          ...LIST_ROW,
+          status: 'CONFIRMED',
+          listing: {
+            ...LIST_ROW.listing,
+            owner: {
+              phone: '+998900000000',
+              profile: { displayName: 'Акмаль', firstName: null, lastName: null, contactPhone: '+998905556677', contactPhoneVerified: true },
+            },
+          },
+        },
+      ]);
+      const res = await service.listOutgoing('U2', {});
+      expect(res.data[0].owner).toEqual({ name: 'Акмаль', phone: '+998905556677' });
+    });
+
+    it('outgoing/CONFIRMED: contactPhoneVerified=false → фолбэк на телефон аккаунта', async () => {
+      prisma.tourRequest.findMany.mockResolvedValue([
+        {
+          ...LIST_ROW,
+          status: 'CONFIRMED',
+          listing: {
+            ...LIST_ROW.listing,
+            owner: {
+              phone: '+998900000000',
+              profile: { displayName: 'Акмаль', firstName: null, lastName: null, contactPhone: '+998905556677', contactPhoneVerified: false },
+            },
+          },
+        },
+      ]);
+      const res = await service.listOutgoing('U2', {});
+      expect(res.data[0].owner).toEqual({ name: 'Акмаль', phone: '+998900000000' });
+    });
+
     it('incoming: owner-блока нет, listing есть', async () => {
       prisma.tourRequest.findMany.mockResolvedValue([LIST_ROW]);
       const res = await service.listIncoming('OWNER1', {});
