@@ -25,8 +25,10 @@ const csp = [
   // 'wasm-unsafe-eval' — вектор-рендерер Yandex Maps на WebAssembly (без него
   // canvas карты пустой); 'unsafe-eval' — только dev (webpack/HMR)
   `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ''} https://*.yandex.ru https://yastatic.net https://accounts.google.com https://appleid.cdn-apple.com`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://cdn.avino.uz https://*.r2.cloudflarestorage.com https://*.r2.dev https://images.unsplash.com https://*.yandex.ru https://*.yandex.net https://yastatic.net https://*.gstatic.com",
+  // accounts.google.com — GSI-кнопка дозагружает свой /gsi/style
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com",
+  // *.googleusercontent.com — аватары пользователей, вошедших через Google
+  "img-src 'self' data: blob: https://cdn.avino.uz https://*.r2.cloudflarestorage.com https://*.r2.dev https://images.unsplash.com https://*.googleusercontent.com https://*.yandex.ru https://*.yandex.net https://yastatic.net https://*.gstatic.com",
   "font-src 'self' data:",
   `connect-src 'self' ${API_ORIGIN} ${API_WS_ORIGIN} https://*.yandex.ru https://*.yandex.net https://accounts.google.com https://appleid.apple.com https://*.sentry.io`,
   "frame-src https://accounts.google.com https://appleid.apple.com",

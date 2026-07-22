@@ -26,6 +26,14 @@ import type { RefreshResponse } from './authApi';
  * пока идёт ротация, остальные запросы ждут её результат, а не плодят
  * параллельные /auth/refresh (повторное использование ротированного токена
  * отозвало бы всю session family — docs/API.md §3).
+ *
+ * Single-flight выше — только внутри ОДНОЙ вкладки (module-scope). Между
+ * вкладками refresh дополнительно сериализуется через Web Locks API: две
+ * вкладки, одновременно поймавшие 401, иначе ротируют один и тот же токен из
+ * общего localStorage — вторая предъявляет уже отработанный → `TOKEN_REUSED`,
+ * сервер отзывает всю family, и устройство ловит каскад 401 + 429 (throttle
+ * `/auth/refresh` = 20/60s на IP). Лок держит очередь: пока одна вкладка
+ * ротирует, остальные ждут и затем читают уже свежий токен из localStorage.
  */
 
 const API_BASE_URL = `${
@@ -51,8 +59,70 @@ const rawBaseQuery = fetchBaseQuery({
 type RtkApi = Parameters<typeof rawBaseQuery>[1];
 type RtkExtra = Parameters<typeof rawBaseQuery>[2];
 
-/** Промис текущей ротации (single-flight mutex). */
+/** Промис текущей ротации внутри ЭТОЙ вкладки (single-flight mutex). */
 let refreshInFlight: Promise<boolean> | null = null;
+
+/** Имя кросс-вкладочного лока (Web Locks API). */
+const REFRESH_LOCK = 'avino.client.auth-refresh';
+
+/**
+ * Один реальный обмен refresh → пара токенов. ВСЕГДА читает самый свежий
+ * refresh-токен из localStorage: соседняя вкладка могла его только что
+ * ротировать, и предъявление устаревшего = TOKEN_REUSED → отзыв всей family
+ * (docs/API.md §3). Redux-снапшот — лишь fallback (SSR / приватный режим).
+ */
+async function performRefresh(
+  api: RtkApi,
+  extraOptions: RtkExtra,
+): Promise<boolean> {
+  const refreshToken =
+    readPersistedRefreshToken() ??
+    selectRefreshToken(api.getState() as RootState);
+  if (!refreshToken) return false;
+
+  const result = await rawBaseQuery(
+    {
+      url: '/auth/refresh',
+      method: 'POST',
+      body: { refresh_token: refreshToken },
+    },
+    api,
+    extraOptions,
+  );
+
+  const data = result.data as RefreshResponse | undefined;
+  if (data?.access_token && data?.refresh_token) {
+    api.dispatch(
+      setCredentials({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      }),
+    );
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Сериализация refresh МЕЖДУ вкладками. Web Locks API держит именованную
+ * очередь на весь origin: пока одна вкладка ротирует, остальные ждут и затем
+ * читают уже свежий токен — гонка «двойная ротация → TOKEN_REUSED» исчезает.
+ * Fallback (нет `navigator.locks`: SSR, старые браузеры) — прежнее поведение,
+ * только внутривкладочный single-flight.
+ */
+function refreshUnderCrossTabLock(
+  api: RtkApi,
+  extraOptions: RtkExtra,
+): Promise<boolean> {
+  const locks =
+    typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  if (!locks) return performRefresh(api, extraOptions);
+  // lib.dom-оверлоад LockManager.request выводит T=Promise<boolean> (двойной
+  // Promise в типе); в рантайме async-цепочка его разворачивает.
+  return locks.request(REFRESH_LOCK, () =>
+    performRefresh(api, extraOptions),
+  ) as unknown as Promise<boolean>;
+}
 
 async function refreshTokens(
   api: RtkApi,
@@ -61,35 +131,7 @@ async function refreshTokens(
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
-        // localStorage — общий для вкладок источник истины: после ротации в
-        // соседней вкладке Redux-снапшот протухает, а повторная ротация старым
-        // токеном = TOKEN_REUSED → отзыв всей family (docs/API.md §3).
-        const refreshToken =
-          readPersistedRefreshToken() ??
-          selectRefreshToken(api.getState() as RootState);
-        if (!refreshToken) return false;
-
-        const result = await rawBaseQuery(
-          {
-            url: '/auth/refresh',
-            method: 'POST',
-            body: { refresh_token: refreshToken },
-          },
-          api,
-          extraOptions,
-        );
-
-        const data = result.data as RefreshResponse | undefined;
-        if (data?.access_token && data?.refresh_token) {
-          api.dispatch(
-            setCredentials({
-              access_token: data.access_token,
-              refresh_token: data.refresh_token,
-            }),
-          );
-          return true;
-        }
-        return false;
+        return await refreshUnderCrossTabLock(api, extraOptions);
       } catch {
         return false;
       } finally {
