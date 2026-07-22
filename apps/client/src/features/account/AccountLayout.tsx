@@ -11,10 +11,10 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import { CalendarDays, Home, Heart, Bell, MessageCircle, MonitorSmartphone, User, Settings as SettingsIcon } from 'lucide-react';
+import { CalendarDays, Home, Heart, Bell, Loader2, MessageCircle, MonitorSmartphone, User, Settings as SettingsIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
-import { selectCurrentUser } from '@/store/slices/authSlice';
+import { selectAuthResolved, selectCurrentUser } from '@/store/slices/authSlice';
 import { CountBadge } from '@/components/ui/count-badge';
 import { useUnreadCounts } from '@/store/useUnreadCounts';
 
@@ -48,6 +48,10 @@ export interface AccountLayoutProps {
 export function AccountLayout({ tab, children }: AccountLayoutProps) {
   const t = useTranslations('account');
   const user = useAppSelector(selectCurrentUser);
+  // Сессия ещё не определена (пробный silent-refresh, ADR-0153): не рендерим
+  // контент вкладки, иначе вошедший юзер мельком увидел бы гость-экран вкладки
+  // (у каждой вкладки свой `if (!isAuthenticated)`-бранч). Один гейт на все.
+  const authResolved = useAppSelector(selectAuthResolved);
 
   // Счётчики без поллинга — читаем общий кэш (двигатель поллинга — шапка).
   const { messages, notifications, tours } = useUnreadCounts();
@@ -120,8 +124,16 @@ export function AccountLayout({ tab, children }: AccountLayoutProps) {
           </nav>
         </aside>
 
-        {/* Контент активной вкладки */}
-        <main className="min-w-0">{children}</main>
+        {/* Контент активной вкладки (после разрешения сессии — иначе loader) */}
+        <main className="min-w-0">
+          {authResolved ? (
+            children
+          ) : (
+            <div className="flex items-center justify-center py-24 text-muted-foreground">
+              <Loader2 className="animate-spin" size={22} />
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );

@@ -44,7 +44,10 @@ import {
 import { useListAmenitiesQuery } from '@/store/api/amenitiesApi';
 import { amenityLabel } from '@/lib/amenities';
 import { useAppSelector } from '@/store/hooks';
-import { selectIsAuthenticated } from '@/store/slices/authSlice';
+import {
+  selectAuthResolved,
+  selectIsAuthenticated,
+} from '@/store/slices/authSlice';
 import { getApiError } from '@/store/api/apiError';
 import { AddressStep } from '@/features/listing-new/AddressStep';
 import { PhotoUploader, type UploadPhoto } from '@/features/listing-new/PhotoUploader';
@@ -304,6 +307,7 @@ export function ListingEdit({
   const { data: amenities = [] } = useListAmenitiesQuery();
   const router = useRouter();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const authResolved = useAppSelector(selectAuthResolved);
 
   const { data, isLoading, isError } = useGetListingForEditQuery(id, {
     skip: !isAuthenticated,
@@ -344,7 +348,9 @@ export function ListingEdit({
     </div>
   );
 
-  if (!isAuthenticated) {
+  // Гость-экран показываем ТОЛЬКО после разрешения сессии (ADR-0153); пока
+  // идёт пробный silent-refresh (query выше skip'нут → !f), падаем в loader ниже.
+  if (authResolved && !isAuthenticated) {
     return notice(t('authTitle'), t('authText'));
   }
   if (isLoading || (!f && !isError)) {

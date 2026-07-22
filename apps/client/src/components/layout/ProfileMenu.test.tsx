@@ -152,12 +152,13 @@ describe('ProfileMenu', () => {
     expect(pushSpy).toHaveBeenCalledWith('/account/inbox');
   });
 
-  it('клик по «Выйти» отзывает refresh-токен и уводит на /', async () => {
+  it('клик по «Выйти» отзывает сессию (без тела — cookie) и уводит на /', async () => {
     const user = userEvent.setup();
     render(<ProfileMenu />);
     await user.click(screen.getByRole('button', { name: /Ваш профиль/ }));
     await user.click(screen.getByText('Выйти'));
-    expect(logoutSpy).toHaveBeenCalledWith({ refresh_token: 'refresh' });
+    // Логаут без тела: family адресует httpOnly cookie avino_rt (ADR-0153).
+    expect(logoutSpy).toHaveBeenCalledWith();
     await waitFor(() => expect(pushSpy).toHaveBeenCalledWith('/'));
   });
 
