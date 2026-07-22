@@ -59,9 +59,7 @@ describe('identityResetListener (admin): сброс кэша при смене �
     await seedCache(store);
     expect(cachedQueryCount(store)).toBeGreaterThan(0);
 
-    store.dispatch(
-      setCredentials({ access_token: 'a', refresh_token: 'r', user: fakeUser }),
-    );
+    store.dispatch(setCredentials({ access_token: 'a', user: fakeUser }));
     await flush();
 
     expect(cachedQueryCount(store)).toBe(0);
@@ -84,7 +82,7 @@ describe('identityResetListener (admin): сброс кэша при смене �
     const before = cachedQueryCount(store);
     expect(before).toBeGreaterThan(0);
 
-    store.dispatch(setTokens({ access_token: 'a2', refresh_token: 'r2' }));
+    store.dispatch(setTokens({ access_token: 'a2' }));
     await flush();
 
     expect(cachedQueryCount(store)).toBe(before);

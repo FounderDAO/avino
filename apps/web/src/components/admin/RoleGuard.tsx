@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import {
-  selectAuthInitialized,
+  selectAuthResolved,
   selectIsAuthenticated,
 } from '@/store/slices/authSlice';
 import { useGetMeQuery } from '@/store/api/authApi';
@@ -12,9 +12,10 @@ import { useLogout } from '@/hooks/useLogout';
 
 /**
  * RoleGuard — доступ к разделам админки (порт логики ADMIN-06, новый стиль).
- *  1. До гидрации/инициализации — нейтральный экран загрузки (нет hydration mismatch).
- *  2. Нет токенов → редирект /admin/login.
- *  3. Есть токен → GET /auth/me (истёкший access восстановит авто-refresh).
+ *  1. Пока сессия не определена (пробный silent-refresh по cookie, ADR-0153) —
+ *     нейтральный экран загрузки (нет hydration mismatch, нет ложного редиректа).
+ *  2. Нет сессии → редирект /admin/login.
+ *  3. Есть access → GET /auth/me (истёкший access восстановит авто-refresh).
  *  4. Нет роли ADMIN → 403. Не-401 ошибка → «Повторить/Выйти».
  * Монтируется только на не-логин маршрутах (см. ConditionalShell).
  */
@@ -23,12 +24,12 @@ const LOGIN_ROUTE = '/admin/login';
 
 export function RoleGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const initialized = useSelector(selectAuthInitialized);
+  const resolved = useSelector(selectAuthResolved);
   const isAuthenticated = useSelector(selectIsAuthenticated);
 
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
-  const ready = hydrated && initialized;
+  const ready = hydrated && resolved;
 
   const { data: me, isLoading, isError, refetch } = useGetMeQuery(undefined, {
     skip: !ready || !isAuthenticated,

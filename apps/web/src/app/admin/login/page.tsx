@@ -107,9 +107,10 @@ export default function AdminLoginPage() {
     if (!codeValid) { setError(`Код состоит из ${OTP_LENGTH} цифр.`); return; }
     try {
       const res = await verifyOtp({ channel: 'EMAIL', destination: destination(), code }).unwrap();
+      // refresh_token приходит в httpOnly cookie avino_rt (Set-Cookie на verify,
+      // ADR-0153) — в JS не храним; в стор кладём только access + user.
       dispatch(setCredentials({
         access_token: res.access_token,
-        refresh_token: res.refresh_token,
         user: res.user,
       }));
       router.replace('/admin');
