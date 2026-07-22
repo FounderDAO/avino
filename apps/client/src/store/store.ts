@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
 import { baseApi } from './api/baseApi';
 import { apiErrorToastMiddleware } from './apiErrorToastMiddleware';
+import { identityResetListener } from './identityResetListener';
 import favoritesReducer from './favoritesSlice';
 import currencyReducer from './currencySlice';
 import { authReducer } from './slices/authSlice';
@@ -25,7 +26,9 @@ export const makeStore = () => {
       realtime: realtimeReducer,
     },
     middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware().concat(baseApi.middleware, apiErrorToastMiddleware),
+      getDefaultMiddleware()
+        .prepend(identityResetListener.middleware)
+        .concat(baseApi.middleware, apiErrorToastMiddleware),
   });
   // Трекинг фокуса/сети окна — без него skipPollingIfUnfocused (шапка) не
   // приостанавливает поллинг в фоне. На сервере setupListeners — no-op.
