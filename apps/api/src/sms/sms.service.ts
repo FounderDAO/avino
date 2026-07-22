@@ -74,7 +74,7 @@ export class SmsService {
 
   /** Отправить OTP-код на телефон (E.164). */
   async sendOtp(phone: string, code: string): Promise<void> {
-    const message = `Avino: kirish uchun kod ${code}. Hech kimga aytmang.`;
+    const message = `Avino platformasiga kirish uchun tasdiqlash kodi: ${code}. Kodni hech kimga bermang.`;
     await this.send(phone, message);
   }
 
