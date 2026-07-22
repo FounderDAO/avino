@@ -8,7 +8,7 @@ import {
   UnprocessableEntityException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
-import { ListingStatus, MediaType, Prisma } from '@prisma/client';
+import { ListingStatus, MediaType, ModerationAction, Prisma } from '@prisma/client';
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
@@ -129,7 +129,7 @@ export class ListingMediaService {
     user: AuthenticatedUser,
     file: UploadedImageFile | undefined,
   ): Promise<ListingMediaResponse> {
-    await this.assertCanModify(listingId, user);
+    const listing = await this.assertCanModify(listingId, user);
 
     if (!file) {
       throw new BadRequestException({
@@ -185,6 +185,8 @@ export class ListingMediaService {
       },
       select: MEDIA_SELECT,
     });
+    // Добавление фото — изменение контента: возвращает ACTIVE/REJECTED на модерацию.
+    await this.reModerateOnOwnerMediaChange(listingId, listing, user, 'добавлено фото');
     return this.toResponse(media);
   }
 
@@ -199,7 +201,7 @@ export class ListingMediaService {
     user: AuthenticatedUser,
     mediaId: string,
   ): Promise<void> {
-    await this.assertCanModify(listingId, user);
+    const listing = await this.assertCanModify(listingId, user);
 
     const media = await this.prisma.listingMedia.findFirst({
       where: { id: mediaId, listingId },
@@ -213,6 +215,8 @@ export class ListingMediaService {
     }
 
     await this.prisma.listingMedia.delete({ where: { id: media.id } });
+    // Удаление фото — изменение контента: возвращает ACTIVE/REJECTED на модерацию.
+    await this.reModerateOnOwnerMediaChange(listingId, listing, user, 'удалено фото');
 
     try {
       // Предпочитаем стабильный key; для legacy-строк (key=NULL) восстанавливаем
@@ -287,18 +291,59 @@ export class ListingMediaService {
   private async assertCanModify(
     listingId: string,
     user: AuthenticatedUser,
-  ): Promise<void> {
+  ): Promise<{ ownerId: string; status: ListingStatus }> {
     const listing = await this.findActiveListing(listingId);
-    if (listing.ownerId === user.id) {
+    const isOwner = listing.ownerId === user.id;
+    const isPrivileged = user.roles.some((role) =>
+      MEDIA_MODIFY_ROLES.includes(role),
+    );
+    if (!isOwner && !isPrivileged) {
+      throw new ForbiddenException({
+        code: ApiErrorCode.FORBIDDEN,
+        message: 'You can only modify media of your own listing',
+      });
+    }
+    return listing;
+  }
+
+  /**
+   * Правка галереи ВЛАДЕЛЬЦЕМ (добавление/удаление фото) возвращает
+   * `ACTIVE`/`REJECTED`-объявление на повторную модерацию (`NEW`) и пишет
+   * системный лог `OWNER_EDIT` — зеркалит контент-правку в
+   * `ListingsService.update` (ADR-0120). Правки ADMIN (доверенная роль) и
+   * переупорядочивание (порядок ≠ новый контент) сюда не входят. `published_at`
+   * не сбрасывается — при повторном `APPROVE` он сохраняется (changeStatus).
+   */
+  private async reModerateOnOwnerMediaChange(
+    listingId: string,
+    listing: { ownerId: string; status: ListingStatus },
+    user: AuthenticatedUser,
+    change: string,
+  ): Promise<void> {
+    const shouldReModerate =
+      user.id === listing.ownerId &&
+      (listing.status === ListingStatus.ACTIVE ||
+        listing.status === ListingStatus.REJECTED);
+    if (!shouldReModerate) {
       return;
     }
-    if (user.roles.some((role) => MEDIA_MODIFY_ROLES.includes(role))) {
-      return;
-    }
-    throw new ForbiddenException({
-      code: ApiErrorCode.FORBIDDEN,
-      message: 'You can only modify media of your own listing',
-    });
+
+    await this.prisma.$transaction([
+      this.prisma.listing.update({
+        where: { id: listingId },
+        data: { status: ListingStatus.NEW },
+      }),
+      this.prisma.moderationLog.create({
+        data: {
+          listingId,
+          moderatorId: null,
+          action: ModerationAction.OWNER_EDIT,
+          oldStatus: listing.status,
+          newStatus: ListingStatus.NEW,
+          reason: `Изменено: ${change}`,
+        },
+      }),
+    ]);
   }
 
   /**

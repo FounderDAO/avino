@@ -55,6 +55,9 @@ const ACTION_LABEL: Record<ModerationAction, string> = {
   SEND_TO_DRAFT: 'В черновики',
   REJECT: 'Отклонено',
   DELETE: 'Удалено',
+  // Системное событие: владелец отредактировал объявление, и оно вернулось в
+  // очередь (reason содержит список изменённых полей).
+  OWNER_EDIT: 'Правка владельца',
 };
 
 const AMENITY_LABELS: Record<string, string> = {

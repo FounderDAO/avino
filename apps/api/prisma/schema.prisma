@@ -207,6 +207,12 @@ enum ModerationAction {
   SEND_TO_DRAFT
   REJECT
   DELETE
+  // Системное событие (moderator_id = null): владелец отредактировал контент
+  // ACTIVE/REJECTED-объявления, из-за чего оно вернулось в очередь (→ NEW).
+  // reason несёт человекочитаемый список изменённых полей (ADR-0120). Модератор
+  // видит его в «Истории модерации» и понимает, почему объявление вернулось.
+  // НЕ является решением модератора — ModerateListingDto его не принимает.
+  OWNER_EDIT
 }
 
 /// Тип уведомления (DB_SCHEMA.md §3/§11, TASK-038). Доменное событие, по которому
@@ -745,6 +751,9 @@ model AppSetting {
 /// действие модератора над объявлением логируется здесь (доменный лог) — в
 /// дополнение к audit_logs(LISTING_STATUS_CHANGE). old_status/new_status
 /// фиксируют переход; reason — опциональная причина (например для REJECT).
+/// Также сюда пишется системное событие OWNER_EDIT (moderator_id = null): когда
+/// владелец правит контент ACTIVE/REJECTED-объявления и оно возвращается в
+/// очередь (→ NEW), reason несёт список изменённых полей (ADR-0120).
 ///
 /// listing_id → listings ON DELETE CASCADE: лог не переживает физического
 /// удаления объявления. moderator_id → users ON DELETE SET NULL, nullable —
