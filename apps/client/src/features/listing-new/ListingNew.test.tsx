@@ -129,9 +129,8 @@ vi.mock('./RegionDistrictSelect', () => ({
 }));
 vi.mock('@/components/layout/LoginModal', () => ({ LoginModal: () => null }));
 vi.mock('next-intl', () => {
-  const resolve =
-    (ns: string) =>
-    (key: string): string => {
+  const resolve = (ns: string) => {
+    const lookup = (key: string): string => {
       const root = (ns ? (ru as any)[ns] : ru) as any;
       const val = key
         .split('.')
@@ -142,6 +141,11 @@ vi.mock('next-intl', () => {
         );
       return typeof val === 'string' ? val : key;
     };
+    // t.rich (напр. contactGate.noPhoneHint): для теста достаточно вернуть
+    // разрешённую строку — chunks-функции не вызываем.
+    (lookup as any).rich = (key: string) => lookup(key);
+    return lookup;
+  };
   return { useTranslations: resolve, useLocale: () => 'ru' };
 });
 
@@ -331,7 +335,10 @@ describe('ListingNew wizard (variant B)', () => {
   });
 
   it('проактивный лимит: blocked=true → модалка «Стать агентом» сразу на маунте', () => {
-    mockQuota = { data: { used: 3, limit: 3, blocked: true }, isLoading: false };
+    mockQuota = {
+      data: { used: 3, limit: 3, blocked: true },
+      isLoading: false,
+    };
     render(<ListingNew {...emptyProps} />);
     // Кнопка CTA модалки (ru: listingNew.limitModal.becomeAgent).
     expect(

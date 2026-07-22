@@ -837,6 +837,8 @@
       "lastName": "Familiya",
       "phone": "Telefon",
       "phonePlaceholder": "+998 90 123 45 67",
+      "phoneHint": "Xaridorlar shu raqamni ko'radi. Uni akkaunt sozlamalarida o'zgartirishingiz mumkin.",
+      "noPhoneHint": "E'lon joylash uchun <link>akkaunt sozlamalarida telefon raqamini qo'shing</link>.",
       "submit": "Davom etish",
       "saving": "Saqlanmoqda…",
       "error": "Ma'lumotlarni saqlab bo'lmadi. Yana urinib ko'ring."
