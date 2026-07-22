@@ -1305,6 +1305,11 @@
       "errCode": "Invalid code. Please try again.",
       "errExpired": "Code expired. Request a new one.",
       "errAttempts": "Too many attempts. Request a new code."
+    },
+    "contactPhone": {
+      "rowTitle": "Contact phone (shown on listings)",
+      "modalTitle": "Change contact phone",
+      "hint": "Shown on your listings once confirmed."
     }
   },
   "savedSearch": {
@@ -1429,6 +1434,7 @@
     "avatarRemoved": "Photo removed",
     "avatarActionFailed": "Couldn't update the photo. Please try again.",
     "contactChanged": "Sign-in contact details updated",
+    "contactPhoneUpdated": "Contact phone updated",
     "mediaUploadFailed": "Failed to upload {count} photo(s). Your other changes were saved."
   }
 }
