@@ -11,6 +11,7 @@ import {
   Language,
   ListingStatus,
   MediaType,
+  ModerationAction,
   ParkingType,
   Prisma,
   PromotionType,
@@ -651,7 +652,47 @@ export class ListingsService {
   ): Promise<ListingResponse> {
     const existing = await this.prisma.listing.findFirst({
       where: { id: listingId, status: { not: ListingStatus.DELETED } },
-      select: { id: true, ownerId: true, originalLanguage: true, status: true, toursEnabled: true, tourWindows: true, price: true, currency: true, districtId: true },
+      // Контентные поля читаем целиком: по ним считаем diff для лога OWNER_EDIT
+      // и решаем, возвращать ли объявление на модерацию (ADR-0120).
+      select: {
+        id: true,
+        ownerId: true,
+        originalLanguage: true,
+        status: true,
+        toursEnabled: true,
+        tourWindows: true,
+        transactionType: true,
+        propertyType: true,
+        price: true,
+        currency: true,
+        area: true,
+        lotArea: true,
+        livingArea: true,
+        nonLivingArea: true,
+        rooms: true,
+        bathrooms: true,
+        parkingType: true,
+        amenities: true,
+        floor: true,
+        isBasement: true,
+        totalFloors: true,
+        yearBuilt: true,
+        address: true,
+        cityId: true,
+        districtId: true,
+        agencyId: true,
+        latitude: true,
+        longitude: true,
+        translations: {
+          select: {
+            language: true,
+            title: true,
+            description: true,
+            addressNote: true,
+            featuresText: true,
+          },
+        },
+      },
     });
     if (!existing) {
       throw new NotFoundException({
@@ -699,12 +740,22 @@ export class ListingsService {
       };
     }
 
-    // Правка опубликованного (ACTIVE) объявления возвращает его на повторную
-    // модерацию (NEW): изменённый контент не должен оставаться в публичной
-    // выдаче без проверки (Team Lead decision, ADR-0120). published_at не
-    // сбрасываем — при повторном APPROVE он не перезаписывается
-    // (ModerationService.changeStatus), поэтому дата первой публикации сохранится.
-    if (existing.status === ListingStatus.ACTIVE) {
+    // Правка объявления, уже получившего решение модератора, возвращает его на
+    // повторную проверку (NEW) — но только если реально изменился КОНТЕНТ:
+    //  - ACTIVE   — изменённый контент не должен оставаться в публичной выдаче
+    //               без проверки (Team Lead decision, ADR-0120);
+    //  - REJECTED — исправив замечание модератора (напр. завышенную цену),
+    //               владелец снова попадает в очередь; иначе объявление после
+    //               правки навсегда осталось бы «отклонённым» вне модерации.
+    // Правка одних лишь окон туров (расписание, не контент) статус не меняет.
+    // DRAFT намеренно НЕ ре-модерируется. published_at не сбрасываем — при
+    // повторном APPROVE он не перезаписывается (ModerationService.changeStatus).
+    const changes = this.collectOwnerEditChanges(existing, data, dto.translation);
+    const reModerated =
+      changes.length > 0 &&
+      (existing.status === ListingStatus.ACTIVE ||
+        existing.status === ListingStatus.REJECTED);
+    if (reModerated) {
       data.status = ListingStatus.NEW;
     }
     // Smart-return: правка скрытого (ARCHIVED) листинга требует повторной
@@ -732,6 +783,21 @@ export class ListingsService {
       if (priceChanged) {
         await tx.listingPriceHistory.create({
           data: { listingId, price: nextPrice, currency: nextCurrency },
+        });
+      }
+      // Системная запись в таймлайн модерации: почему объявление вернулось в
+      // очередь. moderator_id = null (не решение модератора), reason — список
+      // изменённых полей, который модератор видит в «Истории модерации».
+      if (reModerated) {
+        await tx.moderationLog.create({
+          data: {
+            listingId,
+            moderatorId: null,
+            action: ModerationAction.OWNER_EDIT,
+            oldStatus: existing.status,
+            newStatus: ListingStatus.NEW,
+            reason: `Изменено: ${changes.join(', ')}`,
+          },
         });
       }
       return row;
@@ -1059,6 +1125,106 @@ export class ListingsService {
       data.address = normalizeAddress(dto.address);
       data.addressEn = null;
     }
+  }
+
+  /**
+   * Список реально изменённых КОНТЕНТНЫХ полей — человекочитаемо (RU, админка
+   * русскоязычная) — для reason лога OWNER_EDIT. Сравниваем финальные значения
+   * (DB-форма `data`) со старыми (`existing`): «тихое» сохранение без изменений
+   * не считается правкой и не возвращает объявление на модерацию. Окна туров
+   * (`tours_*`) — расписание, не контент: намеренно исключены.
+   */
+  private collectOwnerEditChanges(
+    existing: Record<string, unknown>,
+    data: Record<string, unknown>,
+    translation: UpdateListingDto['translation'],
+  ): string[] {
+    const changes: string[] = [];
+    const has = (k: string) => data[k] !== undefined;
+    const norm = (v: unknown) => (v == null ? null : String(v));
+    const decEq = (a: unknown, b: unknown): boolean => {
+      if (a == null || b == null) return a == null && b == null;
+      return new Prisma.Decimal(a as Prisma.Decimal.Value).equals(
+        new Prisma.Decimal(b as Prisma.Decimal.Value),
+      );
+    };
+
+    // Цена — самый частый повод (пример: «цена повышена»); даём old → new.
+    if (has('price') || has('currency')) {
+      const oldPrice = existing.price as Prisma.Decimal;
+      const oldCur = existing.currency as string;
+      const newPrice = (data.price as string) ?? oldPrice.toFixed(2);
+      const newCur = (data.currency as string) ?? oldCur;
+      if (!decEq(oldPrice, newPrice) || oldCur !== newCur) {
+        changes.push(
+          `цена ${oldPrice.toFixed(2)} ${oldCur} → ${new Prisma.Decimal(newPrice).toFixed(2)} ${newCur}`,
+        );
+      }
+    }
+
+    for (const [k, label] of [
+      ['area', 'площадь'],
+      ['lotArea', 'площадь участка'],
+      ['livingArea', 'жилая площадь'],
+      ['nonLivingArea', 'нежилая площадь'],
+      ['bathrooms', 'санузлы'],
+    ] as const) {
+      if (has(k) && !decEq(existing[k], data[k])) changes.push(label);
+    }
+
+    for (const [k, label] of [
+      ['transactionType', 'тип сделки'],
+      ['propertyType', 'тип недвижимости'],
+      ['rooms', 'комнаты'],
+      ['parkingType', 'парковка'],
+      ['floor', 'этаж'],
+      ['isBasement', 'цоколь'],
+      ['totalFloors', 'этажность'],
+      ['yearBuilt', 'год постройки'],
+      ['address', 'адрес'],
+      ['cityId', 'город'],
+      ['districtId', 'район'],
+      ['agencyId', 'агентство'],
+    ] as const) {
+      if (has(k) && norm(existing[k]) !== norm(data[k])) changes.push(label);
+    }
+
+    // Удобства — сравнение множеств (порядок неважен).
+    if (has('amenities')) {
+      const before = new Set((existing.amenities as string[] | null) ?? []);
+      const after = new Set((data.amenities as string[] | null) ?? []);
+      if (before.size !== after.size || [...after].some((x) => !before.has(x))) {
+        changes.push('удобства');
+      }
+    }
+
+    // Координаты (map-пин) — одна метка на сдвиг точки.
+    if (
+      (has('latitude') && !decEq(existing.latitude, data.latitude)) ||
+      (has('longitude') && !decEq(existing.longitude, data.longitude))
+    ) {
+      changes.push('координаты');
+    }
+
+    // Авторский перевод: старые значения — из existing.translations (строка
+    // original_language).
+    if (translation) {
+      const orig =
+        ((existing.translations as Record<string, unknown>[] | undefined) ?? []).find(
+          (t) => t.language === existing.originalLanguage,
+        ) ?? {};
+      for (const [dtoKey, dbKey, label] of [
+        ['title', 'title', 'заголовок'],
+        ['description', 'description', 'описание'],
+        ['address_note', 'addressNote', 'примечание к адресу'],
+        ['features_text', 'featuresText', 'особенности'],
+      ] as const) {
+        const nv = (translation as Record<string, unknown>)[dtoKey];
+        if (nv !== undefined && norm(nv) !== norm(orig[dbKey])) changes.push(label);
+      }
+    }
+
+    return changes;
   }
 
   /** DTO (snake_case) → Prisma scalar data (camelCase). Пропускает undefined. */

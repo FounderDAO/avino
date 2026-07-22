@@ -120,10 +120,12 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 /**
- * Маппинг действия модерации на целевой `listing_status` (API.md §16).
+ * Маппинг решения модератора на целевой `listing_status` (API.md §16).
  * APPROVE → ACTIVE, SEND_TO_DRAFT → DRAFT, REJECT → REJECTED, DELETE → DELETED.
+ * OWNER_EDIT сюда не входит — это системное событие, не переход по решению
+ * модератора (пишется из ListingsService при правке владельцем).
  */
-const ACTION_TO_STATUS: Record<ModerationAction, ListingStatus> = {
+const ACTION_TO_STATUS: Partial<Record<ModerationAction, ListingStatus>> = {
   [ModerationAction.APPROVE]: ListingStatus.ACTIVE,
   [ModerationAction.SEND_TO_DRAFT]: ListingStatus.DRAFT,
   [ModerationAction.REJECT]: ListingStatus.REJECTED,
@@ -315,6 +317,7 @@ export class ModerationService {
 
     const newStatus = ACTION_TO_STATUS[dto.action];
     if (
+      !newStatus ||
       !MODERATABLE_STATUSES.includes(existing.status) ||
       newStatus === existing.status
     ) {

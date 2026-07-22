@@ -7017,7 +7017,13 @@
         "type": "object",
         "properties": {
           "action": {
-            "type": "object"
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "SEND_TO_DRAFT",
+              "REJECT",
+              "DELETE"
+            ]
           },
           "reason": {
             "type": "string",

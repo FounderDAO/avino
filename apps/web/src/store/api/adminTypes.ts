@@ -48,7 +48,15 @@ export type PaymentStatus =
 /** Допустимые периоды промо (§15). */
 export type PromotionPeriodDays = 7 | 14 | 30;
 
-export type ModerationAction = 'APPROVE' | 'SEND_TO_DRAFT' | 'REJECT' | 'DELETE';
+// OWNER_EDIT — системное значение только в ответах (moderation_logs): владелец
+// правил объявление и оно вернулось в очередь. Модератор его не отправляет
+// (эндпоинт смены статуса принимает лишь APPROVE/SEND_TO_DRAFT/REJECT/DELETE).
+export type ModerationAction =
+  | 'APPROVE'
+  | 'SEND_TO_DRAFT'
+  | 'REJECT'
+  | 'DELETE'
+  | 'OWNER_EDIT';
 export type PromotionAdminAction =
   | 'ACTIVATE_VIP'
   | 'ACTIVATE_TOP'

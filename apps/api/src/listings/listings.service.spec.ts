@@ -87,6 +87,11 @@ describe('ListingsService', () => {
       listingPriceHistory: {
         create: jest.fn().mockResolvedValue({}),
       },
+      // Лог модерации: update() пишет системную запись OWNER_EDIT при возврате
+      // отредактированного ACTIVE/REJECTED-объявления в очередь (ADR-0120).
+      moderationLog: {
+        create: jest.fn().mockResolvedValue({}),
+      },
       // Гейт полноты профиля (ADR-0125): create() читает автора с профилем.
       // Дефолт — полный профиль, чтобы остальные create-тесты не задевало.
       user: {
@@ -492,7 +497,7 @@ describe('ListingsService', () => {
       expect(result.price).toBe('4300000.00');
     });
 
-    it('sends an edited ACTIVE listing back to moderation (NEW)', async () => {
+    it('sends an edited ACTIVE listing back to moderation (NEW) and logs the change', async () => {
       prisma.listing.findFirst.mockResolvedValue({
         id: LISTING_ID,
         ownerId: OWNER_ID,
@@ -509,9 +514,57 @@ describe('ListingsService', () => {
 
       const data = prisma.listing.update.mock.calls[0][0].data;
       expect(data.status).toBe(ListingStatus.NEW);
+      // Системный OWNER_EDIT в таймлайн модерации с человекочитаемым дифом.
+      const log = prisma.moderationLog.create.mock.calls[0][0].data;
+      expect(log.action).toBe('OWNER_EDIT');
+      expect(log.moderatorId).toBeNull();
+      expect(log.oldStatus).toBe(ListingStatus.ACTIVE);
+      expect(log.newStatus).toBe(ListingStatus.NEW);
+      expect(log.reason).toContain('цена');
     });
 
-    it('does not change status when editing a non-ACTIVE listing', async () => {
+    it('does NOT re-moderate an ACTIVE listing when only tour windows change', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.ACTIVE,
+        toursEnabled: true,
+        tourWindows: [{ start: '07:00', end: '10:00' }],
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, {
+        tour_windows: [{ start: '08:00', end: '11:00' }],
+      } as any);
+
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.status).toBeUndefined();
+      expect(prisma.moderationLog.create).not.toHaveBeenCalled();
+    });
+
+    it('sends an edited REJECTED listing back to moderation (NEW)', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.REJECTED,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, {
+        price: '4300000.00',
+      } as any);
+
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.status).toBe(ListingStatus.NEW);
+    });
+
+    it('does not change status when editing a DRAFT listing', async () => {
       prisma.listing.findFirst.mockResolvedValue({
         id: LISTING_ID,
         ownerId: OWNER_ID,
