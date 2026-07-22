@@ -212,7 +212,7 @@ describe('SmsService', () => {
 
     const sendBody = fetchSpy.mock.calls[1][1].body as URLSearchParams;
     expect(sendBody.get('message')).toBe(
-      'Avino: kirish uchun kod 123456. Hech kimga aytmang.',
+      'Avino platformasiga kirish uchun tasdiqlash kodi: 123456. Kodni hech kimga bermang.',
     );
   });
 
