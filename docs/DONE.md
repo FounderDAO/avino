@@ -37,13 +37,429 @@ Related ADR:
 
 ---
 
+## 2026-07-22
+
+### Ad-hoc — OTP-верификация публичного «Телефона для связи» (contact_phone)
+
+Status: DONE
+Branch: feat/contact-phone-otp-api, feat/contact-phone-otp-client
+PR: #439 (backend), #440 (client)
+
+Files changed:
+- apps/api/prisma/schema.prisma (OtpPurpose.CONTACT_PHONE_CHANGE, UserProfile.contactPhoneVerified)
+- apps/api/prisma/migrations/20260722090000_add_contact_phone_verified/migration.sql
+- apps/api/prisma/migrations/20260722090100_add_otp_purpose_contact_phone_change/migration.sql
+- apps/api/src/users/contact-phone-change.service.ts (+ .spec.ts)
+- apps/api/src/users/dto/{request,verify}-contact-phone.dto.ts
+- apps/api/src/users/users.controller.ts, users.module.ts
+- apps/api/src/profiles/dto/update-profile.dto.ts, profiles.service.ts
+- apps/api/src/auth/auth.service.ts, auth/dto/me-response.dto.ts, users/users.service.ts, admin/admin-users.service.ts
+- apps/api/src/listings/listings.service.ts, tour-requests/, agent-applications/, moderation/ (verified-gate)
+- apps/api/openapi.public.json, openapi.internal.json
+- apps/client/src/store/api/usersApi.ts (+ .test.ts), authApi.ts
+- apps/client/src/features/account/ContactPhoneModal.tsx (+ .test.tsx), Profile.tsx (+ .test.tsx)
+- apps/client/messages/{ru,uz,en}.json
+- docs/adr/ADR-0151-contact-phone-otp-verification.md
+
+Summary:
+- Публичный «Телефон для связи» (contact_phone) теперь меняется только через OTP-подтверждение
+  владения номером; на объявлениях показывается лишь подтверждённый номер, иначе фолбэк на
+  верифицированный логин-телефон аккаунта.
+- Отдельный OtpPurpose.CONTACT_PHONE_CHANGE + ContactPhoneChangeService (сиблинг
+  ContactChangeService): SMS-only, БЕЗ uniqueness (общий номер агентства допустим), короткое
+  замыкание «= верифицированному логин-телефону → без OTP». contact_phone убран из свободного
+  PATCH /users/me/profile.
+- Причина: раньше на объявлениях можно было опубликовать любой (чужой/фейковый) номер без
+  проверки — анти-фрод/доверие. Логин-контакт уже под OTP (ADR-0150), но публичный контакт
+  логином не является и попадал мимо.
+- Важно: apps/api = Jest (не vitest); тост успеха — отдельный ключ toasts.contactPhoneUpdated
+  (не contactChanged, который про логин). Существующие непроверенные номера тихо грандфатерятся
+  (verified=false, показывается логин-телефон).
+- Отложено (не блокеры): staging live-verify (prisma migrate deploy, listings.int-spec, реальная
+  SMS); унаследованные от сиблинга Minor (verify без re-check DELETED, Dialog.Description a11y) —
+  чинить единым PR с ContactChangeModal; опциональная quick-ссылка «использовать логин-телефон».
+
+Commit messages:
+- feat(db): contact_phone_verified + OtpPurpose CONTACT_PHONE_CHANGE
+- feat(api): expose contact_phone_verified; drop contact_phone from free profile PATCH
+- feat(api): contact-phone OTP verification endpoints
+- feat(api): show contact_phone on listings only when verified (else account phone)
+- docs(adr): ADR-0151 contact-phone OTP verification + openapi routes
+- test(api): verified-gate coverage for tour-requests and agent-applications contact phone
+- feat(client): contact-phone OTP api slice + contact_phone_verified type
+- feat(client): ContactPhoneModal — SMS OTP for contact phone
+- feat(client): contact phone moved to OTP-verified row in profile
+- fix(client): correct success toast for contact-phone change; drop dead i18n key
+
+Related ADR:
+- docs/adr/ADR-0151-contact-phone-otp-verification.md
+
+---
+
 ## 2026-07-21
+
+### Ad-hoc — OTP-верификация при смене логин-контакта (телефон / email)
+
+Status: DONE
+Branch: feature/contact-change-otp-api, feature/contact-change-otp-client
+PR: #433 (backend), #434 (client)
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260721140000_add_otp_purpose_contact_change/migration.sql
+- apps/api/src/auth/otp-code.util.ts
+- apps/api/src/auth/otp.service.ts
+- apps/api/src/auth/auth.service.ts
+- apps/api/src/auth/auth.module.ts
+- apps/api/src/users/contact-change.service.ts (+ .spec.ts)
+- apps/api/src/users/dto/{request,verify}-contact-change.dto.ts
+- apps/api/src/users/users.controller.ts, users.service.ts (+ .spec.ts), users.module.ts
+- apps/api/src/users/dto/update-user.dto.ts
+- apps/api/openapi.public.json, openapi.internal.json
+- apps/client/src/store/api/usersApi.ts (+ .test.ts)
+- apps/client/src/features/account/ContactChangeModal.tsx (+ .test.tsx)
+- apps/client/src/features/account/Profile.tsx (+ .test.tsx)
+- apps/client/messages/{uz,ru,en}.json
+- docs/adr/ADR-0150-contact-change-otp-verification.md
+
+Summary:
+- При смене логин-телефона или логин-email OTP-код теперь уходит на НОВОЕ
+  значение, и смена применяется только после ввода кода (доказательство
+  владения). Раньше email менялся сразу без подтверждения, а логин-телефон
+  сменить было нельзя вовсе.
+- Backend: новый OtpPurpose.CONTACT_CHANGE (переиспользуем otp_codes, без новой
+  таблицы); OTP-примитивы вынесены в otp-code.util.ts (login-поведение не
+  тронуто, purpose параметризован). Эндпоинты POST /api/v1/users/me/contact-change/
+  {request,verify} под JWT: request (uniqueness→CONTACT_TAKEN, отказ при равенстве
+  текущему, rate-limit, доставка тем же каналом); verify (brute-force/attempts/
+  expiry/одноразовость, привязка кода к user_id, повторная uniqueness) применяет
+  смену + is_phone_verified/is_email_verified. PATCH /users/me больше не меняет
+  email. Bypass ревьюверов на смену не применяется.
+- Client: блок «Аккаунт (вход)» в Profile (логин-телефон/email + бейдж
+  «Подтверждён» + «Изменить») и ContactChangeModal (2 шага: новое значение →
+  OTP-код + таймер повтора). RTK requestContactChange/verifyContactChange, verify
+  инвалидирует getMe.
+- Важно: миграция 20260721140000 применяется на staging/prod при деплое
+  (prisma migrate deploy). Live-verify на staging — после деплоя.
+- Тесты: api login-регрессия 29/29 без правок, contact-change 7/7, api-набор
+  114/114; client 668/668; tsc/lint/openapi чисто. Ревью обоих PR: SPEC ✅ /
+  QUALITY Approved, 0 Critical/Important.
+
+Commit messages:
+- refactor(auth): parametrize otp purpose + add CONTACT_CHANGE
+- feat(users): OTP verification for login contact change
+- feat(client): contact-change RTK endpoints
+- feat(client): OTP verify UI for login contact change
+
+Related ADR:
+- docs/adr/ADR-0150-contact-change-otp-verification.md
+
+---
+
+## 2026-07-13
+
+### TASK-253 — Баг: воркер алертов saved-search падал на scalar-фильтрах (r.reduce)
+
+Status: DONE
+Branch: fix/saved-search-alert-scalar-filters
+PR: #392
+
+Files changed:
+- apps/api/src/saved-searches/saved-search-alert.service.ts
+- apps/api/src/saved-searches/saved-search-alert.service.spec.ts
+- docs/adr/ADR-0146-saved-search-filter-normalization.md
+
+Summary:
+- SavedSearchAlertService падал каждый 5-минутный прогон с TypeError:
+  r.reduce is not a function в SearchService.buildWhereSql: сырой filters_json
+  идёт в обход DTO @Transform(toArray), а клиент исторически пишет
+  property_type СТРОКОЙ и мультивыбор под plural-ключами
+  (property_types/parking_types) → Prisma.join(строка) падает. Алерты по
+  поискам с типом недвижимости не отправлялись, watermark не двигался.
+- Фикс: нормализация на границе воркера в extractFilters (ADR-0146) —
+  plural-ключи → канонические (массив приоритетнее legacy-скаляра),
+  скалярные property_type/parking_type/amenities/listing_source → массив.
+  Попутно заработал фильтр парковки (plural-ключ раньше молча игнорировался).
+- TDD (RED подтверждён до фикса, 5 новых тестов), 950/950 unit; live-verified:
+  два прогона воркера без ошибок, watermarks замороженных поисков
+  (NULL / 2026-06-26) сдвинулись.
+
+Commit messages:
+- fix(saved-searches): normalize legacy scalar filters before buildWhereSql
+
+Related ADR:
+- docs/adr/ADR-0146-saved-search-filter-normalization.md
+
+### TASK — Страница «Мои устройства» в публичном портале (сессии + revoke)
+
+Status: DONE
+Branch: feat/client-sessions-page
+PR: #391
+
+Files changed:
+- apps/client/src/store/api/sessionsApi.ts
+- apps/client/src/store/api/baseApi.ts
+- apps/client/src/store/apiErrorToastMiddleware.ts
+- apps/client/src/features/account/Devices.tsx
+- apps/client/src/features/account/Devices.test.tsx
+- apps/client/src/features/account/sessionDevice.ts
+- apps/client/src/features/account/sessionDevice.test.ts
+- apps/client/src/features/account/AccountLayout.tsx
+- apps/client/src/app/[locale]/account/[tab]/page.tsx
+- apps/client/messages/ru.json, uz.json, en.json
+- docs/adr/ADR-0145-client-devices-page.md
+
+Summary:
+- UI-слой ADR-0143 (#389): вкладка кабинета /account/devices — список активных
+  сессий (устройство из user_agent regex-парсом без библиотек, IP,
+  вход = created_at, активность = last_rotated_at, бейдж «Текущая сессия»)
+  и «Завершить» у не-текущих: confirm → DELETE → toast.
+- 404 на DELETE = «Сессия уже завершена» (идемпотентный контракт): info-toast +
+  ручной refetch (invalidatesTags на ошибке не срабатывает); revokeSession
+  в SUPPRESSED_ENDPOINTS — тосты ручные.
+- Live-verified: логин с двух UA, завершение второй сессии → её refresh
+  даёт 401 TOKEN_REUSED.
+
+Commit messages:
+- feat(client): devices page — active sessions list + revoke (ADR-0145)
+
+Related ADR:
+- docs/adr/ADR-0145-client-devices-page.md
+
+### TASK — Ипотечный калькулятор публичного портала (клиентский расчёт)
+
+Status: DONE
+Branch: feat/client-mortgage-calculator
+PR: #390 (merged)
+
+Files changed:
+- apps/client/src/lib/mortgage.ts (+test) — чистая математика: аннуитет, DTI≤40 (нестрого), suggestFix срок→взнос(30 лет)→бюджет, maxAffordablePrice, niceFloorPrice
+- apps/client/src/store/slices/mortgageSlice.ts (+test) — параметры в localStorage (ключи 1:1 с мобилкой), ставки USD/UZS раздельно
+- apps/client/src/store/StoreProvider.tsx — MortgageHydrator (SSR-safe гидрация)
+- apps/client/src/lib/useMortgage.ts — сборка слайс+валюта+курс во вход математики
+- apps/client/src/app/[locale]/listing/[id]/mortgage/{page.tsx,result/page.tsx} — экраны формы и результата
+- apps/client/src/features/mortgage/* — MortgageForm, MortgageResult, MiniListingCard, salaryFormat (+tests)
+- apps/client/src/features/detail/{MortgageEstBar,MortgagePaymentCard}.tsx (+tests) + встраивание в Detail.tsx
+- apps/client/messages/{ru,en,uz}.json — 39 ключей mortgage.*
+- docs/mortgage-calculator-web-spec.md — спека мобильной команды (источник истины)
+- docs/adr/ADR-0144-client-mortgage-calculator.md
+
+Summary:
+- Перенос ипотечного калькулятора мобильного приложения на веб 1:1 (запрос клиента): est-полоска и карточка «Ежемесячный платёж» на detail (только SALE), экран формы (зарплата с живой группировкой, чипы взноса с подсветкой только при точном совпадении, слайдеры ставки/срока), экран результата (вердикт по DTI 40%, шкала, рекомендации, таблица разбивки).
+- Расчёт целиком на клиенте: зарплата не покидает устройство (Redux + localStorage), backend не участвует; единственный сетевой запрос — существующий GET /exchange-rate.
+- Кнопка рекомендации «взнос d%» применяет взнос И 30 лет атомарно; бюджетная ветка ведёт на /search?priceMax=…&currency=… с «красивым» округлением вниз.
+- Гоча: ленивый initialState с localStorage (паттерн authSlice) дал hydration mismatch на форме — переведено на канон currencySlice (статические дефолты + hydrate-action в StoreProvider), что заодно покрывает ремонт store при смене локали (#386).
+- Найден преcуществующий (есть на main) глюк CurrencySwitcher: при LS=UZS после перезагрузки тогл показывает $ до первого клика (React не патчит mismatched-атрибуты) — вынести отдельной задачей.
+- Верификация: 576/576 unit, lint/tsc/build чистые; live в браузере — сходимость математики, конверсия валют по ЦБУ, персистентность через смену локали/перезагрузку.
+
+Commit messages:
+- feat(client): mortgage calculator — form, result, detail widgets
+- docs: ADR-0144 mortgage calculator + мобильная спека
+
+Related ADR:
+- docs/adr/ADR-0144-client-mortgage-calculator.md
+
+---
+
+### TASK — Управление сессиями пользователя: список + отзыв session family (security PR-3)
+
+Status: DONE
+Branch: feat/auth-sessions-management
+PR: #389 (merged)
+
+Files changed:
+- apps/api/src/auth/token.service.ts (+spec) — `SessionInfo`, `listSessions`, `revokeUserFamily`, `fid` в access-payload
+- apps/api/src/auth/auth.service.ts (+spec) — маппинг snake_case-контракта, 404 + audit `SESSION_REVOKED`
+- apps/api/src/auth/auth.controller.ts — `GET /auth/sessions`, `DELETE /auth/sessions/:fid`
+- apps/api/src/auth/dto/session-response.dto.ts — контракт ответа
+- apps/api/src/common/guards/jwt-auth.guard.ts (+spec, +optional-guard spec) — `sessionFamilyId` в `request.user`
+- apps/api/src/auth/auth-sessions.int-spec.ts — сквозной int-тест на живом PG
+- apps/api/openapi.public.json, openapi.internal.json — `pnpm openapi:export`
+- docs/API.md §3, docs/adr/ADR-0143-auth-sessions-management.md
+
+Summary:
+- Третий шаг security-hardening (после #387 CSP и #388 access-в-памяти): пользователь видит свои активные сессии (устройства) и может отозвать любую, не владея её refresh-токеном.
+- `GET /auth/sessions` — по записи на активную family: id (fid), created_at (логин, min по family), last_rotated_at, user_agent, ip, is_current. `DELETE /auth/sessions/:fid` → 204; чужой/несуществующий fid → 404 NOT_FOUND (анти-enumeration), повторный отзыв идемпотентен.
+- Миграций нет: user_agent/ip в refresh_tokens существуют с TASK-042. `fid` добавлен в payload access-токена → is_current без refresh в запросе; старые access-токены без fid дают is_current=false (окно = accessTtl 15 мин).
+- Верификация: 945/945 unit, int-spec на живом PG, live-verify локального билда (два логина → список → 404 чужой → 204 свой → 401 TOKEN_REUSED на refresh отозванной family → ротация сохраняет is_current).
+- Не вошло (осознанно): сокращение refresh TTL 30д — отдельное решение с Team Lead; страница «Мои устройства» в apps/client — следующий PR.
+
+Commit messages:
+- feat(auth): user session management — list and revoke session families
+
+Related ADR:
+- docs/adr/ADR-0143-auth-sessions-management.md
+
+---
+
+### TASK — Регистрация агента: лимит → заявка → модерация → публичный каталог (api + client + web)
+
+Status: DONE
+Branch: feat/agent-applications, feat/agent-client, feat/agent-admin
+PR: #383, #384, #385 (все merged)
+
+Files changed:
+- apps/api: prisma (таблица `agent_applications`, enum `AgentApplicationStatus`, partial unique PENDING), src/agent-applications/* (+спеки), src/agents/* (+спеки), search DTO `agent_id` (+int-spec), notifications routing `AGENT_APPLICATION_RESOLVED`, openapi.public/internal.json
+- apps/client: ListingNew (модалка лимита), app/[locale]/become-agent + features/become-agent (+tests), features/home/Agents + AgentCTA (+tests), app/[locale]/agents/[id] + features/agent (+tests), бейдж «Риелтор» в ContactCard, NotificationContent, lib/api/agents (+tests), messages/{ru,uz,en}.json
+- apps/web: app/admin/agent-applications/page.tsx, store/api/adminAgentApplicationsApi.ts + adminTypes.ts, lib/adapters/agent-applications.ts (+test), components/admin/{Sidebar,Topbar,icons}.tsx, vitest.config.mts + package.json (первый vitest-харнесс apps/web)
+- docs/API.md §21, docs/adr/ADR-0140-agent-applications.md, docs/superpowers/specs/2026-07-12-agent-registration-design.md + планы PR1/PR2/PR3
+
+Summary:
+- Проблема: лимит активных объявлений (422 ACTIVE_LISTING_LIMIT_REACHED) отображался незаметно, а стать агентом можно было только через админа. Теперь: заметная модалка лимита с CTA «Стать агентом» → анкета-минимум (агентство опционально + «о себе») → модерация админом → роль AGENT, публикация без лимита.
+- API (#383): `POST/GET /users/me/agent-application` (409 AGENT_APPLICATION_PENDING/ALREADY_AGENT, после REJECTED — новая запись), админ `GET /admin/agent-applications` + `POST :id/approve|reject` (транзакция: статус + upsert роли AGENT + audit + IN_APP-уведомление), публичный каталог `GET /agents(/:id)` (сортировка по активным объявлениям), фильтр `GET /search?agent_id=` во всех гео-эндпоинтах (вместо отдельного /agents/:id/listings), details {limit, used} в ошибке лимита.
+- Client (#384): модалка лимита (portal), /become-agent (состояния нет заявки/PENDING/REJECTED+причина/уже агент), блок «Агенты» на главной с реального API (мок удалён), страница /agents/[id] с сеткой объявлений, бейдж «Риелтор» по contact.type, рендер уведомления о решении; i18n ru/uz/en.
+- Web (#385): админ-очередь /admin/agent-applications — таблица (заявитель с аватаром/телефоном → карточка юзера, агентство/«Частный маклер», «о себе», дата, статус + дата решения + причина), фильтр-чипы (default PENDING), серверная пагинация, approve из строки, reject через модалку с опциональной причиной, 422 INVALID_STATUS_TRANSITION → «Заявка уже обработана»; пункт «Заявки агентов» в сайдбаре + Topbar; RTK-слайс adminAgentApplicationsApi; первый vitest-харнесс в apps/web (node env, 5 тестов адаптера).
+- Верификация: api 108/937 unit + int-spec сквозного флоу; client 527 vitest; web 5/5 + lint/build; финальные Opus-ревью всех трёх веток READY TO MERGE; live-verify каждого PR (полный сценарий: лимит → заявка → админ-очередь → approve/reject → бейдж/каталог/уведомление).
+- Гочи: notificationRouting — Record на каждый NotificationType (IN_APP only для AGENT_APPLICATION_RESOLVED); аватары только resolveAvatarUrl (не resolveMediaUrl); админ-логин web — EMAIL-OTP, dev-код виден только в raw docker logs; rtk git log прячет merge-коммиты.
+
+Commit messages:
+- feat(api): agent applications + public agents catalog + search agent_id filter (PR #383, squash-набор)
+- feat(client): become-agent flow, agents on home, agent profile page, realtor badge (PR #384, squash-набор)
+- feat(web): agent applications RTK slice + DTO types
+- feat(web): agent applications row adapter + vitest harness (TDD)
+- feat(web): agent applications admin queue page + nav
+- docs(adr): ADR-0140 — admin queue UI for agent applications
+- fix(web): topbar title for agent applications page
+
+Related ADR:
+- docs/adr/ADR-0140-agent-applications.md
+
+---
+
+## 2026-07-12
+
+### TASK — «Новостройка» = вычисляемая категория; NEW_BUILDING удалён из PropertyType
+
+Status: DONE
+Branch: feat/new-construction-category
+PR: #382 (merged)
+
+Files changed:
+- apps/api/prisma/migrations/20260712120000_remove_new_building_property_type/migration.sql
+- apps/api/prisma/schema.prisma, seed-all/catalog/demo/regions/pagination.cjs
+- apps/api/src/search/dto/search-listings.dto.ts (+spec), apps/api/src/search/search.service.ts (+int-spec)
+- apps/api/src/listings/dto/create-listing.dto.ts (+spec)
+- apps/api/openapi.public.json, openapi.internal.json
+- packages/shared/src/enums.ts, constants.ts
+- apps/client: search/page.tsx, FilterBar/FiltersPanel/ActiveFilters (+tests), savedSearch.ts (+test), lib/api/listings.ts (+test), lib/mock/*, Nav/Footer/Header, home/Categories, ListingNew, ListingEdit (+test), messages/{ru,uz,en}.json
+- apps/web/src/store/api/adminTypes.ts, lib/mock/*
+- docs/API.md, docs/adr/ADR-0139-new-construction-computed-category.md
+
+Summary:
+- Запрос клиента: «New Building» — не тип недвижимости, а фильтр «New Construction» / «Yangi qurilish». `NEW_BUILDING` удалён из enum `PropertyType`; миграция перевела существующие объявления в `APARTMENT` и переписала `saved_searches.filters_json`.
+- Новый параметр `?new_construction=true` во всех `/search*`: `year_built >= текущий год − 2` (константа `NEW_CONSTRUCTION_MAX_AGE_YEARS = 3`) — последние 3 календарных года ИЛИ будущий год (недострой «сдача в 2028»). Порог считает сервер — URL стабилен, включён в SEMANTIC_PARAMS canonical (SEO-лендинг).
+- `year_built` обязателен в `POST /listings` для APARTMENT/HOUSE (`@ValidateIf`, будущие годы валидны); клиентские гейты в визарде (canNext шаг 3) и редакторе (missingRequiredFields) + хинт про год сдачи.
+- Legacy: `/search?type=NEW_BUILDING` и старые saved-searches маппятся на `new_construction=true` (page.tsx + filtersToSearchHref).
+- i18n: uz «Yangi qurilish» (было «Yangi bino»), en «New construction», ru «Новостройки»; `enums.propertyType.NEW_BUILDING` удалён.
+- Верификация: api 904 unit + int-spec search 49/49 (граница «ровно 3 года», будущее, NULL); client 480 vitest; сборки client/web/api; live: 11 = SQL-подсчёту, SSR /ru и /uz, legacy URL.
+- Гоча: тесты FiltersPanel ищут чекбоксы по индексу — новый чекбокс сдвигает индексы.
+
+Commit messages:
+- feat(search): new_construction computed category, drop NEW_BUILDING type
+
+Related ADR:
+- docs/adr/ADR-0139-new-construction-computed-category.md
+
+### TASK — Real-time доставка через WebSocket: chat + notifications + tours (api, client, docs)
+
+Status: DONE
+Branch: feat/realtime-api-gateway, feat/realtime-client-bridge, docs/realtime-ws-mobile-guide
+PR: #378, #379, #381 (все merged)
+
+Files changed:
+- apps/api/src/realtime/{realtime.types,realtime.emitter,ws-authenticator,realtime.gateway,redis-io.adapter,realtime.module,index}.ts (+3 спека)
+- apps/api/src/main.ts, app.module.ts, chat/{chat.module,chat.service(+spec)}.ts, tour-requests/{module,service(+spec)}.ts, package.json
+- apps/client/src/store/{socketClient,useRealtimeBridge(+test),realtimeInvalidation(+test),realtimeSlice(+test),store,useUnreadCounts(+test)}.ts
+- apps/client/src/components/layout/Header.tsx, features/account/Inbox.tsx, package.json
+- .env.example (NEXT_PUBLIC_WS_URL), docs/API.md (§20 + §18), docs/GUIDE_MOBILE_REALTIME_WS.md
+
+Summary:
+- Поллинг чата/уведомлений/туров (6–20 с задержки) заменён push'ем: socket.io Gateway (namespace `/rt`, auth access-JWT в handshake, комната `user:<id>`, redis-adapter поверх ioredis) шлёт тонкие сигналы `invalidate {type, id?}` после commit транзакции — только получателю. REST-контракт не тронут: клиент по сигналу дёргает RTK `invalidateTags` → штатный рефетч.
+- Клиент: singleton socketClient (websocket-only), useRealtimeBridge в HeaderBody (токен→connect, ротация→reconnect, connect→gap-fill всех тегов), поллинг деградирует до 60 с safety-net при живом сокете (0 остаётся 0 у читателей кэша).
+- Docs: контракт канала в API.md §20 + Flutter-гайд (socket_io_client ^2, жизненный цикл, маппинг сигнал→REST). WS — foreground-канал; мобильный фон остаётся за FCM.
+- Выполнено по спеке/плану docs/superpowers/{specs,plans}/2026-07-08-realtime-websocket-delivery*; субагентная разработка с ревью на каждую задачу.
+- Гочи: `pnpm add @nestjs/platform-socket.io` без пина ставит v11 под Nest 10 и не ставит `@nestjs/websockets` (пинить ^10); client-тесты обязаны импортировать vitest явно (tsc падает, vitest молчит); «Update branch» в GitHub UI криво мержит pnpm-lock.yaml → перегенерация `pnpm install` от lockfile main.
+- Осталось: live-verify на staging (TASK-252); prod-TODO — sticky-sessions при api >1 реплики.
+
+Commit messages:
+- feat(api): realtime emitter + invalidation type
+- feat(api): ws connection-time jwt authenticator
+- feat(api): realtime gateway with connection auth
+- feat(api): wire realtime module + redis io adapter
+- feat(api): emit realtime invalidation on chat message
+- feat(api): emit realtime invalidation on tour create/status
+- feat(client): realtime socketConnected slice
+- feat(client): realtime signal -> RTK tag mapping
+- feat(client): socket.io singleton client
+- feat(client): realtime bridge (socket -> RTK invalidation)
+- feat(client): degrade polling to 60s safety-net when socket live
+- chore: NEXT_PUBLIC_WS_URL + realtime prod note
+- docs(api): realtime WS /rt contract (§20) + Flutter guide
+
+Related ADR:
+- docs/adr/ADR-0138-realtime-websocket-invalidation.md
+
+## 2026-07-21
+
+### TASK — Баг: переводы объявления не перегенерируются + врущий тост (LOG.md #5)
+
+Status: DONE
+Branch: fix/listing-translations-force-regenerate-api, fix/listing-translations-force-regenerate-web
+PR: #428 (apps/api), #429 (apps/web)
+
+Files changed:
+- apps/api/src/translations/listing-auto-translator.service.ts
+- apps/api/src/translations/listing-auto-translator.service.spec.ts
+- apps/api/src/translations/dto/generate-translations.dto.ts
+- apps/api/src/translations/index.ts
+- apps/api/src/admin/admin-listings.controller.ts
+- apps/api/openapi.internal.json
+- apps/web/src/store/api/adminTypes.ts
+- apps/web/src/store/api/adminListingsApi.ts
+- apps/web/src/lib/translations.ts
+- apps/web/src/app/admin/moderation/page.tsx
+- apps/web/src/app/admin/listings/[id]/page.tsx
+
+Summary:
+- На карточке модерации UZ/EN «переводы» не соответствовали RU-оригиналу
+  ("39 Superior Street…" при оригинале "Test post") и не перегенерировались:
+  `generateTranslations` пропускал любой целевой язык с
+  `is_auto_translated=false`, а UI безусловно тостил «Переводы
+  сгенерированы». На сид-данных (все три языка `source=USER`, независимый
+  текст) модератор оказывался в тупике.
+- API (#428): `generateTranslations(id, { force })` — при `force=true`
+  перезаписывает и правленные вручную ЦЕЛЕВЫЕ языки; оригинальный язык
+  (`original_language`) исключён из целей и не трогается ни при каком force.
+  Возвращает `{ regenerated, skipped }`; эндпоинт
+  `POST /admin/listings/:id/translations/generate` принимает тело
+  `{ force?: boolean }` и отдаёт итог в ответе. openapi.internal
+  регенерирован (публичная спека без изменений).
+- Web (#429): мутация принимает `{ id, force? }`; хелпер
+  `translationResultToast()` строит честное сообщение (перечисляет реально
+  сгенерированные/пропущенные языки, подсказывает «Перевести заново», если
+  всё правлено вручную). Кнопка «Перевести заново» (force, с подтверждением)
+  на очереди модерации и детали листинга.
+- Решение по force-режиму (согласовано с владельцем): глобальный force на
+  всю секцию, DTO ровно `{ force?: boolean }`.
+- Тесты: listing-auto-translator.service.spec — 10/10 (force перезаписывает
+  manual-цели и не трогает оригинал = репро сид-мусора; без force всё →
+  skipped). tsc/eslint по обеим app-папкам — чисто.
+- Сид-мусор на сервере — это данные, не код; чинится кнопкой «Перевести
+  заново» после мёржа (миграция данных в задачу не входила).
+
+Commit messages:
+- fix(api): режим force для (пере)генерации переводов объявления
+- fix(web): честный тост переводов + «Перевести заново» (force)
+
+Related ADR:
+- Обновление не требуется — эндпоинт под существующей стратегией API v1,
+  новый DTO под существующими правилами валидации (ADR-0091 в силе).
 
 ### TASK — Админ-управление юр-документами (Правила / Политика)
 
 Status: DONE
 Branch: feat/admin-legal-documents
-PR: pending
+PR: #422
 
 Files changed:
 - apps/api/prisma/schema.prisma
@@ -103,6 +519,82 @@ Related ADR:
 - docs/adr/ADR-0149-admin-legal-documents.md
 
 ---
+
+
+### TASK — Сид юр-документов: вшитый контент → legal_documents v1
+
+Status: DONE
+Branch: feat/seed-legal-documents
+PR: #423
+
+Files changed:
+- apps/client/scripts/export-legal-markdown.ts
+- apps/api/prisma/legal-content/{terms,privacy}.{ru,uz,en}.md
+- apps/client/src/content/legal/seed-roundtrip.test.ts
+- apps/api/prisma/seed-legal.cjs
+
+Summary:
+- Вшитые тексты Правил/Политики сконвертированы в markdown-подмножество
+  (ADR-0149) и заливаются идемпотентным seed-legal.cjs как version 1
+  (PUBLISHED, publishedAt=2026-06-29 — дата «Обновлено» не прыгает).
+  legal_consent_version НЕ трогается — пере-согласие не триггерится.
+- Roundtrip-пломба (6 тестов): parseLegalMarkdown(md) ≡ вшитому LegalDoc —
+  страница после сида рендерится идентично фолбэку.
+- Прод: docker compose exec api node prisma/seed-legal.cjs ПОСЛЕ деплоя
+  образа этой версии (см. docs/PROD.md §8 п.11).
+
+Related plan:
+- docs/superpowers/plans/2026-07-21-seed-legal-documents.md
+
+---
+
+
+### TASK — Проактивный agent-gate при достижении лимита объявлений
+
+Status: DONE
+Branch: feat/proactive-agent-gate
+PR: #424
+
+Files changed:
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/listings.service.spec.ts
+- apps/api/src/listings/dto/listing-quota.dto.ts
+- apps/api/src/listings/listings.controller.ts
+- apps/api/src/listings/listings.service.int-spec.ts
+- apps/api/openapi.internal.json
+- apps/api/openapi.public.json
+- apps/client/src/store/api/listingsQuotaApi.ts
+- apps/client/src/features/listing-new/ListingNew.tsx
+- apps/client/src/features/listing-new/ListingNew.test.tsx
+
+Summary:
+- Обычный пользователь (не AGENT/AGENCY) с числом активных объявлений = лимиту
+  (`active_listing_limit`, default 2; «занятый слот» = ACTIVE или NEW) при входе
+  в визард /sell/new теперь СРАЗУ видит модалку «Стать агентом», не заполняя
+  форму. Раньше лимит ловился только реактивно (422 после сабмита).
+- Backend: чистый read-метод ListingsService.getActiveListingQuota() →
+  { limit, used, blocked } — единственное определение «занятого слота»;
+  ensureActiveListingQuota стал обёрткой (реактивный 422 сохранён). Новый
+  эндпоинт GET /api/v1/listings/quota (Bearer) + ListingQuotaDto; openapi regen.
+- Client: listingsQuotaApi (providesTags:['Listing'] → рефетч после
+  публикации/архивации); проактивный gate в ListingNew тем же паттерном, что
+  гость-гейт loginOpen (форма позади оверлея модалки). Fail-open
+  (quota?.blocked === true); закрытие модалки → /account/my-listings.
+- Гоча CI: int-spec нельзя бутстрапить через config-модуль (validateEnv требует
+  REDIS_URL/JWT_*, которых нет в int-spec job) — переписан на сервис-уровень по
+  конвенции репо (прямое конструирование сервиса со стабами).
+- Тесты: api unit 75/75 (+4 getActiveListingQuota), int-spec 6/6, client 11/11.
+  CI зелёный.
+
+Commit messages:
+- feat(api): getActiveListingQuota — чистый read-метод квоты активных объявлений
+- feat(api): GET /listings/quota — проактивная проверка лимита для визарда
+- feat(client): проактивный agent-gate — модалка лимита сразу при входе в /sell/new
+- fix: quota-query providesTags['Listing'] + покрыть ветку лимит-0
+- fix(api): quota int-spec на сервис-уровень — не грузить config-модуль в CI
+
+Related plan:
+- docs/superpowers/plans/2026-07-21-proactive-agent-gate.md
 
 ## 2026-07-06
 
@@ -6179,3 +6671,48 @@ Related ADR:
 
 Related plan:
 - docs/superpowers/plans/2026-07-04-search-clusters-endpoint.md
+
+## 2026-07-21
+
+### TASK-Amenities-Admin-UI — CRUD-экран справочника удобств в админке (Task 6)
+
+Status: DONE
+Branch: feat/admin-amenities-ui
+PR: #421
+
+Files changed:
+- apps/web/src/store/api/adminAmenitiesApi.ts
+- apps/web/src/components/admin/AmenityFormModal.tsx
+- apps/web/src/app/admin/amenities/page.tsx
+- apps/web/src/components/admin/icons.tsx
+- apps/web/src/components/admin/Sidebar.tsx
+
+Summary:
+- Финальный шаг (Task 6) экосистемы динамического справочника удобств (ADR-0111):
+  бэкенд admin CRUD /admin/amenities и публичный GET /amenities уже в main (#420),
+  apps/client переведён на динамический справочник — не хватало экрана
+  администрирования. Раньше править удобства можно было только через curl.
+- Экран /admin/amenities (apps/web): список (активные + скрытые, без пагинации,
+  сортировка с бэка sort_order asc/code asc), создание, переименование
+  label_ru/uz/en, порядок, скрыть/показать инлайн-тумблером (soft-delete-only,
+  PATCH { is_active }). Пункт «Удобства» в группе «Система» сайдбара.
+- RTK-слайс adminAmenitiesApi (inject в adminApi, тег Admin), модалка create/edit
+  по образцу CreateUserModal; ошибки AMENITY_CODE_TAKEN (409) / VALIDATION_ERROR
+  (400) маппятся через getApiErrorCode.
+- Гоча: admin-DTO удобств принимает тело в snake_case
+  (label_ru/label_uz/label_en/code/sort_order/is_active) — сверено по
+  openapi.internal.json, это НЕ camelCase как adminBroadcastsApi. code неизменяем
+  (UpdateAmenityDto его не содержит), на edit показан read-only.
+- Границы соблюдены: изменения только в apps/web. Проверки зелёные: tsc, lint
+  (next lint — 0 warnings), vitest (8 passed), next build (маршрут
+  /admin/amenities собрался).
+
+Commit messages:
+- feat(web): admin CRUD-экран справочника удобств
+
+Related ADR:
+- docs/adr/ADR-0111-listing-amenities.md (покрывает; новый ADR не требуется —
+  фронт-слайс под существующей конвенцией RTK Query, CLAUDE.md §6)
+
+Related spec:
+- docs/superpowers/specs/2026-07-21-admin-amenities-dictionary-design.md
