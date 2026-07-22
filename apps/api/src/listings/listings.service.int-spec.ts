@@ -34,8 +34,8 @@ const addressResolverStub = {
  * Integration-тесты контактного блока детальной (TASK-210, ADR-0069) на живом
  * PostgreSQL. Проверяет, что `GET /listings/:id` встраивает публичный контакт
  * автора:
- *   - владелец с профилем + ролью AGENT → display_name/contactPhone, type=agent,
- *     is_pro=true (телефон — contact_phone профиля);
+ *   - владелец с профилем + ролью AGENT + ПОДТВЕРЖДЁННЫМ contact_phone → type=agent,
+ *     is_pro=true (телефон — contact_phone профиля, ADR-0151: только verified);
  *   - владелец без профиля/ролей → display_name=null, type=owner, is_pro=false,
  *     телефон = телефон аккаунта.
  *
@@ -104,6 +104,9 @@ describe('ListingsService contact block (integration, TASK-210)', () => {
             firstName: 'Иван',
             lastName: 'Агентов',
             contactPhone: '+998901230099',
+            // ADR-0151: непроверенный contact_phone не показывается — этот
+            // int-spec проверяет verified-ветку, поэтому подтверждаем явно.
+            contactPhoneVerified: true,
           },
         },
         roles: { create: [{ role: { connect: { id: agentRole.id } } }] },
@@ -134,13 +137,13 @@ describe('ListingsService contact block (integration, TASK-210)', () => {
     await prisma.$disconnect();
   });
 
-  it('embeds an agent contact: display name, type=agent, is_pro, contact phone', async () => {
+  it('embeds an agent contact: display name, type=agent, is_pro, verified contact phone', async () => {
     const detail = await listings.findOne(AGENT_LISTING, undefined, 'ru');
     expect(detail.contact).toEqual({
       display_name: 'Иван Агент',
       type: 'agent',
       is_pro: true,
-      phone: '+998901230099', // contact_phone профиля приоритетен
+      phone: '+998901230099', // verified contact_phone профиля приоритетен (ADR-0151)
     });
   });
 

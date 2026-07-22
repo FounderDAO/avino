@@ -66,6 +66,8 @@ describe('ModerationService', () => {
         lastName: 'Усманов',
         displayName: 'Алишер У.',
         contactPhone: '+998907654321',
+        // ADR-0151: contact_phone инлайн-профиля показывается только verified.
+        contactPhoneVerified: true,
       },
     },
   };
@@ -136,6 +138,22 @@ describe('ModerationService', () => {
         service.getListingOwner(LISTING_ID),
         ApiErrorCode.NOT_FOUND,
       );
+    });
+
+    // ADR-0151: неподтверждённый contact_phone не отдаётся модератору (null),
+    // в отличие от detail/tour/agent-application фолбэков — тут нет отдельного
+    // поля для телефона аккаунта, поэтому дублировать его в contact_phone не надо.
+    it('hides an unverified contact_phone (null, no fallback to account phone)', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        owner: {
+          ...dbListItem.owner,
+          profile: { ...dbListItem.owner.profile, contactPhoneVerified: false },
+        },
+      });
+
+      const owner = await service.getListingOwner(LISTING_ID);
+
+      expect(owner.contact_phone).toBeNull();
     });
   });
 

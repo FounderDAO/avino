@@ -41,7 +41,13 @@ const TOUR_LIST_SELECT = {
         select: {
           phone: true,
           profile: {
-            select: { displayName: true, firstName: true, lastName: true, contactPhone: true },
+            select: {
+              displayName: true,
+              firstName: true,
+              lastName: true,
+              contactPhone: true,
+              contactPhoneVerified: true,
+            },
           },
         },
       },
@@ -446,7 +452,9 @@ export class TourRequestsService {
       name: profile?.displayName ?? (fullName.length > 0 ? fullName : null),
       phone:
         status === TourRequestStatus.CONFIRMED
-          ? (profile?.contactPhone ?? owner.phone ?? null)
+          ? (profile?.contactPhoneVerified && profile.contactPhone
+              ? profile.contactPhone
+              : (owner.phone ?? null))
           : null,
     };
   }

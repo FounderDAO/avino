@@ -290,6 +290,7 @@ export class AuthService {
         display_name: user.profile?.displayName ?? null,
         avatar_url: avatarUrl,
         contact_phone: user.profile?.contactPhone ?? null,
+        contact_phone_verified: user.profile?.contactPhoneVerified ?? false,
         preferred_language:
           user.profile?.preferredLanguage ?? user.defaultLanguage,
       },

@@ -76,6 +76,7 @@ const DETAIL_SELECT = {
       displayName: true,
       avatarUrl: true,
       contactPhone: true,
+      contactPhoneVerified: true,
       preferredLanguage: true,
     },
   },

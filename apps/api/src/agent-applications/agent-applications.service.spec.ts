@@ -504,6 +504,51 @@ describe('AgentApplicationsService', () => {
       expect(uploads.getObjectUrl).not.toHaveBeenCalled();
     });
 
+    // Правило публичного контакта (ADR-0151): admin-detail мапит user.phone
+    // так же, как listings/tour-requests — верифицированный contact_phone
+    // приоритетен, иначе фолбэк на телефон аккаунта.
+    it('user.phone = contactPhone when contactPhoneVerified is true', async () => {
+      const row = {
+        ...ROW_PENDING_WITH_USER,
+        user: {
+          ...ROW_PENDING_WITH_USER.user,
+          phone: '+998901234567',
+          profile: {
+            ...ROW_PENDING_WITH_USER.user.profile,
+            contactPhone: '+998905556677',
+            contactPhoneVerified: true,
+          },
+        },
+      };
+      prisma.agentApplication.findMany.mockResolvedValue([row]);
+      prisma.agentApplication.count.mockResolvedValue(1);
+
+      const res = await service.listAdmin({});
+
+      expect(res.data[0].user.phone).toBe('+998905556677');
+    });
+
+    it('user.phone falls back to the account phone when contactPhoneVerified is false', async () => {
+      const row = {
+        ...ROW_PENDING_WITH_USER,
+        user: {
+          ...ROW_PENDING_WITH_USER.user,
+          phone: '+998901234567',
+          profile: {
+            ...ROW_PENDING_WITH_USER.user.profile,
+            contactPhone: '+998905556677',
+            contactPhoneVerified: false,
+          },
+        },
+      };
+      prisma.agentApplication.findMany.mockResolvedValue([row]);
+      prisma.agentApplication.count.mockResolvedValue(1);
+
+      const res = await service.listAdmin({});
+
+      expect(res.data[0].user.phone).toBe('+998901234567');
+    });
+
     it('returns the external OAuth avatarUrl as-is when there is no avatarStorageKey (ADR-0134)', async () => {
       // Google/Apple avatar: без storage_key resolveAvatarUrl должен отдать
       // внешний URL как есть, а НЕ прогонять его через resolveMediaUrl/

@@ -8,6 +8,7 @@ import { TelegramModule } from '../telegram';
 import { ProfilesService } from '../profiles';
 import { UploadsModule } from '../uploads';
 import { ContactChangeService } from './contact-change.service';
+import { ContactPhoneChangeService } from './contact-phone-change.service';
 import { LegalConsentService } from './legal-consent.service';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
@@ -46,6 +47,7 @@ import { UsersService } from './users.service';
     ProfilesService,
     LegalConsentService,
     ContactChangeService,
+    ContactPhoneChangeService,
   ],
   exports: [UsersService, ProfilesService],
 })

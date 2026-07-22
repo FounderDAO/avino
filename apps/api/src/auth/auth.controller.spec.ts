@@ -24,6 +24,7 @@ describe('AuthController.me', () => {
         display_name: null,
         avatar_url: null,
         contact_phone: null,
+        contact_phone_verified: false,
         preferred_language: 'RU',
       },
       legal_consent: { accepted_version: null, accepted_at: null },

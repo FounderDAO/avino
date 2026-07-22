@@ -43,6 +43,7 @@ describe('AdminUsersService', () => {
       displayName: 'Ali V.',
       avatarUrl: null,
       contactPhone: '+998901234567',
+      contactPhoneVerified: true,
       preferredLanguage: Language.RU,
     },
   };

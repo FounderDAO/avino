@@ -255,6 +255,7 @@ const LISTING_DETAIL_SELECT = {
           firstName: true,
           lastName: true,
           contactPhone: true,
+          contactPhoneVerified: true,
         },
       },
       roles: {
@@ -1201,7 +1202,10 @@ export class ListingsService {
         profile?.displayName ?? (fullName.length > 0 ? fullName : null),
       type,
       is_pro: type !== 'owner',
-      phone: profile?.contactPhone ?? owner.phone ?? null,
+      phone:
+        profile?.contactPhoneVerified && profile.contactPhone
+          ? profile.contactPhone
+          : (owner.phone ?? null),
     };
   }
 

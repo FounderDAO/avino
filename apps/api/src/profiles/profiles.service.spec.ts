@@ -17,6 +17,7 @@ describe('ProfilesService', () => {
     displayName: 'Ali V.',
     avatarUrl: null,
     contactPhone: '+998901112233',
+    contactPhoneVerified: true,
     preferredLanguage: Language.RU,
   };
 
@@ -47,6 +48,7 @@ describe('ProfilesService', () => {
         display_name: 'Ali V.',
         avatar_url: null,
         contact_phone: '+998901112233',
+        contact_phone_verified: true,
         preferred_language: Language.RU,
       });
     });
@@ -60,7 +62,6 @@ describe('ProfilesService', () => {
         first_name: 'Ali',
         last_name: 'Valiev',
         display_name: 'Ali V.',
-        contact_phone: '+998901112233',
         preferred_language: Language.RU,
       });
 
@@ -69,7 +70,6 @@ describe('ProfilesService', () => {
         lastName: 'Valiev',
         displayName: 'Ali V.',
         avatarUrl: undefined,
-        contactPhone: '+998901112233',
         preferredLanguage: Language.RU,
       };
       expect(prisma.userProfile.upsert).toHaveBeenCalledWith({

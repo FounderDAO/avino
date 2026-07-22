@@ -18,10 +18,16 @@ import { JwtAuthGuard } from '../common/guards';
 import { ProfileResponse, ProfilesService } from '../profiles';
 import { UpdateProfileDto } from '../profiles/dto/update-profile.dto';
 import { ContactChangeService } from './contact-change.service';
+import {
+  ContactPhoneChangeService,
+  RequestContactPhoneResult,
+} from './contact-phone-change.service';
 import { AcceptLegalConsentDto } from './dto/accept-legal-consent.dto';
 import { RequestContactChangeDto } from './dto/request-contact-change.dto';
+import { RequestContactPhoneDto } from './dto/request-contact-phone.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { VerifyContactChangeDto } from './dto/verify-contact-change.dto';
+import { VerifyContactPhoneDto } from './dto/verify-contact-phone.dto';
 import { LegalConsentService, LegalConsentState } from './legal-consent.service';
 import {
   UploadedAvatarFile,
@@ -45,6 +51,7 @@ export class UsersController {
     private readonly profilesService: ProfilesService,
     private readonly legalConsentService: LegalConsentService,
     private readonly contactChangeService: ContactChangeService,
+    private readonly contactPhoneChangeService: ContactPhoneChangeService,
   ) {}
 
   /** `GET /api/v1/users/me` — текущий пользователь, профиль и роли. */
@@ -90,6 +97,33 @@ export class UsersController {
     @Ip() ip: string,
   ): Promise<UserMeResponse> {
     return this.contactChangeService.verifyContactChange(userId, dto, ip);
+  }
+
+  /**
+   * `POST /api/v1/users/me/contact-phone/request` — публичный контакт-телефон.
+   * Если номер = верифицированному логин-телефону → применяет сразу (`applied:true`),
+   * иначе выписывает OTP на новый номер (SMS). Уникальность не проверяется.
+   */
+  @Post('me/contact-phone/request')
+  requestContactPhoneChange(
+    @CurrentUser('id') userId: string,
+    @Body() dto: RequestContactPhoneDto,
+    @Ip() ip: string,
+  ): Promise<RequestContactPhoneResult> {
+    return this.contactPhoneChangeService.requestContactPhoneChange(userId, dto, ip);
+  }
+
+  /**
+   * `POST /api/v1/users/me/contact-phone/verify` — подтвердить владение номером
+   * кодом и применить смену (contact_phone_verified=true); возвращает `/me`.
+   */
+  @Post('me/contact-phone/verify')
+  verifyContactPhoneChange(
+    @CurrentUser('id') userId: string,
+    @Body() dto: VerifyContactPhoneDto,
+    @Ip() ip: string,
+  ): Promise<UserMeResponse> {
+    return this.contactPhoneChangeService.verifyContactPhoneChange(userId, dto, ip);
   }
 
   /** `PATCH /api/v1/users/me/profile` — профиль (создаётся, если отсутствует). */
