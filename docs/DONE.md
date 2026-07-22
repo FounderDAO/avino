@@ -39,6 +39,63 @@ Related ADR:
 
 ## 2026-07-22
 
+### Ad-hoc — Сброс RTK Query-кэша при смене аккаунта (client)
+
+Status: DONE
+Branch: fix/reset-api-cache-on-identity-switch
+PR: #444
+
+Files changed:
+- apps/client/src/store/identityResetListener.ts (new)
+- apps/client/src/store/identityResetListener.test.ts (new)
+- apps/client/src/store/store.ts
+
+Summary:
+- После logout+login под другим аккаунтом «Мои объявления» показывали объявления прежнего
+  пользователя (объявления A в кабинете B). Причина — НЕ токен (он меняется корректно), а
+  stale-кэш RTK Query: кэш ключуется по (endpoint + args) и не учитывает пользователя; ни
+  login, ни logout не сбрасывали кэш, resetApiState нигде не вызывался.
+- Добавлен identityResetListener (createListenerMiddleware): на смену личности (setCredentials
+  с user — login, или clearCredentials — logout) вызывает baseApi.util.resetApiState(). Ротацию
+  токена (setCredentials БЕЗ user из baseQuery) игнорирует, чтобы не сбрасывать кэш на каждой
+  refresh-ротации (ADR-0142). Подключён в store через .prepend(...).
+- Важно: resetApiState (немедленное удаление), а не invalidateTags (оставляет старые данные до
+  рефетча — окно утечки). Login безопасен: все входы через .unwrap(). 63 store/auth-теста ✓, tsc ✓.
+
+Commit messages:
+- fix(client): reset RTK Query cache on identity switch
+
+Related ADR:
+- docs/adr/ADR-0152-reset-api-cache-on-identity-switch.md
+
+### Ad-hoc — Сброс RTK Query-кэша при смене аккаунта (web/админка)
+
+Status: DONE
+Branch: fix/web-reset-api-cache-on-identity-switch
+PR: #445
+
+Files changed:
+- apps/web/src/store/identityResetListener.ts (new)
+- apps/web/src/store/identityResetListener.test.ts (new)
+- apps/web/src/store/store.ts
+
+Summary:
+- Паритет с PR #444 для админки. Тот же дефект: после смены аккаунта админа getMe/admin-запросы
+  отдавали закэшированные данные прежнего пользователя.
+- identityResetListener с matcher isAnyOf(setCredentials, logOut); ротация токена (отдельный
+  action setTokens) не матчится, проверка на user не нужна.
+- Риск ниже клиентского: большинство admin-данных общие для всех модераторов (Admin-теги);
+  персональное — getMe (профиль/роли), могло мигать данными прежнего админа. Реального доступа
+  к чужому нет (запросы уходят с новым токеном, бэкенд проверяет права). 11 web-тестов ✓, tsc ✓.
+- Гоча: apps/web тесты в node-env (нет window) — тест не трогает window.localStorage напрямую
+  (authSlice сам гейтит typeof window); apps/client — jsdom.
+
+Commit messages:
+- fix(web): reset RTK Query cache on identity switch
+
+Related ADR:
+- docs/adr/ADR-0152-reset-api-cache-on-identity-switch.md
+
 ### Ad-hoc — OTP-верификация публичного «Телефона для связи» (contact_phone)
 
 Status: DONE
