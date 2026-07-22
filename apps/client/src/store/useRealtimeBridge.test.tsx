@@ -18,14 +18,14 @@ function wrapper(store: ReturnType<typeof makeStore>) {
 
 describe('useRealtimeBridge', () => {
   beforeEach(() => {
-    // setCredentials пишет токены в localStorage, а authSlice гидрируется из
-    // него при создании store — чистим, чтобы тесты не влияли друг на друга.
+    // Чистим localStorage: authSlice при создании store вычищает легаси-ключи
+    // токенов (ADR-0153) — держим состояние изолированным между тестами.
     window.localStorage.clear();
   });
 
   it('подключается при наличии токена', () => {
     const store = makeStore();
-    store.dispatch(setCredentials({ access_token: 'tok', refresh_token: 'r' }));
+    store.dispatch(setCredentials({ access_token: 'tok' }));
     const connect = vi.spyOn(client, 'connectSocket');
     renderHook(() => useRealtimeBridge(), { wrapper: wrapper(store) });
     expect(connect).toHaveBeenCalledWith(expect.any(String), 'tok', expect.any(Object));
@@ -40,7 +40,7 @@ describe('useRealtimeBridge', () => {
 
   it('onInvalidate диспатчит invalidateTags по маппингу', () => {
     const store = makeStore();
-    store.dispatch(setCredentials({ access_token: 'tok', refresh_token: 'r' }));
+    store.dispatch(setCredentials({ access_token: 'tok' }));
     let captured: (p: unknown) => void = () => {};
     vi.spyOn(client, 'connectSocket').mockImplementation((_u, _t, h) => {
       captured = h.onInvalidate as (p: unknown) => void;

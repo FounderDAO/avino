@@ -15,13 +15,17 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { BadgeCheck, Clock, Lock } from 'lucide-react';
+import { BadgeCheck, Clock, Loader2, Lock } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { Field, fieldClass } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
-import { selectCurrentUser, selectIsAuthenticated } from '@/store/slices/authSlice';
+import {
+  selectAuthResolved,
+  selectCurrentUser,
+  selectIsAuthenticated,
+} from '@/store/slices/authSlice';
 import {
   useGetMyAgentApplicationQuery,
   useSubmitAgentApplicationMutation,
@@ -46,14 +50,16 @@ function formatDate(iso: string): string {
 export function BecomeAgent() {
   const t = useTranslations('becomeAgent');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const authResolved = useAppSelector(selectAuthResolved);
   const currentUser = useAppSelector(selectCurrentUser);
 
   // Гейт авторизации: гостю сразу открываем модалку входа, но через эффект
-  // (после монтирования) — иначе она мелькала бы у уже залогиненных.
+  // (после монтирования) и ТОЛЬКО после разрешения сессии (ADR-0153) — иначе
+  // модалка мелькала бы у уже залогиненных, пока cookie-сессия проверяется.
   const [loginOpen, setLoginOpen] = React.useState(false);
   React.useEffect(() => {
-    if (!isAuthenticated) setLoginOpen(true);
-  }, [isAuthenticated]);
+    if (authResolved && !isAuthenticated) setLoginOpen(true);
+  }, [authResolved, isAuthenticated]);
 
   const isAgent = Boolean(
     currentUser?.roles.some((r) => r === 'AGENT' || r === 'AGENCY'),
@@ -104,6 +110,15 @@ export function BecomeAgent() {
       // Ошибка покажется через submitErrorMessage (error-envelope мутации).
     }
   };
+
+  // ---- 0. Проверяем сессию (пробный silent-refresh, ADR-0153) ----
+  if (!authResolved) {
+    return (
+      <div className="mx-auto flex max-w-[620px] items-center justify-center px-6 py-24 text-muted-foreground">
+        <Loader2 className="animate-spin" size={22} />
+      </div>
+    );
+  }
 
   // ---- 1. Гость ----
   if (!isAuthenticated) {

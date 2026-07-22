@@ -5,35 +5,28 @@ import {
   type FetchBaseQueryError,
 } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '../store';
-import {
-  clearCredentials,
-  setCredentials,
-  selectAccessToken,
-  selectRefreshToken,
-  readPersistedRefreshToken,
-} from '../slices/authSlice';
+import { clearCredentials, setCredentials, selectAccessToken } from '../slices/authSlice';
 import type { RefreshResponse } from './authApi';
 
 /**
- * baseQueryWithReauth публичного портала (TASK-150).
+ * baseQueryWithReauth публичного портала (TASK-150, ADR-0153).
  *
- * 1. Подставляет `Authorization: Bearer <access>` в каждый запрос.
- * 2. На `401` один раз дёргает `/auth/refresh`, обновляет токены и повторяет
- *    исходный запрос.
+ * 1. Подставляет `Authorization: Bearer <access>` в каждый запрос; `credentials:
+ *    'include'` шлёт httpOnly cookie `avino_rt` на API (cross-origin same-site;
+ *    CORS API отвечает Allow-Credentials).
+ * 2. На `401` один раз дёргает `/auth/refresh` — БЕЗ ТЕЛА: сервер ротирует по
+ *    cookie `avino_rt` и ставит новую cookie (ADR-0153). Обновляет access и
+ *    повторяет исходный запрос.
  * 3. При неудаче refresh — разлогинивает (clearCredentials).
  *
- * Конкурентные 401-ответы обслуживаются одним refresh (single-flight):
- * пока идёт ротация, остальные запросы ждут её результат, а не плодят
- * параллельные /auth/refresh (повторное использование ротированного токена
- * отозвало бы всю session family — docs/API.md §3).
+ * Конкурентные 401-ответы обслуживаются одним refresh (single-flight): пока
+ * идёт ротация, остальные запросы ждут её результат, а не плодят параллельные
+ * `/auth/refresh`.
  *
- * Single-flight выше — только внутри ОДНОЙ вкладки (module-scope). Между
- * вкладками refresh дополнительно сериализуется через Web Locks API: две
- * вкладки, одновременно поймавшие 401, иначе ротируют один и тот же токен из
- * общего localStorage — вторая предъявляет уже отработанный → `TOKEN_REUSED`,
- * сервер отзывает всю family, и устройство ловит каскад 401 + 429 (throttle
- * `/auth/refresh` = 20/60s на IP). Лок держит очередь: пока одна вкладка
- * ротирует, остальные ждут и затем читают уже свежий токен из localStorage.
+ * Кросс-вкладочный Web Locks остаётся как defense-in-depth переходного периода
+ * (#447): refresh больше не в JS, поэтому «двойная ротация одного токена из
+ * localStorage» архитектурно невозможна — но лок ничему не мешает и снимет
+ * лишние параллельные бутстрап-рефреши между вкладками.
  */
 
 const API_BASE_URL = `${
@@ -42,6 +35,8 @@ const API_BASE_URL = `${
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
+  // Слать/принимать httpOnly cookie avino_rt cross-origin (ADR-0153).
+  credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
     const token = selectAccessToken(getState() as RootState);
     if (token) {
@@ -66,49 +61,32 @@ let refreshInFlight: Promise<boolean> | null = null;
 const REFRESH_LOCK = 'avino.client.auth-refresh';
 
 /**
- * Один реальный обмен refresh → пара токенов. ВСЕГДА читает самый свежий
- * refresh-токен из localStorage: соседняя вкладка могла его только что
- * ротировать, и предъявление устаревшего = TOKEN_REUSED → отзыв всей family
- * (docs/API.md §3). Redux-снапшот — лишь fallback (SSR / приватный режим).
+ * Один реальный обмен refresh → новая пара токенов. Тело НЕ передаётся: сервер
+ * читает refresh из httpOnly cookie `avino_rt` (ADR-0153) и ставит новую cookie.
+ * В ответе интересует только `access_token` (refresh теперь невидим для JS).
  */
 async function performRefresh(
   api: RtkApi,
   extraOptions: RtkExtra,
 ): Promise<boolean> {
-  const refreshToken =
-    readPersistedRefreshToken() ??
-    selectRefreshToken(api.getState() as RootState);
-  if (!refreshToken) return false;
-
   const result = await rawBaseQuery(
-    {
-      url: '/auth/refresh',
-      method: 'POST',
-      body: { refresh_token: refreshToken },
-    },
+    { url: '/auth/refresh', method: 'POST' },
     api,
     extraOptions,
   );
 
   const data = result.data as RefreshResponse | undefined;
-  if (data?.access_token && data?.refresh_token) {
-    api.dispatch(
-      setCredentials({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-      }),
-    );
+  if (data?.access_token) {
+    api.dispatch(setCredentials({ access_token: data.access_token }));
     return true;
   }
   return false;
 }
 
 /**
- * Сериализация refresh МЕЖДУ вкладками. Web Locks API держит именованную
- * очередь на весь origin: пока одна вкладка ротирует, остальные ждут и затем
- * читают уже свежий токен — гонка «двойная ротация → TOKEN_REUSED» исчезает.
- * Fallback (нет `navigator.locks`: SSR, старые браузеры) — прежнее поведение,
- * только внутривкладочный single-flight.
+ * Сериализация refresh МЕЖДУ вкладками (Web Locks API, defense-in-depth #447).
+ * Fallback (нет `navigator.locks`: SSR, старые браузеры) — только
+ * внутривкладочный single-flight.
  */
 function refreshUnderCrossTabLock(
   api: RtkApi,

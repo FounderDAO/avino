@@ -13,6 +13,7 @@ import { useEffect, useMemo, useReducer, useState } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useAppSelector } from '@/store/hooks';
 import {
+  selectAuthResolved,
   selectCurrentUser,
   selectIsAuthenticated,
 } from '@/store/slices/authSlice';
@@ -381,6 +382,7 @@ export function ListingNew({
   const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
 
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const authResolved = useAppSelector(selectAuthResolved);
   const currentUser = useAppSelector(selectCurrentUser);
   const profileComplete = isProfileCompleteForListing(currentUser);
   // Проактивный agent-gate: квота активных объявлений текущего пользователя.
@@ -395,8 +397,10 @@ export function ListingNew({
   // гидрационного мелькания модалки у уже залогиненных пользователей.
   const [loginOpen, setLoginOpen] = useState(false);
   useEffect(() => {
-    if (!isAuthenticated) setLoginOpen(true);
-  }, [isAuthenticated]);
+    // Ждём разрешения сессии (пробный silent-refresh, ADR-0153): иначе модалка
+    // мелькнула бы у вошедшего юзера, пока cookie-сессия ещё проверяется.
+    if (authResolved && !isAuthenticated) setLoginOpen(true);
+  }, [authResolved, isAuthenticated]);
 
   const [createListing, { isLoading: creating, error: createError }] =
     useCreateListingMutation();

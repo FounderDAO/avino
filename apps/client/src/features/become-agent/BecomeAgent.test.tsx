@@ -17,9 +17,10 @@ vi.mock('@/store/hooks', () => ({
     (sel as (s: unknown) => unknown)({
       auth: {
         accessToken: mockAccessToken,
-        refreshToken: mockAccessToken,
         user: mockUser,
-        status: mockAccessToken ? 'authenticated' : 'idle',
+        // Сессия РАЗРЕШЕНА (эти тесты не про checking-окно): гость =
+        // unauthenticated, вошедший = authenticated (ADR-0153).
+        status: mockAccessToken ? 'authenticated' : 'unauthenticated',
       },
     }),
 }));

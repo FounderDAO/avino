@@ -1,19 +1,16 @@
 /**
- * baseQueryWithReauth — кросс-вкладочная сериализация refresh.
+ * baseQueryWithReauth — авто-refresh по httpOnly cookie (ADR-0153, TASK-256 PR-2).
  *
- * Регрессия (устройство «залипает», лаг, «по IP»): две вкладки, одновременно
- * поймавшие 401, ротировали ОДИН и тот же refresh-токен из общего localStorage.
- * Вторая предъявляла уже отработанный → TOKEN_REUSED → сервер отзывал всю
- * session family, устройство ловило каскад 401 + 429 (throttle /auth/refresh =
- * 20/60s на IP). Фикс: refresh всегда читает свежайший токен из localStorage и
- * сериализуется между вкладками через Web Locks API.
+ * refresh уехал в cookie `avino_rt`: на 401 клиент дёргает `/auth/refresh` БЕЗ
+ * ТЕЛА (сервер ротирует по cookie и ставит новую), кладёт свежий access и
+ * переигрывает исходный запрос. JS-токена больше нет — гонки «двойная ротация
+ * одного токена из localStorage» не существует. Web Locks остаётся как
+ * defense-in-depth переходного периода (#447).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { makeStore } from '../store';
 import { baseQueryWithReauth } from './baseQuery';
-import { setCredentials } from '../slices/authSlice';
-
-const REFRESH_TOKEN_KEY = 'avino.client.refresh_token';
+import { setCredentials, selectAccessToken } from '../slices/authSlice';
 
 type Store = ReturnType<typeof makeStore>;
 
@@ -30,11 +27,12 @@ function makeApi(store: Store) {
   };
 }
 
-const tokenPair = (access: string, refresh: string) =>
+const tokenPair = (access: string) =>
   new Response(
     JSON.stringify({
       access_token: access,
-      refresh_token: refresh,
+      // Тело всё ещё несёт refresh_token (mobile-контракт), но web его игнорит.
+      refresh_token: 'ignored-by-web',
       token_type: 'Bearer',
       expires_in: 900,
     }),
@@ -69,7 +67,7 @@ async function readRequest(
   };
 }
 
-describe('baseQueryWithReauth: кросс-вкладочный refresh', () => {
+describe('baseQueryWithReauth: refresh по cookie (ADR-0153)', () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
@@ -78,12 +76,9 @@ describe('baseQueryWithReauth: кросс-вкладочный refresh', () => {
     vi.unstubAllGlobals();
   });
 
-  it('на 401 ротирует по СВЕЖЕМУ токену из localStorage, а не по Redux-снапшоту', async () => {
+  it('на 401 ротирует БЕЗ тела (сервер читает cookie), кладёт новый access и переигрывает запрос', async () => {
     const store = makeStore();
-    // Redux держит устаревший refresh (setCredentials зеркалит его в LS)...
-    store.dispatch(setCredentials({ access_token: 'a', refresh_token: 'stale' }));
-    // ...но соседняя вкладка уже ротировала — в localStorage лежит свежий.
-    window.localStorage.setItem(REFRESH_TOKEN_KEY, 'fresh');
+    store.dispatch(setCredentials({ access_token: 'a' }));
 
     const refreshBodies: string[] = [];
     const fetchMock = vi.fn(
@@ -91,34 +86,45 @@ describe('baseQueryWithReauth: кросс-вкладочный refresh', () => {
         const { url, auth, body } = await readRequest(input, init);
         if (url.endsWith('/auth/refresh')) {
           refreshBodies.push(body);
-          return tokenPair('a2', 'r2');
+          return tokenPair('a2');
         }
-        return auth === 'Bearer a2' ? new Response('{}', { status: 200 }) : unauthorized();
+        return auth === 'Bearer a2'
+          ? new Response('{}', { status: 200 })
+          : unauthorized();
       },
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    const result = await baseQueryWithReauth({ url: '/favorites' }, makeApi(store), {});
+    const result = await baseQueryWithReauth(
+      { url: '/favorites' },
+      makeApi(store),
+      {},
+    );
 
-    // Ровно одна ротация — свежим токеном (нет двойной ротации/TOKEN_REUSED).
+    // Ровно одна ротация, и БЕЗ тела — refresh адресуется cookie, не body.
     expect(refreshBodies).toHaveLength(1);
-    expect(JSON.parse(refreshBodies[0]).refresh_token).toBe('fresh');
-    // Исходный запрос переигран с новым access → успех.
+    expect(refreshBodies[0]).toBe('');
+    // Свежий access осел в сторе, исходный запрос переигран успешно.
+    expect(selectAccessToken(store.getState())).toBe('a2');
     expect(result.error).toBeUndefined();
   });
 
   it('обёртывает refresh в navigator.locks (очередь на весь origin)', async () => {
     const store = makeStore();
-    store.dispatch(setCredentials({ access_token: 'a', refresh_token: 'r' }));
+    store.dispatch(setCredentials({ access_token: 'a' }));
 
     const request = vi.fn((_name: string, cb: () => Promise<unknown>) => cb());
     vi.stubGlobal('navigator', { locks: { request } });
 
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const { url, auth } = await readRequest(input, init);
-      if (url.endsWith('/auth/refresh')) return tokenPair('a2', 'r2');
-      return auth === 'Bearer a2' ? new Response('{}', { status: 200 }) : unauthorized();
-    });
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const { url, auth } = await readRequest(input, init);
+        if (url.endsWith('/auth/refresh')) return tokenPair('a2');
+        return auth === 'Bearer a2'
+          ? new Response('{}', { status: 200 })
+          : unauthorized();
+      },
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     await baseQueryWithReauth({ url: '/favorites' }, makeApi(store), {});
