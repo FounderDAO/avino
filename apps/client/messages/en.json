@@ -837,6 +837,8 @@
       "lastName": "Last name",
       "phone": "Phone",
       "phonePlaceholder": "+998 90 123 45 67",
+      "phoneHint": "Buyers will see this number. You can change it in your account settings.",
+      "noPhoneHint": "To post a listing, <link>add a phone number in your account settings</link>.",
       "submit": "Continue",
       "saving": "Saving…",
       "error": "Could not save your details. Please try again."
