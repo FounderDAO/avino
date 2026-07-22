@@ -50,7 +50,7 @@ describe('ListingMediaService', () => {
 
   beforeEach(() => {
     prisma = {
-      listing: { findUnique: jest.fn() },
+      listing: { findUnique: jest.fn(), update: jest.fn((args) => args) },
       listingMedia: {
         count: jest.fn(),
         create: jest.fn(),
@@ -59,6 +59,9 @@ describe('ListingMediaService', () => {
         delete: jest.fn(),
         update: jest.fn((args) => args),
       },
+      // Правка галереи владельцем возвращает ACTIVE/REJECTED на модерацию с
+      // системным логом OWNER_EDIT (ADR-0120).
+      moderationLog: { create: jest.fn((args) => args) },
       $transaction: jest.fn().mockResolvedValue([]),
     };
     uploads = {
@@ -195,6 +198,53 @@ describe('ListingMediaService', () => {
       expect(result.thumbnail_url).toBeNull();
     });
 
+    it('sends an ACTIVE listing back to moderation and logs OWNER_EDIT when the owner adds a photo', async () => {
+      mockListing({ status: ListingStatus.ACTIVE });
+      prisma.listingMedia.count.mockResolvedValue(0);
+      prisma.listingMedia.create.mockResolvedValue({
+        id: M1, url: 'u', thumbnailUrl: null, sortOrder: 0, type: MediaType.IMAGE,
+      });
+
+      await service.uploadFile(LISTING_ID, owner, makeFile());
+
+      expect(prisma.listing.update).toHaveBeenCalledWith({
+        where: { id: LISTING_ID },
+        data: { status: ListingStatus.NEW },
+      });
+      const log = prisma.moderationLog.create.mock.calls[0][0].data;
+      expect(log.action).toBe('OWNER_EDIT');
+      expect(log.moderatorId).toBeNull();
+      expect(log.oldStatus).toBe(ListingStatus.ACTIVE);
+      expect(log.newStatus).toBe(ListingStatus.NEW);
+      expect(log.reason).toContain('фото');
+    });
+
+    it('does NOT re-moderate when the listing is already NEW', async () => {
+      mockListing({ status: ListingStatus.NEW });
+      prisma.listingMedia.count.mockResolvedValue(0);
+      prisma.listingMedia.create.mockResolvedValue({
+        id: M1, url: 'u', thumbnailUrl: null, sortOrder: 0, type: MediaType.IMAGE,
+      });
+
+      await service.uploadFile(LISTING_ID, owner, makeFile());
+
+      expect(prisma.listing.update).not.toHaveBeenCalled();
+      expect(prisma.moderationLog.create).not.toHaveBeenCalled();
+    });
+
+    it('does NOT re-moderate when an ADMIN edits media of an ACTIVE listing', async () => {
+      mockListing({ status: ListingStatus.ACTIVE });
+      prisma.listingMedia.count.mockResolvedValue(0);
+      prisma.listingMedia.create.mockResolvedValue({
+        id: M1, url: 'u', thumbnailUrl: null, sortOrder: 0, type: MediaType.IMAGE,
+      });
+
+      await service.uploadFile(LISTING_ID, admin, makeFile());
+
+      expect(prisma.listing.update).not.toHaveBeenCalled();
+      expect(prisma.moderationLog.create).not.toHaveBeenCalled();
+    });
+
     it('includes the env prefix in the S3 upload path when rootPrefix returns "dev"', async () => {
       // Локальный override: rootPrefix → 'dev', сбрасываем после теста
       uploads.rootPrefix.mockReturnValue('dev');
@@ -299,6 +349,22 @@ describe('ListingMediaService', () => {
       expect(uploads.delete).toHaveBeenCalledWith('listings/x/media/u.webp');
     });
 
+    it('sends a REJECTED listing back to moderation and logs OWNER_EDIT when the owner deletes a photo', async () => {
+      mockListing({ status: ListingStatus.REJECTED });
+      prisma.listingMedia.findFirst.mockResolvedValue({ id: M1, url: 'u' });
+
+      await service.remove(LISTING_ID, owner, M1);
+
+      expect(prisma.listing.update).toHaveBeenCalledWith({
+        where: { id: LISTING_ID },
+        data: { status: ListingStatus.NEW },
+      });
+      const log = prisma.moderationLog.create.mock.calls[0][0].data;
+      expect(log.action).toBe('OWNER_EDIT');
+      expect(log.oldStatus).toBe(ListingStatus.REJECTED);
+      expect(log.reason).toContain('удалено');
+    });
+
     it('swallows an S3 delete error (DB row is source of truth)', async () => {
       mockListing();
       prisma.listingMedia.findFirst.mockResolvedValue({ id: M1, url: 'u' });
@@ -348,6 +414,18 @@ describe('ListingMediaService', () => {
       });
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(result.map((m) => m.id)).toEqual([M2, M1]);
+    });
+
+    it('does NOT re-moderate on reorder (order is not new content)', async () => {
+      mockListing({ status: ListingStatus.ACTIVE });
+      prisma.listingMedia.findMany
+        .mockResolvedValueOnce([{ id: M1 }, { id: M2 }])
+        .mockResolvedValueOnce([]);
+
+      await service.reorder(LISTING_ID, owner, [M2, M1]);
+
+      expect(prisma.listing.update).not.toHaveBeenCalled();
+      expect(prisma.moderationLog.create).not.toHaveBeenCalled();
     });
 
     it('rejects an order that is not a full permutation (400)', async () => {

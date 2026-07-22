@@ -89,8 +89,14 @@ Negative / trade-offs:
    объявление вернулось. `ModerateListingDto` (решение модератора) значение
    `OWNER_EDIT` **не принимает** — оно только системное/read-only.
 
-   Замечание: правка фотографий идёт отдельным media-эндпоинтом и в этот триггер
-   пока не попадает — возможная будущая доработка.
+4. **Правка фотографий тоже ре-модерирует.** Медиа-эндпоинты
+   (`ListingMediaService`) — отдельный путь, поэтому логика продублирована там же:
+   **добавление** (`POST media`) и **удаление** (`DELETE media/:id`) фото
+   владельцем возвращают `ACTIVE`/`REJECTED` в `NEW` с тем же логом `OWNER_EDIT`
+   (`reason` = «Изменено: добавлено фото» / «удалено фото»). **Переупорядочивание**
+   (`PATCH media/reorder`) — не новый контент (все фото уже проверены), статус не
+   меняет — как и правка окон туров. Правки медиа со стороны **ADMIN** (доверенная
+   роль) ре-модерацию не запускают.
 
 ## Related files
 
@@ -100,6 +106,7 @@ Negative / trade-offs:
 - apps/api/src/listings/listings.service.spec.ts
 - apps/api/src/moderation/moderation.service.ts
 - apps/api/src/moderation/dto/moderate-listing.dto.ts
+- apps/api/src/listing-media/listing-media.service.ts (+ spec) — ре-модерация при правке фото
 - apps/web/src/app/admin/listings/[id]/page.tsx
 - apps/web/src/store/api/adminTypes.ts
 - apps/web/src/lib/adapters/logs.ts
