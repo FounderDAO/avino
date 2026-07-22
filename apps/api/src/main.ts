@@ -4,6 +4,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { buildCorsOptions } from './common/cors/cors.options';
@@ -21,6 +22,10 @@ async function bootstrap() {
   // API versioning обязателен с первого дня (CLAUDE.md §14): /api/v1/...
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+  // cookie-parser: наполняет req.cookies (нужно для refresh-токена в httpOnly
+  // cookie avino_rt — ADR-0153). Ставится до пайпов/гвардов, чтобы контроллеры
+  // видели разобранные cookie. Подпись не используем (значение — сам JWT).
+  app.use(cookieParser());
   // request_id для каждого запроса + заголовок X-Request-Id (TASK-023).
   app.useGlobalInterceptors(new RequestIdInterceptor());
   // Глобальная валидация входных DTO: whitelist + transform (TASK-022).

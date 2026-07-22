@@ -19,7 +19,6 @@ import { normalizeContact } from './contact.util';
 import { consumeActiveOtpCode } from './otp-code.util';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 import { TokenService } from './token.service';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SessionResponse } from './dto/session-response.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { MeResponse } from './dto/me-response.dto';
@@ -303,16 +302,17 @@ export class AuthService {
 
   /**
    * Ротация refresh-токена (`POST /api/v1/auth/refresh`, API.md §3, TASK-043).
-   * Делегирует {@link TokenService.rotateSession}; reuse-detection и отзыв family
-   * — внутри сервиса токенов.
+   * Токен приходит уже разрешённым из контроллера (cookie `avino_rt` или тело —
+   * ADR-0153). Делегирует {@link TokenService.rotateSession}; reuse-detection и
+   * отзыв family — внутри сервиса токенов.
    */
   async refresh(
-    dto: RefreshTokenDto,
+    refreshToken: string,
     ip: string,
     userAgent?: string,
   ): Promise<RefreshResult> {
     const tokens = await this.tokenService.rotateSession(
-      dto.refresh_token,
+      refreshToken,
       ip,
       userAgent,
     );
@@ -326,14 +326,16 @@ export class AuthService {
 
   /**
    * Отзыв сессии (`POST /api/v1/auth/logout`, API.md §3, TASK-043) → 204.
-   * Идемпотентен; при найденной сессии пишет `audit_logs` (`action='LOGOUT'`).
+   * Токен приходит уже разрешённым из контроллера (cookie `avino_rt` или тело —
+   * ADR-0153). Идемпотентен; при найденной сессии пишет `audit_logs`
+   * (`action='LOGOUT'`).
    */
   async logout(
-    dto: RefreshTokenDto,
+    refreshToken: string,
     ip: string,
     userAgent?: string,
   ): Promise<void> {
-    const userId = await this.tokenService.revokeSession(dto.refresh_token);
+    const userId = await this.tokenService.revokeSession(refreshToken);
     if (userId) {
       await this.prisma.auditLog.create({
         data: {

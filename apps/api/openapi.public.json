@@ -3895,10 +3895,7 @@
           "refresh_token": {
             "type": "string"
           }
-        },
-        "required": [
-          "refresh_token"
-        ]
+        }
       },
       "UpdateUserDto": {
         "type": "object",
