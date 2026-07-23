@@ -10,6 +10,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Pill } from '@/components/ui/pill';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import {
@@ -26,6 +27,7 @@ import {
   isNotificationSoundEnabled,
   setNotificationSoundEnabled,
 } from '@/lib/notificationSound';
+import { DeleteAccountModal } from './DeleteAccountModal';
 
 type LangChip = 'ru' | 'uz' | 'en';
 const LANG_UPPER: Record<LangChip, Language> = { ru: 'RU', uz: 'UZ', en: 'EN' };
@@ -84,6 +86,7 @@ export function Settings() {
 
   // Реальный тумблер звука (в отличие от мок-настроек выше) — persist в localStorage.
   const [soundOn, setSoundOn] = React.useState(true);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
   React.useEffect(() => setSoundOn(isNotificationSoundEnabled()), []);
   const toggleSound = () =>
     setSoundOn((prev) => {
@@ -193,7 +196,26 @@ export function Settings() {
             </div>
           </div>
         </div>
+
+        {/* Опасная зона: удаление аккаунта */}
+        {isAuthed && (
+          <div className="rounded-card border border-red/40 bg-surface p-6 shadow-card">
+            <h2 className="mb-2 text-lg text-red">{t('deleteAccount.sectionTitle')}</h2>
+            <p className="mb-4 text-[13.5px] text-muted-foreground">
+              {t('deleteAccount.sectionText')}
+            </p>
+            <Button
+              variant="outline"
+              className="border-red/50 text-red hover:bg-red/10"
+              onClick={() => setDeleteOpen(true)}
+            >
+              {t('deleteAccount.button')}
+            </Button>
+          </div>
+        )}
       </div>
+
+      <DeleteAccountModal open={deleteOpen} onClose={() => setDeleteOpen(false)} />
     </div>
   );
 }
