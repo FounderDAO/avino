@@ -139,6 +139,11 @@ services:
         # Google Sign-In Client ID — из корневого .env; пусто → кнопка Google
         # не рендерится. Должен совпадать с GOOGLE_CLIENT_ID на api.
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+        # Sign in with Apple — из корневого .env; пусто → кнопка Apple не
+        # рендерится. CLIENT_ID (Service ID веба) должен входить в APPLE_CLIENT_ID
+        # на api, REDIRECT_URI — зарегистрирован в Apple Developer.
+        NEXT_PUBLIC_APPLE_CLIENT_ID: ${NEXT_PUBLIC_APPLE_CLIENT_ID:-}
+        NEXT_PUBLIC_APPLE_REDIRECT_URI: ${NEXT_PUBLIC_APPLE_REDIRECT_URI:-}
         # Sentry портала (ADR-0129): отдельный Sentry-проект avino-client, поэтому
         # в .env переменная с суффиксом _CLIENT; здесь маппится в имя, которое
         # читает код. Пусто → Sentry выключен.
