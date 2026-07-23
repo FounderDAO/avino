@@ -26,6 +26,8 @@ import { AdminTelegramSettingsService } from './admin-telegram-settings.service'
 import { AdminLogsController } from './admin-logs.controller';
 import { AdminLogsService } from './admin-logs.service';
 import { AdminOtpLogsService } from './admin-otp-logs.service';
+import { AdminLegalConsentsController } from './admin-legal-consents.controller';
+import { AdminLegalConsentsService } from './admin-legal-consents.service';
 import { AdminPromotionsController } from './admin-promotions.controller';
 import { AdminPromotionsOverviewController } from './admin-promotions-overview.controller';
 import { AdminPromotionsOverviewService } from './admin-promotions-overview.service';
@@ -88,6 +90,7 @@ import { AdminUsersService } from './admin-users.service';
     AdminLegalDocumentsController,
     AdminUsersController,
     AdminLogsController,
+    AdminLegalConsentsController,
     AdminComplaintsController,
     AdminSupportRequestsController,
     AdminStatsController,
@@ -97,6 +100,7 @@ import { AdminUsersService } from './admin-users.service';
     AdminUsersService,
     AdminLogsService,
     AdminOtpLogsService,
+    AdminLegalConsentsService,
     AdminStatsService,
     AdminPromotionsOverviewService,
     AdminAnalyticsService,

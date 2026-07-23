@@ -34,6 +34,7 @@ import {
   ListChecks,
   Pencil,
   FileText,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -67,6 +68,7 @@ export const IC = {
   Checklist: ListChecks,
   Edit: Pencil,
   FileText,
+  ShieldCheck,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof IC;
