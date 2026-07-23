@@ -43,6 +43,22 @@ function authTypeFromLoginMetadata(
 }
 
 /**
+ * Достать `archived_listing_ids` из `metadata` последней BLOCKED-записи аудита.
+ * Возвращает только строковые id; отсутствие/битый формат → `[]` (разблокировка
+ * тогда просто ничего не восстанавливает).
+ */
+function readArchivedListingIds(metadata: Prisma.JsonValue | null): string[] {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return [];
+  }
+  const raw = (metadata as Record<string, unknown>).archived_listing_ids;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.filter((id): id is string => typeof id === 'string');
+}
+
+/**
  * Пользователь в админ-списке (snake_case контракт, API.md §6). Базовые поля
  * `users/me` ({@link UserMeResponse}) + таймстемпы, плоские поля имени из
  * профиля (для колонки «Имя» без отдельного запроса карточки) и `auth_type`
@@ -233,10 +249,22 @@ export class AdminUsersService {
   }
 
   /**
-   * `PATCH /api/v1/admin/users/:id` — смена статуса (API.md §6).
+   * `PATCH /api/v1/admin/users/:id` — смена статуса (API.md §6, ADR-0013).
    *
-   * Атомарно: `users.status` (+ `deleted_at` для DELETED, ADR-0013) и запись
-   * `audit_logs(ADMIN_USER_UPDATE)`. `reason` попадает в `metadata`.
+   * Ветвление по целевому статусу, всё атомарно в одной `$transaction`:
+   *  - **BLOCKED** — прячем ACTIVE-объявления владельца (`→ ARCHIVED`, id пишем
+   *    в `metadata.archived_listing_ids` для обратимости) и отзываем все активные
+   *    refresh-токены (kick out); вход уже блокирует `auth.service`.
+   *  - **ACTIVE** (разблокировка) — возвращаем в `ACTIVE` только те объявления,
+   *    что мы сами спрятали и что всё ещё `ARCHIVED` (то, что владелец
+   *    заархивировал за время блокировки, не трогаем); id берём из последней
+   *    BLOCKED-записи аудита.
+   *  - **DELETED** — паритет с self-service (`UsersService.deleteMe`): все
+   *    объявления владельца `→ DELETED`, refresh-токены отозваны.
+   *
+   * `deleted_at` следует инварианту «DELETED ⇒ установлен; иначе очищается».
+   * `reason` (для block/delete) попадает в `metadata`. Каждая ветка пишет
+   * `audit_logs(ADMIN_USER_UPDATE)` с обогащённым `metadata`.
    */
   async updateStatus(
     adminId: string,
@@ -252,35 +280,175 @@ export class AdminUsersService {
     }
 
     const reason = dto.reason ?? null;
-    // Инвариант: DELETED ⇒ deleted_at установлен; иначе deleted_at очищается.
-    const deletedAt = dto.status === UserStatus.DELETED ? new Date() : null;
+    const oldStatus = existing.status;
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.update({
-        where: { id: userId },
-        data: { status: dto.status, deletedAt },
-        select: DETAIL_SELECT,
-      });
-
-      await tx.auditLog.create({
-        data: {
-          actorId: adminId,
-          action: 'ADMIN_USER_UPDATE',
-          entityType: 'user',
-          entityId: userId,
-          metadata: {
-            old_status: existing.status,
-            new_status: dto.status,
-            reason,
-          },
-        },
-      });
-
-      return user;
+    const updated = await this.prisma.$transaction((tx) => {
+      switch (dto.status) {
+        case UserStatus.BLOCKED:
+          return this.applyBlock(tx, adminId, userId, oldStatus, reason);
+        case UserStatus.DELETED:
+          return this.applyDelete(tx, adminId, userId, oldStatus, reason);
+        case UserStatus.ACTIVE:
+        default:
+          return this.applyUnblock(tx, adminId, userId, oldStatus);
+      }
     });
 
     const authTypes = await this.resolveAuthTypes([userId]);
     return this.toDetail(updated, authTypes.get(userId) ?? null);
+  }
+
+  /**
+   * Блокировка: ACTIVE-объявления → ARCHIVED (id в аудит), активные
+   * refresh-токены отозваны, `deleted_at` очищен.
+   */
+  private async applyBlock(
+    tx: Prisma.TransactionClient,
+    adminId: string,
+    userId: string,
+    oldStatus: UserStatus,
+    reason: string | null,
+  ): Promise<AdminUserDetailRow> {
+    const active = await tx.listing.findMany({
+      where: { ownerId: userId, status: ListingStatus.ACTIVE },
+      select: { id: true },
+    });
+    const archivedListingIds = active.map((l) => l.id);
+
+    const user = await tx.user.update({
+      where: { id: userId },
+      data: { status: UserStatus.BLOCKED, deletedAt: null },
+      select: DETAIL_SELECT,
+    });
+
+    await tx.listing.updateMany({
+      where: { ownerId: userId, status: ListingStatus.ACTIVE },
+      data: { status: ListingStatus.ARCHIVED },
+    });
+
+    await tx.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: 'ADMIN_USER_UPDATE',
+        entityType: 'user',
+        entityId: userId,
+        metadata: {
+          old_status: oldStatus,
+          new_status: UserStatus.BLOCKED,
+          reason,
+          archived_listing_ids: archivedListingIds,
+        },
+      },
+    });
+
+    return user;
+  }
+
+  /**
+   * Разблокировка: возврат в ACTIVE только тех id, что прятали при блокировке и
+   * что всё ещё ARCHIVED. id — из последней BLOCKED-записи аудита; если её нет
+   * или список пуст, объявления не трогаем.
+   */
+  private async applyUnblock(
+    tx: Prisma.TransactionClient,
+    adminId: string,
+    userId: string,
+    oldStatus: UserStatus,
+  ): Promise<AdminUserDetailRow> {
+    const lastBlock = await tx.auditLog.findFirst({
+      where: {
+        action: 'ADMIN_USER_UPDATE',
+        entityId: userId,
+        metadata: { path: ['new_status'], equals: UserStatus.BLOCKED },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { metadata: true },
+    });
+    const restoredListingIds = readArchivedListingIds(
+      lastBlock?.metadata ?? null,
+    );
+
+    const user = await tx.user.update({
+      where: { id: userId },
+      data: { status: UserStatus.ACTIVE, deletedAt: null },
+      select: DETAIL_SELECT,
+    });
+
+    if (restoredListingIds.length > 0) {
+      await tx.listing.updateMany({
+        where: {
+          id: { in: restoredListingIds },
+          ownerId: userId,
+          status: ListingStatus.ARCHIVED,
+        },
+        data: { status: ListingStatus.ACTIVE },
+      });
+    }
+
+    await tx.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: 'ADMIN_USER_UPDATE',
+        entityType: 'user',
+        entityId: userId,
+        metadata: {
+          old_status: oldStatus,
+          new_status: UserStatus.ACTIVE,
+          restored_listing_ids: restoredListingIds,
+        },
+      },
+    });
+
+    return user;
+  }
+
+  /**
+   * Удаление (паритет с {@link UsersService.deleteMe}): все объявления владельца
+   * → DELETED, активные refresh-токены отозваны, `deleted_at` установлен.
+   */
+  private async applyDelete(
+    tx: Prisma.TransactionClient,
+    adminId: string,
+    userId: string,
+    oldStatus: UserStatus,
+    reason: string | null,
+  ): Promise<AdminUserDetailRow> {
+    const user = await tx.user.update({
+      where: { id: userId },
+      data: { status: UserStatus.DELETED, deletedAt: new Date() },
+      select: DETAIL_SELECT,
+    });
+
+    await tx.listing.updateMany({
+      where: { ownerId: userId, status: { not: ListingStatus.DELETED } },
+      data: { status: ListingStatus.DELETED },
+    });
+
+    await tx.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: 'ADMIN_USER_UPDATE',
+        entityType: 'user',
+        entityId: userId,
+        metadata: {
+          old_status: oldStatus,
+          new_status: UserStatus.DELETED,
+          reason,
+        },
+      },
+    });
+
+    return user;
   }
 
   /**

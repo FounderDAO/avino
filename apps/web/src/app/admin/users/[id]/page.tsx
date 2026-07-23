@@ -17,6 +17,7 @@ import { useParams } from 'next/navigation';
 import { UserStatusPill } from '@/components/admin/ui/pill';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
+import { UserStatusReasonModal } from '@/components/admin/UserStatusReasonModal';
 import {
   useAssignAdminUserRoleMutation,
   useGetAdminUserQuery,
@@ -48,6 +49,7 @@ function roleErrorText(code: string | null): string {
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
+  const [reasonModalTarget, setReasonModalTarget] = useState<'BLOCKED' | 'DELETED' | null>(null);
 
   const { data, isLoading, isError, refetch } = useGetAdminUserQuery(id);
   const { data: roles } = useGetRolesQuery();
@@ -73,24 +75,19 @@ export default function UserDetailPage() {
   const user = detailToAdminUser(data);
   const userRoles = new Set(user.roles);
 
-  const changeStatus = async (status: UserStatus) => {
-    let reason: string | null = null;
-    if (status === 'BLOCKED' || status === 'DELETED') {
-      const input = window.prompt(
-        status === 'BLOCKED' ? 'Причина блокировки:' : 'Причина удаления:',
-      );
-      reason = input?.trim() ?? '';
-      if (!reason) {
-        toast('Нужно указать причину');
-        return;
-      }
-    }
+  const changeStatus = async (status: UserStatus, reason: string | null = null) => {
     try {
       await updateStatus({ id, body: { status, reason } }).unwrap();
       toast('Статус обновлён');
     } catch {
       toast('Не удалось обновить статус');
     }
+  };
+
+  const confirmReasonModal = async (reason: string) => {
+    if (!reasonModalTarget) return;
+    await changeStatus(reasonModalTarget, reason);
+    setReasonModalTarget(null);
   };
 
   const toggleRole = async (role: RoleCode) => {
@@ -149,14 +146,22 @@ export default function UserDetailPage() {
         <div className="a-card" style={{ padding: 20 }}>
           <h3 style={{ fontSize: 15, marginBottom: 14 }}>Действия</h3>
           <div className="col gap-10">
-            <button className="abtn" disabled={statusBusy} style={{ width: '100%', background: user.status === 'active' ? 'var(--red-bg)' : 'var(--green-bg)', color: user.status === 'active' ? 'var(--red)' : 'var(--green)' }} onClick={() => changeStatus(user.status === 'active' ? 'BLOCKED' : 'ACTIVE')}>
+            <button className="abtn" disabled={statusBusy} style={{ width: '100%', background: user.status === 'active' ? 'var(--red-bg)' : 'var(--green-bg)', color: user.status === 'active' ? 'var(--red)' : 'var(--green)' }} onClick={() => (user.status === 'active' ? setReasonModalTarget('BLOCKED') : changeStatus('ACTIVE'))}>
               {user.status === 'active' ? 'Заблокировать' : 'Разблокировать'}
             </button>
             <div style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} />
-            <button className="abtn abtn-danger" disabled={statusBusy} style={{ width: '100%' }} onClick={() => changeStatus('DELETED')}>Удалить аккаунт</button>
+            <button className="abtn abtn-danger" disabled={statusBusy} style={{ width: '100%' }} onClick={() => setReasonModalTarget('DELETED')}>Удалить аккаунт</button>
           </div>
         </div>
       </div>
+      {reasonModalTarget && (
+        <UserStatusReasonModal
+          target={reasonModalTarget}
+          isSubmitting={statusBusy}
+          onClose={() => setReasonModalTarget(null)}
+          onConfirm={confirmReasonModal}
+        />
+      )}
     </div>
   );
 }

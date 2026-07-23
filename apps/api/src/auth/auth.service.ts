@@ -250,7 +250,10 @@ export class AuthService {
    */
   async getMe(userId: string): Promise<MeResponse> {
     const user = await this.prisma.user.findFirst({
-      where: { id: userId, status: { not: UserStatus.DELETED } },
+      where: {
+        id: userId,
+        status: { notIn: [UserStatus.DELETED, UserStatus.BLOCKED] },
+      },
       include: {
         profile: true,
         roles: { include: { role: true } },
