@@ -4,7 +4,7 @@
  * Подборка курируемая и статичная (НЕ из GET /geo/districts): справочник
  * districts содержит ~200 районов всей страны, отсортированных по русскому
  * имени, поэтому раньше сюда попадали случайные районы (Акалтын, Алат…) с
- * непереведённым `name_en` («… tumani»). Здесь фиксируем 6 центральных районов
+ * непереведённым `name_en` («… tumani»). Здесь фиксируем 8 центральных районов
  * города Ташкента в редакционном порядке с чистыми трёхъязычными именами —
  * секция всегда осмысленна и не зависит от состояния API/справочника.
  *
@@ -31,6 +31,8 @@ const TASHKENT_DISTRICTS = [
   { id: 'd0000000-0000-4000-8000-000000000002', uz: 'Chilonzor', ru: 'Чиланзар', en: 'Chilanzar' },
   { id: 'd0000000-0000-4000-8000-000000000007', uz: 'Shayxontohur', ru: 'Шайхантахур', en: 'Shaykhantakhur' },
   { id: 'd0000000-0000-4000-8000-000000000009', uz: 'Yakkasaroy', ru: 'Яккасарай', en: 'Yakkasaray' },
+  { id: 'd0000000-0000-4000-8000-000000000006', uz: 'Sergeli', ru: 'Сергели', en: 'Sergeli' },
+  { id: 'd0000000-0000-4000-8000-000000000010', uz: 'Yashnobod', ru: 'Яшнабад', en: 'Yashnobod' },
 ] as const;
 
 /** Имя района по языку интерфейса: `uz→uz`, `en→en`, иначе ru. */
@@ -49,7 +51,7 @@ export async function Districts() {
   return (
     <section className="mx-auto max-w-[1280px] px-4 pt-14 sm:px-6">
       <h2 className="mb-[18px] text-2xl sm:text-[30px]">{t('districts.title')}</h2>
-      <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-4">
         {districts.map((d) => (
           <Link
             key={d.id}

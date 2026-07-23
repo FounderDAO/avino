@@ -104,9 +104,7 @@ export const DISTRICT_ICONS: Record<string, ReactElement> = {
     </svg>
   ),
 
-  // --- Про запас: районы вне текущей подборки. Иконки готовы, но НЕ рендерятся,
-  // пока район не добавлен в Districts.TASHKENT_DISTRICTS (тогда просто заработают
-  // по своему UUID). UUID — из seed districts (миграция add_districts). ---
+  // --- UUID — из seed districts (миграция add_districts). ---
 
   // Sergeli — промзона/заводы
   'd0000000-0000-4000-8000-000000000006': (
