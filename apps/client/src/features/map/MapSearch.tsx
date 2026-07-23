@@ -23,6 +23,7 @@ import dynamic from 'next/dynamic';
 import { Pencil, X, Trash2 } from 'lucide-react';
 import { PropertyCard } from '@/features/search/PropertyCard';
 import { MapPreviewCard } from '@/features/map/MapPreviewCard';
+import { Footer } from '@/components/layout/Footer';
 import { useViewportSearch } from '@/features/map/useViewportSearch';
 import { cn } from '@/lib/utils';
 import { serializePolygonRing, type LatLng } from '@/lib/geo';
@@ -197,9 +198,9 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
       {/* ---- Список (справа, свой скролл) ---- */}
       <div
         className={cn(
-          'min-w-0 overflow-y-auto',
+          'flex min-w-0 flex-col overflow-y-auto overscroll-contain',
           'w-full lg:w-2/5 lg:max-w-[40%]',
-          mobView === 'map' && 'hidden lg:block',
+          mobView === 'map' && 'hidden lg:flex',
         )}
       >
         <div className="px-5 pb-3 pt-[18px]">
@@ -234,6 +235,12 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
             ))}
           </div>
         )}
+
+        {/* Компактный футер внизу скроллящейся колонки (Zillow, спека 2026-07-17);
+            mt-auto прижимает его к низу при короткой/пустой выдаче. */}
+        <div className="mt-auto">
+          <Footer variant="panel" />
+        </div>
       </div>
 
       {/* ---- Мобильный переключатель Список / Карта ---- */}

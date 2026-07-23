@@ -16,15 +16,14 @@ export type TransactionType = 'SALE' | 'RENT';
 export type PropertyType =
   | 'APARTMENT'
   | 'HOUSE'
-  | 'NEW_BUILDING'
   | 'LAND'
   | 'COMMERCIAL';
 
-/** Все типы недвижимости (порядок — как в выпадающих списках UI). */
+/** Все типы недвижимости (порядок — как в выпадающих списках UI).
+ * «Новостройка» — НЕ тип, а вычисляемая категория (`?new_construction=true`). */
 export const PROPERTY_TYPES: PropertyType[] = [
   'APARTMENT',
   'HOUSE',
-  'NEW_BUILDING',
   'LAND',
   'COMMERCIAL',
 ];
@@ -34,30 +33,12 @@ export type ParkingType = 'YARD' | 'COVERED' | 'GARAGE' | 'UNDERGROUND';
 /** Все типы парковки (порядок — как в выпадающих списках UI). */
 export const PARKING_TYPES: ParkingType[] = ['YARD', 'COVERED', 'GARAGE', 'UNDERGROUND'];
 
-/** Удобства объявления (ADR-0111, Zillow Phase 2; POOL — LAST_CHANGED_API.md §1). */
-export type Amenity =
-  | 'AIR_CONDITIONING'
-  | 'FURNITURE'
-  | 'APPLIANCES'
-  | 'INTERNET'
-  | 'ELEVATOR'
-  | 'BALCONY'
-  | 'HEATING'
-  | 'SECURITY'
-  | 'POOL';
-
-/** Все удобства (порядок — как в UI). */
-export const AMENITIES: Amenity[] = [
-  'AIR_CONDITIONING',
-  'FURNITURE',
-  'APPLIANCES',
-  'INTERNET',
-  'ELEVATOR',
-  'BALCONY',
-  'HEATING',
-  'SECURITY',
-  'POOL',
-];
+/**
+ * Код удобства — доменный алиас, а НЕ union: справочник динамический и живёт в
+ * БД (Task 5, GET /amenities), поэтому набор значений компилятору неизвестен.
+ * Валидность кода проверяет только бэкенд (422 на create/update листинга).
+ */
+export type Amenity = string;
 
 export type ListingStatus =
   | 'NEW'
@@ -89,6 +70,8 @@ export interface ListingAgent {
   agency: string;
   /** Телефон для связи (опционально, для detail). */
   phone?: string;
+  /** Тип контакта (TASK-210/ADR-0069); у краткой карточки — 'owner' по умолчанию. */
+  kind: 'owner' | 'agent' | 'agency';
 }
 
 /** Окно для экскурсии (время начала и конца). */
@@ -114,6 +97,8 @@ export interface PriceHistoryEntry {
  */
 export interface Listing {
   id: string;
+  /** Публичный человекочитаемый номер объявления (detail-only, ADR-0137). */
+  reference?: number;
   /** Тип сделки. */
   tx: TransactionType;
   /** Тип недвижимости. */
@@ -218,16 +203,6 @@ export interface District {
   regionId?: string;
 }
 
-/** Карточка агента/агентства (для блока «Агенты»). */
-export interface Agent {
-  id: string;
-  name: string;
-  pro: boolean;
-  agency: string;
-  /** Кол-во активных объявлений. */
-  listingsCount: number;
-}
-
 /** Фильтр выдачи поиска. */
 export interface ListingFilter {
   tx?: TransactionType;
@@ -238,6 +213,8 @@ export interface ListingFilter {
   districtId?: string;
   /** UUID региона для фильтрации (`?region_id=`, GET /search). */
   regionId?: string;
+  /** UUID агента (users.id) — только его объявления (`?agent_id=`, страница /agents/:id, API.md §21). */
+  agentId?: string;
   /** Точное число комнат (4 = «4+»). */
   rooms?: number;
   /** Диапазон цены (в единицах валюты объявления; грубый фильтр для моков). */
@@ -276,8 +253,10 @@ export interface ListingFilter {
   totalFloorsMax?: number;
   yearMin?: number;
   yearMax?: number;
-  /** Источник объявления. */
-  listingSource?: 'OWNER' | 'AGENCY';
+  /** «Новостройка» — год постройки за последние 3 года или в будущем (недострой). */
+  newConstruction?: boolean;
+  /** Источник объявления (мультивыбор: оба → без фильтра). */
+  listingSource?: ('OWNER' | 'AGENCY')[];
   toursEnabled?: boolean;
   /** Только цокольные этажи (`?is_basement=true`, LAST_CHANGED_API.md §1). */
   isBasement?: boolean;

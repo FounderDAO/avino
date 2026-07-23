@@ -388,10 +388,13 @@ describe('SearchService sort + rooms (integration, TASK-207)', () => {
     expect(explicit.data[1].id).toBe(ID.top);
   });
 
-  it('rooms=2: returns only listings with rooms == 2', async () => {
+  // TASK-247 (ADR-0133, BREAKING): rooms — массив, семантика OR/IN; 0..4 точное
+  // совпадение, 5 = «5 и более» (раньше одиночное rooms=4 схлопывало 4/5/6 в
+  // «4+» — теперь rooms=4 это РОВНО 4).
+  it('rooms=[2]: returns only listings with rooms == 2', async () => {
     const result = await service.search({
       city_id: CITY_ID_207,
-      rooms: 2,
+      rooms: [2],
       limit: 100,
     });
 
@@ -402,34 +405,62 @@ describe('SearchService sort + rooms (integration, TASK-207)', () => {
     expect(ids.size).toBe(2);
   });
 
-  it('rooms=4: returns listings with rooms >= 4 (the 4+ bucket)', async () => {
+  it('rooms=[4]: EXACT match only (BREAKING — no longer the old "4+" bucket)', async () => {
     const result = await service.search({
       city_id: CITY_ID_207,
-      rooms: 4,
+      rooms: [4],
       limit: 100,
     });
 
     const ids = new Set(result.data.map((d) => d.id));
-    // rooms=4: n2(4), n3(5) → оба >= 4.
-    expect(ids).toContain(ID.n2);
-    expect(ids).toContain(ID.n3);
-    expect(ids.size).toBe(2);
-    // Строки с rooms < 4 не должны попадать.
-    expect(ids.has(ID.vip)).toBe(false); // rooms=2
-    expect(ids.has(ID.top)).toBe(false); // rooms=1
-    expect(ids.has(ID.n1)).toBe(false);  // rooms=0
-    expect(ids.has(ID.n4)).toBe(false);  // rooms=2
-    expect(ids.has(ID.n5)).toBe(false);  // rooms=3
+    // rooms=4 точный: только n2(4); n3(5) больше НЕ попадает (раньше попадал как «4+»).
+    expect(ids).toEqual(new Set([ID.n2]));
   });
 
-  it('rooms=0: returns only listings with rooms == 0 (exact match)', async () => {
+  it('rooms=[5]: «5 и более» bucket (rooms >= 5)', async () => {
     const result = await service.search({
       city_id: CITY_ID_207,
-      rooms: 0,
+      rooms: [5],
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toEqual(new Set([ID.n3])); // n3(5); n2(4) не попадает (точный <5 бакет).
+  });
+
+  it('rooms=[2,3,5]: OR/IN across exact values + the 5+ bucket, no duplicates', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_207,
+      rooms: [2, 3, 5],
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    // 2 → vip,n4; 3 → n5; 5+ → n3. n1(0)/top(1)/n2(4) не должны попасть.
+    expect(ids).toEqual(new Set([ID.vip, ID.n4, ID.n5, ID.n3]));
+  });
+
+  it('rooms=[0]: returns only listings with rooms == 0 (exact match)', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_207,
+      rooms: [0],
       limit: 100,
     });
 
     expect(result.data.map((d) => d.id)).toEqual([ID.n1]);
+  });
+
+  it('rooms=4 (bare scalar, back-compat — matchNewlyActiveListings/legacy filters_json path bypassing DTO)', async () => {
+    // buildWhereSql принимает `number | number[]` нативно (TASK-247): сырые
+    // filters_json могут хранить одиночное число, а не массив. `as any`, потому
+    // что SearchListingsQueryDto.rooms типизирован как number[] на уровне DTO.
+    const result = await service.search({
+      city_id: CITY_ID_207,
+      rooms: 4,
+      limit: 100,
+    } as any);
+
+    expect(result.data.map((d) => d.id)).toEqual([ID.n2]); // РОВНО 4, не «4+».
   });
 
   it('keyset stability: sort=price_asc with limit=2 — no duplicates, no gaps', async () => {
@@ -1773,5 +1804,192 @@ describe('SearchService price filter FX-normalization (integration)', () => {
     expect(ids).not.toContain(ID.usdOut);
     expect(ids).not.toContain(ID.uzsOut);
     expect(ids).toHaveLength(2);
+  });
+});
+
+/**
+ * Integration-тесты фильтра «новостройка» (`?new_construction=true`).
+ * Категория вычисляемая: year_built >= текущий год − (MAX_AGE − 1), т.е. зданию
+ * меньше NEW_CONSTRUCTION_MAX_AGE_YEARS лет ЛИБО год в будущем (недострой).
+ * Годы фикстур считаются от текущего года — тест не протухает 1 января.
+ *
+ * Изоляция — уникальный CITY_ID_NEWC; данные удаляются в afterAll.
+ */
+describe('GET /search — new_construction (вычисляемая «новостройка»)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY_ID_NEWC = '44444444-5555-4444-8777-000000000902';
+  const NOW_YEAR = new Date().getFullYear();
+
+  const ID = {
+    fresh:    'aaaaaaaa-0005-4000-8000-000000000902', // NOW_YEAR-1 — новостройка
+    boundary: 'bbbbbbbb-0005-4000-8000-000000000902', // NOW_YEAR-2 — граница, ещё новостройка
+    tooOld:   'cccccccc-0005-4000-8000-000000000902', // NOW_YEAR-3 — уже НЕ новостройка
+    future:   'dddddddd-0005-4000-8000-000000000902', // NOW_YEAR+2 — недострой, новостройка
+    noYear:   'eeeeeeee-0005-4000-8000-000000000902', // year_built NULL — не попадает
+  };
+
+  let ownerId: string;
+
+  async function createYearListing(id: string, yearBuilt: number | null): Promise<void> {
+    await prisma.listing.create({
+      data: {
+        id,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: '100000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_NEWC,
+        promotionType: PromotionType.NORMAL,
+        promotionExpiresAt: null,
+        rooms: 2,
+        area: '60.00',
+        yearBuilt,
+        translations: {
+          create: [
+            {
+              language: Language.RU,
+              title: `newc-${id.slice(0, 8)}`,
+              source: TranslationSource.USER,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_NEWC } });
+
+    const owner = await prisma.user.create({ data: { phone: '+998900000902' } });
+    ownerId = owner.id;
+
+    await createYearListing(ID.fresh, NOW_YEAR - 1);
+    await createYearListing(ID.boundary, NOW_YEAR - 2);
+    await createYearListing(ID.tooOld, NOW_YEAR - 3);
+    await createYearListing(ID.future, NOW_YEAR + 2);
+    await createYearListing(ID.noYear, null);
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_NEWC } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('new_construction=true → свежие и будущие (недострой), без старых и NULL', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_NEWC,
+      new_construction: true,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.fresh);
+    expect(ids).toContain(ID.boundary);
+    expect(ids).toContain(ID.future);
+    expect(ids.has(ID.tooOld)).toBe(false);
+    expect(ids.has(ID.noYear)).toBe(false);
+    expect(ids.size).toBe(3);
+  });
+
+  it('без фильтра — все 5 листингов города', async () => {
+    const result = await service.search({
+      city_id: CITY_ID_NEWC,
+      limit: 100,
+    });
+    expect(result.data).toHaveLength(5);
+  });
+});
+
+/**
+ * Integration-тест локализованного `address` в карточках выдачи (ADR-0147, PR-2 Task 8).
+ * Канонический `address` (RU) хранится всегда; `address_en` — перевод, может быть `null`.
+ * Контракт: `language === EN` → `addressEn ?? address`, иначе (включая UZ, у которого
+ * своего перевода адреса нет) — всегда канонический `address`.
+ *
+ * Изоляция — уникальный CITY_ID_ADDR; данные удаляются в afterAll.
+ */
+describe('SearchService address localization (integration, ADR-0147)', () => {
+  const prisma = new PrismaService();
+  const service = new SearchService(
+    prisma,
+    new TranslationsService(prisma),
+    new DistrictsService(prisma),
+    uploadsStub,
+  );
+
+  const CITY_ID_ADDR = '44444444-5555-4444-8777-000000000903';
+
+  const ID = {
+    listing: 'aaaaaaaa-0006-4000-8000-000000000903',
+  };
+
+  const ADDRESS_RU = 'Ташкент, Чиланзар, ул. Сеул, 7/1';
+  const ADDRESS_EN = 'Tashkent, Chilanzar, Seul koʻchasi, 7/1';
+
+  let ownerId: string;
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_ADDR } });
+
+    const owner = await prisma.user.create({ data: { phone: '+998900000903' } });
+    ownerId = owner.id;
+
+    await prisma.listing.create({
+      data: {
+        id: ID.listing,
+        ownerId,
+        transactionType: TransactionType.SALE,
+        propertyType: PropertyType.APARTMENT,
+        status: ListingStatus.ACTIVE,
+        originalLanguage: Language.RU,
+        price: '100000.00',
+        currency: Currency.UZS,
+        cityId: CITY_ID_ADDR,
+        promotionType: PromotionType.NORMAL,
+        address: ADDRESS_RU,
+        addressEn: ADDRESS_EN,
+        translations: {
+          create: [
+            { language: Language.RU, title: 'addr-ru', source: TranslationSource.USER },
+            { language: Language.UZ, title: 'addr-uz', source: TranslationSource.USER },
+            { language: Language.EN, title: 'addr-en', source: TranslationSource.USER },
+          ],
+        },
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.listing.deleteMany({ where: { cityId: CITY_ID_ADDR } });
+    if (ownerId) {
+      await prisma.user.delete({ where: { id: ownerId } });
+    }
+    await prisma.$disconnect();
+  });
+
+  it('address отдаётся по языку: en → address_en, uz → фолбэк ru (ADR-0147)', async () => {
+    const ru = await service.search({ city_id: CITY_ID_ADDR, limit: 100 }, 'ru');
+    const en = await service.search({ city_id: CITY_ID_ADDR, limit: 100 }, 'en');
+    const uz = await service.search({ city_id: CITY_ID_ADDR, limit: 100 }, 'uz');
+
+    expect(ru.data[0].address).toBe(ADDRESS_RU);
+    expect(en.data[0].address).toBe(ADDRESS_EN);
+    // UZ не имеет собственного перевода адреса — фолбэк на канонический RU.
+    expect(uz.data[0].address).toBe(ADDRESS_RU);
   });
 });

@@ -47,6 +47,7 @@ import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import { useGetMyListingsQuery, useSetMyListingStatusMutation } from '@/store/api/myListingsApi';
 import { usePromotionsEnabled } from '@/lib/usePromotionsEnabled';
+import { BecomeAgentButton } from './BecomeAgentButton';
 import {
   ownerActionsFor,
   type OwnerAction,
@@ -128,7 +129,8 @@ function ListingRow({ l, promotionsEnabled }: { l: Listing; promotionsEnabled: b
           <StatusPill s={l.status} />
           <PromoBadge promo={l.promo} />
         </div>
-        <div className="truncate text-base font-bold">{l.title}</div>
+        {/* Заголовок карточки — чистый адрес; title («тип, площадь, адрес») — фолбэк для объявлений без адреса. */}
+        <div className="truncate text-base font-bold">{l.address || l.title}</div>
         <div className="mt-[3px] text-[13.5px] text-muted-foreground">
           {fmt.price(l)} · {l.district}
         </div>
@@ -262,11 +264,16 @@ export function MyListings() {
           </p>
         )}
       </div>
-      <Button asChild>
-        <Link href="/sell/new">
-          <Home size={17} /> {t('myListings.post')}
-        </Link>
-      </Button>
+      {/* CTA «Стать агентом» живёт здесь, а не в шапке портала: предложение
+          адресное и видно тем, кто уже управляет своими объявлениями. */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <BecomeAgentButton size="md" withHintText />
+        <Button asChild>
+          <Link href="/sell/new">
+            <Home size={17} /> {t('myListings.post')}
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 

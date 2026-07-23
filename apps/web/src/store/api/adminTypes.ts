@@ -19,7 +19,6 @@ export type TransactionType = 'SALE' | 'RENT';
 export type PropertyType =
   | 'APARTMENT'
   | 'HOUSE'
-  | 'NEW_BUILDING'
   | 'LAND'
   | 'COMMERCIAL';
 export type ListingStatus =
@@ -49,7 +48,15 @@ export type PaymentStatus =
 /** Допустимые периоды промо (§15). */
 export type PromotionPeriodDays = 7 | 14 | 30;
 
-export type ModerationAction = 'APPROVE' | 'SEND_TO_DRAFT' | 'REJECT' | 'DELETE';
+// OWNER_EDIT — системное значение только в ответах (moderation_logs): владелец
+// правил объявление и оно вернулось в очередь. Модератор его не отправляет
+// (эндпоинт смены статуса принимает лишь APPROVE/SEND_TO_DRAFT/REJECT/DELETE).
+export type ModerationAction =
+  | 'APPROVE'
+  | 'SEND_TO_DRAFT'
+  | 'REJECT'
+  | 'DELETE'
+  | 'OWNER_EDIT';
 export type PromotionAdminAction =
   | 'ACTIVATE_VIP'
   | 'ACTIVATE_TOP'
@@ -93,6 +100,11 @@ export type RoleCode =
  */
 export interface AdminListingRow {
   id: string;
+  /**
+   * Публичный человекочитаемый номер объявления (ADR-0137). `optional`: старый
+   * бэкенд поля не отдаёт — UI деградирует к «—».
+   */
+  reference?: number;
   status: ListingStatus;
   transaction_type: TransactionType;
   property_type: PropertyType;
@@ -106,6 +118,11 @@ export interface AdminListingRow {
    * не отдаёт — UI деградирует к «—».
    */
   district_name?: string | null;
+  /**
+   * Точный адрес (из Яндекс-карты при создании) для строки списка. `optional`:
+   * старый бэкенд поля не отдаёт — UI деградирует мягко (адрес не показывается).
+   */
+  address?: string | null;
   /** Число комнат (null для участков). `optional` — мягкая деградация к «—». */
   rooms?: number | null;
   /** Счётчик просмотров. `optional` — мягкая деградация к «—». */
@@ -255,14 +272,28 @@ export interface ListingModerationLogEntry {
  * Строка админ-списка пользователей (`GET /admin/users`, §6).
  *
  * Зеркало `AdminUserListItem` (`apps/api/src/admin`): тот же базовый набор, что
- * и `users/me`, плюс верификация контактов и таймстемпы. Профиль в списке не
- * отдаётся — только в карточке ({@link AdminUserDetail}). `roles` — коды ролей
+ * и `users/me`, плюс верификация контактов и таймстемпы. Полного объекта
+ * `profile` в списке нет (только в карточке, {@link AdminUserDetail}), но есть
+ * плоские поля имени и `auth_type` для колонок списка. `roles` — коды ролей
  * (бэкенд отдаёт `string[]`; здесь сужаем до известного словаря).
  */
+/**
+ * Способ последнего входа пользователя (колонка «Вход»). Источник — аудит
+ * (`audit_logs`, зеркало `AuthType` в `apps/api/src/admin`). Нигде не хранится
+ * на `users`; `null` — входов ещё не было.
+ */
+export type AuthType = 'GOOGLE' | 'APPLE' | 'SMS' | 'EMAIL';
+
 export interface AdminUserRow {
   id: string;
   phone: string | null;
   email: string | null;
+  /** Имя/фамилия/отображаемое имя из профиля (плоские поля списка, могут быть null). */
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  /** Способ последнего входа (из аудита); `null` — входов ещё не было. */
+  auth_type: AuthType | null;
   status: UserStatus;
   default_language: Language;
   is_phone_verified: boolean;
@@ -437,6 +468,23 @@ export interface Complaint {
   created_at: string;
 }
 
+// ─── DTO: обращения в поддержку ─────────────────────────────────────────────
+
+export type SupportRequestStatus = 'NEW' | 'IN_REVIEW' | 'RESOLVED';
+
+/** Обращение в поддержку с формы /help (support_requests). */
+export interface SupportRequest {
+  id: string;
+  user_id: string | null;
+  name: string | null;
+  contact: string;
+  message: string;
+  status: SupportRequestStatus;
+  handled_by: string | null;
+  handled_at: string | null;
+  created_at: string;
+}
+
 // ─── DTO: логи (API.md §16) ─────────────────────────────────────────────────
 
 /** Security audit-лог (`audit_logs`, §16/ADR-004). `action` — free-form varchar. */
@@ -494,6 +542,39 @@ export interface NotificationLog {
   created_at: string;
 }
 
+// ─── DTO: заявки агентов (API.md §21, ADR-0140) ─────────────────────────────
+
+/** Статус заявки «Стать агентом» (PG enum `AgentApplicationStatus`, §21). */
+export type AgentApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/**
+ * Заявитель в админ-списке заявок (§21). `name` — display_name либо
+ * «first last», иначе `null`; `avatar_url` резолвит бэкенд (ADR-0134).
+ */
+export interface AgentApplicationUser {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+}
+
+/**
+ * Заявка «Стать агентом» (`agent_applications`, §21) — элемент
+ * `GET /admin/agent-applications` и ответ approve/reject.
+ */
+export interface AgentApplication {
+  id: string;
+  status: AgentApplicationStatus;
+  /** `null` — частный маклер (без агентства). */
+  agency_name: string | null;
+  about: string;
+  reject_reason: string | null;
+  moderator_id: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  user: AgentApplicationUser;
+}
+
 // ─── Параметры списков (фильтры + пагинация, §6/§15/§16) ─────────────────────
 
 /** `GET /admin/listings` (§16). */
@@ -501,6 +582,8 @@ export interface AdminListingFilters extends PageParams {
   status?: ListingStatus;
   property_type?: PropertyType;
   transaction_type?: TransactionType;
+  /** Точный поиск по номеру объявления (`listings.reference`, ADR-0137). */
+  reference?: number;
   q?: string;
 }
 
@@ -515,6 +598,16 @@ export interface AdminUserFilters extends PageParams {
 export interface ComplaintFilters extends PageParams {
   status?: ComplaintStatus;
   listing_id?: string;
+}
+
+/** `GET /admin/agent-applications` (§21). */
+export interface AgentApplicationFilters extends PageParams {
+  status?: AgentApplicationStatus;
+}
+
+/** `GET /admin/support/requests` — фильтры списка обращений. */
+export interface SupportRequestFilters extends PageParams {
+  status?: SupportRequestStatus;
 }
 
 /** `GET /admin/audit-logs` (§16). */
@@ -591,6 +684,18 @@ export interface TranslationEditRequest {
   features_text?: string | null;
 }
 
+/**
+ * Ответ `POST /admin/listings/:id/translations/generate` (§7, ADR-0091).
+ * Расширяет {@link ListingTranslations} итогом генерации: `regenerated` —
+ * целевые языки, реально (пере)сгенерированные; `skipped` — пропущенные как
+ * правленные вручную (без `force`). Позволяет UI показать честный тост вместо
+ * безусловного «Переводы сгенерированы».
+ */
+export interface GenerateTranslationsResult extends ListingTranslations {
+  regenerated: TranslationLanguage[];
+  skipped: TranslationLanguage[];
+}
+
 // ─── Дашборд (ADMIN-15, §16) ─────────────────────────────────────────────────
 
 /** `GET /admin/stats` — сводные счётчики дашборда (ADMIN-15). */
@@ -599,6 +704,18 @@ export interface AdminStats {
   complaints_new: number;
   users_total: number;
   promotions_active: number;
+  /** Опубликованные объявления (`ListingStatus.ACTIVE`). */
+  listings_active: number;
+  /** Объявления в архиве (`ListingStatus.ARCHIVED`). */
+  listings_archived: number;
+  /** Активная витрина на продажу (`ACTIVE` + `SALE`). */
+  listings_sale: number;
+  /** Активная витрина в аренду (`ACTIVE` + `RENT`). */
+  listings_rent: number;
+  /** Заявки «Стать агентом» в очереди на решение (`PENDING`). */
+  agent_applications_new: number;
+  /** Новые обращения в поддержку в очереди (`SupportRequestStatus.NEW`). */
+  support_requests_new: number;
 }
 
 /** Один помесячный бакет ряда «объявления за год» (12 точек, старые→новые). */
@@ -661,4 +778,57 @@ export interface AdminPromotionPlan {
  */
 export interface PromotionSettings {
   expiryIntervalHours: 6 | 12;
+}
+
+// ─── OTP-журнал (GET /admin/otp-logs) ────────────────────────────────────────
+
+export type OtpChannel = 'SMS' | 'EMAIL';
+export type OtpPurpose = 'LOGIN' | 'CONTACT_CHANGE';
+/** CONSUMED = «Погашен»: использован ИЛИ заменён более новым кодом. */
+export type OtpLogStatus = 'ACTIVE' | 'CONSUMED' | 'EXPIRED';
+
+export interface OtpLog {
+  id: string;
+  destination: string;
+  channel: OtpChannel;
+  purpose: OtpPurpose;
+  attempts: number;
+  status: OtpLogStatus;
+  user_id: string | null;
+  user_name: string | null;
+  created_at: string;
+  expires_at: string;
+  consumed_at: string | null;
+}
+
+export interface OtpLogFilters {
+  destination?: string;
+  page?: number;
+  limit?: number;
+}
+
+/** Запись журнала согласий с юр-документами (`GET /admin/legal-consents`). */
+export interface LegalConsent {
+  id: string;
+  user_id: string;
+  user_name: string | null;
+  user_contact: string | null;
+  version: number;
+  accepted_at: string;
+}
+
+export interface LegalConsentFilters {
+  search?: string;
+  version?: number;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
+/** Сводка версии согласия (`GET /admin/legal-consents/versions`). */
+export interface LegalConsentVersionSummary {
+  version: number;
+  effective_at: string | null;
+  count: number;
 }

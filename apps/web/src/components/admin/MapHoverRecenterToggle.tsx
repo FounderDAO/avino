@@ -10,6 +10,7 @@ import {
   useGetMapHoverRecenterFlagQuery,
   useUpdateMapHoverRecenterFlagMutation,
 } from '@/store/api/adminMapHoverRecenterFlagApi';
+import { Switch } from '@/components/admin/ui/switch';
 
 export function MapHoverRecenterToggle() {
   const { data, isLoading } = useGetMapHoverRecenterFlagQuery();
@@ -18,7 +19,7 @@ export function MapHoverRecenterToggle() {
   const enabled = data?.mapHoverRecenter ?? false;
 
   return (
-    <div className="a-card" style={{ padding: 24, maxWidth: 640, marginTop: 18 }}>
+    <div className="a-card" style={{ padding: 24 }}>
       <div
         className="row gap-16"
         style={{ alignItems: 'center', justifyContent: 'space-between' }}
@@ -33,14 +34,12 @@ export function MapHoverRecenterToggle() {
             Подсветка пина работает всегда. Без пересборки.
           </div>
         </div>
-        <button
-          type="button"
-          className={enabled ? 'abtn abtn-primary' : 'abtn'}
+        <Switch
+          checked={enabled}
           disabled={isLoading || isSaving}
-          onClick={() => void update({ enabled: !enabled })}
-        >
-          {isLoading ? '…' : enabled ? 'Включено' : 'Выключено'}
-        </button>
+          onChange={() => void update({ enabled: !enabled })}
+          label="Центрирование карты при наведении на карточку"
+        />
       </div>
     </div>
   );

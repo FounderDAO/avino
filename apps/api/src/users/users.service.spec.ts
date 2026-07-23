@@ -1,21 +1,27 @@
 import {
-  ConflictException,
+  BadRequestException,
   HttpException,
+  PayloadTooLargeException,
   UnauthorizedException,
+  UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { Language, UserStatus } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
-import { UsersService } from './users.service';
+import { UploadedAvatarFile, UsersService } from './users.service';
 
 /**
- * Юнит-тесты UsersService (TASK-040). Prisma мокается — проверяются сборка
- * `/me`-ответа (роли + профиль), сброс is_email_verified при смене email,
- * CONTACT_TAKEN и трактовка отсутствующего/DELETED аккаунта как 401.
+ * Юнит-тесты UsersService (TASK-040, + TASK-248 аватар). Prisma и Uploads
+ * мокаются — проверяются сборка `/me`-ответа (роли + профиль + avatar_url
+ * приоритет storage_key), обновление default_language, трактовка
+ * отсутствующего/DELETED аккаунта как 401, а также upload/delete аватара
+ * (allow-list MIME, лимит размера, upsert профиля, best-effort очистка
+ * предыдущего объекта в R2).
  */
 describe('UsersService', () => {
   const USER_ID = 'u1';
 
   let prisma: any;
+  let uploads: any;
   let service: UsersService;
 
   const dbUser = {
@@ -32,6 +38,7 @@ describe('UsersService', () => {
       lastName: 'Valiev',
       displayName: 'Ali V.',
       avatarUrl: null,
+      avatarStorageKey: null,
       contactPhone: '+998901234567',
       preferredLanguage: Language.RU,
     },
@@ -43,8 +50,20 @@ describe('UsersService', () => {
         findFirst: jest.fn(),
         update: jest.fn(),
       },
+      userProfile: {
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
+        update: jest.fn(),
+      },
+      $transaction: jest.fn(),
     };
-    service = new UsersService(prisma);
+    uploads = {
+      rootPrefix: jest.fn().mockReturnValue(''),
+      upload: jest.fn(),
+      delete: jest.fn(),
+      getObjectUrl: jest.fn(),
+    };
+    service = new UsersService(prisma, uploads);
   });
 
   async function expectCode(promise: Promise<unknown>, code: ApiErrorCode) {
@@ -89,6 +108,39 @@ describe('UsersService', () => {
       );
     });
 
+    it('resolves avatar_url via a signed R2 URL when avatar_storage_key is set, overriding avatarUrl', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        ...dbUser,
+        profile: {
+          ...dbUser.profile,
+          avatarUrl: 'https://accounts.google.com/photo.jpg',
+          avatarStorageKey: 'users/u1/avatar/abc.jpg',
+        },
+      });
+      uploads.getObjectUrl.mockResolvedValue('https://r2.example/signed?x=1');
+
+      const result = await service.getMe(USER_ID);
+
+      expect(uploads.getObjectUrl).toHaveBeenCalledWith('users/u1/avatar/abc.jpg');
+      expect(result.profile?.avatar_url).toBe('https://r2.example/signed?x=1');
+    });
+
+    it('falls back to the provider avatarUrl when no avatar_storage_key is set', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        ...dbUser,
+        profile: {
+          ...dbUser.profile,
+          avatarUrl: 'https://accounts.google.com/photo.jpg',
+          avatarStorageKey: null,
+        },
+      });
+
+      const result = await service.getMe(USER_ID);
+
+      expect(uploads.getObjectUrl).not.toHaveBeenCalled();
+      expect(result.profile?.avatar_url).toBe('https://accounts.google.com/photo.jpg');
+    });
+
     it('returns profile: null when the user has no profile yet', async () => {
       prisma.user.findFirst.mockResolvedValue({ ...dbUser, profile: null });
       const result = await service.getMe(USER_ID);
@@ -125,55 +177,10 @@ describe('UsersService', () => {
       expect(result.default_language).toBe(Language.UZ);
     });
 
-    it('resets is_email_verified when email changes', async () => {
-      prisma.user.findFirst
-        .mockResolvedValueOnce(dbUser) // current
-        .mockResolvedValueOnce(null); // uniqueness check → free
-      prisma.user.update.mockResolvedValue({
-        ...dbUser,
-        email: 'ali@mail.uz',
-        isEmailVerified: false,
-      });
-
-      await service.updateMe(USER_ID, { email: 'ali@mail.uz' });
-
-      expect(prisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: { email: 'ali@mail.uz', isEmailVerified: false },
-        }),
-      );
-    });
-
-    it('does not re-check or reset when email is unchanged', async () => {
-      const withEmail = { ...dbUser, email: 'ali@mail.uz' };
-      prisma.user.findFirst.mockResolvedValue(withEmail);
-      prisma.user.update.mockResolvedValue(withEmail);
-
-      await service.updateMe(USER_ID, { email: 'ali@mail.uz' });
-
-      // Только начальный findFirst (current); uniqueness-запрос не выполнялся.
-      expect(prisma.user.findFirst).toHaveBeenCalledTimes(1);
-      expect(prisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: {} }),
-      );
-    });
-
-    it('throws 409 CONTACT_TAKEN when email belongs to another active user', async () => {
-      // current → dbUser; uniqueness check → another user holds the email.
-      prisma.user.findFirst.mockImplementation((args: any) =>
-        args.where.id?.not === USER_ID ? { id: 'other' } : dbUser,
-      );
-
-      const promise = service.updateMe(USER_ID, { email: 'taken@mail.uz' });
-      await expect(promise).rejects.toBeInstanceOf(ConflictException);
-      try {
-        await promise;
-      } catch (e) {
-        const res = (e as HttpException).getResponse() as { code: string };
-        expect(res.code).toBe(ApiErrorCode.CONTACT_TAKEN);
-      }
-      expect(prisma.user.update).not.toHaveBeenCalled();
-    });
+    // Смена email/phone перенесена в OTP-verify-флоу
+    // (ContactChangeService, `POST /users/me/contact-change/*`), поэтому
+    // PATCH /me больше не трогает контакт — соответствующие тесты живут в
+    // contact-change.service.spec.ts.
 
     it('throws 401 UNAUTHORIZED when the account is gone/DELETED', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
@@ -181,6 +188,185 @@ describe('UsersService', () => {
         service.updateMe(USER_ID, { default_language: Language.EN }),
         ApiErrorCode.UNAUTHORIZED,
       );
+    });
+  });
+
+  describe('uploadAvatar', () => {
+    const file: UploadedAvatarFile = {
+      buffer: Buffer.from('fake-image'),
+      mimetype: 'image/jpeg',
+      originalname: 'photo.jpg',
+      size: 1024,
+    };
+
+    it('throws 400 VALIDATION_ERROR when no file is provided', async () => {
+      await expectCode(
+        service.uploadAvatar(USER_ID, undefined),
+        ApiErrorCode.VALIDATION_ERROR,
+      );
+      await expect(
+        service.uploadAvatar(USER_ID, undefined),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws 415 UNSUPPORTED_MEDIA_TYPE for a disallowed MIME type', async () => {
+      const promise = service.uploadAvatar(USER_ID, {
+        ...file,
+        mimetype: 'application/pdf',
+      });
+      await expectCode(promise, ApiErrorCode.UNSUPPORTED_MEDIA_TYPE);
+      await expect(
+        service.uploadAvatar(USER_ID, { ...file, mimetype: 'application/pdf' }),
+      ).rejects.toBeInstanceOf(UnsupportedMediaTypeException);
+    });
+
+    it('throws 413 FILE_TOO_LARGE when the file exceeds the size limit', async () => {
+      const oversized = { ...file, size: 11 * 1024 * 1024 };
+      const promise = service.uploadAvatar(USER_ID, oversized);
+      await expectCode(promise, ApiErrorCode.FILE_TOO_LARGE);
+      await expect(service.uploadAvatar(USER_ID, oversized)).rejects.toBeInstanceOf(
+        PayloadTooLargeException,
+      );
+    });
+
+    it('uploads to R2, upserts avatar_storage_key and returns a signed avatar_url', async () => {
+      prisma.userProfile.findUnique.mockResolvedValue(null);
+      uploads.upload.mockResolvedValue({
+        key: 'users/u1/avatar/new.jpg',
+        url: 'https://r2.example/users/u1/avatar/new.jpg',
+      });
+      uploads.getObjectUrl.mockResolvedValue('https://r2.example/signed?x=2');
+
+      const result = await service.uploadAvatar(USER_ID, file);
+
+      expect(uploads.upload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          buffer: file.buffer,
+          contentType: 'image/jpeg',
+          prefix: 'users/u1/avatar',
+          extension: '.jpg',
+        }),
+      );
+      expect(prisma.userProfile.upsert).toHaveBeenCalledWith({
+        where: { userId: USER_ID },
+        create: { userId: USER_ID, avatarStorageKey: 'users/u1/avatar/new.jpg' },
+        update: { avatarStorageKey: 'users/u1/avatar/new.jpg' },
+      });
+      expect(result).toEqual({ avatar_url: 'https://r2.example/signed?x=2' });
+      // Первая загрузка — нечего чистить.
+      expect(uploads.delete).not.toHaveBeenCalled();
+    });
+
+    it('best-effort deletes the previous avatar object when replacing it', async () => {
+      prisma.userProfile.findUnique.mockResolvedValue({
+        avatarStorageKey: 'users/u1/avatar/old.jpg',
+      });
+      uploads.upload.mockResolvedValue({
+        key: 'users/u1/avatar/new.jpg',
+        url: 'https://r2.example/users/u1/avatar/new.jpg',
+      });
+      uploads.getObjectUrl.mockResolvedValue('https://r2.example/signed?x=3');
+
+      await service.uploadAvatar(USER_ID, file);
+
+      expect(uploads.delete).toHaveBeenCalledWith('users/u1/avatar/old.jpg');
+    });
+
+    it('does not fail the request when best-effort cleanup of the previous object fails', async () => {
+      prisma.userProfile.findUnique.mockResolvedValue({
+        avatarStorageKey: 'users/u1/avatar/old.jpg',
+      });
+      uploads.upload.mockResolvedValue({
+        key: 'users/u1/avatar/new.jpg',
+        url: 'https://r2.example/users/u1/avatar/new.jpg',
+      });
+      uploads.getObjectUrl.mockResolvedValue('https://r2.example/signed?x=4');
+      uploads.delete.mockRejectedValue(new Error('S3 unavailable'));
+
+      await expect(service.uploadAvatar(USER_ID, file)).resolves.toEqual({
+        avatar_url: 'https://r2.example/signed?x=4',
+      });
+    });
+  });
+
+  describe('deleteAvatar', () => {
+    it('does nothing when the profile has no avatar_storage_key', async () => {
+      prisma.userProfile.findUnique.mockResolvedValue({ avatarStorageKey: null });
+
+      await service.deleteAvatar(USER_ID);
+
+      expect(prisma.userProfile.update).not.toHaveBeenCalled();
+      expect(uploads.delete).not.toHaveBeenCalled();
+    });
+
+    it('clears avatar_storage_key and best-effort deletes the R2 object', async () => {
+      prisma.userProfile.findUnique.mockResolvedValue({
+        avatarStorageKey: 'users/u1/avatar/old.jpg',
+      });
+
+      await service.deleteAvatar(USER_ID);
+
+      expect(prisma.userProfile.update).toHaveBeenCalledWith({
+        where: { userId: USER_ID },
+        data: { avatarStorageKey: null },
+      });
+      expect(uploads.delete).toHaveBeenCalledWith('users/u1/avatar/old.jpg');
+    });
+
+    it('does not throw when the best-effort R2 delete fails', async () => {
+      prisma.userProfile.findUnique.mockResolvedValue({
+        avatarStorageKey: 'users/u1/avatar/old.jpg',
+      });
+      uploads.delete.mockRejectedValue(new Error('S3 unavailable'));
+
+      await expect(service.deleteAvatar(USER_ID)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('deleteMe', () => {
+    it('soft-delete: статус DELETED + deleted_at, снимает объявления, отзывает токены, пишет аудит', async () => {
+      const tx = {
+        user: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'u1' }),
+          update: jest.fn().mockResolvedValue({ id: 'u1' }),
+        },
+        listing: { updateMany: jest.fn().mockResolvedValue({ count: 3 }) },
+        refreshToken: { updateMany: jest.fn().mockResolvedValue({ count: 2 }) },
+        auditLog: { create: jest.fn().mockResolvedValue({}) },
+      };
+      (prisma.$transaction as jest.Mock).mockImplementation((cb: any) => cb(tx));
+
+      await service.deleteMe('u1');
+
+      expect(tx.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'u1' }, data: expect.objectContaining({ status: UserStatus.DELETED }) }),
+      );
+      const updateArg = tx.user.update.mock.calls[0][0];
+      expect(updateArg.data.deletedAt).toBeInstanceOf(Date);
+
+      expect(tx.listing.updateMany).toHaveBeenCalledWith({
+        where: { ownerId: 'u1', status: { not: UserStatus.DELETED } },
+        data: { status: UserStatus.DELETED },
+      });
+      expect(tx.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'u1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+      expect(tx.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          actorId: 'u1',
+          action: 'USER_SELF_DELETE',
+          entityType: 'user',
+          entityId: 'u1',
+          metadata: { listings_taken_down: 3 },
+        }),
+      });
+    });
+
+    it('уже удалён / нет аккаунта → 401 (gone)', async () => {
+      const tx = { user: { findFirst: jest.fn().mockResolvedValue(null) } };
+      (prisma.$transaction as jest.Mock).mockImplementation((cb: any) => cb(tx));
+      await expect(service.deleteMe('u1')).rejects.toMatchObject({ status: 401 });
     });
   });
 });

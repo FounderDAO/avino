@@ -140,6 +140,7 @@ worker are full NO-OP when off (no Redis connection, no schedule). See ADR-0099.
 | JWT_REFRESH_SECRET   | yes  | yes    | no     | (set)   | Signing secret for long-lived refresh token |
 | JWT_ACCESS_TTL       | no   | no     | no     | 900     | Access token TTL, seconds (default 15m)     |
 | JWT_REFRESH_TTL      | no   | no     | no     | 2592000 | Refresh token TTL, seconds (default 30d)    |
+| AUTH_MAX_SESSIONS    | no   | no     | no     | 5       | Max active sessions per user; oldest by activity is evicted on login (ADR-0143) |
 
 ```text
 - Access and refresh use DIFFERENT secrets. Refresh tokens are stored hashed
@@ -191,6 +192,14 @@ worker are full NO-OP when off (no Redis connection, no schedule). See ADR-0099.
   (ARCHITECTURE §12); Yandex provides the map UI/geocoding only.
 - apps/client loads the Yandex Maps JS API 2.1 client-side by this key
   (features/map/useYmaps). Без ключа карта показывает подсказку, не падает.
+- YANDEX_MAPS_API_KEY также используется apps/api для серверного HTTP
+  Геокодера (https://geocode-maps.yandex.ru/1.x/) — реверс-геокод адреса
+  объявления в ru+en по координатам при create/update листинга
+  (AddressResolverService, ADR-0147). Тот же ключ, что и для JS Maps API;
+  entitlement на Геокодер отдельно от JS API, но у текущего ключа оба scope
+  включены. Пустой ключ / недоступный геокодер → best-effort деградация:
+  создание/правка объявления не блокируется, `address` заполняется строковым
+  фолбэком `normalizeAddress(dto.address)`, `address_en` остаётся `null`.
 ```
 
 ## 11. Eskiz.uz (SMS)

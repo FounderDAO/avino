@@ -9,6 +9,7 @@
     "error": "Something went wrong",
     "addToFavorites": "Add to favorites",
     "removeFromFavorites": "Remove from favorites",
+    "loginToFavorite": "Sign in to save to favorites",
     "close": "Close",
     "previous": "Previous",
     "next": "Next",
@@ -22,7 +23,7 @@
   "nav": {
     "buy": "Buy",
     "rent": "Rent",
-    "newBuildings": "New buildings",
+    "newConstruction": "New construction",
     "map": "Map",
     "sell": "Sell",
     "help": "Help",
@@ -34,6 +35,8 @@
     "logout": "Log out",
     "postListing": "Post a listing",
     "postListingFull": "Post a listing",
+    "becomeAgent": "Become an agent",
+    "becomeAgentPending": "Application under review — please wait for a decision",
     "menu": "Menu",
     "close": "Close",
     "logoAria": "Avino — home",
@@ -61,7 +64,7 @@
     "forBuyers": "For buyers",
     "buy": "Buy",
     "rent": "Rent",
-    "newBuildings": "New buildings",
+    "newConstruction": "New construction",
     "mortgage": "Mortgage",
     "forProfessionals": "For professionals",
     "postProperty": "List a property",
@@ -75,6 +78,115 @@
     "slogan": "The national real estate portal of Uzbekistan. Buy and rent homes across the country.",
     "copyright": "© 2026 Avino · www.avino.uz · Support@avino.uz",
     "location": "Tashkent, Uzbekistan · Currency: UZS / $"
+  },
+  "about": {
+    "meta": {
+      "title": "About Avino — Real Estate in Uzbekistan",
+      "description": "Avino is Uzbekistan's real estate platform. Our mission, values and who we serve: buyers, owners and agents across the country."
+    },
+    "hero": {
+      "badge": "About us",
+      "title": "Real estate in Uzbekistan — simple, honest, modern",
+      "subtitle": "Avino helps you find, sell and rent property across Uzbekistan — in three languages and without unnecessary middlemen.",
+      "cta": "Get in touch",
+      "note": "We reply within one business day"
+    },
+    "story": {
+      "title": "Why we built Avino",
+      "lead": "Finding a home in Uzbekistan is still harder than it should be.",
+      "p1": "Listings are scattered across dozens of chats and boards, prices are opaque, and a chain of intermediaries often stands between the buyer and the owner. We set out to bring the market together in one place — clear, honest and convenient.",
+      "p2": "Avino is a modern platform where anyone can find an apartment, house or commercial property, contact the other side directly, and decide based on complete information. We're building it for the whole country, in a language that works for everyone."
+    },
+    "numbers": {
+      "title": "Avino today",
+      "subtitle": "A growing real estate platform for all of Uzbekistan",
+      "countryTitle": "Nationwide",
+      "countryText": "Tashkent and every region of Uzbekistan",
+      "listingsTitle": "Thousands of listings",
+      "listingsText": "Apartments, houses, land and commercial property",
+      "agentsTitle": "Verified agents",
+      "agentsText": "Market professionals close to you",
+      "langsTitle": "Three languages",
+      "langsText": "Russian, Uzbek and English"
+    },
+    "values": {
+      "title": "Our values",
+      "subtitle": "The principles we build Avino on",
+      "honestTitle": "Honesty and transparency",
+      "honestText": "Real listings, up-to-date prices and direct contact with the owner or agent — no hidden terms.",
+      "coverageTitle": "Nationwide coverage",
+      "coverageText": "From the capital to the regions: a single platform for real estate across Uzbekistan.",
+      "techTitle": "Modern technology",
+      "techText": "Smart search, map, saved filters and notifications — finding a home is easy on any device."
+    },
+    "audience": {
+      "title": "Who Avino is for",
+      "subtitle": "We work for everyone in the market",
+      "buyersTitle": "Buyers and renters",
+      "buyersText": "Search by map and filters, save your searches and contact owners directly.",
+      "ownersTitle": "Owners and sellers",
+      "ownersText": "Post a listing in a few minutes and receive enquiries from interested people.",
+      "agentsTitle": "Agents and agencies",
+      "agentsText": "Manage listings, find clients and grow your business on Avino."
+    },
+    "contact": {
+      "title": "Have a question or an idea?",
+      "text": "Drop us a line — we always welcome feedback. A phone number will come later; for now reach us by email and Telegram.",
+      "emailLabel": "Email",
+      "telegramLabel": "Telegram",
+      "postCta": "Post a listing",
+      "agentCta": "Become an agent"
+    }
+  },
+  "advertise": {
+    "meta": {
+      "title": "Advertise on Avino — for businesses and brands",
+      "description": "Put your brand in front of Avino's audience — property buyers and renters across Uzbekistan. Ad formats and contacts."
+    },
+    "hero": {
+      "badge": "Avino Ads",
+      "title": "Advertise on Avino",
+      "subtitle": "Show your product to thousands of people searching for property in Uzbekistan every day — in three languages, across every region.",
+      "cta": "Get in touch",
+      "note": "We reply within one business day"
+    },
+    "why": {
+      "title": "Why Avino",
+      "subtitle": "Uzbekistan's leading property platform for your message",
+      "audienceTitle": "The right audience",
+      "audienceText": "Our users are choosing homes, mortgages and moving — the perfect moment for developers, banks, renovation and related services.",
+      "reachTitle": "Nationwide reach",
+      "reachText": "Tashkent and every region, with an interface in Russian, Uzbek and English — your message lands where you need it.",
+      "premiumTitle": "Premium formats",
+      "premiumText": "From banners to branded special projects — we'll match the format to your goal and budget."
+    },
+    "formats": {
+      "title": "Ad formats",
+      "subtitle": "Pick what solves your task",
+      "bannerTitle": "Banners",
+      "bannerText": "Prominent ad blocks on the home page, in search and on listing pages.",
+      "featuredTitle": "Featured placement",
+      "featuredText": "Promote listings to the top of results with TOP/VIP status for maximum attention.",
+      "brandTitle": "Branded blocks",
+      "brandText": "Your logo and offer inside relevant sections — mortgage, new builds, services.",
+      "specialTitle": "Special projects",
+      "specialText": "Custom integrations and turnkey campaigns — let's shape the idea together."
+    },
+    "steps": {
+      "title": "How to start",
+      "step1Title": "Reach out",
+      "step1Text": "Describe your task by email or on Telegram — a couple of lines is enough.",
+      "step2Title": "We pick a format",
+      "step2Text": "We'll propose placement and terms for your goal and budget.",
+      "step3Title": "We launch",
+      "step3Text": "We approve the creatives and start the campaign."
+    },
+    "contact": {
+      "title": "Ready to advertise?",
+      "text": "Write to us — we'll discuss formats and terms for your task. A phone line is coming later; for now reach us by email and Telegram.",
+      "emailLabel": "Email",
+      "telegramLabel": "Telegram"
+    }
   },
   "auth": {
     "title": "Log in to Avino",
@@ -128,7 +240,7 @@
     "categories": {
       "APARTMENT": "Apartments",
       "HOUSE": "Houses",
-      "NEW_BUILDING": "New buildings",
+      "NEW_CONSTRUCTION": "New construction",
       "COMMERCIAL": "Commercial",
       "LAND": "Land plots"
     },
@@ -145,13 +257,14 @@
       "next": "Next"
     },
     "districts": {
-      "title": "Popular districts of Tashkent",
+      "title": "Popular places in Tashkent",
       "listingsCount": "{count, number} listings"
     },
     "agents": {
       "title": "Agents and agencies",
-      "subtitle": "Verified Avino Pro professionals",
-      "listingsCount": "{count} listings"
+      "subtitle": "Verified real estate agents and agencies",
+      "listingsCount": "{count, plural, one {# listing} other {# listings}}",
+      "seeAll": "All agents ({count})"
     },
     "cta": {
       "title": "Selling or renting out a property?",
@@ -204,6 +317,8 @@
     "metaDescription": "Buy and rent homes in Uzbekistan: filters, list and map.",
     "headingSale": "Homes for sale · {query}",
     "headingRent": "Homes for rent · {query}",
+    "headingAgentSale": "For sale by agent · {name}",
+    "headingAgentRent": "For rent by agent · {name}",
     "defaultLocation": "Tashkent",
     "filters": {
       "resetAll": "Reset all",
@@ -254,6 +369,7 @@
       "saving": "Saving…",
       "saved": "Saved",
       "saveError": "Error",
+      "saveSearchLoginPrompt": "Sign in to save this search and get alerts about new listings.",
       "listView": "List",
       "mapView": "Map",
       "homeType": "Home type",
@@ -263,6 +379,8 @@
       "apply": "Apply",
       "areaTitle": "Area, m²",
       "yearTitle": "Year built",
+      "newConstruction": "New construction",
+      "newConstructionHint": "Built within the last 3 years or still under construction",
       "floorTitle": "Floor",
       "notFirstFloor": "Not first floor",
       "notLastFloor": "Not last floor",
@@ -323,7 +441,8 @@
     "gallery": {
       "showAll": "Show all photos",
       "counter": "{current} / {total}",
-      "counterAria": "Photo {current} of {total}"
+      "counterAria": "Photo {current} of {total}",
+      "seeAllCount": "See all {total} photos"
     },
     "meta": {
       "title": "{title} — {price} | Avino",
@@ -336,6 +455,7 @@
     },
     "backToSearch": "Back to search",
     "addressLine": "{address}, {district} district, Tashkent",
+    "referenceLine": "Listing # {reference}",
     "sections": {
       "description": "Description",
       "features": "Features",
@@ -344,7 +464,8 @@
     },
     "map": {
       "pin": "{district} district · {address}",
-      "note": "The exact location is shown after contacting the author."
+      "note": "The exact location is shown after contacting the author.",
+      "openInYandex": "Open in Yandex Maps"
     },
     "similar": {
       "viewAll": "View all"
@@ -355,6 +476,8 @@
       "floor": "Floor",
       "floorOf": "{floor} of {total}",
       "year": "Year built",
+      "propertyType": "Property type",
+      "pricePerSqm": "Price per m²",
       "parking": "Parking",
       "lotArea": "Lot",
       "livingArea": "Living area",
@@ -371,6 +494,10 @@
       "chatError": "Could not start the conversation",
       "proBadge": "Avino Pro",
       "owner": "Owner",
+      "badge": {
+        "agent": "Agent",
+        "agency": "Agency"
+      },
       "showPhone": "Show phone",
       "message": "Send message",
       "share": "Share",
@@ -389,6 +516,43 @@
     "stats": {
       "viewsAria": "Views: {count}",
       "likesAria": "Favorited: {count}"
+    }
+  },
+  "agentsCatalog": {
+    "meta": {
+      "title": "Real estate agents and agencies — Avino",
+      "description": "Directory of verified real estate agents and agencies in Uzbekistan. Contacts, listings and experience."
+    },
+    "title": "Agents and agencies",
+    "subtitle": "{count, plural, one {# verified agent} other {# verified agents}}",
+    "showMore": "Show more",
+    "loadingMore": "Loading…",
+    "empty": "No agents yet",
+    "searchPlaceholder": "Search by name or agency",
+    "sort": {
+      "active": "Most active first",
+      "name": "By name (A–Z)"
+    },
+    "found": "{count, plural, one {# agent found} other {# agents found}}",
+    "noResults": "No agents match your search",
+    "resetSearch": "Reset search",
+    "privateAgent": "Private agent",
+    "activeListings": "{count, plural, one {# active listing} other {# active listings}}",
+    "viewProfile": "Profile",
+    "viewListings": "Listings"
+  },
+  "agentProfile": {
+    "meta": {
+      "title": "{name} — Avino agent",
+      "notFoundTitle": "Agent not found — Avino"
+    },
+    "privateAgent": "Private agent",
+    "listingsCount": "{count, plural, one {# listing} other {# listings}}",
+    "about": "About",
+    "empty": "This agent has no active listings yet",
+    "contacts": {
+      "title": "Get in touch",
+      "showPhone": "Show phone"
     }
   },
   "tourRequest": {
@@ -410,6 +574,48 @@
     "slotTaken": "taken",
     "slotTakenError": "This time slot is already taken. Please choose another.",
     "close": "Close"
+  },
+  "mortgage": {
+    "backToListing": "Back to listing",
+    "title": "Mortgage calculator",
+    "estMonthly": "Mortgage ≈ {monthly}/mo",
+    "estCta": "Estimate mortgage",
+    "cardTitle": "Monthly payment",
+    "cardEstimateLabel": "Estimate",
+    "cardParams": "{downPct}% down · {rate}% APR · {years}",
+    "firstPaymentTitle": "First payment breakdown",
+    "legendInterest": "Interest",
+    "legendPrincipal": "Principal",
+    "cardCta": "Customize estimate",
+    "salaryLabel": "Monthly salary",
+    "salarySuffix": "{currency} /mo",
+    "downPaymentLabel": "Down payment",
+    "downBreakdown": "{down} down · {loan} loan",
+    "rateLabel": "Annual rate",
+    "termLabel": "Term",
+    "yearsValue": "{count, plural, one {# year} other {# years}}",
+    "cta": "Calculate",
+    "verdictOk": "Fits your budget",
+    "verdictNo": "Doesn't fit yet",
+    "resultParams": "{years} · {rate}% APR · {loan} loan",
+    "dtiOk": "The monthly payment is {pct}% of your salary, below the {limit}% banks require.",
+    "dtiNo": "The monthly payment is {pct}% of your salary, above the {limit}% banks allow.",
+    "fixTitle": "To make it work",
+    "fixTermText": "With a {years} term the payment is {monthly}/mo ({pct}% of salary).",
+    "fixTermCta": "Calculate with {years}",
+    "fixDownText": "With {pct}% down and a 30-year term the payment is {monthly}/mo ({dti}% of salary).",
+    "fixDownCta": "Calculate with {pct}% down",
+    "fixBudgetText": "Even with the maximum term and down payment it doesn't fit. Browse homes up to {price}.",
+    "fixBudgetCta": "See homes up to {price}",
+    "rowPrice": "Home price",
+    "rowDown": "Down payment ({pct}%)",
+    "rowPrincipal": "Loan amount",
+    "rowMonthly": "Monthly payment",
+    "rowTotal": "Total paid (over {years})",
+    "rowInterest": "Total interest",
+    "recalc": "Recalculate",
+    "noSalary": "Enter your salary to estimate a mortgage.",
+    "disclaimer": "This is a preliminary estimate, not a bank offer."
   },
   "sell": {
     "meta": {
@@ -448,7 +654,8 @@
       "agent": {
         "title": "Sell with an Avino Pro agent",
         "text": "A professional handles showings, negotiations, and paperwork. You save time.",
-        "cta": "Find an agent"
+        "cta": "Find an agent",
+        "comingSoon": "Coming soon"
       },
       "rent": {
         "title": "Rent it out",
@@ -481,6 +688,7 @@
       "badge": "Promotion",
       "title": "Sell faster with TOP and VIP",
       "subtitle": "Boost your listing higher in search results and get up to 5× more views.",
+      "priceFrom": "from {price}",
       "top": {
         "text": "Ranks above regular listings in search results",
         "price": "from 50,000 UZS"
@@ -571,6 +779,7 @@
       "floor": "Floor",
       "totalFloors": "Total floors",
       "yearBuilt": "Year built",
+      "yearBuiltHint": "If the building is still under construction, enter the planned completion year",
       "currency": "Currency",
       "currencyUSD": "$ USD",
       "currencyUZS": "UZS",
@@ -607,10 +816,13 @@
     },
     "photoUploader": {
       "dropTitle": "Drag photos here or click to choose",
-      "dropHint": "JPG/PNG, up to 20 photos. The first photo is the cover.",
+      "dropHint": "JPG, PNG or WebP up to 10 MB. Up to 20 photos. The first photo is the cover.",
       "cover": "Cover",
       "makeCover": "Make cover",
-      "remove": "Remove"
+      "remove": "Remove",
+      "rejectedType": "Skipped {count} file(s). Only JPG, PNG and WebP are supported — iPhone HEIC files must be converted.",
+      "rejectedSize": "Skipped {count} file(s). A single photo must not exceed 10 MB.",
+      "rejectedLimit": "Skipped {count} file(s). You can add at most {max} photos."
     },
     "map": {
       "marker": "Property location",
@@ -645,7 +857,36 @@
     "errors": {
       "loginRequired": "Sign in to publish your listing.",
       "guestHint": "To publish a listing, sign in to your account (the sign-in button is in the header).",
-      "profileIncomplete": "Fill in your first name, last name and phone in your profile to post a listing."
+      "profileIncomplete": "Fill in your first name, last name and phone in your profile to post a listing.",
+      "activeListingLimit": "You've reached your active listings limit. Unpublish one of your current listings to post a new one.",
+      "mediaUnsupportedType": "Reason: unsupported format. Upload JPG, PNG or WebP.",
+      "mediaTooLarge": "Reason: the file is larger than 10 MB. Reduce the photo size.",
+      "mediaLimit": "Reason: the limit of 20 photos per listing has been reached."
+    },
+    "validation": {
+      "title": "Couldn't publish. Check these fields:",
+      "generic": "Please check that the fields are filled in correctly and try again.",
+      "networkError": "Couldn't reach the server. Check your connection and try again.",
+      "unknownError": "Couldn't publish the listing. Please try again.",
+      "region": "Region",
+      "district": "District",
+      "tourWindow": "Tour time",
+      "reasons": {
+        "default": "check the value",
+        "price": "enter a valid price",
+        "area": "enter the area in m²",
+        "yearBuilt": "required for apartments and houses",
+        "region": "select a region",
+        "district": "select a district"
+      }
+    },
+    "limitModal": {
+      "title": "Listing limit reached",
+      "body": "Individuals can post up to {limit} active listings. Register as an agent — post without limits, your listings get a realtor badge, and your profile is added to the Avino agents directory.",
+      "bodyNoLimit": "You've reached your active listings limit. Register as an agent — post without limits, your listings get a realtor badge, and your profile is added to the Avino agents directory.",
+      "becomeAgent": "Become an agent",
+      "dismiss": "Got it",
+      "close": "Close"
     },
     "auth": {
       "title": "Sign in to post a listing",
@@ -660,7 +901,9 @@
       "firstName": "First name",
       "lastName": "Last name",
       "phone": "Phone",
-      "phonePlaceholder": "+998 90 123-45-67",
+      "phonePlaceholder": "+998 90 123 45 67",
+      "phoneHint": "Buyers will see this number. You can change it in your account settings.",
+      "noPhoneHint": "To post a listing, <link>add a phone number in your account settings</link>.",
       "submit": "Continue",
       "saving": "Saving…",
       "error": "Could not save your details. Please try again."
@@ -672,6 +915,57 @@
       "mediaFailures": "Failed to upload {count, plural, one {# photo} other {# photos}}. The listing was created — you can add photos later in your account.",
       "myListings": "My listings",
       "home": "Back to home"
+    }
+  },
+  "becomeAgent": {
+    "meta": {
+      "title": "Become an agent — Avino",
+      "description": "Apply to become an Avino agent: post listings without limits, get a realtor badge, and a profile in the agents directory."
+    },
+    "title": "Become an Avino agent",
+    "intro": "Agents and agencies post listings without limits, their listings get a realtor badge, and their profile appears in the Avino agents directory.",
+    "auth": {
+      "title": "Sign in to apply",
+      "text": "Applying to become an agent is available to signed-in users only. Sign in or create an account — it takes less than a minute.",
+      "context": "Sign in to apply to become an agent",
+      "login": "Sign in",
+      "home": "Go home"
+    },
+    "alreadyAgent": {
+      "title": "You're already an Avino agent",
+      "text": "You can post listings without limits — they'll get a realtor badge. Your profile is available in the agents directory.",
+      "createListing": "Post a listing",
+      "myProfile": "My agent profile"
+    },
+    "loading": "Loading application status…",
+    "pending": {
+      "title": "Application under review",
+      "text": "Application submitted on {date}. A moderator usually reviews it within a few hours — we'll notify you of the decision."
+    },
+    "rejected": {
+      "title": "Application rejected",
+      "reasonLabel": "Rejection reason",
+      "text": "You can update your application and submit it again."
+    },
+    "form": {
+      "agencyName": {
+        "label": "Agency",
+        "placeholder": "E.g. Ideal Estate",
+        "hint": "Optional — leave blank if you work as an independent agent"
+      },
+      "about": {
+        "label": "About you",
+        "placeholder": "Tell us about your experience in real estate"
+      },
+      "submit": "Submit application",
+      "submitting": "Submitting…",
+      "resubmit": "Resubmit application"
+    },
+    "errors": {
+      "alreadyAgent": "You already have the agent role.",
+      "pending": "You already have an application under review.",
+      "aboutRequired": "Tell us about yourself — this field is required.",
+      "generic": "Failed to submit the application. Please try again."
     }
   },
   "help": {
@@ -749,7 +1043,18 @@
       "title": "Didn't find an answer?",
       "text": "Write to our support team — we reply daily from 9:00 to 21:00. Email: <b>Support@avino.uz</b>",
       "write": "Contact support",
-      "openChat": "Open chat"
+      "openChat": "Open chat",
+      "modalTitle": "Contact support",
+      "nameLabel": "Name",
+      "contactLabel": "Phone or email",
+      "contactPlaceholder": "+998 ... or you@mail.uz",
+      "messageLabel": "Message",
+      "contactRequired": "Add a phone or email so we can reply.",
+      "messageRequired": "Describe your question so we can help.",
+      "submit": "Send",
+      "success": "Thanks! We received your request — we reply 9:00–21:00 daily.",
+      "error": "Could not send. Please try again.",
+      "close": "Close"
     }
   },
   "listingEdit": {
@@ -795,6 +1100,7 @@
       "notifications": "Notifications",
       "profile": "Profile",
       "settings": "Settings",
+      "devices": "Devices",
       "tours": "My tours"
     },
     "userCard": {
@@ -923,6 +1229,13 @@
           "body_CANCELLED": "The tour request has been cancelled.",
           "body": "Your tour request status has been updated."
         }
+      },
+      "agentApplication": {
+        "title": "Agent application status changed",
+        "body_APPROVED": "Your agent application was approved — list properties without limits.",
+        "body_REJECTED": "Your agent application was rejected.",
+        "body_REJECTED_reason": "Your agent application was rejected. Reason: {reason}",
+        "body": "Your agent application status was updated."
       }
     },
     "profile": {
@@ -931,15 +1244,24 @@
       "authText": "Sign in to Avino to view and edit your profile.",
       "login": "Sign in",
       "changePhoto": "Change photo",
+      "uploadingPhoto": "Uploading…",
+      "removePhoto": "Remove",
+      "avatarAlt": "Profile photo",
+      "avatarInvalidType": "Please choose a JPG, PNG, or WEBP image.",
+      "avatarTooLarge": "Image is too large. Maximum size is 10 MB.",
       "firstName": "First name",
       "lastName": "Last name",
-      "phone": "Phone",
+      "phone": "Contact phone",
       "email": "Email",
       "language": "Interface language",
-      "emailTaken": "This email is already used by another account.",
       "saveError": "Couldn't save changes. Please try again.",
       "saving": "Saving…",
-      "save": "Save changes"
+      "save": "Save changes",
+      "accountSection": "Account (sign-in)",
+      "loginPhone": "Sign-in phone",
+      "loginEmail": "Sign-in email",
+      "verified": "Verified",
+      "change": "Change"
     },
     "savedSearches": {
       "title": "Saved searches",
@@ -953,7 +1275,8 @@
       "startSearch": "Start searching",
       "notifyOn": "Notifications on",
       "notifyOff": "Notifications off",
-      "deleteAria": "Delete search"
+      "deleteAria": "Delete search",
+      "editAria": "Rename"
     },
     "settings": {
       "title": "Settings",
@@ -988,6 +1311,41 @@
         "text": "Play a sound on a new message or notification"
       }
     },
+    "deleteAccount": {
+      "sectionTitle": "Delete account",
+      "sectionText": "Your account and all related data will be permanently deleted and cannot be recovered.",
+      "button": "Delete account",
+      "modalTitle": "Delete your account?",
+      "warningIntro": "This action is irreversible. The following will be permanently deleted:",
+      "bulletListings": "all your listings",
+      "bulletFavorites": "favorites and saved searches",
+      "bulletChats": "chats and tour requests",
+      "warningReregister": "If you register again with the same number later, your old data will not be restored — it will be a new empty account.",
+      "confirmLabel": "Type «УДАЛИТЬ» to confirm",
+      "confirmWord": "УДАЛИТЬ",
+      "confirmPlaceholder": "УДАЛИТЬ",
+      "cancel": "Cancel",
+      "confirmButton": "Delete permanently",
+      "error": "Could not delete the account. Please try again.",
+      "success": "Account deleted"
+    },
+    "devices": {
+      "title": "My devices",
+      "subtitle": "Active sessions of your account. End a session if you don't recognize the device.",
+      "authTitle": "Sign in to see your devices",
+      "authText": "Devices signed in to your account will appear here.",
+      "goHome": "Go to homepage",
+      "empty": "No active sessions",
+      "unknownDevice": "Unknown device",
+      "current": "Current session",
+      "signedIn": "Signed in",
+      "lastActive": "Last active",
+      "revoke": "Sign out",
+      "confirmRevoke": "End this session? The device will be signed out.",
+      "revoked": "Session ended",
+      "alreadyRevoked": "Session already ended",
+      "revokeError": "Couldn't end the session"
+    },
     "tours": {
       "upcoming": "Upcoming tours",
       "roleHost": "You're hosting",
@@ -996,6 +1354,10 @@
       "incoming": "Requests to me",
       "empty": "No tour requests yet",
       "guest": "Sign in to see tour requests",
+      "emptyUpcoming": "No upcoming tours",
+      "emptyOutgoing": "You haven't sent any requests yet",
+      "loadMore": "Show more",
+      "loadingMore": "Loading…",
       "on": "on",
       "confirm": "Confirm",
       "decline": "Decline",
@@ -1012,6 +1374,27 @@
         "DECLINED": "Declined",
         "CANCELLED": "Cancelled"
       }
+    },
+    "contactChange": {
+      "titlePhone": "Change sign-in phone",
+      "titleEmail": "Change sign-in email",
+      "newValue": "New value",
+      "sendCode": "Send code",
+      "codeLabel": "Verification code",
+      "confirm": "Confirm",
+      "resendIn": "Resend in {seconds}s",
+      "resend": "Resend",
+      "close": "Close",
+      "invalidValue": "Enter a valid value.",
+      "errTaken": "This contact is already used by another account.",
+      "errCode": "Invalid code. Please try again.",
+      "errExpired": "Code expired. Request a new one.",
+      "errAttempts": "Too many attempts. Request a new code."
+    },
+    "contactPhone": {
+      "rowTitle": "Contact phone (shown on listings)",
+      "modalTitle": "Change contact phone",
+      "hint": "Shown on your listings once confirmed."
     }
   },
   "savedSearch": {
@@ -1022,6 +1405,15 @@
     "rooms": "{count} rm",
     "bathrooms": "{count} ba",
     "territory": "territory"
+  },
+  "saveSearchModal": {
+    "titleCreate": "Save search",
+    "titleRename": "Rename search",
+    "nameLabel": "Name your search",
+    "namePlaceholder": "e.g. 2-room under 500,000,000",
+    "submitCreate": "Save",
+    "submitRename": "Save",
+    "close": "Close"
   },
   "units": {
     "approx": "≈",
@@ -1052,7 +1444,6 @@
     "propertyType": {
       "APARTMENT": "Apartment",
       "HOUSE": "House",
-      "NEW_BUILDING": "New building",
       "LAND": "Land",
       "COMMERCIAL": "Commercial"
     },
@@ -1061,17 +1452,6 @@
       "COVERED": "Covered",
       "GARAGE": "Garage",
       "UNDERGROUND": "Underground"
-    },
-    "amenities": {
-      "AIR_CONDITIONING": "Air conditioning",
-      "FURNITURE": "Furniture",
-      "APPLIANCES": "Appliances",
-      "INTERNET": "Internet",
-      "ELEVATOR": "Elevator",
-      "BALCONY": "Balcony",
-      "HEATING": "Heating",
-      "SECURITY": "Security",
-      "POOL": "Pool"
     }
   },
   "breadcrumb": {
@@ -1132,6 +1512,14 @@
     "tourCancelled": "Tour request cancelled",
     "tourActionFailed": "Could not update the tour. Please try again.",
     "savedSearchCreated": "Search saved",
-    "savedSearchDeleted": "Saved search deleted"
+    "savedSearchSaved": "Search saved",
+    "savedSearchDeleted": "Saved search deleted",
+    "savedSearchRenamed": "Search renamed",
+    "avatarUpdated": "Photo updated",
+    "avatarRemoved": "Photo removed",
+    "avatarActionFailed": "Couldn't update the photo. Please try again.",
+    "contactChanged": "Sign-in contact details updated",
+    "contactPhoneUpdated": "Contact phone updated",
+    "mediaUploadFailed": "Failed to upload {count} photo(s). Your other changes were saved."
   }
 }

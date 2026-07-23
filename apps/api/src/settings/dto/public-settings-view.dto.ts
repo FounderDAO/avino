@@ -6,6 +6,8 @@
  */
 export class PublicSettingsView {
   promotionsEnabled!: boolean;
+  /** Лимит активных объявлений обычного клиента; `0` = без лимита. */
+  activeListingLimit!: number;
   mapHoverRecenter!: boolean;
   legalConsentRequired!: boolean;
   legalConsentVersion!: number;

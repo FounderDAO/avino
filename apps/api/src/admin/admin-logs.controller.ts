@@ -10,15 +10,17 @@ import {
   NotificationLogItem,
   PromotionLogItem,
 } from './admin-logs.service';
+import { AdminOtpLogsService, OtpLogItem } from './admin-otp-logs.service';
 import { ListAuditLogsQueryDto } from '../audit/dto/list-audit-logs.dto';
 import { ListModerationLogsQueryDto } from './dto/list-moderation-logs.dto';
 import { ListNotificationLogsQueryDto } from './dto/list-notification-logs.dto';
+import { ListOtpLogsQueryDto } from './dto/list-otp-logs.dto';
 import { ListPromotionLogsQueryDto } from './dto/list-promotion-logs.dto';
 
 /**
  * AdminLogsController — read-only журналы для админ-панели (TASK-131, API.md §16).
  *
- * Четыре глобальных пагинированных лога под `/api/v1/admin/*-logs`. В отличие от
+ * Пять глобальных пагинированных логов под `/api/v1/admin/*-logs`. В отличие от
  * остальных админ-роутов (MODERATOR/ADMIN), логи — только **ADMIN**: это
  * security/audit-поверхность. `JwtAuthGuard` + `RolesGuard` на классе с
  * `@Roles(ADMIN)`. Версионирование URI обязательно (CLAUDE.md §14); префикс
@@ -32,6 +34,7 @@ import { ListPromotionLogsQueryDto } from './dto/list-promotion-logs.dto';
 export class AdminLogsController {
   constructor(
     private readonly adminLogsService: AdminLogsService,
+    private readonly adminOtpLogsService: AdminOtpLogsService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -65,5 +68,13 @@ export class AdminLogsController {
     @Query() query: ListNotificationLogsQueryDto,
   ): Promise<PaginatedResponse<NotificationLogItem>> {
     return this.adminLogsService.listNotificationLogs(query);
+  }
+
+  /** `GET /api/v1/admin/otp-logs` — журнал OTP-запросов (без кода/хеша). */
+  @Get('otp-logs')
+  otpLogs(
+    @Query() query: ListOtpLogsQueryDto,
+  ): Promise<PaginatedResponse<OtpLogItem>> {
+    return this.adminOtpLogsService.listOtpLogs(query);
   }
 }

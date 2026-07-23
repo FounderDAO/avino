@@ -101,6 +101,14 @@ export const promotionConfig = registerAs('promotion', () => ({
   expiryBatchSize: parseInt(process.env.PROMOTION_EXPIRY_BATCH_SIZE ?? '100', 10),
 }));
 
+export const activeListingLimitConfig = registerAs('activeListingLimit', () => ({
+  // Лимит числа активных (ACTIVE + на модерации NEW) объявлений обычного
+  // клиента. По умолчанию 2. ACTIVE_LISTING_LIMIT=N → N. Перебивается
+  // runtime-строкой active_listing_limit в app_settings (admin-настройка).
+  // `0` = без лимита. Профессионалов (AGENT/AGENCY) не касается.
+  default: parseInt(process.env.ACTIVE_LISTING_LIMIT ?? '2', 10),
+}));
+
 export const mapHoverRecenterConfig = registerAs('mapHoverRecenter', () => ({
   // Центрирование карты к пину при наведении на карточку в /search (поведение
   // «карта едет»). По умолчанию ВЫКЛЮЧЕНО — карта стоит на месте (Zillow-режим).
@@ -238,6 +246,33 @@ export const jwtConfig = registerAs('jwt', () => ({
   refreshSecret: process.env.JWT_REFRESH_SECRET,
   accessTtl: parseInt(process.env.JWT_ACCESS_TTL ?? '900', 10),
   refreshTtl: parseInt(process.env.JWT_REFRESH_TTL ?? '2592000', 10),
+  // Лимит одновременных активных сессий (session families) на пользователя;
+  // при логине сверх лимита старейшая по активности family отзывается (ADR-0143).
+  maxSessions: parseInt(process.env.AUTH_MAX_SESSIONS ?? '5', 10),
+}));
+
+// Refresh-cookie `avino_rt` (ADR-0153, TASK-256). Web-клиенты хранят refresh в
+// httpOnly cookie вместо localStorage; mobile по-прежнему шлёт токен в теле.
+// НЕ хардкодим prod-домен: пусто → host-only cookie (текущий хост), что и нужно
+// на staging (test-api.avino.uz / голый IP, где `.avino.uz` не сядет). В prod
+// AUTH_COOKIE_DOMAIN=.avino.uz шарит cookie между порталом и api.avino.uz.
+export const authCookieConfig = registerAs('authCookie', () => ({
+  // Пустая строка → undefined (host-only cookie). Явный домен уходит как есть.
+  domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+  // Secure (cookie только по HTTPS). Булева как строка. Явный AUTH_COOKIE_SECURE
+  // → оно; иначе prod=true / dev-staging=false (staging часто по HTTP).
+  secure:
+    process.env.AUTH_COOKIE_SECURE != null
+      ? process.env.AUTH_COOKIE_SECURE === 'true'
+      : process.env.NODE_ENV === 'production',
+  // Max-Age cookie (сек). По умолчанию = TTL refresh-токена (JWT_REFRESH_TTL),
+  // чтобы cookie и токен истекали синхронно. В Express res.cookie ждёт мс.
+  maxAgeSec: parseInt(
+    process.env.AUTH_COOKIE_MAX_AGE_SEC ??
+      process.env.JWT_REFRESH_TTL ??
+      '2592000',
+    10,
+  ),
 }));
 
 // Google Sign-In (passwordless вход публичного портала). clientIds опциональны
@@ -374,6 +409,7 @@ export const configurations = [
   smsConfig,
   translateConfig,
   promotionConfig,
+  activeListingLimitConfig,
   mapHoverRecenterConfig,
   legalConsentConfig,
   savedSearchConfig,
@@ -381,6 +417,7 @@ export const configurations = [
   otpConfig,
   rateLimitConfig,
   jwtConfig,
+  authCookieConfig,
   googleConfig,
   appleConfig,
   telegramConfig,

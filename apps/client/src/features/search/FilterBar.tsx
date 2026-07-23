@@ -29,15 +29,17 @@ import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import { selectTerritoryPoints } from '@/store/territorySlice';
 import { useCreateSavedSearchMutation } from '@/store/api/savedSearchesApi';
 import { describeFilters, type SavedSearchFilters } from '@/lib/savedSearch';
-import { getApiError } from '@/store/api/apiError';
+import { LoginModal } from '@/components/layout/LoginModal';
 import { useTranslations, useLocale } from 'next-intl';
 import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
+import { toast } from 'sonner';
+import { SaveSearchModal } from './SaveSearchModal';
 import { SearchAutocomplete } from './SearchAutocomplete';
 import { useGeoSuggest, type Suggestion } from './useGeoSuggest';
 import { suggestionToLocation } from './locationParams';
 import { TriggerButton } from './TriggerButton';
-import { ActiveFilters } from './ActiveFilters';
 import { BedroomsControl } from './controls/BedroomsControl';
+import { BathroomsControl } from './controls/BathroomsControl';
 import { HomeTypeMultiSelect } from './controls/HomeTypeMultiSelect';
 import { FiltersPanel, type FiltersPanelValues } from './FiltersPanel';
 import { PriceFilter } from './PriceFilter';
@@ -62,6 +64,8 @@ export interface FilterValues {
   districtId?: string;
   /** UUID выбранного региона (`?region_id=`); используется для каскада «Регион → Район». */
   regionId?: string;
+  /** Явный выбор «Все регионы» (`?region_id=all`) — отключает дефолтный Ташкент. */
+  allRegions?: boolean;
   /** Точное число комнат. */
   rooms?: number;
   /** «N+» режим комнат. */
@@ -80,6 +84,8 @@ export interface FilterValues {
   lotAreaMax?: string;
   yearMin?: string;
   yearMax?: string;
+  /** «Новостройка» — год постройки за последние 3 года или в будущем (недострой). */
+  newConstruction?: boolean;
   floorMin?: string;
   floorMax?: string;
   totalFloorsMin?: string;
@@ -87,7 +93,7 @@ export interface FilterValues {
   notFirstFloor?: boolean;
   notLastFloor?: boolean;
   toursEnabled?: boolean;
-  listingSource?: 'OWNER' | 'AGENCY';
+  listingSource?: ('OWNER' | 'AGENCY')[];
   parkingTypes?: ParkingType[];
   amenities?: Amenity[];
   /** Только цокольные этажи (`?is_basement=true`, LAST_CHANGED_API.md §1). */
@@ -101,14 +107,23 @@ export interface FilterBarProps {
   districts: District[];
   /** Список регионов для каскадного дропдауна (GET /geo/regions). */
   regions: Region[];
+  /**
+   * Регион дефолтной выдачи (Ташкент): когда явный регион не выбран, дропдаун
+   * «Район» показывает районы этого региона, а выбор района дописывает его в URL.
+   */
+  fallbackRegionId?: string;
 }
 
-export function FilterBar({ values, districts, regions }: FilterBarProps) {
+export function FilterBar({ values, districts, regions, fallbackRegionId }: FilterBarProps) {
   const t = useTranslations();
   const tSearch = useTranslations('search');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Дропдаун «Фильтры» управляемый: «Применить» закрывает панель
+  // (кнопки внутри FiltersPanel — не DropdownItem, Radix сам их не закрывает).
+  const [moreOpen, setMoreOpen] = React.useState(false);
 
   /** Записывает изменения в URL query (удаляет пустые значения). */
   const setParams = React.useCallback(
@@ -228,11 +243,9 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
   const selectedRegion = values.regionId
     ? regions.find((r) => r.id === values.regionId)
     : undefined;
-  const regionLabel = selectedRegion?.name ?? tSearch('filters.region');
-  // Список районов, отфильтрованный по выбранному региону.
-  const regionDistricts = values.regionId
-    ? districts.filter((d) => d.regionId === values.regionId)
-    : [];
+  const regionLabel =
+    selectedRegion?.name ??
+    (values.allRegions ? tSearch('filters.allRegions') : tSearch('filters.region'));
 
   // Район.
   const selectedDistrict = values.districtId
@@ -240,16 +253,28 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     : undefined;
   const districtLabel = selectedDistrict?.name ?? tSearch('filters.district');
 
+  // Регион для каскада районов: явный выбор → регион выбранного района (ссылки
+  // ?district_id= без региона) → регион дефолтной выдачи (Ташкент). Чип «Регион»
+  // при этом остаётся пустым — активен только явный values.regionId.
+  const cascadeRegionId =
+    values.regionId ?? selectedDistrict?.regionId ?? fallbackRegionId;
+  // Список районов, отфильтрованный по региону каскада.
+  const regionDistricts = cascadeRegionId
+    ? districts.filter((d) => d.regionId === cascadeRegionId)
+    : [];
+
   // ⚙ Фильтры — активен, если хоть одно поле задано.
   const extraActive = Boolean(
     values.areaMin || values.areaMax ||
     values.lotAreaMin || values.lotAreaMax ||
-    values.yearMin || values.yearMax ||
+    values.yearMin || values.yearMax || values.newConstruction ||
     values.floorMin || values.floorMax ||
     values.totalFloorsMin || values.totalFloorsMax ||
     values.notFirstFloor || values.notLastFloor ||
-    values.toursEnabled || values.listingSource ||
-    values.bathroomsMin || values.isBasement ||
+    values.toursEnabled || (values.listingSource?.length ?? 0) > 0 ||
+    // bathroomsMin не подсвечивает «Фильтры»: секция в панели скрыта,
+    // санузлы сигналит чип «Комнаты» (см. SHOW_ROOMS_AND_BATHROOMS).
+    values.isBasement ||
     (values.parkingTypes?.length ?? 0) > 0 ||
     (values.amenities?.length ?? 0) > 0,
   );
@@ -265,6 +290,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     lotAreaMax: values.lotAreaMax,
     yearMin: values.yearMin,
     yearMax: values.yearMax,
+    newConstruction: values.newConstruction,
     floorMin: values.floorMin,
     floorMax: values.floorMax,
     notFirstFloor: values.notFirstFloor,
@@ -296,13 +322,15 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
       setOne('lot_area_max', next.lotAreaMax);
       setOne('year_min', next.yearMin);
       setOne('year_max', next.yearMax);
+      setOne('new_construction', next.newConstruction ? 'true' : undefined);
       setOne('floor_min', next.floorMin);
       setOne('floor_max', next.floorMax);
       setOne('total_floors_min', next.totalFloorsMin);
       setOne('total_floors_max', next.totalFloorsMax);
       setOne('not_first_floor', next.notFirstFloor ? 'true' : undefined);
       setOne('not_last_floor', next.notLastFloor ? 'true' : undefined);
-      setOne('listing_source', next.listingSource);
+      params.delete('listing_source');
+      for (const s of next.listingSource ?? []) params.append('listing_source', s);
       setOne('tours_enabled', next.toursEnabled ? 'true' : undefined);
       setOne('is_basement', next.isBasement ? 'true' : undefined);
       params.delete('parking_type');
@@ -326,6 +354,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
       lot_area_max: undefined,
       year_min: undefined,
       year_max: undefined,
+      new_construction: undefined,
       floor_min: undefined,
       floor_max: undefined,
       total_floors_min: undefined,
@@ -343,8 +372,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
   // ── Сохранить поиск ──────────────────────────────────────────────────────────
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const territoryPoints = useAppSelector(selectTerritoryPoints);
-  const [createSavedSearch, { isLoading: isSaving, isSuccess: isSaved, error: saveError }] =
-    useCreateSavedSearchMutation();
+  const tToasts = useTranslations('toasts');
 
   /** Собирает внутренний объект фильтров (param-имена GET /search). */
   const buildFilters = React.useCallback((): SavedSearchFilters => {
@@ -376,24 +404,60 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
     if (values.totalFloorsMax) filters.total_floors_max = values.totalFloorsMax;
     if (values.yearMin) filters.year_min = values.yearMin;
     if (values.yearMax) filters.year_max = values.yearMax;
+    if (values.newConstruction) filters.new_construction = true;
     if (values.notFirstFloor) filters.not_first_floor = true;
     if (values.notLastFloor) filters.not_last_floor = true;
-    if (values.listingSource) filters.listing_source = values.listingSource;
+    if (values.listingSource && values.listingSource.length > 0) filters.listing_source = values.listingSource;
     if (values.toursEnabled) filters.tours_enabled = true;
     if (values.isBasement) filters.is_basement = true;
     if (values.parkingTypes && values.parkingTypes.length > 0) filters.parking_types = values.parkingTypes;
     if (values.amenities && values.amenities.length > 0) filters.amenities = values.amenities;
+    // Сортировка — только если пользователь отошёл от дефолта 'promotion'.
+    if (values.sort && values.sort !== 'promotion') filters.sort = values.sort;
+    // Валюта — только когда задана цена (иначе price_min/max нечем интерпретировать).
+    if (values.priceMin || values.priceMax) filters.currency = displayCurrency;
     return filters;
-  }, [values, territoryPoints]);
+  }, [values, territoryPoints, displayCurrency]);
 
+  // Модалка входа для гостя + «отложенное намерение» открыть модалку сохранения.
+  const [loginOpen, setLoginOpen] = React.useState(false);
+  const [pendingSave, setPendingSave] = React.useState(false);
+  const [saveModalOpen, setSaveModalOpen] = React.useState(false);
+  const [createSavedSearch, { isLoading: isCreating }] = useCreateSavedSearchMutation();
+
+  // «Сохранить поиск»: гость → вход (LoginModal) + отложенное открытие модалки;
+  // авторизован → сразу модалка именования.
   const handleSaveSearch = React.useCallback(() => {
-    if (!isAuthenticated || isSaving) return;
-    const filters = buildFilters();
-    const name = describeFilters(filters, t) || tSearch('filters.mySearch');
-    void createSavedSearch({ name, filters });
-  }, [isAuthenticated, isSaving, buildFilters, createSavedSearch, t, tSearch]);
+    if (!isAuthenticated) {
+      setPendingSave(true);
+      setLoginOpen(true);
+      return;
+    }
+    setSaveModalOpen(true);
+  }, [isAuthenticated]);
 
-  const saveApiError = getApiError(saveError);
+  // После входа гостя — открыть модалку именования.
+  React.useEffect(() => {
+    if (isAuthenticated && pendingSave) {
+      setPendingSave(false);
+      setSaveModalOpen(true);
+    }
+  }, [isAuthenticated, pendingSave]);
+
+  // Создание из модалки. Ошибку тостит apiErrorToastMiddleware (эндпоинт не
+  // в suppress-list) → при ошибке модалку не закрываем, catch глушим.
+  const handleCreateSubmit = React.useCallback(
+    async (name: string) => {
+      try {
+        await createSavedSearch({ name, filters: buildFilters() }).unwrap();
+        toast.success(tToasts('savedSearchSaved'));
+        setSaveModalOpen(false);
+      } catch {
+        /* ошибка показана тост-middleware */
+      }
+    },
+    [createSavedSearch, buildFilters, tToasts],
+  );
 
   return (
     <div className="sticky top-[var(--header-h)] z-20 border-b border-border bg-surface">
@@ -464,16 +528,20 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
             onReset={() => setParams({ priceMin: undefined, priceMax: undefined, currency: undefined })}
           />
 
-          {/* Комнаты — BedroomsControl */}
+          {/* Комнаты и санузлы в одном дропдауне (по-зилловски «Beds & Baths»);
+              ширина подобрана так, чтобы каждый ряд пилюль был одной линией. */}
           <Dropdown>
             <DropdownTrigger asChild>
               <TriggerButton
                 label={roomsLabel}
-                active={roomsActive}
+                active={roomsActive || values.bathroomsMin != null}
                 data-testid="filter-rooms"
               />
             </DropdownTrigger>
-            <DropdownContent align="start" className="w-[260px] p-4">
+            <DropdownContent align="start" className="w-[min(440px,92vw)] p-4">
+              <div className="mb-2 text-[12.5px] font-bold text-muted-foreground">
+                {tSearch('filters.rooms')}
+              </div>
               <BedroomsControl
                 value={roomsValue}
                 exact={roomsExact}
@@ -486,6 +554,13 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
                     setParams({ rooms_min: value, rooms: undefined });
                   }
                 }}
+              />
+              <div className="mb-2 mt-4 text-[12.5px] font-bold text-muted-foreground">
+                {tSearch('filters.bathrooms')}
+              </div>
+              <BathroomsControl
+                value={values.bathroomsMin}
+                onChange={(value) => setParams({ bathrooms_min: value })}
               />
             </DropdownContent>
           </Dropdown>
@@ -512,15 +587,17 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
             <DropdownTrigger asChild>
               <TriggerButton
                 label={regionLabel}
-                active={Boolean(values.regionId)}
+                active={Boolean(values.regionId || values.allRegions)}
                 data-testid="filter-region"
               />
             </DropdownTrigger>
             <DropdownContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto p-2">
               {/* DropdownItem (Radix Item): меню закрывается по выбору — сырой <button> не закрывал. */}
+              {/* «Все регионы» пишем сентинелом ?region_id=all: пустой параметр
+                  вернул бы дефолтный Ташкент (см. search/page.tsx). */}
               <DropdownItem
-                onSelect={() => setParams({ region_id: undefined, district_id: undefined })}
-                selected={!values.regionId}
+                onSelect={() => setParams({ region_id: 'all', district_id: undefined })}
+                selected={Boolean(values.allRegions)}
                 className="text-[14.5px]"
               >
                 {tSearch('filters.allRegions')}
@@ -550,8 +627,8 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
                 label={districtLabel}
                 active={Boolean(values.districtId)}
                 data-testid="filter-district"
-                disabled={!values.regionId}
-                title={!values.regionId ? tSearch('filters.regionRequired') : undefined}
+                disabled={!cascadeRegionId}
+                title={!cascadeRegionId ? tSearch('filters.regionRequired') : undefined}
               />
             </DropdownTrigger>
             <DropdownContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto p-2">
@@ -566,7 +643,11 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
                 <DropdownItem
                   key={d.id}
                   onSelect={() =>
+                    // Регион пишем в URL вместе с районом: иначе после выбора
+                    // района из дефолтного (не записанного в URL) Ташкента
+                    // сервер перестал бы подставлять регион и каскад ломался.
                     setParams({
+                      region_id: cascadeRegionId,
                       district_id: values.districtId === d.id ? undefined : d.id,
                     })
                   }
@@ -580,7 +661,7 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
           </Dropdown>
 
           {/* ⚙ Фильтры — FiltersPanel в прокручиваемом дропдауне */}
-          <Dropdown>
+          <Dropdown open={moreOpen} onOpenChange={setMoreOpen}>
             <DropdownTrigger asChild>
               <TriggerButton
                 label={tSearch('filters.moreFilters')}
@@ -591,42 +672,30 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
             </DropdownTrigger>
             <DropdownContent
               align="start"
-              className="w-[min(360px,92vw)] max-h-[72vh] overflow-y-auto p-0"
+              // 440px — чтобы ряды пилюль «Комнаты»/«Санузлы» помещались одной линией.
+              className="w-[min(440px,92vw)] overflow-hidden p-0"
             >
               <FiltersPanel
                 values={panelValues}
-                onApply={handlePanelApply}
+                onApply={(next) => {
+                  handlePanelApply(next);
+                  setMoreOpen(false);
+                }}
                 onReset={handlePanelReset}
               />
             </DropdownContent>
           </Dropdown>
 
-          {/* Сохранить поиск — только для авторизованных (POST /saved-searches). */}
-          {isAuthenticated && (
-            <button
-              type="button"
-              onClick={handleSaveSearch}
-              disabled={isSaving}
-              title={saveApiError?.message}
-              className={cn(
-                'inline-flex flex-shrink-0 items-center gap-2 rounded-pill border-[1.5px] px-4 py-[9px] text-sm font-bold transition-colors disabled:opacity-60',
-                isSaved
-                  ? 'border-teal bg-mint text-teal'
-                  : saveApiError
-                    ? 'border-red-300 bg-surface text-red-600'
-                    : 'border-border bg-surface text-teal hover:border-teal',
-              )}
-            >
-              <Bell size={16} strokeWidth={1.9} />
-              {isSaving
-                ? tSearch('filters.saving')
-                : isSaved
-                  ? tSearch('filters.saved')
-                  : saveApiError
-                    ? tSearch('filters.saveError')
-                    : tSearch('filters.saveSearch')}
-            </button>
-          )}
+          {/* Сохранить поиск — видна всем; гость по клику получает вход
+              (LoginModal), затем сохранение продолжается (POST /saved-searches). */}
+          <button
+            type="button"
+            onClick={handleSaveSearch}
+            className="inline-flex flex-shrink-0 items-center gap-2 rounded-pill border-[1.5px] border-border bg-surface px-4 py-[9px] text-sm font-bold text-teal transition-colors hover:border-teal"
+          >
+            <Bell size={16} strokeWidth={1.9} />
+            {tSearch('filters.saveSearch')}
+          </button>
 
           {/* Переключатель Список / Карта — только на мобайле. */}
           <div className="ml-auto flex-shrink-0 lg:hidden">
@@ -648,8 +717,21 @@ export function FilterBar({ values, districts, regions }: FilterBarProps) {
 
         </div>
       </div>
-      {/* Ряд активных фильтр-чипов под скролл-баром. */}
-      <ActiveFilters values={values} districts={districts} regions={regions} />
+      {/* Вход для гостя, нажавшего «Сохранить поиск». */}
+      <LoginModal
+        open={loginOpen}
+        onOpenChange={setLoginOpen}
+        context={tSearch('filters.saveSearchLoginPrompt')}
+      />
+      {/* Именование при сохранении поиска. */}
+      <SaveSearchModal
+        open={saveModalOpen}
+        mode="create"
+        initialName={describeFilters(buildFilters(), t) || tSearch('filters.mySearch')}
+        onSubmit={handleCreateSubmit}
+        onClose={() => setSaveModalOpen(false)}
+        isSubmitting={isCreating}
+      />
     </div>
   );
 }

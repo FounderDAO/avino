@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { TourRequestsService } from './tour-requests.service';
 import { PrismaService } from '../prisma';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeEmitter } from '../realtime';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
 import { TourRequestAction } from './dto/tour-request-status.dto';
@@ -41,6 +42,7 @@ describe('TourRequestsService', () => {
   let notifications: any;
   let translations: any;
   let uploads: any;
+  let realtime: any;
 
   beforeEach(async () => {
     prisma = {
@@ -51,6 +53,7 @@ describe('TourRequestsService', () => {
     notifications = { queueTourRequest: jest.fn(), queueTourStatusChanged: jest.fn() };
     translations = { resolveLanguage: jest.fn().mockReturnValue('RU') };
     uploads = { resolveMediaUrl: jest.fn().mockResolvedValue('https://signed.example/1.jpg') };
+    realtime = { emit: jest.fn() };
     const mod = await Test.createTestingModule({
       providers: [
         TourRequestsService,
@@ -58,6 +61,7 @@ describe('TourRequestsService', () => {
         { provide: NotificationsService, useValue: notifications },
         { provide: TranslationsService, useValue: translations },
         { provide: UploadsService, useValue: uploads },
+        { provide: RealtimeEmitter, useValue: realtime },
       ],
     }).compile();
     service = mod.get(TourRequestsService);
@@ -80,6 +84,20 @@ describe('TourRequestsService', () => {
     const res = await service.create('U2', validDto() as any);
     expect(res.status).toBe('PENDING');
     expect(notifications.queueTourRequest).toHaveBeenCalledWith(prisma, 'OWNER1', expect.objectContaining({ tourRequestId: 'TR1' }));
+  });
+
+  it('create эмитит tour+notification владельцу', async () => {
+    prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
+    prisma.tourRequest.findFirst.mockResolvedValue(null);
+    prisma.tourRequest.create.mockResolvedValue({
+      id: 'TR1', listingId: 'L1', requesterId: 'U2', status: 'PENDING',
+      requestedDate: new Date(`${validDto().requested_date}T00:00:00.000Z`),
+      windowStart: '07:00', windowEnd: '10:00', requesterName: 'Tap Links',
+      requesterPhone: '+998901112233', message: 'hi', createdAt: new Date(),
+    });
+    await service.create('U2', validDto() as any);
+    expect(realtime.emit).toHaveBeenCalledWith('OWNER1', { type: 'tour' });
+    expect(realtime.emit).toHaveBeenCalledWith('OWNER1', { type: 'notification' });
   });
 
   it('409 если tours выключены', async () => {
@@ -175,6 +193,18 @@ describe('TourRequestsService', () => {
     const res = await service.setStatus('OWNER1', 'TR1', TourRequestAction.CONFIRM);
     expect(res.status).toBe('CONFIRMED');
     expect(notifications.queueTourStatusChanged).toHaveBeenCalledWith(prisma, 'U2', expect.objectContaining({ status: 'CONFIRMED' }));
+  });
+
+  it('setStatus эмитит второй стороне', async () => {
+    prisma.tourRequest.findUnique.mockResolvedValue({ id: 'TR1', requesterId: 'U2', status: 'PENDING', listing: { ownerId: 'OWNER1' } });
+    prisma.tourRequest.update.mockResolvedValue({
+      id: 'TR1', listingId: 'L1', requesterId: 'U2', status: 'CONFIRMED',
+      requestedDate: new Date('2026-06-25T00:00:00.000Z'), windowStart: '07:00', windowEnd: '10:00',
+      requesterName: 'Tap Links', requesterPhone: '+998901112233', message: null, createdAt: new Date(),
+    });
+    await service.setStatus('OWNER1', 'TR1', TourRequestAction.CONFIRM);
+    expect(realtime.emit).toHaveBeenCalledWith('U2', { type: 'tour' });
+    expect(realtime.emit).toHaveBeenCalledWith('U2', { type: 'notification' });
   });
 
   it('403 если не-владелец пытается подтвердить', async () => {
@@ -287,6 +317,44 @@ describe('TourRequestsService', () => {
 
     it('outgoing: телефон владельца раскрывается только при CONFIRMED', async () => {
       prisma.tourRequest.findMany.mockResolvedValue([{ ...LIST_ROW, status: 'CONFIRMED' }]);
+      const res = await service.listOutgoing('U2', {});
+      expect(res.data[0].owner).toEqual({ name: 'Акмаль', phone: '+998900000000' });
+    });
+
+    // Правило публичного контакта (ADR-0151): при CONFIRMED телефон = верифицированный
+    // contact_phone, иначе фолбэк на телефон аккаунта.
+    it('outgoing/CONFIRMED: contactPhoneVerified=true → phone = contactPhone', async () => {
+      prisma.tourRequest.findMany.mockResolvedValue([
+        {
+          ...LIST_ROW,
+          status: 'CONFIRMED',
+          listing: {
+            ...LIST_ROW.listing,
+            owner: {
+              phone: '+998900000000',
+              profile: { displayName: 'Акмаль', firstName: null, lastName: null, contactPhone: '+998905556677', contactPhoneVerified: true },
+            },
+          },
+        },
+      ]);
+      const res = await service.listOutgoing('U2', {});
+      expect(res.data[0].owner).toEqual({ name: 'Акмаль', phone: '+998905556677' });
+    });
+
+    it('outgoing/CONFIRMED: contactPhoneVerified=false → фолбэк на телефон аккаунта', async () => {
+      prisma.tourRequest.findMany.mockResolvedValue([
+        {
+          ...LIST_ROW,
+          status: 'CONFIRMED',
+          listing: {
+            ...LIST_ROW.listing,
+            owner: {
+              phone: '+998900000000',
+              profile: { displayName: 'Акмаль', firstName: null, lastName: null, contactPhone: '+998905556677', contactPhoneVerified: false },
+            },
+          },
+        },
+      ]);
       const res = await service.listOutgoing('U2', {});
       expect(res.data[0].owner).toEqual({ name: 'Акмаль', phone: '+998900000000' });
     });

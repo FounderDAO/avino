@@ -3,7 +3,9 @@ import {
   BadRequestException,
   HttpStatus,
   InternalServerErrorException,
+  Logger,
   ServiceUnavailableException,
+  UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
 import { AllExceptionsFilter } from './all-exceptions.filter';
@@ -136,5 +138,54 @@ describe('AllExceptionsFilter', () => {
     runFilter(new BadRequestException('bad payload'));
 
     expect(Sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  // ── Логирование 4xx: без него причина отказа на проде не восстанавливается
+  //    (Caddy access-логов не пишет, а error-лог фильтра — только для 5xx). ───
+  describe('4xx logging', () => {
+    it('logs a 4xx as warn with status, stable code and request id', () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+      runFilter(
+        new UnsupportedMediaTypeException({
+          code: ApiErrorCode.UNSUPPORTED_MEDIA_TYPE,
+          message: 'Allowed types: image/jpeg, image/png, image/webp',
+        }),
+        {
+          method: 'POST',
+          url: '/api/v1/listings/abc/media',
+          requestId: 'req-media-1',
+        },
+      );
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      const line = warn.mock.calls[0][0] as string;
+      expect(line).toContain('POST /api/v1/listings/abc/media');
+      expect(line).toContain('415');
+      expect(line).toContain(ApiErrorCode.UNSUPPORTED_MEDIA_TYPE);
+      expect(line).toContain('req-media-1');
+    });
+
+    it('does NOT log a 4xx through the error channel (no stack spam)', () => {
+      const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+      jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+      runFilter(new BadRequestException('bad payload'));
+
+      expect(error).not.toHaveBeenCalled();
+    });
+
+    it('leaves deliberate domain 5xx logging untouched (not downgraded to warn)', () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+      runFilter(
+        new ServiceUnavailableException({
+          code: ApiErrorCode.AUTH_PROVIDER_UNAVAILABLE,
+          message: 'SMS channel is temporarily unavailable',
+        }),
+      );
+
+      expect(warn).not.toHaveBeenCalled();
+    });
   });
 });

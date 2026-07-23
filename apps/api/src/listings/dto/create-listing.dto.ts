@@ -16,10 +16,10 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import {
-  Amenity,
   Currency,
   Language,
   ParkingType,
@@ -139,8 +139,10 @@ export class CreateListingDto {
 
   @IsOptional()
   @IsArray()
-  @IsEnum(Amenity, { each: true })
-  amenities?: Amenity[];
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  amenities?: string[];
 
   @IsOptional()
   @IsInt()
@@ -159,8 +161,18 @@ export class CreateListingDto {
   @Max(SMALLINT_MAX)
   total_floors?: number;
 
-  @IsOptional()
-  @IsInt()
+  /**
+   * Год постройки. ОБЯЗАТЕЛЕН для квартир/домов: категория «новостройка»
+   * вычисляется из него (`?new_construction=true`). Может быть в будущем —
+   * недострой («сдача в 2028», квартиру перепродают до сдачи дома).
+   */
+  @ValidateIf(
+    (o: CreateListingDto) =>
+      o.property_type === PropertyType.APARTMENT ||
+      o.property_type === PropertyType.HOUSE ||
+      o.year_built !== undefined,
+  )
+  @IsInt({ message: 'year_built is required for APARTMENT/HOUSE and must be an integer' })
   @Min(0)
   @Max(SMALLINT_MAX)
   year_built?: number;

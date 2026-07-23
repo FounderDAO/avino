@@ -29,10 +29,12 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fieldClass } from '@/components/ui/field';
 import { PhotoImg } from '@/components/ui/photo-img';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { formatMoney, type T } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser, selectIsAuthenticated } from '@/store/slices/authSlice';
+import { selectSocketConnected } from '@/store/realtimeSlice';
+import { effectivePollingInterval } from '@/store/useUnreadCounts';
 import { getApiError } from '@/store/api/apiError';
 import {
   useGetThreadsQuery,
@@ -127,11 +129,14 @@ const useIsomorphicLayoutEffect =
 
 export function Inbox() {
   const format = useFormatter();
+  // Явный now против ENVIRONMENT_FALLBACK next-intl (см. Notifications.tsx).
+  const now = useNow({ updateInterval: 60_000 });
   const tUnits = useTranslations('units');
   const tAccount = useTranslations('account');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const currentUser = useAppSelector(selectCurrentUser);
   const currentUserId = currentUser?.id ?? null;
+  const socketLive = useAppSelector(selectSocketConnected);
 
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [text, setText] = React.useState('');
@@ -161,7 +166,10 @@ export function Inbox() {
 
   const { data: threads, isLoading: threadsLoading } = useGetThreadsQuery(
     undefined,
-    { skip: !isAuthenticated, pollingInterval: 10000 },
+    {
+      skip: !isAuthenticated,
+      pollingInterval: effectivePollingInterval(10000, socketLive),
+    },
   );
 
   React.useEffect(() => {
@@ -177,7 +185,7 @@ export function Inbox() {
       { threadId: selectedId ?? '' },
       {
         skip: !isAuthenticated || selectedId == null,
-        pollingInterval: 6000,
+        pollingInterval: effectivePollingInterval(6000, socketLive),
       },
     );
 
@@ -385,7 +393,7 @@ export function Inbox() {
                       <b className="truncate text-[14.5px]">{threadTitle(t)}</b>
                       {t.last_message_at && (
                         <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">
-                          {format.relativeTime(new Date(t.last_message_at))}
+                          {format.relativeTime(new Date(t.last_message_at), now)}
                         </span>
                       )}
                     </span>

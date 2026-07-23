@@ -1,51 +1,47 @@
 /**
- * Agents — блок агентов и агентств Avino Pro.
- * Данные из getAgents(); карточки с инициалом-аватаром, именем, агентством
- * и счётчиком объявлений. Server component (статичные данные).
+ * Agents — блок агентов и агентств на главной.
+ * Данные приходят пропсами из page.tsx (SSR getAgents(), реальный API §21).
+ * Показывает первые несколько карточек, справа от заголовка — ссылка на полный
+ * каталог /agents.
+ *
+ * Ссылка безусловная, хотя изначально показывалась только при
+ * `total > agents.length`: это единственный вход в /agents во всём клиенте (в
+ * шапке и футере его нет), и при малом числе агентов каталог становился
+ * недостижим — а он не дубль этого блока, там поиск и сортировка (ADR-0148).
+ *
+ * Пустой список → блок не рендерится (вместе со ссылкой: вести в пустой
+ * каталог незачем).
  */
 import { useTranslations } from 'next-intl';
-import { BadgeCheck } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { Link } from '@/i18n/navigation';
 import { SectionTitle } from '@/components/ui/section-title';
-import { getAgents } from '@/lib/mock';
+import { AgentCard } from '@/features/agents/AgentCard';
+import type { Agent } from '@/lib/api/agents';
 
-/** Первая буква имени для аватара-плейсхолдера. */
-const initial = (name: string) => name.trim().charAt(0).toUpperCase();
-
-export function Agents() {
+export function Agents({ agents, total }: { agents: Agent[]; total: number }) {
   const t = useTranslations('home');
-  const agents = getAgents();
+
+  if (agents.length === 0) return null;
 
   return (
     <section className="mx-auto max-w-[1280px] px-4 pt-14 sm:px-6">
       <SectionTitle
         title={t('agents.title')}
         subtitle={t('agents.subtitle')}
+        action={
+          <Link
+            href="/agents"
+            className="flex shrink-0 items-center gap-1 text-sm font-semibold text-teal hover:underline"
+          >
+            {t('agents.seeAll', { count: total })}
+            <ArrowRight size={16} strokeWidth={2.2} />
+          </Link>
+        }
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {agents.map((a) => (
-          <div
-            key={a.id}
-            className="flex items-center gap-3.5 rounded-card border border-border/60 bg-surface p-4 shadow-card transition-shadow duration-200 hover:shadow-card-hover"
-          >
-            {/* Аватар-инициал */}
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-mint text-lg font-extrabold text-teal-deep">
-              {initial(a.name)}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="truncate font-bold text-ink">{a.name}</span>
-                {a.pro && (
-                  <BadgeCheck size={16} className="shrink-0 text-teal" aria-label="Avino Pro" />
-                )}
-              </div>
-              <div className="mt-0.5 truncate text-[13.5px] text-muted-foreground">
-                {a.agency}
-              </div>
-              <div className="mt-1.5 text-[13px] font-semibold text-teal">
-                {t('agents.listingsCount', { count: a.listingsCount })}
-              </div>
-            </div>
-          </div>
+          <AgentCard key={a.id} agent={a} />
         ))}
       </div>
     </section>

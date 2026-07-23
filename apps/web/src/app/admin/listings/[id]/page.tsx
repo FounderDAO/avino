@@ -18,6 +18,7 @@ import { useToast } from '@/components/admin/toast';
 import { TranslationRow } from '@/components/admin/TranslationRow';
 import {
   useGetAdminListingQuery,
+  useGetAdminListingOwnerQuery,
   useModerateListingMutation,
   useListingModerationLogsQuery,
   useGetListingTranslationsQuery,
@@ -30,7 +31,8 @@ import {
   useCancelPromotionMutation,
 } from '@/store/api/adminPromotionsApi';
 import { PromoteListingModal } from '@/components/admin/PromoteListingModal';
-import { detailToAdminListing, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
+import { detailToAdminListing, ownerName, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
+import { translationResultToast } from '@/lib/translations';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import type { AdminListingStatus } from '@/lib/mock';
 import type {
@@ -53,6 +55,9 @@ const ACTION_LABEL: Record<ModerationAction, string> = {
   SEND_TO_DRAFT: 'В черновики',
   REJECT: 'Отклонено',
   DELETE: 'Удалено',
+  // Системное событие: владелец отредактировал объявление, и оно вернулось в
+  // очередь (reason содержит список изменённых полей).
+  OWNER_EDIT: 'Правка владельца',
 };
 
 const AMENITY_LABELS: Record<string, string> = {
@@ -112,6 +117,10 @@ export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
   const { data, isLoading, isError, error, refetch } = useGetAdminListingQuery(id);
+  // Автор объявления (LOG.md #6): деталь `GET /listings/:id` отдаёт лишь
+  // owner_id, поэтому имя/контакт берём admin-only роутом. Мягкий фолбэк на «—»
+  // (старый бэкенд без роута / MODERATOR-доступ) — карточка не ломается.
+  const { data: owner } = useGetAdminListingOwnerQuery(id);
   const [reason, setReason] = useState('');
   const [moderate, { isLoading: isActing }] = useModerateListingMutation();
   const { data: logs, isLoading: logsLoading, isError: logsError } =
@@ -152,7 +161,10 @@ export default function ListingDetailPage() {
   /** «Параметры»: базовые поля + опциональные (жилая/нежилая площадь, цоколь) — только если есть значение. */
   const params: [string, string | number][] = [
     ['ID объявления', listing.id],
-    ['Автор', listing.agent],
+    ['Автор', owner ? ownerName(owner) : listing.agent],
+    ...(owner?.contact_phone || owner?.phone
+      ? ([['Телефон автора', owner.contact_phone ?? owner.phone ?? '—']] as [string, string][])
+      : []),
     ['Адрес', src.address],
     ['Год постройки', src.year || '—'],
     ['Этаж', src.floor ? `${src.floor}/${src.totalFloors}` : '—'],
@@ -163,6 +175,10 @@ export default function ListingDetailPage() {
   ];
 
   const act = async (action: ModerationAction) => {
+    if (action === 'APPROVE' && !translationsComplete) {
+      toast('Сначала сгенерируйте переводы на все языки');
+      return;
+    }
     if (action === 'REJECT' && !reason) {
       toast('Выберите причину отклонения');
       return;
@@ -260,18 +276,31 @@ export default function ListingDetailPage() {
             </div>
           </div>
           <div className="a-card" style={{ padding: 22 }}>
-            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
               <h3 style={{ fontSize: 16 }}>Переводы</h3>
-              <button
-                className="abtn abtn-outline abtn-sm"
-                disabled={isGenerating}
-                onClick={async () => {
-                  try { await generate(id).unwrap(); toast('Переводы сгенерированы'); }
-                  catch { toast('Не удалось сгенерировать переводы'); }
-                }}
-              >
-                {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
-              </button>
+              <div className="row gap-8">
+                <button
+                  className="abtn abtn-outline abtn-sm"
+                  disabled={isGenerating}
+                  onClick={async () => {
+                    try { toast(translationResultToast(await generate({ id }).unwrap())); }
+                    catch { toast('Не удалось сгенерировать переводы'); }
+                  }}
+                >
+                  {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
+                </button>
+                <button
+                  className="abtn abtn-outline abtn-sm"
+                  disabled={isGenerating}
+                  onClick={async () => {
+                    if (!window.confirm('Перевести заново все языки? Правки, внесённые вручную, будут перезаписаны машинным переводом.')) return;
+                    try { toast(translationResultToast(await generate({ id, force: true }).unwrap(), { forced: true })); }
+                    catch { toast('Не удалось сгенерировать переводы'); }
+                  }}
+                >
+                  Перевести заново
+                </button>
+              </div>
             </div>
             {(tr?.translations ?? []).map((t) => (
               <TranslationRow
@@ -336,15 +365,21 @@ export default function ListingDetailPage() {
                 {REJECT_REASON_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
               {status !== 'ACTIVE' && (
-                <button
-                  className="abtn abtn-ok"
-                  style={{ width: '100%' }}
-                  disabled={isActing || !translationsComplete}
-                  title={translationsComplete ? undefined : 'Сначала сгенерируйте переводы на все языки'}
-                  onClick={() => act('APPROVE')}
-                >
-                  <IC.Check size={17} /> Опубликовать
-                </button>
+                <>
+                  {!translationsComplete && (
+                    <div className="row gap-8" style={{ background: 'var(--warn-bg)', color: 'var(--warn)', borderRadius: 10, padding: '10px 13px', fontSize: 13, fontWeight: 600, alignItems: 'center' }}>
+                      <IC.Alert size={16} style={{ flexShrink: 0 }} /> Перед публикацией сгенерируйте переводы на все языки (UZ, RU, EN)
+                    </div>
+                  )}
+                  <button
+                    className="abtn abtn-ok"
+                    style={{ width: '100%' }}
+                    disabled={isActing}
+                    onClick={() => act('APPROVE')}
+                  >
+                    <IC.Check size={17} /> Опубликовать
+                  </button>
+                </>
               )}
               {status !== 'REJECTED' && <button className="abtn abtn-danger" style={{ width: '100%' }} disabled={isActing} onClick={() => act('REJECT')}><IC.X size={17} /> Отклонить</button>}
               {status !== 'DRAFT' && <button className="abtn abtn-outline" style={{ width: '100%' }} disabled={isActing} onClick={() => act('SEND_TO_DRAFT')}>В черновики</button>}

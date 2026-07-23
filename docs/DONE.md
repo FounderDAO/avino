@@ -37,7 +37,1020 @@ Related ADR:
 
 ---
 
+## 2026-07-22
+
+### Ad-hoc — Сброс RTK Query-кэша при смене аккаунта (client)
+
+Status: DONE
+Branch: fix/reset-api-cache-on-identity-switch
+PR: #444
+
+Files changed:
+- apps/client/src/store/identityResetListener.ts (new)
+- apps/client/src/store/identityResetListener.test.ts (new)
+- apps/client/src/store/store.ts
+
+Summary:
+- После logout+login под другим аккаунтом «Мои объявления» показывали объявления прежнего
+  пользователя (объявления A в кабинете B). Причина — НЕ токен (он меняется корректно), а
+  stale-кэш RTK Query: кэш ключуется по (endpoint + args) и не учитывает пользователя; ни
+  login, ни logout не сбрасывали кэш, resetApiState нигде не вызывался.
+- Добавлен identityResetListener (createListenerMiddleware): на смену личности (setCredentials
+  с user — login, или clearCredentials — logout) вызывает baseApi.util.resetApiState(). Ротацию
+  токена (setCredentials БЕЗ user из baseQuery) игнорирует, чтобы не сбрасывать кэш на каждой
+  refresh-ротации (ADR-0142). Подключён в store через .prepend(...).
+- Важно: resetApiState (немедленное удаление), а не invalidateTags (оставляет старые данные до
+  рефетча — окно утечки). Login безопасен: все входы через .unwrap(). 63 store/auth-теста ✓, tsc ✓.
+
+Commit messages:
+- fix(client): reset RTK Query cache on identity switch
+
+Related ADR:
+- docs/adr/ADR-0152-reset-api-cache-on-identity-switch.md
+
+### Ad-hoc — Сброс RTK Query-кэша при смене аккаунта (web/админка)
+
+Status: DONE
+Branch: fix/web-reset-api-cache-on-identity-switch
+PR: #445
+
+Files changed:
+- apps/web/src/store/identityResetListener.ts (new)
+- apps/web/src/store/identityResetListener.test.ts (new)
+- apps/web/src/store/store.ts
+
+Summary:
+- Паритет с PR #444 для админки. Тот же дефект: после смены аккаунта админа getMe/admin-запросы
+  отдавали закэшированные данные прежнего пользователя.
+- identityResetListener с matcher isAnyOf(setCredentials, logOut); ротация токена (отдельный
+  action setTokens) не матчится, проверка на user не нужна.
+- Риск ниже клиентского: большинство admin-данных общие для всех модераторов (Admin-теги);
+  персональное — getMe (профиль/роли), могло мигать данными прежнего админа. Реального доступа
+  к чужому нет (запросы уходят с новым токеном, бэкенд проверяет права). 11 web-тестов ✓, tsc ✓.
+- Гоча: apps/web тесты в node-env (нет window) — тест не трогает window.localStorage напрямую
+  (authSlice сам гейтит typeof window); apps/client — jsdom.
+
+Commit messages:
+- fix(web): reset RTK Query cache on identity switch
+
+Related ADR:
+- docs/adr/ADR-0152-reset-api-cache-on-identity-switch.md
+
+### Ad-hoc — OTP-верификация публичного «Телефона для связи» (contact_phone)
+
+Status: DONE
+Branch: feat/contact-phone-otp-api, feat/contact-phone-otp-client
+PR: #439 (backend), #440 (client)
+
+Files changed:
+- apps/api/prisma/schema.prisma (OtpPurpose.CONTACT_PHONE_CHANGE, UserProfile.contactPhoneVerified)
+- apps/api/prisma/migrations/20260722090000_add_contact_phone_verified/migration.sql
+- apps/api/prisma/migrations/20260722090100_add_otp_purpose_contact_phone_change/migration.sql
+- apps/api/src/users/contact-phone-change.service.ts (+ .spec.ts)
+- apps/api/src/users/dto/{request,verify}-contact-phone.dto.ts
+- apps/api/src/users/users.controller.ts, users.module.ts
+- apps/api/src/profiles/dto/update-profile.dto.ts, profiles.service.ts
+- apps/api/src/auth/auth.service.ts, auth/dto/me-response.dto.ts, users/users.service.ts, admin/admin-users.service.ts
+- apps/api/src/listings/listings.service.ts, tour-requests/, agent-applications/, moderation/ (verified-gate)
+- apps/api/openapi.public.json, openapi.internal.json
+- apps/client/src/store/api/usersApi.ts (+ .test.ts), authApi.ts
+- apps/client/src/features/account/ContactPhoneModal.tsx (+ .test.tsx), Profile.tsx (+ .test.tsx)
+- apps/client/messages/{ru,uz,en}.json
+- docs/adr/ADR-0151-contact-phone-otp-verification.md
+
+Summary:
+- Публичный «Телефон для связи» (contact_phone) теперь меняется только через OTP-подтверждение
+  владения номером; на объявлениях показывается лишь подтверждённый номер, иначе фолбэк на
+  верифицированный логин-телефон аккаунта.
+- Отдельный OtpPurpose.CONTACT_PHONE_CHANGE + ContactPhoneChangeService (сиблинг
+  ContactChangeService): SMS-only, БЕЗ uniqueness (общий номер агентства допустим), короткое
+  замыкание «= верифицированному логин-телефону → без OTP». contact_phone убран из свободного
+  PATCH /users/me/profile.
+- Причина: раньше на объявлениях можно было опубликовать любой (чужой/фейковый) номер без
+  проверки — анти-фрод/доверие. Логин-контакт уже под OTP (ADR-0150), но публичный контакт
+  логином не является и попадал мимо.
+- Важно: apps/api = Jest (не vitest); тост успеха — отдельный ключ toasts.contactPhoneUpdated
+  (не contactChanged, который про логин). Существующие непроверенные номера тихо грандфатерятся
+  (verified=false, показывается логин-телефон).
+- Отложено (не блокеры): staging live-verify (prisma migrate deploy, listings.int-spec, реальная
+  SMS); унаследованные от сиблинга Minor (verify без re-check DELETED, Dialog.Description a11y) —
+  чинить единым PR с ContactChangeModal; опциональная quick-ссылка «использовать логин-телефон».
+
+Commit messages:
+- feat(db): contact_phone_verified + OtpPurpose CONTACT_PHONE_CHANGE
+- feat(api): expose contact_phone_verified; drop contact_phone from free profile PATCH
+- feat(api): contact-phone OTP verification endpoints
+- feat(api): show contact_phone on listings only when verified (else account phone)
+- docs(adr): ADR-0151 contact-phone OTP verification + openapi routes
+- test(api): verified-gate coverage for tour-requests and agent-applications contact phone
+- feat(client): contact-phone OTP api slice + contact_phone_verified type
+- feat(client): ContactPhoneModal — SMS OTP for contact phone
+- feat(client): contact phone moved to OTP-verified row in profile
+- fix(client): correct success toast for contact-phone change; drop dead i18n key
+
+Related ADR:
+- docs/adr/ADR-0151-contact-phone-otp-verification.md
+
+---
+
+## 2026-07-21
+
+### Ad-hoc — OTP-верификация при смене логин-контакта (телефон / email)
+
+Status: DONE
+Branch: feature/contact-change-otp-api, feature/contact-change-otp-client
+PR: #433 (backend), #434 (client)
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260721140000_add_otp_purpose_contact_change/migration.sql
+- apps/api/src/auth/otp-code.util.ts
+- apps/api/src/auth/otp.service.ts
+- apps/api/src/auth/auth.service.ts
+- apps/api/src/auth/auth.module.ts
+- apps/api/src/users/contact-change.service.ts (+ .spec.ts)
+- apps/api/src/users/dto/{request,verify}-contact-change.dto.ts
+- apps/api/src/users/users.controller.ts, users.service.ts (+ .spec.ts), users.module.ts
+- apps/api/src/users/dto/update-user.dto.ts
+- apps/api/openapi.public.json, openapi.internal.json
+- apps/client/src/store/api/usersApi.ts (+ .test.ts)
+- apps/client/src/features/account/ContactChangeModal.tsx (+ .test.tsx)
+- apps/client/src/features/account/Profile.tsx (+ .test.tsx)
+- apps/client/messages/{uz,ru,en}.json
+- docs/adr/ADR-0150-contact-change-otp-verification.md
+
+Summary:
+- При смене логин-телефона или логин-email OTP-код теперь уходит на НОВОЕ
+  значение, и смена применяется только после ввода кода (доказательство
+  владения). Раньше email менялся сразу без подтверждения, а логин-телефон
+  сменить было нельзя вовсе.
+- Backend: новый OtpPurpose.CONTACT_CHANGE (переиспользуем otp_codes, без новой
+  таблицы); OTP-примитивы вынесены в otp-code.util.ts (login-поведение не
+  тронуто, purpose параметризован). Эндпоинты POST /api/v1/users/me/contact-change/
+  {request,verify} под JWT: request (uniqueness→CONTACT_TAKEN, отказ при равенстве
+  текущему, rate-limit, доставка тем же каналом); verify (brute-force/attempts/
+  expiry/одноразовость, привязка кода к user_id, повторная uniqueness) применяет
+  смену + is_phone_verified/is_email_verified. PATCH /users/me больше не меняет
+  email. Bypass ревьюверов на смену не применяется.
+- Client: блок «Аккаунт (вход)» в Profile (логин-телефон/email + бейдж
+  «Подтверждён» + «Изменить») и ContactChangeModal (2 шага: новое значение →
+  OTP-код + таймер повтора). RTK requestContactChange/verifyContactChange, verify
+  инвалидирует getMe.
+- Важно: миграция 20260721140000 применяется на staging/prod при деплое
+  (prisma migrate deploy). Live-verify на staging — после деплоя.
+- Тесты: api login-регрессия 29/29 без правок, contact-change 7/7, api-набор
+  114/114; client 668/668; tsc/lint/openapi чисто. Ревью обоих PR: SPEC ✅ /
+  QUALITY Approved, 0 Critical/Important.
+
+Commit messages:
+- refactor(auth): parametrize otp purpose + add CONTACT_CHANGE
+- feat(users): OTP verification for login contact change
+- feat(client): contact-change RTK endpoints
+- feat(client): OTP verify UI for login contact change
+
+Related ADR:
+- docs/adr/ADR-0150-contact-change-otp-verification.md
+
+---
+
+## 2026-07-13
+
+### TASK-253 — Баг: воркер алертов saved-search падал на scalar-фильтрах (r.reduce)
+
+Status: DONE
+Branch: fix/saved-search-alert-scalar-filters
+PR: #392
+
+Files changed:
+- apps/api/src/saved-searches/saved-search-alert.service.ts
+- apps/api/src/saved-searches/saved-search-alert.service.spec.ts
+- docs/adr/ADR-0146-saved-search-filter-normalization.md
+
+Summary:
+- SavedSearchAlertService падал каждый 5-минутный прогон с TypeError:
+  r.reduce is not a function в SearchService.buildWhereSql: сырой filters_json
+  идёт в обход DTO @Transform(toArray), а клиент исторически пишет
+  property_type СТРОКОЙ и мультивыбор под plural-ключами
+  (property_types/parking_types) → Prisma.join(строка) падает. Алерты по
+  поискам с типом недвижимости не отправлялись, watermark не двигался.
+- Фикс: нормализация на границе воркера в extractFilters (ADR-0146) —
+  plural-ключи → канонические (массив приоритетнее legacy-скаляра),
+  скалярные property_type/parking_type/amenities/listing_source → массив.
+  Попутно заработал фильтр парковки (plural-ключ раньше молча игнорировался).
+- TDD (RED подтверждён до фикса, 5 новых тестов), 950/950 unit; live-verified:
+  два прогона воркера без ошибок, watermarks замороженных поисков
+  (NULL / 2026-06-26) сдвинулись.
+
+Commit messages:
+- fix(saved-searches): normalize legacy scalar filters before buildWhereSql
+
+Related ADR:
+- docs/adr/ADR-0146-saved-search-filter-normalization.md
+
+### TASK — Страница «Мои устройства» в публичном портале (сессии + revoke)
+
+Status: DONE
+Branch: feat/client-sessions-page
+PR: #391
+
+Files changed:
+- apps/client/src/store/api/sessionsApi.ts
+- apps/client/src/store/api/baseApi.ts
+- apps/client/src/store/apiErrorToastMiddleware.ts
+- apps/client/src/features/account/Devices.tsx
+- apps/client/src/features/account/Devices.test.tsx
+- apps/client/src/features/account/sessionDevice.ts
+- apps/client/src/features/account/sessionDevice.test.ts
+- apps/client/src/features/account/AccountLayout.tsx
+- apps/client/src/app/[locale]/account/[tab]/page.tsx
+- apps/client/messages/ru.json, uz.json, en.json
+- docs/adr/ADR-0145-client-devices-page.md
+
+Summary:
+- UI-слой ADR-0143 (#389): вкладка кабинета /account/devices — список активных
+  сессий (устройство из user_agent regex-парсом без библиотек, IP,
+  вход = created_at, активность = last_rotated_at, бейдж «Текущая сессия»)
+  и «Завершить» у не-текущих: confirm → DELETE → toast.
+- 404 на DELETE = «Сессия уже завершена» (идемпотентный контракт): info-toast +
+  ручной refetch (invalidatesTags на ошибке не срабатывает); revokeSession
+  в SUPPRESSED_ENDPOINTS — тосты ручные.
+- Live-verified: логин с двух UA, завершение второй сессии → её refresh
+  даёт 401 TOKEN_REUSED.
+
+Commit messages:
+- feat(client): devices page — active sessions list + revoke (ADR-0145)
+
+Related ADR:
+- docs/adr/ADR-0145-client-devices-page.md
+
+### TASK — Ипотечный калькулятор публичного портала (клиентский расчёт)
+
+Status: DONE
+Branch: feat/client-mortgage-calculator
+PR: #390 (merged)
+
+Files changed:
+- apps/client/src/lib/mortgage.ts (+test) — чистая математика: аннуитет, DTI≤40 (нестрого), suggestFix срок→взнос(30 лет)→бюджет, maxAffordablePrice, niceFloorPrice
+- apps/client/src/store/slices/mortgageSlice.ts (+test) — параметры в localStorage (ключи 1:1 с мобилкой), ставки USD/UZS раздельно
+- apps/client/src/store/StoreProvider.tsx — MortgageHydrator (SSR-safe гидрация)
+- apps/client/src/lib/useMortgage.ts — сборка слайс+валюта+курс во вход математики
+- apps/client/src/app/[locale]/listing/[id]/mortgage/{page.tsx,result/page.tsx} — экраны формы и результата
+- apps/client/src/features/mortgage/* — MortgageForm, MortgageResult, MiniListingCard, salaryFormat (+tests)
+- apps/client/src/features/detail/{MortgageEstBar,MortgagePaymentCard}.tsx (+tests) + встраивание в Detail.tsx
+- apps/client/messages/{ru,en,uz}.json — 39 ключей mortgage.*
+- docs/mortgage-calculator-web-spec.md — спека мобильной команды (источник истины)
+- docs/adr/ADR-0144-client-mortgage-calculator.md
+
+Summary:
+- Перенос ипотечного калькулятора мобильного приложения на веб 1:1 (запрос клиента): est-полоска и карточка «Ежемесячный платёж» на detail (только SALE), экран формы (зарплата с живой группировкой, чипы взноса с подсветкой только при точном совпадении, слайдеры ставки/срока), экран результата (вердикт по DTI 40%, шкала, рекомендации, таблица разбивки).
+- Расчёт целиком на клиенте: зарплата не покидает устройство (Redux + localStorage), backend не участвует; единственный сетевой запрос — существующий GET /exchange-rate.
+- Кнопка рекомендации «взнос d%» применяет взнос И 30 лет атомарно; бюджетная ветка ведёт на /search?priceMax=…&currency=… с «красивым» округлением вниз.
+- Гоча: ленивый initialState с localStorage (паттерн authSlice) дал hydration mismatch на форме — переведено на канон currencySlice (статические дефолты + hydrate-action в StoreProvider), что заодно покрывает ремонт store при смене локали (#386).
+- Найден преcуществующий (есть на main) глюк CurrencySwitcher: при LS=UZS после перезагрузки тогл показывает $ до первого клика (React не патчит mismatched-атрибуты) — вынести отдельной задачей.
+- Верификация: 576/576 unit, lint/tsc/build чистые; live в браузере — сходимость математики, конверсия валют по ЦБУ, персистентность через смену локали/перезагрузку.
+
+Commit messages:
+- feat(client): mortgage calculator — form, result, detail widgets
+- docs: ADR-0144 mortgage calculator + мобильная спека
+
+Related ADR:
+- docs/adr/ADR-0144-client-mortgage-calculator.md
+
+---
+
+### TASK — Управление сессиями пользователя: список + отзыв session family (security PR-3)
+
+Status: DONE
+Branch: feat/auth-sessions-management
+PR: #389 (merged)
+
+Files changed:
+- apps/api/src/auth/token.service.ts (+spec) — `SessionInfo`, `listSessions`, `revokeUserFamily`, `fid` в access-payload
+- apps/api/src/auth/auth.service.ts (+spec) — маппинг snake_case-контракта, 404 + audit `SESSION_REVOKED`
+- apps/api/src/auth/auth.controller.ts — `GET /auth/sessions`, `DELETE /auth/sessions/:fid`
+- apps/api/src/auth/dto/session-response.dto.ts — контракт ответа
+- apps/api/src/common/guards/jwt-auth.guard.ts (+spec, +optional-guard spec) — `sessionFamilyId` в `request.user`
+- apps/api/src/auth/auth-sessions.int-spec.ts — сквозной int-тест на живом PG
+- apps/api/openapi.public.json, openapi.internal.json — `pnpm openapi:export`
+- docs/API.md §3, docs/adr/ADR-0143-auth-sessions-management.md
+
+Summary:
+- Третий шаг security-hardening (после #387 CSP и #388 access-в-памяти): пользователь видит свои активные сессии (устройства) и может отозвать любую, не владея её refresh-токеном.
+- `GET /auth/sessions` — по записи на активную family: id (fid), created_at (логин, min по family), last_rotated_at, user_agent, ip, is_current. `DELETE /auth/sessions/:fid` → 204; чужой/несуществующий fid → 404 NOT_FOUND (анти-enumeration), повторный отзыв идемпотентен.
+- Миграций нет: user_agent/ip в refresh_tokens существуют с TASK-042. `fid` добавлен в payload access-токена → is_current без refresh в запросе; старые access-токены без fid дают is_current=false (окно = accessTtl 15 мин).
+- Верификация: 945/945 unit, int-spec на живом PG, live-verify локального билда (два логина → список → 404 чужой → 204 свой → 401 TOKEN_REUSED на refresh отозванной family → ротация сохраняет is_current).
+- Не вошло (осознанно): сокращение refresh TTL 30д — отдельное решение с Team Lead; страница «Мои устройства» в apps/client — следующий PR.
+
+Commit messages:
+- feat(auth): user session management — list and revoke session families
+
+Related ADR:
+- docs/adr/ADR-0143-auth-sessions-management.md
+
+---
+
+### TASK — Регистрация агента: лимит → заявка → модерация → публичный каталог (api + client + web)
+
+Status: DONE
+Branch: feat/agent-applications, feat/agent-client, feat/agent-admin
+PR: #383, #384, #385 (все merged)
+
+Files changed:
+- apps/api: prisma (таблица `agent_applications`, enum `AgentApplicationStatus`, partial unique PENDING), src/agent-applications/* (+спеки), src/agents/* (+спеки), search DTO `agent_id` (+int-spec), notifications routing `AGENT_APPLICATION_RESOLVED`, openapi.public/internal.json
+- apps/client: ListingNew (модалка лимита), app/[locale]/become-agent + features/become-agent (+tests), features/home/Agents + AgentCTA (+tests), app/[locale]/agents/[id] + features/agent (+tests), бейдж «Риелтор» в ContactCard, NotificationContent, lib/api/agents (+tests), messages/{ru,uz,en}.json
+- apps/web: app/admin/agent-applications/page.tsx, store/api/adminAgentApplicationsApi.ts + adminTypes.ts, lib/adapters/agent-applications.ts (+test), components/admin/{Sidebar,Topbar,icons}.tsx, vitest.config.mts + package.json (первый vitest-харнесс apps/web)
+- docs/API.md §21, docs/adr/ADR-0140-agent-applications.md, docs/superpowers/specs/2026-07-12-agent-registration-design.md + планы PR1/PR2/PR3
+
+Summary:
+- Проблема: лимит активных объявлений (422 ACTIVE_LISTING_LIMIT_REACHED) отображался незаметно, а стать агентом можно было только через админа. Теперь: заметная модалка лимита с CTA «Стать агентом» → анкета-минимум (агентство опционально + «о себе») → модерация админом → роль AGENT, публикация без лимита.
+- API (#383): `POST/GET /users/me/agent-application` (409 AGENT_APPLICATION_PENDING/ALREADY_AGENT, после REJECTED — новая запись), админ `GET /admin/agent-applications` + `POST :id/approve|reject` (транзакция: статус + upsert роли AGENT + audit + IN_APP-уведомление), публичный каталог `GET /agents(/:id)` (сортировка по активным объявлениям), фильтр `GET /search?agent_id=` во всех гео-эндпоинтах (вместо отдельного /agents/:id/listings), details {limit, used} в ошибке лимита.
+- Client (#384): модалка лимита (portal), /become-agent (состояния нет заявки/PENDING/REJECTED+причина/уже агент), блок «Агенты» на главной с реального API (мок удалён), страница /agents/[id] с сеткой объявлений, бейдж «Риелтор» по contact.type, рендер уведомления о решении; i18n ru/uz/en.
+- Web (#385): админ-очередь /admin/agent-applications — таблица (заявитель с аватаром/телефоном → карточка юзера, агентство/«Частный маклер», «о себе», дата, статус + дата решения + причина), фильтр-чипы (default PENDING), серверная пагинация, approve из строки, reject через модалку с опциональной причиной, 422 INVALID_STATUS_TRANSITION → «Заявка уже обработана»; пункт «Заявки агентов» в сайдбаре + Topbar; RTK-слайс adminAgentApplicationsApi; первый vitest-харнесс в apps/web (node env, 5 тестов адаптера).
+- Верификация: api 108/937 unit + int-spec сквозного флоу; client 527 vitest; web 5/5 + lint/build; финальные Opus-ревью всех трёх веток READY TO MERGE; live-verify каждого PR (полный сценарий: лимит → заявка → админ-очередь → approve/reject → бейдж/каталог/уведомление).
+- Гочи: notificationRouting — Record на каждый NotificationType (IN_APP only для AGENT_APPLICATION_RESOLVED); аватары только resolveAvatarUrl (не resolveMediaUrl); админ-логин web — EMAIL-OTP, dev-код виден только в raw docker logs; rtk git log прячет merge-коммиты.
+
+Commit messages:
+- feat(api): agent applications + public agents catalog + search agent_id filter (PR #383, squash-набор)
+- feat(client): become-agent flow, agents on home, agent profile page, realtor badge (PR #384, squash-набор)
+- feat(web): agent applications RTK slice + DTO types
+- feat(web): agent applications row adapter + vitest harness (TDD)
+- feat(web): agent applications admin queue page + nav
+- docs(adr): ADR-0140 — admin queue UI for agent applications
+- fix(web): topbar title for agent applications page
+
+Related ADR:
+- docs/adr/ADR-0140-agent-applications.md
+
+---
+
+## 2026-07-12
+
+### TASK — «Новостройка» = вычисляемая категория; NEW_BUILDING удалён из PropertyType
+
+Status: DONE
+Branch: feat/new-construction-category
+PR: #382 (merged)
+
+Files changed:
+- apps/api/prisma/migrations/20260712120000_remove_new_building_property_type/migration.sql
+- apps/api/prisma/schema.prisma, seed-all/catalog/demo/regions/pagination.cjs
+- apps/api/src/search/dto/search-listings.dto.ts (+spec), apps/api/src/search/search.service.ts (+int-spec)
+- apps/api/src/listings/dto/create-listing.dto.ts (+spec)
+- apps/api/openapi.public.json, openapi.internal.json
+- packages/shared/src/enums.ts, constants.ts
+- apps/client: search/page.tsx, FilterBar/FiltersPanel/ActiveFilters (+tests), savedSearch.ts (+test), lib/api/listings.ts (+test), lib/mock/*, Nav/Footer/Header, home/Categories, ListingNew, ListingEdit (+test), messages/{ru,uz,en}.json
+- apps/web/src/store/api/adminTypes.ts, lib/mock/*
+- docs/API.md, docs/adr/ADR-0139-new-construction-computed-category.md
+
+Summary:
+- Запрос клиента: «New Building» — не тип недвижимости, а фильтр «New Construction» / «Yangi qurilish». `NEW_BUILDING` удалён из enum `PropertyType`; миграция перевела существующие объявления в `APARTMENT` и переписала `saved_searches.filters_json`.
+- Новый параметр `?new_construction=true` во всех `/search*`: `year_built >= текущий год − 2` (константа `NEW_CONSTRUCTION_MAX_AGE_YEARS = 3`) — последние 3 календарных года ИЛИ будущий год (недострой «сдача в 2028»). Порог считает сервер — URL стабилен, включён в SEMANTIC_PARAMS canonical (SEO-лендинг).
+- `year_built` обязателен в `POST /listings` для APARTMENT/HOUSE (`@ValidateIf`, будущие годы валидны); клиентские гейты в визарде (canNext шаг 3) и редакторе (missingRequiredFields) + хинт про год сдачи.
+- Legacy: `/search?type=NEW_BUILDING` и старые saved-searches маппятся на `new_construction=true` (page.tsx + filtersToSearchHref).
+- i18n: uz «Yangi qurilish» (было «Yangi bino»), en «New construction», ru «Новостройки»; `enums.propertyType.NEW_BUILDING` удалён.
+- Верификация: api 904 unit + int-spec search 49/49 (граница «ровно 3 года», будущее, NULL); client 480 vitest; сборки client/web/api; live: 11 = SQL-подсчёту, SSR /ru и /uz, legacy URL.
+- Гоча: тесты FiltersPanel ищут чекбоксы по индексу — новый чекбокс сдвигает индексы.
+
+Commit messages:
+- feat(search): new_construction computed category, drop NEW_BUILDING type
+
+Related ADR:
+- docs/adr/ADR-0139-new-construction-computed-category.md
+
+### TASK — Real-time доставка через WebSocket: chat + notifications + tours (api, client, docs)
+
+Status: DONE
+Branch: feat/realtime-api-gateway, feat/realtime-client-bridge, docs/realtime-ws-mobile-guide
+PR: #378, #379, #381 (все merged)
+
+Files changed:
+- apps/api/src/realtime/{realtime.types,realtime.emitter,ws-authenticator,realtime.gateway,redis-io.adapter,realtime.module,index}.ts (+3 спека)
+- apps/api/src/main.ts, app.module.ts, chat/{chat.module,chat.service(+spec)}.ts, tour-requests/{module,service(+spec)}.ts, package.json
+- apps/client/src/store/{socketClient,useRealtimeBridge(+test),realtimeInvalidation(+test),realtimeSlice(+test),store,useUnreadCounts(+test)}.ts
+- apps/client/src/components/layout/Header.tsx, features/account/Inbox.tsx, package.json
+- .env.example (NEXT_PUBLIC_WS_URL), docs/API.md (§20 + §18), docs/GUIDE_MOBILE_REALTIME_WS.md
+
+Summary:
+- Поллинг чата/уведомлений/туров (6–20 с задержки) заменён push'ем: socket.io Gateway (namespace `/rt`, auth access-JWT в handshake, комната `user:<id>`, redis-adapter поверх ioredis) шлёт тонкие сигналы `invalidate {type, id?}` после commit транзакции — только получателю. REST-контракт не тронут: клиент по сигналу дёргает RTK `invalidateTags` → штатный рефетч.
+- Клиент: singleton socketClient (websocket-only), useRealtimeBridge в HeaderBody (токен→connect, ротация→reconnect, connect→gap-fill всех тегов), поллинг деградирует до 60 с safety-net при живом сокете (0 остаётся 0 у читателей кэша).
+- Docs: контракт канала в API.md §20 + Flutter-гайд (socket_io_client ^2, жизненный цикл, маппинг сигнал→REST). WS — foreground-канал; мобильный фон остаётся за FCM.
+- Выполнено по спеке/плану docs/superpowers/{specs,plans}/2026-07-08-realtime-websocket-delivery*; субагентная разработка с ревью на каждую задачу.
+- Гочи: `pnpm add @nestjs/platform-socket.io` без пина ставит v11 под Nest 10 и не ставит `@nestjs/websockets` (пинить ^10); client-тесты обязаны импортировать vitest явно (tsc падает, vitest молчит); «Update branch» в GitHub UI криво мержит pnpm-lock.yaml → перегенерация `pnpm install` от lockfile main.
+- Осталось: live-verify на staging (TASK-252); prod-TODO — sticky-sessions при api >1 реплики.
+
+Commit messages:
+- feat(api): realtime emitter + invalidation type
+- feat(api): ws connection-time jwt authenticator
+- feat(api): realtime gateway with connection auth
+- feat(api): wire realtime module + redis io adapter
+- feat(api): emit realtime invalidation on chat message
+- feat(api): emit realtime invalidation on tour create/status
+- feat(client): realtime socketConnected slice
+- feat(client): realtime signal -> RTK tag mapping
+- feat(client): socket.io singleton client
+- feat(client): realtime bridge (socket -> RTK invalidation)
+- feat(client): degrade polling to 60s safety-net when socket live
+- chore: NEXT_PUBLIC_WS_URL + realtime prod note
+- docs(api): realtime WS /rt contract (§20) + Flutter guide
+
+Related ADR:
+- docs/adr/ADR-0138-realtime-websocket-invalidation.md
+
+## 2026-07-21
+
+### TASK — Баг: переводы объявления не перегенерируются + врущий тост (LOG.md #5)
+
+Status: DONE
+Branch: fix/listing-translations-force-regenerate-api, fix/listing-translations-force-regenerate-web
+PR: #428 (apps/api), #429 (apps/web)
+
+Files changed:
+- apps/api/src/translations/listing-auto-translator.service.ts
+- apps/api/src/translations/listing-auto-translator.service.spec.ts
+- apps/api/src/translations/dto/generate-translations.dto.ts
+- apps/api/src/translations/index.ts
+- apps/api/src/admin/admin-listings.controller.ts
+- apps/api/openapi.internal.json
+- apps/web/src/store/api/adminTypes.ts
+- apps/web/src/store/api/adminListingsApi.ts
+- apps/web/src/lib/translations.ts
+- apps/web/src/app/admin/moderation/page.tsx
+- apps/web/src/app/admin/listings/[id]/page.tsx
+
+Summary:
+- На карточке модерации UZ/EN «переводы» не соответствовали RU-оригиналу
+  ("39 Superior Street…" при оригинале "Test post") и не перегенерировались:
+  `generateTranslations` пропускал любой целевой язык с
+  `is_auto_translated=false`, а UI безусловно тостил «Переводы
+  сгенерированы». На сид-данных (все три языка `source=USER`, независимый
+  текст) модератор оказывался в тупике.
+- API (#428): `generateTranslations(id, { force })` — при `force=true`
+  перезаписывает и правленные вручную ЦЕЛЕВЫЕ языки; оригинальный язык
+  (`original_language`) исключён из целей и не трогается ни при каком force.
+  Возвращает `{ regenerated, skipped }`; эндпоинт
+  `POST /admin/listings/:id/translations/generate` принимает тело
+  `{ force?: boolean }` и отдаёт итог в ответе. openapi.internal
+  регенерирован (публичная спека без изменений).
+- Web (#429): мутация принимает `{ id, force? }`; хелпер
+  `translationResultToast()` строит честное сообщение (перечисляет реально
+  сгенерированные/пропущенные языки, подсказывает «Перевести заново», если
+  всё правлено вручную). Кнопка «Перевести заново» (force, с подтверждением)
+  на очереди модерации и детали листинга.
+- Решение по force-режиму (согласовано с владельцем): глобальный force на
+  всю секцию, DTO ровно `{ force?: boolean }`.
+- Тесты: listing-auto-translator.service.spec — 10/10 (force перезаписывает
+  manual-цели и не трогает оригинал = репро сид-мусора; без force всё →
+  skipped). tsc/eslint по обеим app-папкам — чисто.
+- Сид-мусор на сервере — это данные, не код; чинится кнопкой «Перевести
+  заново» после мёржа (миграция данных в задачу не входила).
+
+Commit messages:
+- fix(api): режим force для (пере)генерации переводов объявления
+- fix(web): честный тост переводов + «Перевести заново» (force)
+
+Related ADR:
+- Обновление не требуется — эндпоинт под существующей стратегией API v1,
+  новый DTO под существующими правилами валидации (ADR-0091 в силе).
+
+### TASK — Админ-управление юр-документами (Правила / Политика)
+
+Status: DONE
+Branch: feat/admin-legal-documents
+PR: #422
+
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260721130000_legal_documents/
+- apps/api/src/legal-documents/legal-documents.service.ts
+- apps/api/src/legal-documents/legal-documents.controller.ts
+- apps/api/src/legal-documents/admin-legal-documents.controller.ts
+- apps/api/src/legal-documents/legal-documents.module.ts
+- apps/api/src/legal-documents/dto/*.ts
+- apps/api/src/legal-documents/legal-documents.int-spec.ts
+- packages/shared/src/legal-markdown.ts
+- apps/client/src/lib/api/legal.ts
+- apps/client/src/app/[locale]/legal/{terms,privacy}/page.tsx
+- apps/web/src/app/admin/legal/
+- apps/web/src/store/api (RTK Query slice для `/admin/legal-documents`)
+- docs/API.md (§23)
+- docs/adr/ADR-0149-admin-legal-documents.md
+
+Summary:
+- Тексты Правил/Политики раньше были захардкожены per-locale TS-модулями —
+  любое изменение требовало деплоя. Теперь это версионируемая таблица
+  `legal_documents` (DRAFT/PUBLISHED/ARCHIVED), публикуемая из админки без
+  деплоя.
+- Ключевые роуты: публичный `GET /api/v1/legal/:kind` (terms|privacy, по
+  `Accept-Language`, 404 до первой публикации); admin CRUD
+  `/api/v1/admin/legal-documents` (список, создание черновика с префиллом,
+  PATCH, `POST /:id/publish`, DELETE черновика).
+- Publish-транзакция: гейт полноты 6 полей (title+bodyMd × ru/uz/en) → 422
+  `LEGAL_TRANSLATIONS_INCOMPLETE`; `version = max+1`; прежний PUBLISHED →
+  ARCHIVED; чекбокс «требует повторного согласия» бампает
+  `legal_consent_version` через `LegalConsentFlagService` (блок-модалка у
+  всех пользователей); audit-log `LEGAL_DOCUMENT_PUBLISH`.
+- Markdown-подмножество (`parseLegalMarkdown`, `@avino/shared`): заголовки,
+  подзаголовки, списки, абзацы — без инлайн-разметки (сознательный YAGNI,
+  инъекции исключены by construction). Общий парсер для клиентского рендера
+  и админ-предпросмотра с предупреждениями о якорях.
+- Клиент (`apps/client`) — серверный фетч (не RTK Query, `revalidate: 300`,
+  контент должен попасть в SSR-HTML); при 404/ошибке — фолбэк на вшитый
+  TS-контент, который остаётся в коде навсегда как fail-safe.
+- Админка (`apps/web`) `/admin/legal` — вкладки Правила/Политика, карточка
+  текущей PUBLISHED-версии, история версий, редактор черновика на 3 локали
+  с предпросмотром, publish-диалог с чекбоксом.
+- Live-verify пройден на локальном стеке: API-флоу (create draft → edit →
+  publish → archive prev), админка в браузере, клиентские страницы через
+  ISR (API-документ и фолбэк-путь).
+
+Commit messages:
+- feat(shared): parseLegalMarkdown + legalAnchorWarnings
+- feat(api): модель legal_documents + миграция
+- feat(api): LegalDocumentsService — draft/publish, коды ошибок
+- feat(api): публичный GET /legal/:kind + admin CRUD /admin/legal-documents
+- feat(client): страницы /legal/terms|privacy на серверном фетче + фолбэк
+- feat(web): страница /admin/legal — редактор с предпросмотром и publish-диалогом
+- docs: ADR admin-управления юр-документами
+
+Related ADR:
+- docs/adr/ADR-0149-admin-legal-documents.md
+
+---
+
+
+### TASK — Сид юр-документов: вшитый контент → legal_documents v1
+
+Status: DONE
+Branch: feat/seed-legal-documents
+PR: #423
+
+Files changed:
+- apps/client/scripts/export-legal-markdown.ts
+- apps/api/prisma/legal-content/{terms,privacy}.{ru,uz,en}.md
+- apps/client/src/content/legal/seed-roundtrip.test.ts
+- apps/api/prisma/seed-legal.cjs
+
+Summary:
+- Вшитые тексты Правил/Политики сконвертированы в markdown-подмножество
+  (ADR-0149) и заливаются идемпотентным seed-legal.cjs как version 1
+  (PUBLISHED, publishedAt=2026-06-29 — дата «Обновлено» не прыгает).
+  legal_consent_version НЕ трогается — пере-согласие не триггерится.
+- Roundtrip-пломба (6 тестов): parseLegalMarkdown(md) ≡ вшитому LegalDoc —
+  страница после сида рендерится идентично фолбэку.
+- Прод: docker compose exec api node prisma/seed-legal.cjs ПОСЛЕ деплоя
+  образа этой версии (см. docs/PROD.md §8 п.11).
+
+Related plan:
+- docs/superpowers/plans/2026-07-21-seed-legal-documents.md
+
+---
+
+
+### TASK — Проактивный agent-gate при достижении лимита объявлений
+
+Status: DONE
+Branch: feat/proactive-agent-gate
+PR: #424
+
+Files changed:
+- apps/api/src/listings/listings.service.ts
+- apps/api/src/listings/listings.service.spec.ts
+- apps/api/src/listings/dto/listing-quota.dto.ts
+- apps/api/src/listings/listings.controller.ts
+- apps/api/src/listings/listings.service.int-spec.ts
+- apps/api/openapi.internal.json
+- apps/api/openapi.public.json
+- apps/client/src/store/api/listingsQuotaApi.ts
+- apps/client/src/features/listing-new/ListingNew.tsx
+- apps/client/src/features/listing-new/ListingNew.test.tsx
+
+Summary:
+- Обычный пользователь (не AGENT/AGENCY) с числом активных объявлений = лимиту
+  (`active_listing_limit`, default 2; «занятый слот» = ACTIVE или NEW) при входе
+  в визард /sell/new теперь СРАЗУ видит модалку «Стать агентом», не заполняя
+  форму. Раньше лимит ловился только реактивно (422 после сабмита).
+- Backend: чистый read-метод ListingsService.getActiveListingQuota() →
+  { limit, used, blocked } — единственное определение «занятого слота»;
+  ensureActiveListingQuota стал обёрткой (реактивный 422 сохранён). Новый
+  эндпоинт GET /api/v1/listings/quota (Bearer) + ListingQuotaDto; openapi regen.
+- Client: listingsQuotaApi (providesTags:['Listing'] → рефетч после
+  публикации/архивации); проактивный gate в ListingNew тем же паттерном, что
+  гость-гейт loginOpen (форма позади оверлея модалки). Fail-open
+  (quota?.blocked === true); закрытие модалки → /account/my-listings.
+- Гоча CI: int-spec нельзя бутстрапить через config-модуль (validateEnv требует
+  REDIS_URL/JWT_*, которых нет в int-spec job) — переписан на сервис-уровень по
+  конвенции репо (прямое конструирование сервиса со стабами).
+- Тесты: api unit 75/75 (+4 getActiveListingQuota), int-spec 6/6, client 11/11.
+  CI зелёный.
+
+Commit messages:
+- feat(api): getActiveListingQuota — чистый read-метод квоты активных объявлений
+- feat(api): GET /listings/quota — проактивная проверка лимита для визарда
+- feat(client): проактивный agent-gate — модалка лимита сразу при входе в /sell/new
+- fix: quota-query providesTags['Listing'] + покрыть ветку лимит-0
+- fix(api): quota int-spec на сервис-уровень — не грузить config-модуль в CI
+
+Related plan:
+- docs/superpowers/plans/2026-07-21-proactive-agent-gate.md
+
+## 2026-07-06
+
+### TASK-251 — Динамический price filter из цен текущей выдачи (client)
+
+Status: DONE
+Branch: feat/client-dynamic-price-filter
+PR: #361 (merged)
+
+Files changed:
+- apps/client/src/store/resultPricesSlice.ts
+- apps/client/src/store/resultPricesSlice.test.ts
+- apps/client/src/store/store.ts
+- apps/client/src/features/search/SearchResults.tsx
+- apps/client/src/features/search/PriceFilter.tsx
+- apps/client/src/features/search/controls/priceRange.ts
+- apps/client/src/features/search/controls/priceRange.test.ts
+- apps/client/src/features/search/controls/PriceRangeControl.tsx
+- apps/client/src/features/search/controls/PriceRangeControl.test.tsx
+- apps/client/src/store/api/priceDistributionApi.ts (удалён)
+- docs/adr/ADR-0136-dynamic-price-filter-from-results.md
+
+Summary:
+- Слайдер цены и гистограмма на `/search` теперь считаются на КЛИЕНТЕ из цен текущей выдачи, а не из глобального `GET /search/price-distribution`. Домен `[0, niceCeil(max выдачи)]`, 30 столбцов — чистыми функциями; пустая выдача → фолбэк $0–$1M / 0–12 млрд сум.
+- `SearchResults` зеркалит сырые пары цена+валюта в новый `resultPricesSlice` (паттерн `territorySlice`); `PriceFilter` конвертирует их курсом ЦБУ и строит домен/бакеты. Смена района или пан карты пересчитывают фильтр автоматически, без новых запросов.
+- Хранятся сырые пары (не конвертированные) → тоггл [сум|$] пересчитывает без обновления списка. `displayed` обёрнут в useMemo (иначе эффект-зеркало зацикливается на `polygonData ?? []`).
+- Клиентский `priceDistributionApi` удалён (мёртвый); `PriceBucket` переехал в `priceRange.ts`. Серверный эндпоинт сохранён для мобилки.
+- Ограничение (осознанное): домен по загруженной выдаче (viewport/полигон ≤100, paged растёт догрузкой).
+- Верификация: 437/437 юнит-тестов клиента, чистый `next build`, live-проверка (43 объявления → «0 сум – 1.8 млрд»; смена валюты → «$0 – $130k», гистограмма перестроилась).
+
+Commit messages:
+- feat(client): price-range helpers — niceCeil, toDisplayPrices, buildPriceHistogram
+- feat(client): resultPrices slice — зеркало цен текущей выдачи
+- feat(client): зеркало цен выдачи в resultPrices из SearchResults
+- feat(client): динамический price filter из цен текущей выдачи
+- docs: спека и план динамического price filter
+
+Related ADR:
+- docs/adr/ADR-0136-dynamic-price-filter-from-results.md
+
+### TASK-247 — Фильтр комнат: массив + точная семантика (пункт 6 заявок мобилки)
+
+Status: DONE
+Branch: feat/api-mobile-batch-0706
+PR: #359 (merged)
+Files changed:
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/search/dto/geo-search.dto.ts
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/dto/search-listings.dto.spec.ts
+- apps/api/src/search/search.service.int-spec.ts
+- docs/adr/ADR-0133-search-filter-mobile-fixes.md
+- docs/API.md
+
+Summary:
+- `rooms` стал повторяющимся параметром (массив, OR/IN), как property_type/amenities.
+- Каждое 0..4 — ТОЧНОЕ совпадение, 5 = «5+» (rooms >= 5). Устранён баг «rooms=5 отдавал 4/5/6» и 400 на повторяющемся параметре.
+- **BREAKING:** rooms=4 теперь ровно 4 (было «4+»); для «4+» → rooms_min=4.
+- Матчер сохранённых поисков работает через тот же buildWhereSql (принимает массив и скаляр из сырого filters_json) — правок в saved-searches не потребовалось.
+- Verified live на test-api.avino.uz: rooms=5→[5,6], rooms=4→[4], rooms=2&3&5→[2,3,5,6] без 400.
+
+Commit messages:
+- feat(api): mobile backend batch — rooms multiselect, search points, avatar upload
+
+Related ADR:
+- docs/adr/ADR-0133-search-filter-mobile-fixes.md
+
+### TASK-248 — Загрузка аватара профиля (пункт 5 заявок мобилки)
+
+Status: DONE
+Branch: feat/api-mobile-batch-0706
+PR: #359 (merged)
+Files changed:
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260706000000_add_profile_avatar_storage_key/migration.sql
+- apps/api/src/users/users.controller.ts
+- apps/api/src/users/users.service.ts
+- apps/api/src/users/users.module.ts
+- apps/api/src/users/avatar-url.util.ts
+- apps/api/src/users/users.service.spec.ts
+- apps/api/src/auth/auth.service.ts, auth.module.ts, auth.service.spec.ts
+- apps/api/src/chat/chat.service.ts, chat.module.ts, chat.service.spec.ts
+- apps/api/openapi.public.json, openapi.internal.json
+- docs/adr/ADR-0134-user-avatar-upload.md
+- docs/API.md
+
+Summary:
+- POST/DELETE /api/v1/users/me/avatar (multipart `file`, R2 по образцу листинг-медиа, sign-on-read ADR-0086).
+- Отдельная колонка user_profiles.avatar_storage_key (+ миграция) — не перезаписывает avatarUrl фото OAuth-провайдера; при чтении приоритетнее.
+- Read-сайты /users/me, /auth/me, /chat/threads резолвят подписанную ссылку (общий resolveAvatarUrl; UploadsService добавлен в DI auth/chat).
+- Verified: роут под JwtAuthGuard (POST без auth → 401); авторизованный upload с токеном — финальная проверка по фото из приложения.
+
+Commit messages:
+- feat(api): mobile backend batch — rooms multiselect, search points, avatar upload
+
+Related ADR:
+- docs/adr/ADR-0134-user-avatar-upload.md
+
+### TASK-249 — Приём `points` в /search и /search/bounds (пункт 2 заявок мобилки)
+
+Status: DONE
+Branch: feat/api-mobile-batch-0706
+PR: #359 (merged)
+Files changed:
+- apps/api/src/search/dto/search-listings.dto.ts
+- apps/api/src/search/dto/geo-search.dto.ts
+- apps/api/src/search/dto/polygon-ring.util.ts
+- apps/api/src/search/dto/geo-search.dto.spec.ts
+- apps/api/src/search/search.service.ts
+- docs/adr/ADR-0133-search-filter-mobile-fixes.md
+- docs/API.md
+
+Summary:
+- `points` (нарисованная территория `lat,lng;...`) принимается в /search и /search/bounds; ST_Within подмешивается поверх фильтров/bbox.
+- Декоратор IsPolygonRing вынесен в polygon-ring.util.ts (обход циклического импорта) + новый IsPolygonRingOptional — иначе @IsOptional на базовом поле делал points опциональным и у /search/polygon (гоча наследования class-validator; добавлен регресс-спек geo-search.dto.spec.ts).
+- Verified live на test-api.avino.uz: валидный points → 200, битый (2 вершины) → 400.
+
+Commit messages:
+- feat(api): mobile backend batch — rooms multiselect, search points, avatar upload
+
+Related ADR:
+- docs/adr/ADR-0133-search-filter-mobile-fixes.md
+
+## 2026-07-05
+
+### TASK-232 — Sentry error tracking (api + client + web)
+
+Status: DONE
+Branch: feat/api-sentry + feat/client-sentry + feat/web-sentry
+PR: #333, #334, #335
+
+Files changed:
+- apps/api/src/instrument.ts, apps/api/src/main.ts, apps/api/src/common/filters/all-exceptions.filter.ts (+spec)
+- apps/client/sentry.{server,edge}.config.ts, apps/client/src/instrumentation{,-client}.ts, apps/client/Dockerfile
+- apps/web/sentry.{server,edge}.config.ts, apps/web/src/instrumentation{,-client}.ts, apps/web/Dockerfile
+- docker-compose.yml (build-args), .env.example, deploy/prod.env.example
+- docs/adr/ADR-0129-sentry-error-tracking.md
+
+Summary:
+- Error tracking во всех трёх приложениях (P0 №6 DevOps-аудита, «слепой прод»).
+  api: @sentry/nestjs, init в instrument.ts (первый импорт main.ts), captureException
+  в AllExceptionsFilter только для подлинных INTERNAL_ERROR 5xx (request_id в тегах).
+  client/web: @sentry/nextjs — browser через instrumentation-client.ts (автоподхват
+  Next >=15.3, withSentryConfig не нужен), SSR/edge через instrumentation.ts.
+- Всё config-gated: без DSN ни один init не вызывается — код смержен до заведения
+  аккаунта Sentry. tracesSampleRate 0 (только ошибки).
+- DSN фронтов инлайнится на build; в .env пер-приложенческие переменные
+  NEXT_PUBLIC_SENTRY_DSN_CLIENT/_WEB → compose маппит в NEXT_PUBLIC_SENTRY_DSN.
+- Активация (за Team Lead): 3 проекта в Sentry, DSN в .env сервера, redeploy
+  с пересборкой; для api DSN рантаймовый (без пересборки образа).
+
+Commit messages:
+- feat(api): config-gated Sentry error tracking
+- feat(client): config-gated Sentry error tracking
+- feat(web): config-gated Sentry error tracking
+
+Related ADR:
+- docs/adr/ADR-0129-sentry-error-tracking.md
+
+### TASK-229 — Ротация docker-логов + healthchecks web/client (compose)
+
+Status: DONE
+Branch: chore/compose-log-rotation-healthchecks
+PR: #331
+
+Files changed:
+- docker-compose.yml
+- docker-compose.prod.yml
+- deploy/install-docker.sh
+- docs/adr/ADR-0127-docker-log-rotation-healthchecks.md
+
+Summary:
+- x-logging anchor (json-file, max-size 20m, max-file 5) на все сервисы prod-overlay; staging наследует. P0 №3 DevOps-аудита: без ротации логи забивали диск VPS.
+- install-docker.sh идемпотентно пишет /etc/docker/daemon.json с той же ротацией на новых серверах (существующий log-driver не затирает).
+- healthcheck для web (3000) и client (3001) в базовом compose по образцу api (node fetch): повисший Next.js виден как unhealthy.
+
+Commit messages:
+- chore(deploy): add docker log rotation and web/client healthchecks
+
+Related ADR:
+- docs/adr/ADR-0127-docker-log-rotation-healthchecks.md
+
+### TASK-231 — GET /api/v1/health проверяет PostgreSQL и Redis
+
+Status: DONE
+Branch: feat/api-deep-healthcheck
+PR: #332
+
+Files changed:
+- apps/api/src/health/health.controller.ts
+- apps/api/src/health/health.controller.spec.ts
+- docs/adr/ADR-0128-deep-health-endpoint.md
+
+Summary:
+- Health-эндпоинт вместо статического {status:'ok'} параллельно проверяет PG (SELECT 1 через Prisma) и Redis (PING), пробы с таймаутом 2с. Отказ любой зависимости → 503 с checks{database,redis}; прежние поля ответа сохранены. P0 №5 аудита («слепой прод»).
+- @nestjs/terminus сознательно не подключён (~30 строк без новой зависимости, см. ADR).
+- Полный jest-сьют api: 99 сьютов / 842 теста зелёные; openapi без дрифта.
+
+Commit messages:
+- feat(api): health endpoint verifies postgres and redis
+
+Related ADR:
+- docs/adr/ADR-0128-deep-health-endpoint.md
+
 ## 2026-07-04
+
+### TASK — Гейт «Контактные данные» в /sell/new + Имя/Фамилия в профиле (client)
+
+Status: DONE
+Branch: feature/client-profile-required-gate
+PR: #321 (https://github.com/FounderDAO/avino/pull/321)
+
+Files changed:
+- apps/client/src/lib/profile-complete.ts (+ test)
+- apps/client/src/features/listing-new/ContactDetailsGate.tsx (+ test)
+- apps/client/src/features/listing-new/ListingNew.tsx (+ test)
+- apps/client/src/features/account/Profile.tsx
+- apps/client/messages/{ru,uz,en}.json
+
+Summary:
+- Клиентская половина ADR-0125 (backend — PR #320). Предикат
+  `isProfileCompleteForListing` — зеркало backend-гейта: имя/фамилия
+  trim-непустые, телефон = `contact_phone || phone`.
+- Визард /sell/new: вошедшему с неполным профилем вместо шагов рендерится
+  экран «Контактные данные» (предзаполнен), сохранение →
+  `PATCH /users/me/profile` → инвалидация Auth → getMe перечитывается →
+  гейт исчезает сам. Телефон в `contact_phone` без OTP (осознанно).
+- Гочи, пойманные ревью: гейт показывается только при `currentUser &&
+  !profileComplete` (isAuthenticated синхронен из токена, getMe асинхронен —
+  иначе мигание у полных профилей); форма с префиллом обязана ре-синкаться
+  useEffect'ом по [user].
+- Страховка: 422 PROFILE_INCOMPLETE от createListing → локализованный текст.
+- /account/profile: «Имя» разбито на «Имя»+«Фамилия» (first/last_name);
+  при сохранении `display_name: null` — публичное имя становится производным
+  (buildContact: displayName ?? first+last), иначе display_name из Google
+  перекрывал бы правки.
+- Тесты 427 passed / 2 предсущ. LoginModal; финальное ревью Ready to merge.
+
+Commit messages:
+- feat(client): isProfileCompleteForListing predicate (ADR-0125 mirror)
+- feat(client): ContactDetailsGate form + contactGate i18n (ru/uz/en)
+- fix(client): re-sync ContactDetailsGate form when getMe loads after mount
+- feat(client): profile completeness gate in /sell/new wizard + PROFILE_INCOMPLETE error text
+- feat(client): split profile name into first/last name fields
+- fix(client): don't flash profile gate before getMe resolves on /sell/new
+
+Related ADR:
+- docs/adr/ADR-0125-listing-requires-complete-profile.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-07-04-listing-profile-required-design.md
+- docs/superpowers/plans/2026-07-04-client-profile-required-gate.md
+
+### TASK — 422 PROFILE_INCOMPLETE на создание объявления без полного профиля (api)
+
+Status: DONE
+Branch: feature/api-listing-profile-required
+PR: #320 (https://github.com/FounderDAO/avino/pull/320)
+
+Files changed:
+- apps/api/src/common/dto/error-response.dto.ts
+- apps/api/src/listings/listings.service.ts (+ spec)
+- apps/api/openapi.public.json, apps/api/openapi.internal.json (regen, diff пуст)
+- docs/API.md, docs/adr/ADR-0125-listing-requires-complete-profile.md
+
+Summary:
+- `POST /api/v1/listings` → `422 { code: PROFILE_INCOMPLETE }`, если у автора
+  не заполнены Имя/Фамилия/Телефон (ADR-0125). `ensureProfileComplete()`
+  первой строкой `create()`, до транзакции.
+- Предикат: `first_name`/`last_name` trim-непустые; телефон =
+  `profile.contact_phone?.trim() || user.phone?.trim()` — тот же фолбэк, что
+  в публичном buildContact. Вход по телефону → дозаполнить только имя;
+  Google-вход → как правило только телефон.
+- Гейтится ТОЛЬКО создание; редактирование/статусы/медиа не блокируются.
+  Миграций нет — поля существовали.
+- Тесты: 836 passed / 98 suites (6 новых), lint 0 errors, tsc clean.
+
+Commit messages:
+- feat(listings): require complete profile (name+phone) to create a listing
+- docs(listings): ADR-0125 complete profile required + API.md errors, spec/plans
+
+Related ADR:
+- docs/adr/ADR-0125-listing-requires-complete-profile.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-07-04-listing-profile-required-design.md
+- docs/superpowers/plans/2026-07-04-api-listing-profile-required.md
+
+### TASK — Красные пины карты для всех SALE-объявлений (client)
+
+Status: DONE
+Branch: fix/map-sale-pins-red
+PR: #319 (https://github.com/FounderDAO/avino/pull/319)
+
+Files changed:
+- apps/client/src/features/map/MapView.tsx
+
+Summary:
+- Все объявления с `deal_type=SALE` теперь рисуются на карте красными пинами
+  (раньше цвет зависел от промо-тира и продажа визуально не отличалась от аренды).
+- Точечный фикс пресета плейсмарка в `MapView`; аренда и кластеры без изменений.
+
+Commit messages:
+- fix(client): red map pins for all SALE listings
+
+### TASK — Дефолт display-валюты USD вместо UZS (client)
+
+Status: DONE
+Branch: fix/currency-default-usd
+PR: #318 (https://github.com/FounderDAO/avino/pull/318)
+
+Files changed:
+- apps/client/src/store/currencySlice.ts (+ test)
+- apps/client/src/store/StoreProvider.tsx
+- docs/adr/ADR-0093-currency-display-exchange-rate.md
+
+Summary:
+- Симптом: в шапке выбран «сум», а цены показываются в $ — SSR-дефолт слайса
+  (UZS) расходился с localStorage до гидратации шапки.
+- Фикс в `currencySlice`: дефолт display-валюты = USD; гидратация из
+  localStorage как раньше, явный выбор пользователя уважается.
+- Вариант с cookie-SSR отвергнут — он динамизировал бы весь портал
+  (см. ADR-0093, обновлён).
+
+Commit messages:
+- fix(client): default display currency USD instead of UZS
+
+Related ADR:
+- docs/adr/ADR-0093-currency-display-exchange-rate.md
+
+### TASK — Zillow map mode: viewport-поиск на /search, pin preview, унификация /map (client)
+
+Status: DONE
+Branch: feature/client-search-map-viewport
+PR: #317 (https://github.com/FounderDAO/avino/pull/317)
+
+Files changed:
+- apps/client/src/features/map/useViewportSearch.ts (+ test)
+- apps/client/src/features/map/MapPreviewCard.tsx (+ test)
+- apps/client/src/features/map/MapView.tsx
+- apps/client/src/features/map/MapSearch.tsx
+- apps/client/src/features/search/SearchResults.tsx
+- apps/client/src/app/[locale]/search/page.tsx
+- apps/client/src/lib/api/listings.ts
+- apps/client/src/lib/geo.ts (+ geo-bounds.test.ts, search-paths.test.ts)
+- apps/client/src/store/api/searchApi.ts
+- docs/adr/ADR-0124-search-viewport-driven-map.md
+
+Summary:
+- `/search` переведён на Zillow-режим: список справа управляется видимой
+  областью карты (ADR-0124). Хук `useViewportSearch` — гео-приоритет
+  (polygon > bounds > обычный поиск) + guard от out-of-order ответов bounds.
+- `MapView`: флаг пользовательского жеста (drag/zoom vs программный
+  `setBounds`, включая `pointercancel`) + восстановление `initialBounds`.
+- bbox сохраняется в URL через shallow `replaceState` (НЕ `router.replace` —
+  чтобы не перерендеривать всю страницу на каждый сдвиг карты).
+- Общий `MapPreviewCard` — превью объявления при клике на пин; `/map`
+  унифицирован на тот же хук и карточку (дублирование убрано).
+- Попутный фикс: гео-эндпоинты (`bounds`/`polygon`/`radius`) теперь получают
+  полный набор фильтров Фазы 2 + SSR-фетч первой страницы по bounds.
+- Refetch списка при очистке нарисованной территории.
+
+Commit messages:
+- feat(client): add bbox URL helpers for viewport search
+- fix(client): pass full phase-2 filters to geo search endpoints, add SSR bounds fetch
+- feat(client): MapView user-gesture flag and initialBounds restore
+- fix(client): handle pointercancel in MapView gesture detection
+- feat(client): shared MapPreviewCard overlay for map pin preview
+- feat(client): useViewportSearch hook — Zillow viewport mode with geo-priority
+- fix(client): guard useViewportSearch against out-of-order bounds responses
+- feat(client): Zillow viewport search on /search — map-driven list, pin preview, bbox in URL
+- refactor(client): unify /map on useViewportSearch and MapPreviewCard
+- fix(client): refetch viewport listings on territory clear in /search
+- docs(adr): viewport-driven search on /search (Zillow map mode)
+
+Related ADR:
+- docs/adr/ADR-0124-search-viewport-driven-map.md
+
+Related spec/plan:
+- docs/superpowers/specs/2026-07-04-search-map-viewport-zillow-design.md
+- docs/superpowers/plans/2026-07-04-search-map-viewport-zillow.md
+
+### TASK — Скрыть варианты санузлов 2.5/3.5 в формах создания/редактирования (client)
+
+Status: DONE
+Branch: fix/wizard-hide-half-bath-options
+PR: #316 (https://github.com/FounderDAO/avino/pull/316)
+
+Files changed:
+- apps/client/src/features/listing-new/ListingNew.tsx
+- apps/client/src/features/listing-edit/ListingEdit.tsx
+
+Summary:
+- Из селекта «Санузлы» визарда `/sell/new` и формы редактирования убраны
+  дробные значения 2.5/3.5 — для рынка Узбекистана половинные санузлы
+  не актуальны. Фильтр поиска (bathrooms, ADR-0108) не тронут.
+
+Commit messages:
+- fix(client): hide 2.5/3.5 bathroom options in create/edit listing forms
 
 ### TASK — Toast-уведомления клиента: sonner + глобальный перехват ошибок мутаций (client)
 
@@ -5636,3 +6649,127 @@ Related ADR:
 Related spec/plan:
 - docs/superpowers/specs/2026-06-29-legal-consent-modal-design.md
 - docs/superpowers/plans/2026-06-29-client-legal-consent-modal.md
+
+## 2026-07-05
+
+### TASK-226 — Fix: /search/bounds на боксе «весь мир» возвращает 0
+
+Status: DONE
+Branch: fix/api-search-bounds-full-extent
+PR: #323
+
+Files changed:
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/search.service.geo.int-spec.ts
+
+Summary:
+- Баг из заявки мобильного клиента (BACKEND-REQUESTS.md 04.07.2026, п.3): bbox
+  полного экстента (sw=-85,-180 / ne=85,180) давал total: 0.
+- Причина: каст planar-envelope к geography в GIST-префильтре
+  `location && envelope::geography` — при ширине ≥ 180° по долготе рёбра-дуги
+  больших кругов «коротким путём» вырождают/инвертируют полигон (при 360°
+  горизонтальные рёбра нулевой длины), префильтр отбрасывал всё.
+- Фикс: хелпер boundsPrefilterSql — широкий bbox чанкуется на куски ≤ 90° по
+  долготе, префильтр = OR по кускам (GIST bitmap-OR, индекс сохраняется);
+  точный ST_Within(location::geometry, envelope) не менялся.
+- TDD: red-тест падал ровно с total: 0; 3 новых int-spec кейса (полный экстент,
+  span 200°, span ровно 180°), геосьют 11/11 на живом PostGIS.
+
+Commit messages:
+- fix(search): handle wide/full-extent bbox in /search/bounds
+
+Related ADR:
+- нет (точечный багфикс в рамках принятых решений bounds-поиска)
+
+Related plan:
+- docs/superpowers/plans/2026-07-04-search-bounds-full-extent-fix.md
+
+### TASK-225 — Эндпоинт кластеризации карты GET /api/v1/search/clusters
+
+Status: DONE
+Branch: feature/api-search-clusters
+PR: #324
+
+Files changed:
+- apps/api/src/search/dto/clusters.dto.ts
+- apps/api/src/search/search.service.ts
+- apps/api/src/search/search.controller.ts
+- apps/api/src/search/search.service.spec.ts
+- apps/api/src/search/search.service.geo.int-spec.ts
+- apps/api/openapi.public.json
+- apps/api/openapi.internal.json
+- docs/adr/ADR-0126-search-clusters-endpoint.md
+- docs/API.md
+
+Summary:
+- Заявка мобильного клиента (BACKEND-REQUESTS.md 04.07.2026, п.1): агрегирующий
+  эндпоинт для широких зумов карты (схема Zillow/Airbnb), чтобы видеть ВСЕ
+  10 000+ объявлений кластерами.
+- GET /api/v1/search/clusters?sw_lat&sw_lng&ne_lat&ne_lng&zoom&<фильтры /search>
+  → { data: [{ latitude, longitude, count, min_price, avg_price }], currency }.
+- Сетка GROUP BY ST_SnapToGrid, шаг 360/2^zoom/8; координата кластера — центроид
+  точек ячейки; все фильтры §9 через buildWhereSql; bbox — чанкованный префильтр
+  из TASK-226 + ST_Within; цены FX-нормализуются к currency (default USD) по
+  курсу ЦБУ (деградация к сырой цене без курса, паттерн ADR-0117); LIMIT 2000.
+- В docs/API.md заменён устаревший «Planned»-placeholder с неотгруженной формой
+  ответа. Гоча реализации: ST_SnapToGrid (2-арг) снапит к БЛИЖАЙШЕМУ узлу
+  абсолютной сетки — фикстура на границе бина сплитится (int-spec low-zoom
+  использует zoom 4).
+- Тесты: юнит clusterCellSizeDeg (halving-инвариант), 5 int-spec кейсов
+  (слияние/сплит/фильтры/полный экстент/пустой результат), геосьют 16/16.
+
+Commit messages:
+- feat(search): add map clusters aggregation endpoint
+- docs(adr): add ADR-0126 search clusters endpoint
+- test(search): cover empty-result contract of /search/clusters
+
+Related ADR:
+- docs/adr/ADR-0126-search-clusters-endpoint.md
+
+Related plan:
+- docs/superpowers/plans/2026-07-04-search-clusters-endpoint.md
+
+## 2026-07-21
+
+### TASK-Amenities-Admin-UI — CRUD-экран справочника удобств в админке (Task 6)
+
+Status: DONE
+Branch: feat/admin-amenities-ui
+PR: #421
+
+Files changed:
+- apps/web/src/store/api/adminAmenitiesApi.ts
+- apps/web/src/components/admin/AmenityFormModal.tsx
+- apps/web/src/app/admin/amenities/page.tsx
+- apps/web/src/components/admin/icons.tsx
+- apps/web/src/components/admin/Sidebar.tsx
+
+Summary:
+- Финальный шаг (Task 6) экосистемы динамического справочника удобств (ADR-0111):
+  бэкенд admin CRUD /admin/amenities и публичный GET /amenities уже в main (#420),
+  apps/client переведён на динамический справочник — не хватало экрана
+  администрирования. Раньше править удобства можно было только через curl.
+- Экран /admin/amenities (apps/web): список (активные + скрытые, без пагинации,
+  сортировка с бэка sort_order asc/code asc), создание, переименование
+  label_ru/uz/en, порядок, скрыть/показать инлайн-тумблером (soft-delete-only,
+  PATCH { is_active }). Пункт «Удобства» в группе «Система» сайдбара.
+- RTK-слайс adminAmenitiesApi (inject в adminApi, тег Admin), модалка create/edit
+  по образцу CreateUserModal; ошибки AMENITY_CODE_TAKEN (409) / VALIDATION_ERROR
+  (400) маппятся через getApiErrorCode.
+- Гоча: admin-DTO удобств принимает тело в snake_case
+  (label_ru/label_uz/label_en/code/sort_order/is_active) — сверено по
+  openapi.internal.json, это НЕ camelCase как adminBroadcastsApi. code неизменяем
+  (UpdateAmenityDto его не содержит), на edit показан read-only.
+- Границы соблюдены: изменения только в apps/web. Проверки зелёные: tsc, lint
+  (next lint — 0 warnings), vitest (8 passed), next build (маршрут
+  /admin/amenities собрался).
+
+Commit messages:
+- feat(web): admin CRUD-экран справочника удобств
+
+Related ADR:
+- docs/adr/ADR-0111-listing-amenities.md (покрывает; новый ADR не требуется —
+  фронт-слайс под существующей конвенцией RTK Query, CLAUDE.md §6)
+
+Related spec:
+- docs/superpowers/specs/2026-07-21-admin-amenities-dictionary-design.md

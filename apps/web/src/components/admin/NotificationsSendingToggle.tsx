@@ -10,6 +10,7 @@ import {
   useGetNotificationSettingsQuery,
   useUpdateNotificationSettingsMutation,
 } from '@/store/api/adminNotificationSettingsApi';
+import { Switch } from '@/components/admin/ui/switch';
 
 export function NotificationsSendingToggle() {
   const { data, isLoading } = useGetNotificationSettingsQuery();
@@ -21,10 +22,7 @@ export function NotificationsSendingToggle() {
 
   return (
     <>
-      <div
-        className="a-card"
-        style={{ padding: 24, maxWidth: 640, marginTop: 18 }}
-      >
+      <div className="a-card" style={{ padding: 24 }}>
         <div
           className="row gap-16"
           style={{ alignItems: 'center', justifyContent: 'space-between' }}
@@ -38,23 +36,16 @@ export function NotificationsSendingToggle() {
               → письма не отправляются. Без пересборки.
             </div>
           </div>
-          <button
-            type="button"
-            className={emailEnabled ? 'abtn abtn-primary' : 'abtn abtn-outline'}
+          <Switch
+            checked={emailEnabled}
             disabled={isLoading || isSaving}
-            onClick={() =>
-              void update({ emailEnabled: !emailEnabled })
-            }
-          >
-            {isLoading ? '…' : emailEnabled ? 'Включено' : 'Выключено'}
-          </button>
+            onChange={() => void update({ emailEnabled: !emailEnabled })}
+            label="Email-уведомления"
+          />
         </div>
       </div>
 
-      <div
-        className="a-card"
-        style={{ padding: 24, maxWidth: 640, marginTop: 18 }}
-      >
+      <div className="a-card" style={{ padding: 24 }}>
         <div
           className="row gap-16"
           style={{ alignItems: 'center', justifyContent: 'space-between' }}
@@ -68,16 +59,12 @@ export function NotificationsSendingToggle() {
               Выключение → push не отправляются. Без пересборки.
             </div>
           </div>
-          <button
-            type="button"
-            className={pushEnabled ? 'abtn abtn-primary' : 'abtn abtn-outline'}
+          <Switch
+            checked={pushEnabled}
             disabled={isLoading || isSaving}
-            onClick={() =>
-              void update({ pushEnabled: !pushEnabled })
-            }
-          >
-            {isLoading ? '…' : pushEnabled ? 'Включено' : 'Выключено'}
-          </button>
+            onChange={() => void update({ pushEnabled: !pushEnabled })}
+            label="Push-уведомления (моб. приложение)"
+          />
         </div>
       </div>
     </>

@@ -33,6 +33,13 @@ export class ListAdminListingsQueryDto {
   @IsEnum(TransactionType)
   transaction_type?: TransactionType;
 
+  /** Точный поиск по короткому номеру объявления (`listings.reference`, ADR-0137). */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  reference?: number;
+
   /** Свободный текстовый поиск по заголовкам переводов (case-insensitive). */
   @IsOptional()
   @IsString()

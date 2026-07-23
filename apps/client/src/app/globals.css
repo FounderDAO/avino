@@ -58,6 +58,7 @@
   --surface-2: #fbf9f5; /* subtle raised / alt surface */
   --red: #e03c42; /* primary brand */
   --red-press: #c7333a; /* pressed / darken */
+  --orange: #f2820b; /* аренда: пины карты (продажа — красный) */
   --ink: #1a1a1a; /* фикс-бренд: тёмные поверхности (футер, CTA, сайдбар админки) */
   --ink-soft: #2a2823;
   --teal-deep: #0f636a; /* hover ссылок */
@@ -83,6 +84,9 @@
 
   /* ---- Layout ---- */
   --header-h: 68px;
+  /* Фактическая высота фильтр-бара /search (py-3 + пилюли + border-b). При
+     правке FilterBar перемерить: сплит /search считает высоту от неё. */
+  --filterbar-h: 69px;
 }
 
 .dark {

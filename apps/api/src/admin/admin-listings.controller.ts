@@ -20,12 +20,16 @@ import { ListAdminListingsQueryDto } from '../moderation/dto/list-admin-listings
 import { ModerateListingDto } from '../moderation/dto/moderate-listing.dto';
 import {
   AdminListingListItem,
+  AdminListingOwner,
   ModerationLogResponse,
   ModerationResultResponse,
   ModerationService,
   PaginatedResponse,
 } from '../moderation';
 import {
+  GenerateTranslationsDto,
+  GenerateTranslationsResponse,
+  GenerateTranslationsResult,
   ListingAutoTranslator,
   ListingTranslationsResponse,
   TranslationsService,
@@ -76,14 +80,35 @@ export class AdminListingsController {
     return this.moderationService.findLogs(listingId);
   }
 
-  /** `POST /api/v1/admin/listings/:id/translations/generate` — синхронная генерация (ADR-0091). */
+  /**
+   * `GET /api/v1/admin/listings/:id/owner` — инлайн-профиль автора (item #6).
+   * Публичная деталь `GET /listings/:id` отдаёт лишь `owner_id`; имя/контакт
+   * автора для админ-детали берём отсюда (доступно MODERATOR и ADMIN).
+   */
+  @Get(':id/owner')
+  findOwner(
+    @Param('id', ParseUUIDPipe) listingId: string,
+  ): Promise<AdminListingOwner> {
+    return this.moderationService.getListingOwner(listingId);
+  }
+
+  /**
+   * `POST /api/v1/admin/listings/:id/translations/generate` — синхронная
+   * генерация (ADR-0091). Тело `{ force? }`: `force=true` перезаписывает даже
+   * правленные вручную целевые языки (оригинал не трогается). Ответ включает
+   * `regenerated`/`skipped`, чтобы UI показал честный результат.
+   */
   @Post(':id/translations/generate')
   async generateTranslations(
     @Param('id', ParseUUIDPipe) listingId: string,
+    @Body() dto: GenerateTranslationsDto,
     @CurrentUser() viewer: AuthenticatedUser,
-  ): Promise<ListingTranslationsResponse> {
+  ): Promise<GenerateTranslationsResponse> {
+    let result: GenerateTranslationsResult;
     try {
-      await this.translator.generateTranslations(listingId);
+      result = await this.translator.generateTranslations(listingId, {
+        force: dto.force,
+      });
     } catch {
       // Сбой внешнего провайдера перевода (Yandex 4xx/5xx) → 502, строки
       // неудачных языков не меняются (ADR-0091, спека §7).
@@ -92,9 +117,10 @@ export class AdminListingsController {
         message: 'Translation provider failed',
       });
     }
-    // Отсутствующий/DELETED листинг: generateTranslations молча выходит, а
-    // listByListing бросит 404 — единый путь not-found.
-    return this.translations.listByListing(listingId, viewer);
+    // Отсутствующий/DELETED листинг: generateTranslations молча выходит (пустой
+    // result), а listByListing бросит 404 — единый путь not-found.
+    const translations = await this.translations.listByListing(listingId, viewer);
+    return { ...translations, ...result };
   }
 
   /** `PATCH /api/v1/admin/listings/:id/translations/:language` — ручная правка (ADR-0091). */

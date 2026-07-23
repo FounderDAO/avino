@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { NotificationsModule } from '../notifications';
+import { RealtimeModule } from '../realtime';
 import { RolesModule } from '../roles';
 import { SearchModule } from '../search';
+import { UploadsModule } from '../uploads';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 
@@ -12,10 +14,17 @@ import { ChatService } from './chat.service';
  * (TASK-044); `SearchModule` — {@link SearchService.cardsByIds} для `listing_preview`
  * в карточках тредов «как в /search» (API.md §13); `NotificationsModule` —
  * {@link NotificationsService.queueChatMessage} для `NEW_CHAT_MESSAGE` при отправке
- * сообщения. Prisma — глобальный модуль, импорт не нужен.
+ * сообщения; `RealtimeModule` — {@link RealtimeEmitter} для WebSocket-пуша
+ * получателю после отправки сообщения. Prisma — глобальный модуль, импорт не нужен.
  */
 @Module({
-  imports: [RolesModule, SearchModule, NotificationsModule],
+  imports: [
+    RolesModule,
+    SearchModule,
+    NotificationsModule,
+    UploadsModule,
+    RealtimeModule,
+  ],
   controllers: [ChatController],
   providers: [ChatService],
   exports: [ChatService],

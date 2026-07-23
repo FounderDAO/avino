@@ -1,5 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import { AgentApplicationsModule } from '../../agent-applications';
+import { AgentsModule } from '../../agents';
+import { AmenitiesModule } from '../../amenities';
 import { AuthModule } from '../../auth/auth.module';
 import { ChatModule } from '../../chat';
 import { ComplaintsModule } from '../../complaints';
@@ -7,6 +10,7 @@ import { ExchangeRateModule } from '../../exchange-rates/exchange-rate.module';
 import { FavoritesModule } from '../../favorites';
 import { GeoModule } from '../../geo';
 import { HealthModule } from '../../health/health.module';
+import { LegalDocumentsModule } from '../../legal-documents';
 import { ListingMediaModule } from '../../listing-media';
 import { ListingsModule } from '../../listings/listings.module';
 import { NotificationsModule } from '../../notifications';
@@ -28,6 +32,9 @@ export const BEARER_SCHEME_NAME = 'bearer';
 /** Модули, контроллеры которых попадают в ПУБЛИЧНЫЙ документ (без admin/*). */
 export const PUBLIC_MODULES = [
   AuthModule,
+  AgentApplicationsModule,
+  AgentsModule,
+  AmenitiesModule,
   UsersModule,
   TranslationsModule,
   ListingsModule,
@@ -43,6 +50,7 @@ export const PUBLIC_MODULES = [
   ExchangeRateModule,
   HealthModule,
   SettingsModule,
+  LegalDocumentsModule,
 ];
 
 /**
@@ -53,6 +61,8 @@ export const PUBLIC_MODULES = [
  */
 export const PUBLIC_PATH_PREFIXES = [
   '/api/v1/auth',
+  '/api/v1/agents',
+  '/api/v1/amenities',
   '/api/v1/users',
   '/api/v1/translations',
   '/api/v1/listings', // покрывает и /listings/{id}/media
@@ -67,6 +77,7 @@ export const PUBLIC_PATH_PREFIXES = [
   '/api/v1/exchange-rate',
   '/api/v1/health',
   '/api/v1/settings', // покрывает /api/v1/settings/public (admin/* остаётся в internal)
+  '/api/v1/legal',
 ];
 
 /** Базовая конфигурация документа (заголовок, версия, bearer-схема). */

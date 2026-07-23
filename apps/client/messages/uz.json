@@ -9,6 +9,7 @@
     "error": "Xatolik yuz berdi",
     "addToFavorites": "Saralanganlarga qo'shish",
     "removeFromFavorites": "Saralanganlardan olib tashlash",
+    "loginToFavorite": "Saralanganlarga qo'shish uchun tizimga kiring",
     "close": "Yopish",
     "previous": "Orqaga",
     "next": "Oldinga",
@@ -22,7 +23,7 @@
   "nav": {
     "buy": "Sotib olish",
     "rent": "Ijara",
-    "newBuildings": "Yangi binolar",
+    "newConstruction": "Yangi qurilish",
     "map": "Xarita",
     "sell": "Sotish",
     "help": "Yordam",
@@ -34,6 +35,8 @@
     "logout": "Chiqish",
     "postListing": "E'lon berish",
     "postListingFull": "E'lon joylashtirish",
+    "becomeAgent": "Agent bo'lish",
+    "becomeAgentPending": "Ariza ko'rib chiqilmoqda — qarorni kuting",
     "menu": "Menyu",
     "close": "Yopish",
     "logoAria": "Avino — bosh sahifaga",
@@ -61,7 +64,7 @@
     "forBuyers": "Xaridorlarga",
     "buy": "Sotib olish",
     "rent": "Ijaraga olish",
-    "newBuildings": "Yangi binolar",
+    "newConstruction": "Yangi qurilish",
     "mortgage": "Ipoteka",
     "forProfessionals": "Mutaxassislarga",
     "postProperty": "Obyekt joylash",
@@ -75,6 +78,115 @@
     "slogan": "O'zbekistonning milliy ko'chmas mulk portali. Butun mamlakat bo'ylab uy-joy sotib olish va ijaraga olish.",
     "copyright": "© 2026 Avino · www.avino.uz · Support@avino.uz",
     "location": "Toshkent, O'zbekiston · Valyuta: so'm / $"
+  },
+  "about": {
+    "meta": {
+      "title": "Avino haqida — O'zbekiston ko'chmas mulki",
+      "description": "Avino — O'zbekiston ko'chmas mulk platformasi. Bizning missiyamiz, qadriyatlarimiz va biz kimlar uchun ishlaymiz: xaridorlar, mulkdorlar va agentlar butun mamlakat bo'ylab."
+    },
+    "hero": {
+      "badge": "Kompaniya haqida",
+      "title": "O'zbekiston ko'chmas mulki — sodda, halol, zamonaviy",
+      "subtitle": "Avino butun O'zbekiston bo'ylab uy topish, sotish va ijaraga berishga yordam beradi — uch tilda va ortiqcha vositachilarsiz.",
+      "cta": "Biz bilan bog'laning",
+      "note": "Ish kuni davomida javob beramiz"
+    },
+    "story": {
+      "title": "Avino'ni nega yaratdik",
+      "lead": "O'zbekistonda uy topish hali ham kerakidan ko'ra qiyinroq.",
+      "p1": "E'lonlar o'nlab chatlar va e'lon doskalariga tarqalgan, narxlar shaffof emas, xaridor bilan mulkdor o'rtasida esa ko'pincha vositachilar zanjiri turadi. Biz bozorni bitta — tushunarli, halol va qulay joyda jamlashga qaror qildik.",
+      "p2": "Avino — bu zamonaviy platforma bo'lib, unda har kim o'zi kvartira, uy yoki tijorat mulkini topishi, to'g'ridan-to'g'ri bog'lanishi va to'liq ma'lumotga tayanib qaror qabul qilishi mumkin. Biz uni butun mamlakat uchun va har kimga qulay tilda quramiz."
+    },
+    "numbers": {
+      "title": "Avino bugun",
+      "subtitle": "Butun O'zbekiston uchun o'sib borayotgan ko'chmas mulk platformasi",
+      "countryTitle": "Butun mamlakat",
+      "countryText": "Toshkent va O'zbekistonning barcha hududlari",
+      "listingsTitle": "Minglab e'lonlar",
+      "listingsText": "Kvartiralar, uylar, yer uchastkalari va tijorat",
+      "agentsTitle": "Tekshirilgan agentlar",
+      "agentsText": "Bozor mutaxassislari yoningizda",
+      "langsTitle": "Uch til",
+      "langsText": "Rus, o'zbek va ingliz tillari"
+    },
+    "values": {
+      "title": "Bizning qadriyatlarimiz",
+      "subtitle": "Avino'ni quradigan tamoyillar",
+      "honestTitle": "Halollik va shaffoflik",
+      "honestText": "Haqiqiy e'lonlar, dolzarb narxlar va mulkdor yoki agent bilan to'g'ridan-to'g'ri aloqa — yashirin shartlarsiz.",
+      "coverageTitle": "Butun mamlakat bo'ylab qamrov",
+      "coverageText": "Poytaxtdan hududlargacha: butun O'zbekiston ko'chmas mulki uchun yagona platforma.",
+      "techTitle": "Zamonaviy texnologiyalar",
+      "techText": "Aqlli qidiruv, xarita, saqlangan filtrlar va bildirishnomalar — uyni istalgan qurilmadan topish qulay."
+    },
+    "audience": {
+      "title": "Avino kimlar uchun",
+      "subtitle": "Biz bozorning barcha ishtirokchilari uchun ishlaymiz",
+      "buyersTitle": "Xaridorlar va ijarachilar",
+      "buyersText": "Uyni xarita va filtrlar bo'yicha qidiring, qidiruvlarni saqlang va to'g'ridan-to'g'ri bog'laning.",
+      "ownersTitle": "Mulkdorlar va sotuvchilar",
+      "ownersText": "E'lonni bir necha daqiqada joylashtiring va qiziqqan odamlardan murojaatlar oling.",
+      "agentsTitle": "Agentlar va agentliklar",
+      "agentsText": "E'lonlarni yuriting, mijozlar toping va o'z biznesingizni Avino'da rivojlantiring."
+    },
+    "contact": {
+      "title": "Savol yoki taklifingiz bormi?",
+      "text": "Bizga yozing — fikr-mulohazalaringizdan doim mamnunmiz. Telefon keyinroq paydo bo'ladi, hozircha aloqa email va Telegram orqali.",
+      "emailLabel": "Email",
+      "telegramLabel": "Telegram",
+      "postCta": "E'lon joylashtirish",
+      "agentCta": "Agent bo'lish"
+    }
+  },
+  "advertise": {
+    "meta": {
+      "title": "Avinoda reklama — biznes va brendlar uchun",
+      "description": "Brendingizni Avino auditoriyasiga taqdim eting — O'zbekiston bo'ylab ko'chmas mulk xaridorlari va ijarachilariga. Reklama formatlari va aloqa."
+    },
+    "hero": {
+      "badge": "Avino Ads",
+      "title": "Avinoda reklama",
+      "subtitle": "Mahsulotingizni har kuni O'zbekistonda uy-joy qidirayotgan minglab odamga ko'rsating — uch tilda, barcha hududlarda.",
+      "cta": "Biz bilan bog'laning",
+      "note": "Ish kuni davomida javob beramiz"
+    },
+    "why": {
+      "title": "Nega Avino",
+      "subtitle": "Reklamangiz uchun O'zbekistondagi yetakchi ko'chmas mulk platformasi",
+      "audienceTitle": "Aniq auditoriya",
+      "audienceText": "Foydalanuvchilarimiz uy, ipoteka va ko'chishni tanlaydi — quruvchilar, banklar, ta'mirlash va tegishli xizmatlar uchun ideal payt.",
+      "reachTitle": "Butun O'zbekiston bo'ylab qamrov",
+      "reachText": "Toshkent va barcha hududlar, rus, o'zbek va ingliz tillaridagi interfeys — xabaringiz kerakli joyga yetib boradi.",
+      "premiumTitle": "Premium formatlar",
+      "premiumText": "Bannerlardan brend maxsus loyihalarigacha — formatni maqsad va byudjetingizga moslaymiz."
+    },
+    "formats": {
+      "title": "Reklama formatlari",
+      "subtitle": "Vazifangizni hal qiladiganini tanlang",
+      "bannerTitle": "Bannerlar",
+      "bannerText": "Bosh sahifada, qidiruvda va e'lon sahifalarida ko'zga tashlanadigan reklama bloklari.",
+      "featuredTitle": "Maxsus joylashtirish",
+      "featuredText": "E'lonlarni qidiruv tepasiga chiqarish va eng ko'p e'tibor uchun TOP/VIP statuslari.",
+      "brandTitle": "Brend bloklari",
+      "brandText": "Logotip va taklifingiz tematik bo'limlarda — ipoteka, yangi binolar, xizmatlar.",
+      "specialTitle": "Maxsus loyihalar",
+      "specialText": "Individual integratsiyalar va kalit topshirish kampaniyalari — g'oyani birga ishlab chiqamiz."
+    },
+    "steps": {
+      "title": "Qanday boshlash",
+      "step1Title": "Bizga yozing",
+      "step1Text": "Vazifangizni email yoki Telegram orqali yozing — bir-ikki jumla yetarli.",
+      "step2Title": "Format tanlaymiz",
+      "step2Text": "Maqsad va byudjetingizga mos joylashtirish va shartlarni taklif qilamiz.",
+      "step3Title": "Ishga tushiramiz",
+      "step3Text": "Materiallarni kelishib, kampaniyani boshlaymiz."
+    },
+    "contact": {
+      "title": "Reklama joylashtirishga tayyormisiz?",
+      "text": "Bizga yozing — vazifangiz uchun format va shartlarni muhokama qilamiz. Telefon keyinroq paydo bo'ladi, hozircha email va Telegram orqali bog'laning.",
+      "emailLabel": "Email",
+      "telegramLabel": "Telegram"
+    }
   },
   "auth": {
     "title": "Avinoga kirish",
@@ -128,7 +240,7 @@
     "categories": {
       "APARTMENT": "Kvartiralar",
       "HOUSE": "Uylar",
-      "NEW_BUILDING": "Yangi binolar",
+      "NEW_CONSTRUCTION": "Yangi qurilish",
       "COMMERCIAL": "Tijorat obyektlari",
       "LAND": "Yer uchastkalari"
     },
@@ -145,13 +257,14 @@
       "next": "Oldinga"
     },
     "districts": {
-      "title": "Toshkentning mashhur tumanlari",
+      "title": "Toshkentning mashhur joylari",
       "listingsCount": "{count, number} ta e’lon"
     },
     "agents": {
       "title": "Agentlar va agentliklar",
-      "subtitle": "Ishonchli Avino Pro mutaxassislari",
-      "listingsCount": "{count} ta e’lon"
+      "subtitle": "Tasdiqlangan rieltorlar va ko'chmas mulk agentliklari",
+      "listingsCount": "{count, plural, other {# ta e'lon}}",
+      "seeAll": "Barcha agentlar ({count})"
     },
     "cta": {
       "title": "Uy-joy sotyapsizmi yoki ijaraga beryapsizmi?",
@@ -204,6 +317,8 @@
     "metaDescription": "O'zbekistonda uy-joy sotib olish va ijaraga olish: filtrlar, ro'yxat va xarita.",
     "headingSale": "Uy-joy xaridi · {query}",
     "headingRent": "Uy-joy ijarasi · {query}",
+    "headingAgentSale": "Agentdan sotuvda · {name}",
+    "headingAgentRent": "Agentdan ijaraga · {name}",
     "defaultLocation": "Toshkent",
     "filters": {
       "resetAll": "Hammasini tozalash",
@@ -254,6 +369,7 @@
       "saving": "Saqlanmoqda…",
       "saved": "Saqlandi",
       "saveError": "Xatolik",
+      "saveSearchLoginPrompt": "Qidiruvni saqlash va yangi e'lonlar haqida xabar olish uchun tizimga kiring.",
       "listView": "Ro'yxat",
       "mapView": "Xarita",
       "homeType": "Uy-joy turi",
@@ -263,6 +379,8 @@
       "apply": "Qo'llash",
       "areaTitle": "Maydon, m²",
       "yearTitle": "Qurilish yili",
+      "newConstruction": "Yangi qurilish",
+      "newConstructionHint": "Uy so'nggi 3 yil ichida qurilgan yoki hali qurilmoqda",
       "floorTitle": "Qavat",
       "notFirstFloor": "Birinchi qavat emas",
       "notLastFloor": "Oxirgi qavat emas",
@@ -323,7 +441,8 @@
     "gallery": {
       "showAll": "Barcha suratlar",
       "counter": "{current} / {total}",
-      "counterAria": "{total} tadan {current}-surat"
+      "counterAria": "{total} tadan {current}-surat",
+      "seeAllCount": "Barcha {total} suratni ko'rish"
     },
     "meta": {
       "title": "{title} — {price} | Avino",
@@ -336,6 +455,7 @@
     },
     "backToSearch": "Qidiruvga qaytish",
     "addressLine": "{address}, {district} tumani, Toshkent",
+    "referenceLine": "E'lon № {reference}",
     "sections": {
       "description": "Tavsif",
       "features": "Xususiyatlar",
@@ -344,7 +464,8 @@
     },
     "map": {
       "pin": "{district} tumani · {address}",
-      "note": "Aniq joylashuv muallif bilan bog'langandan so'ng ko'rsatiladi."
+      "note": "Aniq joylashuv muallif bilan bog'langandan so'ng ko'rsatiladi.",
+      "openInYandex": "Yandex Xaritalarda ochish"
     },
     "similar": {
       "viewAll": "Barchasini ko'rish"
@@ -355,6 +476,8 @@
       "floor": "Qavat",
       "floorOf": "{floor} / {total}",
       "year": "Qurilgan yili",
+      "propertyType": "Ko'chmas mulk turi",
+      "pricePerSqm": "1 m² narxi",
       "parking": "Avtoturargoh",
       "lotArea": "Uchastka",
       "livingArea": "Turar-joy maydoni",
@@ -371,6 +494,10 @@
       "chatError": "Suhbatni boshlab bo'lmadi",
       "proBadge": "Avino Pro",
       "owner": "Mulk egasi",
+      "badge": {
+        "agent": "Agent",
+        "agency": "Agentlik"
+      },
       "showPhone": "Telefonni ko'rsatish",
       "message": "Yozish",
       "share": "Ulashish",
@@ -389,6 +516,43 @@
     "stats": {
       "viewsAria": "Ko'rishlar soni: {count}",
       "likesAria": "Sevimlilarga qo'shilgan: {count}"
+    }
+  },
+  "agentsCatalog": {
+    "meta": {
+      "title": "Ko'chmas mulk agentlari va agentliklari — Avino",
+      "description": "O'zbekistonning tasdiqlangan ko'chmas mulk agentlari va agentliklari katalogi. Kontaktlar, e'lonlar va ish tajribasi."
+    },
+    "title": "Agentlar va agentliklar",
+    "subtitle": "{count, plural, other {# ta tasdiqlangan agent}}",
+    "showMore": "Yana ko'rsatish",
+    "loadingMore": "Yuklanmoqda…",
+    "empty": "Hozircha agentlar yo'q",
+    "searchPlaceholder": "Ism yoki agentlik bo'yicha qidirish",
+    "sort": {
+      "active": "Avval faollari",
+      "name": "Ism bo'yicha (A–Z)"
+    },
+    "found": "{count, plural, other {# ta agent topildi}}",
+    "noResults": "So'rovingiz bo'yicha agentlar topilmadi",
+    "resetSearch": "Qidiruvni tozalash",
+    "privateAgent": "Xususiy makler",
+    "activeListings": "{count, plural, other {# ta faol e'lon}}",
+    "viewProfile": "Profil",
+    "viewListings": "E'lonlar"
+  },
+  "agentProfile": {
+    "meta": {
+      "title": "{name} — Avino agenti",
+      "notFoundTitle": "Agent topilmadi — Avino"
+    },
+    "privateAgent": "Xususiy makler",
+    "listingsCount": "{count, plural, other {# ta e'lon}}",
+    "about": "O'zi haqida",
+    "empty": "Bu agentda hozircha faol e'lonlar yo'q",
+    "contacts": {
+      "title": "Bog'lanish",
+      "showPhone": "Telefonni ko'rsatish"
     }
   },
   "tourRequest": {
@@ -410,6 +574,48 @@
     "slotTaken": "band",
     "slotTakenError": "Bu vaqt allaqachon band. Boshqa vaqtni tanlang.",
     "close": "Yopish"
+  },
+  "mortgage": {
+    "backToListing": "E’longa qaytish",
+    "title": "Ipoteka kalkulyatori",
+    "estMonthly": "Oyiga ≈ {monthly}",
+    "estCta": "Ipotekani hisoblash",
+    "cardTitle": "Oylik to'lov",
+    "cardEstimateLabel": "Taxminiy",
+    "cardParams": "{downPct}% boshlang'ich · yiliga {rate}% · {years}",
+    "firstPaymentTitle": "Birinchi to'lov tarkibi",
+    "legendInterest": "Foizlar",
+    "legendPrincipal": "Asosiy qarz",
+    "cardCta": "Hisobni sozlash",
+    "salaryLabel": "Oylik maosh",
+    "salarySuffix": "{currency} /oy",
+    "downPaymentLabel": "Boshlang'ich to'lov",
+    "downBreakdown": "{down} boshlang'ich · {loan} kredit",
+    "rateLabel": "Yillik stavka",
+    "termLabel": "Muddat",
+    "yearsValue": "{count, plural, other {# yil}}",
+    "cta": "Hisoblash",
+    "verdictOk": "Byudjetga sig'adi",
+    "verdictNo": "Hozircha sig'maydi",
+    "resultParams": "{years} · yiliga {rate}% · {loan} kredit",
+    "dtiOk": "Oylik to'lov — maoshingizning {pct}%, bank talab qiladigan {limit}% dan past.",
+    "dtiNo": "Oylik to'lov — maoshingizning {pct}%, bank ruxsat bergan {limit}% dan yuqori.",
+    "fixTitle": "Ma'qullanishi uchun",
+    "fixTermText": "{years} muddat bilan to'lov {monthly}/oy bo'ladi (maoshning {pct}%).",
+    "fixTermCta": "{years} bilan hisoblash",
+    "fixDownText": "{pct}% boshlang'ich va 30 yil muddat bilan to'lov {monthly}/oy bo'ladi (maoshning {dti}%).",
+    "fixDownCta": "{pct}% boshlang'ich bilan hisoblash",
+    "fixBudgetText": "Maksimal muddat va boshlang'ich to'lovda ham byudjetga sig'maydi. {price} gacha uylarni ko'ring.",
+    "fixBudgetCta": "{price} gacha uylarni ko'rish",
+    "rowPrice": "Uy narxi",
+    "rowDown": "Boshlang'ich to'lov ({pct}%)",
+    "rowPrincipal": "Kredit summasi",
+    "rowMonthly": "Oylik to'lov",
+    "rowTotal": "Jami to'lovlar ({years})",
+    "rowInterest": "Ortiqcha to'lov (foizlar)",
+    "recalc": "Qayta hisoblash",
+    "noSalary": "Ipotekani hisoblash uchun maoshingizni kiriting.",
+    "disclaimer": "Hisob-kitob dastlabki bo'lib, bank ofertasi hisoblanmaydi."
   },
   "sell": {
     "meta": {
@@ -448,7 +654,8 @@
       "agent": {
         "title": "Avino Pro agenti bilan sotish",
         "text": "Mutaxassis ko'rsatuvlar, muzokaralar va rasmiylashtirishni o'z zimmasiga oladi. Siz vaqtingizni tejaysiz.",
-        "cta": "Agent topish"
+        "cta": "Agent topish",
+        "comingSoon": "Tez orada"
       },
       "rent": {
         "title": "Ijaraga berish",
@@ -481,6 +688,7 @@
       "badge": "Ilgari surish",
       "title": "TOP va VIP bilan tezroq soting",
       "subtitle": "E'lonni qidiruv natijalarida yuqoriga ko'taring va 5 barobargacha ko'proq ko'rishlar oling.",
+      "priceFrom": "{price}dan",
       "top": {
         "text": "Qidiruv ro'yxatida oddiy e'lonlardan yuqorida",
         "price": "50 000 so'mdan"
@@ -571,6 +779,7 @@
       "floor": "Qavat",
       "totalFloors": "Qavatlar soni",
       "yearBuilt": "Qurilgan yili",
+      "yearBuiltHint": "Uy hali qurilayotgan bo'lsa — topshirish rejalashtirilgan yilni kiriting",
       "currency": "Valyuta",
       "currencyUSD": "$ USD",
       "currencyUZS": "so'm UZS",
@@ -607,10 +816,13 @@
     },
     "photoUploader": {
       "dropTitle": "Fotolarni shu yerga tashlang yoki tanlash uchun bosing",
-      "dropHint": "JPG/PNG, 20 tagacha foto. Birinchi foto — muqova.",
+      "dropHint": "JPG, PNG yoki WebP, 10 MB gacha. 20 tagacha foto. Birinchi foto — muqova.",
       "cover": "Muqova",
       "makeCover": "Muqova qilish",
-      "remove": "O'chirish"
+      "remove": "O'chirish",
+      "rejectedType": "{count} ta fayl o‘tkazib yuborildi. Faqat JPG, PNG va WebP qo‘llab-quvvatlanadi — iPhone’dagi HEIC formatini konvertatsiya qilish kerak.",
+      "rejectedSize": "{count} ta fayl o‘tkazib yuborildi. Bitta fotoning hajmi 10 MB dan oshmasligi kerak.",
+      "rejectedLimit": "{count} ta fayl o‘tkazib yuborildi. Ko‘pi bilan {max} ta foto qo‘shish mumkin."
     },
     "map": {
       "marker": "Obyekt nuqtasi",
@@ -645,7 +857,36 @@
     "errors": {
       "loginRequired": "E'lonni chop etish uchun tizimga kiring.",
       "guestHint": "E'lonni chop etish uchun hisobingizga kiring (kirish tugmasi — sahifa yuqorisida).",
-      "profileIncomplete": "E'lon joylash uchun profilda ism, familiya va telefonni to'ldiring."
+      "profileIncomplete": "E'lon joylash uchun profilda ism, familiya va telefonni to'ldiring.",
+      "activeListingLimit": "Faol e'lonlar limitiga yetdingiz. Yangi e'lon joylash uchun mavjudlardan birini e'londan olib tashlang.",
+      "mediaUnsupportedType": "Sababi: qo‘llab-quvvatlanmaydigan format. JPG, PNG yoki WebP yuklang.",
+      "mediaTooLarge": "Sababi: fayl 10 MB dan katta. Foto hajmini kichraytiring.",
+      "mediaLimit": "Sababi: bitta e’longa 20 ta foto chegarasiga yetildi."
+    },
+    "validation": {
+      "title": "Chop etib bo'lmadi. Maydonlarni tekshiring:",
+      "generic": "Maydonlar to'g'ri to'ldirilganini tekshiring va qayta urinib ko'ring.",
+      "networkError": "Server bilan bog'lanib bo'lmadi. Ulanishni tekshiring va qayta urinib ko'ring.",
+      "unknownError": "E'lonni chop etib bo'lmadi. Qayta urinib ko'ring.",
+      "region": "Viloyat",
+      "district": "Tuman",
+      "tourWindow": "Ko'rsatuv vaqti",
+      "reasons": {
+        "default": "qiymatni tekshiring",
+        "price": "to'g'ri narxni kiriting",
+        "area": "maydonni m² da kiriting",
+        "yearBuilt": "kvartira va uylar uchun majburiy",
+        "region": "viloyatni tanlang",
+        "district": "tumanni tanlang"
+      }
+    },
+    "limitModal": {
+      "title": "Faol e'lonlar limitiga yetdingiz",
+      "body": "Jismoniy shaxslar {limit} tagacha faol e'lon joylashi mumkin. Agent sifatida ro'yxatdan o'ting — cheklovsiz e'lon joylang, e'lonlaringizga rieltor belgisi qo'yiladi, profilingiz Avino agentlari ro'yxatiga tushadi.",
+      "bodyNoLimit": "Siz faol e'lonlar limitiga yetdingiz. Agent sifatida ro'yxatdan o'ting — cheklovsiz e'lon joylang, e'lonlaringizga rieltor belgisi qo'yiladi, profilingiz Avino agentlari ro'yxatiga tushadi.",
+      "becomeAgent": "Agent bo'lish",
+      "dismiss": "Tushunarli",
+      "close": "Yopish"
     },
     "auth": {
       "title": "E'lon joylash uchun tizimga kiring",
@@ -660,7 +901,9 @@
       "firstName": "Ism",
       "lastName": "Familiya",
       "phone": "Telefon",
-      "phonePlaceholder": "+998 90 123-45-67",
+      "phonePlaceholder": "+998 90 123 45 67",
+      "phoneHint": "Xaridorlar shu raqamni ko'radi. Uni akkaunt sozlamalarida o'zgartirishingiz mumkin.",
+      "noPhoneHint": "E'lon joylash uchun <link>akkaunt sozlamalarida telefon raqamini qo'shing</link>.",
       "submit": "Davom etish",
       "saving": "Saqlanmoqda…",
       "error": "Ma'lumotlarni saqlab bo'lmadi. Yana urinib ko'ring."
@@ -672,6 +915,57 @@
       "mediaFailures": "{count} ta fotoni yuklab bo'lmadi. E'lon yaratildi — fotolarni keyinroq shaxsiy kabinetda qo'shishingiz mumkin.",
       "myListings": "Mening e'lonlarim",
       "home": "Bosh sahifaga"
+    }
+  },
+  "becomeAgent": {
+    "meta": {
+      "title": "Agent bo'lish — Avino",
+      "description": "Avino agenti bo'lish uchun ariza bering: e'lonlarni cheklovsiz joylang, «rieltor» belgisini oling va agentlar katalogida profilga ega bo'ling."
+    },
+    "title": "Avino agenti bo'lish",
+    "intro": "Agentlar va agentliklar e'lonlarni cheklovsiz joylaydi, ularning e'lonlariga «rieltor» belgisi qo'yiladi, profili esa Avino agentlari katalogida paydo bo'ladi.",
+    "auth": {
+      "title": "Ariza berish uchun tizimga kiring",
+      "text": "«Agent bo'lish» arizasini faqat ro'yxatdan o'tgan foydalanuvchilar bera oladi. Tizimga kiring yoki ro'yxatdan o'ting — bu bir daqiqadan kam vaqt oladi.",
+      "context": "Ariza berish uchun tizimga kiring",
+      "login": "Kirish",
+      "home": "Bosh sahifa"
+    },
+    "alreadyAgent": {
+      "title": "Siz allaqachon Avino agentisiz",
+      "text": "Siz e'lonlarni cheklovsiz joylashingiz mumkin — ularga «rieltor» belgisi qo'yiladi. Profilingiz agentlar katalogida mavjud.",
+      "createListing": "E'lon joylash",
+      "myProfile": "Mening agent profilim"
+    },
+    "loading": "Ariza holati yuklanmoqda…",
+    "pending": {
+      "title": "Ariza ko'rib chiqilmoqda",
+      "text": "Ariza {date} sanasida yuborilgan. Moderator uni odatda bir necha soat ichida ko'rib chiqadi — qaror haqida sizga xabar yuboramiz."
+    },
+    "rejected": {
+      "title": "Ariza rad etildi",
+      "reasonLabel": "Rad etish sababi",
+      "text": "Anketani to'g'irlab, arizani qayta berishingiz mumkin."
+    },
+    "form": {
+      "agencyName": {
+        "label": "Agentlik",
+        "placeholder": "Masalan, Ideal Estate",
+        "hint": "Ixtiyoriy — agar mustaqil rieltor sifatida ishlasangiz, bo'sh qoldiring"
+      },
+      "about": {
+        "label": "O'zingiz haqingizda",
+        "placeholder": "Ko'chmas mulk bozoridagi tajribangiz haqida yozing"
+      },
+      "submit": "Ariza berish",
+      "submitting": "Yuborilmoqda…",
+      "resubmit": "Arizani qayta berish"
+    },
+    "errors": {
+      "alreadyAgent": "Sizda allaqachon agent roli bor.",
+      "pending": "Sizda ko'rib chiqilayotgan ariza allaqachon bor.",
+      "aboutRequired": "O'zingiz haqingizda yozing — bu maydon majburiy.",
+      "generic": "Arizani yuborib bo'lmadi. Qaytadan urinib ko'ring."
     }
   },
   "help": {
@@ -749,7 +1043,18 @@
       "title": "Javob topolmadingizmi?",
       "text": "Qo'llab-quvvatlash xizmatiga yozing — har kuni 9:00 dan 21:00 gacha javob beramiz. Email: <b>Support@avino.uz</b>",
       "write": "Qo'llab-quvvatlashga yozish",
-      "openChat": "Chatni ochish"
+      "openChat": "Chatni ochish",
+      "modalTitle": "Qo'llab-quvvatlashga yozish",
+      "nameLabel": "Ism",
+      "contactLabel": "Telefon yoki email",
+      "contactPlaceholder": "+998 ... yoki you@mail.uz",
+      "messageLabel": "Xabar",
+      "contactRequired": "Telefon yoki email kiriting — javobni o'sha yerga yozamiz.",
+      "messageRequired": "Savolingizni yozing — shunda yordam bera olamiz.",
+      "submit": "Yuborish",
+      "success": "Rahmat! Murojaat qabul qilindi — 9:00 dan 21:00 gacha javob beramiz.",
+      "error": "Yuborib bo'lmadi. Yana urinib ko'ring.",
+      "close": "Yopish"
     }
   },
   "listingEdit": {
@@ -795,6 +1100,7 @@
       "notifications": "Bildirishnomalar",
       "profile": "Profil",
       "settings": "Sozlamalar",
+      "devices": "Qurilmalar",
       "tours": "Mening turlarim"
     },
     "userCard": {
@@ -923,6 +1229,13 @@
           "body_CANCELLED": "Ko'rikka so'rov bekor qilindi.",
           "body": "Ko'rikka so'rovingiz holati yangilandi."
         }
+      },
+      "agentApplication": {
+        "title": "Agent arizasi holati o'zgardi",
+        "body_APPROVED": "Agent arizangiz tasdiqlandi — cheklovsiz e'lon joylashtiring.",
+        "body_REJECTED": "Agent arizangiz rad etildi.",
+        "body_REJECTED_reason": "Agent arizangiz rad etildi. Sababi: {reason}",
+        "body": "Agent arizangiz holati yangilandi."
       }
     },
     "profile": {
@@ -931,15 +1244,24 @@
       "authText": "Profilni ko'rish va tahrirlash uchun Avino tizimiga kiring.",
       "login": "Kirish",
       "changePhoto": "Suratni almashtirish",
+      "uploadingPhoto": "Yuklanmoqda…",
+      "removePhoto": "O'chirish",
+      "avatarAlt": "Profil surati",
+      "avatarInvalidType": "JPG, PNG yoki WEBP rasm tanlang.",
+      "avatarTooLarge": "Fayl juda katta. Maksimal hajmi 10 MB.",
       "firstName": "Ism",
       "lastName": "Familiya",
-      "phone": "Telefon",
+      "phone": "Aloqa uchun telefon",
       "email": "Email",
       "language": "Interfeys tili",
-      "emailTaken": "Bu email allaqachon boshqa akkauntda ishlatilmoqda.",
       "saveError": "O'zgarishlarni saqlab bo'lmadi. Yana bir bor urinib ko'ring.",
       "saving": "Saqlanmoqda…",
-      "save": "O'zgarishlarni saqlash"
+      "save": "O'zgarishlarni saqlash",
+      "accountSection": "Hisob (kirish)",
+      "loginPhone": "Kirish uchun telefon",
+      "loginEmail": "Kirish uchun email",
+      "verified": "Tasdiqlangan",
+      "change": "O'zgartirish"
     },
     "savedSearches": {
       "title": "Saqlangan qidiruvlar",
@@ -953,7 +1275,8 @@
       "startSearch": "Qidiruvni boshlash",
       "notifyOn": "Bildirishnomalar yoqilgan",
       "notifyOff": "Bildirishnomalar o'chirilgan",
-      "deleteAria": "Qidiruvni o'chirish"
+      "deleteAria": "Qidiruvni o'chirish",
+      "editAria": "Qayta nomlash"
     },
     "settings": {
       "title": "Sozlamalar",
@@ -988,6 +1311,41 @@
         "text": "Yangi xabar yoki bildirishnoma kelganda signal chalinsin"
       }
     },
+    "deleteAccount": {
+      "sectionTitle": "Akkauntni o‘chirish",
+      "sectionText": "Akkaunt va unga bog‘liq barcha ma’lumotlar tiklab bo‘lmaydigan tarzda o‘chiriladi.",
+      "button": "Akkauntni o‘chirish",
+      "modalTitle": "Akkaunt o‘chirilsinmi?",
+      "warningIntro": "Bu amalni ortga qaytarib bo‘lmaydi. Butunlay o‘chiriladi:",
+      "bulletListings": "barcha e’lonlaringiz",
+      "bulletFavorites": "sevimlilar va saqlangan qidiruvlar",
+      "bulletChats": "yozishmalar va ko‘rish so‘rovlari",
+      "warningReregister": "Keyinchalik shu raqam bilan ro‘yxatdan o‘tsangiz, eski ma’lumotlar tiklanmaydi — bu yangi bo‘sh akkaunt bo‘ladi.",
+      "confirmLabel": "Tasdiqlash uchun «УДАЛИТЬ» so‘zini kiriting",
+      "confirmWord": "УДАЛИТЬ",
+      "confirmPlaceholder": "УДАЛИТЬ",
+      "cancel": "Bekor qilish",
+      "confirmButton": "Butunlay o‘chirish",
+      "error": "Akkauntni o‘chirib bo‘lmadi. Qayta urinib ko‘ring.",
+      "success": "Akkaunt o‘chirildi"
+    },
+    "devices": {
+      "title": "Mening qurilmalarim",
+      "subtitle": "Hisobingizning faol sessiyalari. Notanish qurilma bo'lsa, sessiyani yakunlang.",
+      "authTitle": "Qurilmalarni ko'rish uchun tizimga kiring",
+      "authText": "Hisobingizga kirilgan qurilmalar shu yerda ko'rinadi.",
+      "goHome": "Bosh sahifaga",
+      "empty": "Faol sessiyalar yo'q",
+      "unknownDevice": "Noma'lum qurilma",
+      "current": "Joriy sessiya",
+      "signedIn": "Kirish",
+      "lastActive": "Faollik",
+      "revoke": "Yakunlash",
+      "confirmRevoke": "Bu sessiya yakunlansinmi? Qurilma hisobdan chiqariladi.",
+      "revoked": "Sessiya yakunlandi",
+      "alreadyRevoked": "Sessiya allaqachon yakunlangan",
+      "revokeError": "Sessiyani yakunlab bo'lmadi"
+    },
     "tours": {
       "upcoming": "Rejalashtirilgan turlar",
       "roleHost": "Siz qabul qilasiz",
@@ -996,6 +1354,10 @@
       "incoming": "Menga so'rovlar",
       "empty": "Hozircha tur arizalari yo'q",
       "guest": "Tur arizalarini ko'rish uchun tizimga kiring",
+      "emptyUpcoming": "Rejalashtirilgan turlar yo'q",
+      "emptyOutgoing": "Siz hali ariza yubormagansiz",
+      "loadMore": "Ko'proq ko'rsatish",
+      "loadingMore": "Yuklanmoqda…",
       "on": "—",
       "confirm": "Tasdiqlash",
       "decline": "Rad etish",
@@ -1012,6 +1374,27 @@
         "DECLINED": "Rad etilgan",
         "CANCELLED": "Bekor qilingan"
       }
+    },
+    "contactChange": {
+      "titlePhone": "Kirish uchun telefonni o'zgartirish",
+      "titleEmail": "Kirish uchun emailni o'zgartirish",
+      "newValue": "Yangi qiymat",
+      "sendCode": "Kodni yuborish",
+      "codeLabel": "Tasdiqlash kodi",
+      "confirm": "Tasdiqlash",
+      "resendIn": "{seconds} soniyadan so'ng qayta yuborish",
+      "resend": "Qayta yuborish",
+      "close": "Yopish",
+      "invalidValue": "To'g'ri qiymat kiriting.",
+      "errTaken": "Bu kontakt boshqa akkauntda allaqachon ishlatilmoqda.",
+      "errCode": "Noto'g'ri kod. Qayta urinib ko'ring.",
+      "errExpired": "Kod muddati tugadi. Yangisini so'rang.",
+      "errAttempts": "Juda ko'p urinish. Yangi kod so'rang."
+    },
+    "contactPhone": {
+      "rowTitle": "Aloqa uchun telefon (e'lonlarda)",
+      "modalTitle": "Aloqa uchun telefonni o'zgartirish",
+      "hint": "Tasdiqlangandan so'ng e'lonlaringizda ko'rsatiladi."
     }
   },
   "savedSearch": {
@@ -1022,6 +1405,15 @@
     "rooms": "{count} xona",
     "bathrooms": "{count} s/u",
     "territory": "hudud"
+  },
+  "saveSearchModal": {
+    "titleCreate": "Qidiruvni saqlash",
+    "titleRename": "Qidiruvni qayta nomlash",
+    "nameLabel": "Qidiruv nomi",
+    "namePlaceholder": "Masalan: 2 xonali, 500 000 000 gacha",
+    "submitCreate": "Saqlash",
+    "submitRename": "Saqlash",
+    "close": "Yopish"
   },
   "units": {
     "approx": "≈",
@@ -1052,7 +1444,6 @@
     "propertyType": {
       "APARTMENT": "Kvartira",
       "HOUSE": "Uy",
-      "NEW_BUILDING": "Yangi bino",
       "LAND": "Yer uchastkasi",
       "COMMERCIAL": "Tijorat"
     },
@@ -1061,17 +1452,6 @@
       "COVERED": "Yopiq",
       "GARAGE": "Garaj",
       "UNDERGROUND": "Yer osti"
-    },
-    "amenities": {
-      "AIR_CONDITIONING": "Konditsioner",
-      "FURNITURE": "Mebel",
-      "APPLIANCES": "Maishiy texnika",
-      "INTERNET": "Internet",
-      "ELEVATOR": "Lift",
-      "BALCONY": "Balkon",
-      "HEATING": "Isitish",
-      "SECURITY": "Videokuzatuv",
-      "POOL": "Basseyn"
     }
   },
   "breadcrumb": {
@@ -1132,6 +1512,14 @@
     "tourCancelled": "Tur so'rovi bekor qilindi",
     "tourActionFailed": "Turni yangilab bo'lmadi. Yana urinib ko'ring.",
     "savedSearchCreated": "Qidiruv saqlandi",
-    "savedSearchDeleted": "Saqlangan qidiruv o'chirildi"
+    "savedSearchSaved": "Qidiruv saqlandi",
+    "savedSearchDeleted": "Saqlangan qidiruv o'chirildi",
+    "savedSearchRenamed": "Qidiruv qayta nomlandi",
+    "avatarUpdated": "Surat yangilandi",
+    "avatarRemoved": "Surat o'chirildi",
+    "avatarActionFailed": "Suratni yangilab bo'lmadi. Yana urinib ko'ring.",
+    "contactChanged": "Kirish uchun kontakt ma'lumotlari yangilandi",
+    "contactPhoneUpdated": "Aloqa telefoni yangilandi",
+    "mediaUploadFailed": "{count} ta fotoni yuklab bo‘lmadi. Qolgan o‘zgarishlar saqlandi."
   }
 }

@@ -269,6 +269,27 @@ export class EnvironmentVariables {
   @IsOptional()
   JWT_REFRESH_TTL?: number;
 
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  AUTH_MAX_SESSIONS?: number;
+
+  // ── Refresh-cookie avino_rt (ADR-0153; опционально — есть безопасные дефолты) ──
+  // Домен cookie; пусто → host-only. Не хардкодим prod (staging = голый IP).
+  @IsString()
+  @IsOptional()
+  AUTH_COOKIE_DOMAIN?: string;
+
+  // Secure-флаг как строка (class-transformer привёл бы любую непустую к true).
+  @IsString()
+  @IsOptional()
+  AUTH_COOKIE_SECURE?: string;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  AUTH_COOKIE_MAX_AGE_SEC?: number;
+
   // ── Google Sign-In (опционально на старте; CSV разрешённых audience) ──
   @IsString()
   @IsOptional()

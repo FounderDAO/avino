@@ -25,6 +25,8 @@ export const SUPPRESSED_ENDPOINTS: ReadonlySet<string> = new Set([
   'createThread', // Inbox / ContactCard
   'updateProfile', // Profile / Settings
   'updateUser', // Profile / Settings
+  'uploadAvatar', // Profile (клиентская валидация + ручной toast)
+  'deleteAvatar', // Profile (ручной toast)
   'acceptLegalConsent', // LegalConsentModal
   'createListing', // ListingNew
   'uploadListingMedia', // ListingNew (mediaFailures)
@@ -32,8 +34,10 @@ export const SUPPRESSED_ENDPOINTS: ReadonlySet<string> = new Set([
   'addListingMedia', // ListingEdit
   'deleteListingMedia', // ListingEdit
   'reorderListingMedia', // ListingEdit
-  'createSavedSearch', // FilterBar
   'updateTourStatus', // IncomingTourModal (инлайн) / Tours, UpcomingTourCard (ручной toast)
+  'submitAgentApplication', // BecomeAgent (инлайн)
+  'getMyAgentApplication', // BecomeAgent/лимит-модалка — 404 у новичка не должен давать тост
+  'revokeSession', // Devices (ручной toast; 404 = «уже завершена», не ошибка)
   // Фон/инфраструктура.
   'refresh',
   'logout',

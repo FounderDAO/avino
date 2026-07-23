@@ -19,13 +19,22 @@ import type {
   AdminUserDetail,
   AdminUserProfile,
   AdminUserRow,
+  AuthType,
   RoleCode,
 } from '@/store/api/adminTypes';
 
 const DASH = '—';
 
-/** UI-статус блокировки (мок-модель). */
-export type UiUserStatus = 'active' | 'blocked';
+/** UI-статус пользователя: активен / заблокирован / удалён (soft-delete). */
+export type UiUserStatus = 'active' | 'blocked' | 'deleted';
+
+/** RU-метка способа входа для колонки «Вход». */
+export const AUTH_TYPE_LABEL: Record<AuthType, string> = {
+  GOOGLE: 'Google',
+  APPLE: 'Apple',
+  SMS: 'SMS',
+  EMAIL: 'Email',
+};
 
 /**
  * UI-модель строки/карточки пользователя для страниц админки. Совпадает с
@@ -43,6 +52,15 @@ export interface UiAdminUser {
   status: UiUserStatus;
   joined: string;
   verified: boolean;
+  /** Способ последнего входа (из аудита); `null` — входов ещё не было. */
+  authType: AuthType | null;
+}
+
+/** Имя из плоских полей списка: display_name → «first last» → null. */
+function flatProfileName(r: AdminUserRow): string | null {
+  if (r.display_name) return r.display_name;
+  const full = [r.first_name, r.last_name].filter(Boolean).join(' ').trim();
+  return full || null;
 }
 
 /** Человекочитаемая метка роли (RU) для всех кодов словаря `/roles`. */
@@ -90,9 +108,16 @@ function primaryRole(codes: RoleCode[]): RoleCode {
   return codes[0] ?? 'USER';
 }
 
-/** API-статус пользователя → UI-статус блокировки (ACTIVE→active, иначе blocked). */
+/**
+ * API-статус пользователя → UI-статус. DELETED (soft-delete) — отдельное
+ * состояние: раньше схлопывалось в «Заблокирован», из-за чего удалённые
+ * аккаунты выглядели как заблокированные. ACTIVE→active, DELETED→deleted,
+ * BLOCKED (и прочее) →blocked.
+ */
 export function apiToUiStatus(s: UserStatus): UiUserStatus {
-  return s === 'ACTIVE' ? 'active' : 'blocked';
+  if (s === 'ACTIVE') return 'active';
+  if (s === 'DELETED') return 'deleted';
+  return 'blocked';
 }
 
 const dateFmt = new Intl.DateTimeFormat('ru-RU', {
@@ -126,7 +151,7 @@ function profileName(profile: AdminUserProfile | null): string | null {
 export function rowToAdminUser(r: AdminUserRow): UiAdminUser {
   return {
     id: r.id,
-    name: r.email ?? r.phone ?? DASH,
+    name: flatProfileName(r) ?? r.email ?? r.phone ?? DASH,
     phone: r.phone ?? DASH,
     email: r.email ?? '',
     role: primaryRole(r.roles),
@@ -135,6 +160,7 @@ export function rowToAdminUser(r: AdminUserRow): UiAdminUser {
     status: apiToUiStatus(r.status),
     joined: fmtDate(r.created_at),
     verified: r.is_email_verified || r.is_phone_verified,
+    authType: r.auth_type ?? null,
   };
 }
 
@@ -155,5 +181,6 @@ export function detailToAdminUser(d: AdminUserDetail): UiAdminUser {
     status: apiToUiStatus(d.status),
     joined: fmtDate(d.created_at),
     verified: d.is_email_verified || d.is_phone_verified,
+    authType: d.auth_type ?? null,
   };
 }

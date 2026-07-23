@@ -53,7 +53,12 @@ describe('PropertyCard (compact)', () => {
     expect(screen.getByText('$108 223')).toBeInTheDocument();
     // тип жилья присутствует в строке спеков
     expect(screen.getByText(/propertyType\.APARTMENT/)).toBeInTheDocument();
-    // локация
+    // локация: показываем полный адрес (по-зилловски)
+    expect(screen.getByText(/ул\. Тестовая 1/)).toBeInTheDocument();
+  });
+
+  it('falls back to the district when the address is empty', () => {
+    render(<PropertyCard listing={{ ...listing, address: '' } as Listing} />);
     expect(screen.getByText(/Яшнабад/)).toBeInTheDocument();
   });
 

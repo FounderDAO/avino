@@ -1,7 +1,7 @@
 /**
  * publicSettingsApi — публичные фиче-флаги портала (CLAUDE.md §4).
  * GET /api/v1/settings/public → { promotionsEnabled, mapHoverRecenter,
- * legalConsentRequired, legalConsentVersion }. camelCase
+ * legalConsentRequired, legalConsentVersion, activeListingLimit }. camelCase
  * (контроллер отдаёт PublicSettingsView как есть) — transformResponse НЕ нужен.
  * Зеркалит exchangeRateApi (но тот мапит snake_case, здесь не требуется).
  */
@@ -12,6 +12,8 @@ export interface PublicSettings {
   mapHoverRecenter: boolean;
   legalConsentRequired: boolean;
   legalConsentVersion: number;
+  /** Лимит активных объявлений обычного клиента (0 = без лимита); AGENT/AGENCY — без лимита (API.md §21). */
+  activeListingLimit: number;
 }
 
 export const publicSettingsApi = baseApi.injectEndpoints({

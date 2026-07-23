@@ -2,109 +2,91 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { AuthUser } from '../api/authApi';
 
 /**
- * authSlice (ADMIN-04) — хранилище аутентификации админки.
+ * authSlice (ADMIN-04, ADR-0153) — хранилище аутентификации админки.
  *
  * Стратегия хранения токенов:
- * - access  — только в памяти (этот slice). Не попадает в localStorage,
- *   живёт до перезагрузки страницы; восстанавливается через refresh.
- * - refresh — в localStorage (переживает перезагрузку), зеркалится в state.
+ * - access  — только в памяти (этот slice). В localStorage не пишется.
+ * - refresh — БОЛЬШЕ НЕ В JS (ADR-0153, TASK-256 PR-3). Живёт в httpOnly cookie
+ *   `avino_rt`, недоступной скрипту. Сервер сам ротирует его по cookie на
+ *   `/auth/refresh`.
  *
- * При загрузке приложения вызывается initializeAuth() — подтягивает refresh
- * из localStorage. Первый защищённый запрос без access получит 401, после чего
- * baseQueryWithReauth обменяет refresh на свежий access.
+ * Следствие: при загрузке JS не знает синхронно, есть ли сессия (cookie не
+ * видна). `status` стартует с `idle` = «проверяем»: AdminSessionBootstrap делает
+ * пробный silent-refresh и переводит в `authenticated` (cookie валидна) либо
+ * `unauthenticated` (гость). RoleGuard ждёт разрешения (`resolved`), прежде чем
+ * редиректить на /admin/login.
  */
 
-const REFRESH_TOKEN_KEY = 'avino.admin.refresh_token';
+/** Легаси-ключ localStorage — refresh больше не в JS, вычищаем при старте. */
+const LEGACY_REFRESH_TOKEN_KEY = 'avino.admin.refresh_token';
 
-function readStoredRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return window.localStorage.getItem(REFRESH_TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function persistRefreshToken(token: string | null): void {
+function clearLegacyRefreshToken(): void {
   if (typeof window === 'undefined') return;
   try {
-    if (token) {
-      window.localStorage.setItem(REFRESH_TOKEN_KEY, token);
-    } else {
-      window.localStorage.removeItem(REFRESH_TOKEN_KEY);
-    }
+    window.localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY);
   } catch {
     /* приватный режим / отключённый storage — игнорируем */
   }
 }
 
+/**
+ * status:
+ * - `idle` — сессия ещё не определена (пробный silent-refresh не завершён);
+ * - `authenticated` — есть access-токен (silent-refresh или логин удались);
+ * - `unauthenticated` — гость (silent-refresh дал 401) либо после логаута.
+ */
+export type AuthStatus = 'idle' | 'authenticated' | 'unauthenticated';
+
 export interface AuthState {
   /** Access-токен — только в памяти. */
   accessToken: string | null;
-  /** Refresh-токен — зеркало localStorage. */
-  refreshToken: string | null;
-  /** Текущий пользователь (из verify / me). */
+  /** Текущий пользователь (из verify). */
   user: AuthUser | null;
-  /** Прошла ли гидрация из localStorage. */
-  initialized: boolean;
+  status: AuthStatus;
 }
 
-const initialState: AuthState = {
-  accessToken: null,
-  refreshToken: null,
-  user: null,
-  initialized: false,
-};
+/**
+ * initialState одинаков на сервере и клиенте (никакого чтения window) — нет
+ * рассинхрона гидрации. refresh из JS не читается (он в cookie); легаси-ключ
+ * localStorage вычищается при создании store.
+ */
+function buildInitialState(): AuthState {
+  clearLegacyRefreshToken();
+  return { accessToken: null, user: null, status: 'idle' };
+}
 
 const authSlice = createSlice({
   name: 'auth',
-  initialState,
+  initialState: buildInitialState,
   reducers: {
-    /** Гидрация refresh-токена из localStorage при старте приложения. */
-    initializeAuth(state) {
-      state.refreshToken = readStoredRefreshToken();
-      state.initialized = true;
-    },
-
-    /** Полные креды после успешного verifyOtp (access + refresh + user). */
+    /** Полные креды после успешного verifyOtp (access + user; refresh в cookie). */
     setCredentials(
       state,
-      action: PayloadAction<{
-        access_token: string;
-        refresh_token: string;
-        user?: AuthUser;
-      }>,
+      action: PayloadAction<{ access_token: string; user?: AuthUser }>,
     ) {
       state.accessToken = action.payload.access_token;
-      state.refreshToken = action.payload.refresh_token;
       if (action.payload.user) {
         state.user = action.payload.user;
       }
-      persistRefreshToken(action.payload.refresh_token);
+      state.status = 'authenticated';
     },
 
-    /** Ротация токенов после /auth/refresh (без user). */
-    setTokens(
-      state,
-      action: PayloadAction<{ access_token: string; refresh_token: string }>,
-    ) {
+    /** Ротация после /auth/refresh или бутстрапа (только access; без user). */
+    setTokens(state, action: PayloadAction<{ access_token: string }>) {
       state.accessToken = action.payload.access_token;
-      state.refreshToken = action.payload.refresh_token;
-      persistRefreshToken(action.payload.refresh_token);
+      state.status = 'authenticated';
     },
 
-    /** Разлогин — чистим память и localStorage. */
+    /** Гость / разлогин: сессии нет. Чистим память; cookie гасит сервер. */
     logOut(state) {
       state.accessToken = null;
-      state.refreshToken = null;
       state.user = null;
-      persistRefreshToken(null);
+      state.status = 'unauthenticated';
     },
   },
 });
 
-export const { initializeAuth, setCredentials, setTokens, logOut } =
-  authSlice.actions;
+export const { setCredentials, setTokens, logOut } = authSlice.actions;
 
 export const authReducer = authSlice.reducer;
 
@@ -115,8 +97,13 @@ export const authReducer = authSlice.reducer;
 type AuthSliceRoot = { auth: AuthState };
 
 export const selectAccessToken = (s: AuthSliceRoot) => s.auth.accessToken;
-export const selectRefreshToken = (s: AuthSliceRoot) => s.auth.refreshToken;
 export const selectCurrentUser = (s: AuthSliceRoot) => s.auth.user;
-export const selectAuthInitialized = (s: AuthSliceRoot) => s.auth.initialized;
+export const selectAuthStatus = (s: AuthSliceRoot) => s.auth.status;
 export const selectIsAuthenticated = (s: AuthSliceRoot) =>
-  Boolean(s.auth.accessToken) || Boolean(s.auth.refreshToken);
+  Boolean(s.auth.accessToken);
+/**
+ * Сессия определена (пробный silent-refresh завершён). RoleGuard ждёт resolved,
+ * иначе во время `idle`-окна редиректнул бы на /admin/login админа с валидной
+ * cookie-сессией, ещё не подтверждённой.
+ */
+export const selectAuthResolved = (s: AuthSliceRoot) => s.auth.status !== 'idle';

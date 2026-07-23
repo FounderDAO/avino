@@ -39,7 +39,7 @@ export default async function InterceptedListingModal({ params }: PageProps) {
   }
 
   return (
-    <ListingModal listingId={id}>
+    <ListingModal listingId={id} listing={listing}>
       <Detail listing={listing} embedded />
     </ListingModal>
   );

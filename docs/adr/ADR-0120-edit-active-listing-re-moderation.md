@@ -62,11 +62,55 @@ Negative / trade-offs:
 - Машинные переводы после правки оригинала могут остаться устаревшими до момента,
   когда модератор их перегенерирует вручную (ADR-0091).
 
+## Update (2026-07-23) — REJECTED re-moderation, content-gate & OWNER_EDIT log
+
+Расширение исходного решения по итогам ревью Team Lead:
+
+1. **`REJECTED` тоже возвращается в `NEW` при правке.** Раньше отклонённое
+   модератором объявление после исправления (напр. завышенной цены) **оставалось
+   `REJECTED`** и больше не попадало в очередь — правка «висела» отклонённой
+   навсегда. Теперь правка `ACTIVE` **или** `REJECTED` возвращает в `NEW`.
+   `DRAFT` по-прежнему не ре-модерируется (авторского черновика в системе нет —
+   `DRAFT` возникает только через `SEND_TO_DRAFT`; отдельное решение Team Lead).
+
+2. **Гейт по реальному изменению контента.** Возврат в `NEW` происходит, только
+   если действительно изменилось контентное поле (цена, тип, площади, комнаты,
+   адрес, координаты, удобства, авторский перевод и т.п.). «Тихое» сохранение без
+   изменений или правка **одних лишь окон туров** (`tours_enabled`/`tour_windows` —
+   расписание, не контент) статус не меняет. Это снимает часть trade-offّа из
+   раздела Consequences (мелкие/нулевые правки больше не скрывают объявление).
+
+3. **Лог `OWNER_EDIT` в таймлайн модерации.** При возврате в очередь в
+   `moderation_logs` пишется системная запись (новое значение enum
+   `ModerationAction.OWNER_EDIT`, `moderator_id = null`, `old→new = <статус>→NEW`),
+   где `reason` — человекочитаемый список изменённых полей (напр. «Изменено: цена
+   4500000.00 UZS → 4300000.00 UZS, описание»). Модератор видит её в «Истории
+   модерации» (`GET /admin/listings/:id/moderation-logs`) и сразу понимает, почему
+   объявление вернулось. `ModerateListingDto` (решение модератора) значение
+   `OWNER_EDIT` **не принимает** — оно только системное/read-only.
+
+4. **Правка фотографий тоже ре-модерирует.** Медиа-эндпоинты
+   (`ListingMediaService`) — отдельный путь, поэтому логика продублирована там же:
+   **добавление** (`POST media`) и **удаление** (`DELETE media/:id`) фото
+   владельцем возвращают `ACTIVE`/`REJECTED` в `NEW` с тем же логом `OWNER_EDIT`
+   (`reason` = «Изменено: добавлено фото» / «удалено фото»). **Переупорядочивание**
+   (`PATCH media/reorder`) — не новый контент (все фото уже проверены), статус не
+   меняет — как и правка окон туров. Правки медиа со стороны **ADMIN** (доверенная
+   роль) ре-модерацию не запускают.
+
 ## Related files
 
+- apps/api/prisma/schema.prisma (enum ModerationAction += OWNER_EDIT)
+- apps/api/prisma/migrations/20260723120000_add_moderation_action_owner_edit/
 - apps/api/src/listings/listings.service.ts
 - apps/api/src/listings/listings.service.spec.ts
-- apps/api/src/listings/dto/update-listing.dto.ts
+- apps/api/src/moderation/moderation.service.ts
+- apps/api/src/moderation/dto/moderate-listing.dto.ts
+- apps/api/src/listing-media/listing-media.service.ts (+ spec) — ре-модерация при правке фото
+- apps/web/src/app/admin/listings/[id]/page.tsx
+- apps/web/src/store/api/adminTypes.ts
+- apps/web/src/lib/adapters/logs.ts
+- apps/web/src/lib/adapters/analytics.ts
 
 ## Related task
 

@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -15,13 +16,13 @@ import {
   Min,
 } from 'class-validator';
 import {
-  Amenity,
   Currency,
   ParkingType,
   PromotionType,
   PropertyType,
   TransactionType,
 } from '@prisma/client';
+import { IsPolygonRingOptional } from './polygon-ring.util';
 /**
  * Допустимые значения параметра `sort` (TASK-207, API.md §9).
  * `date_desc` — умолчание (promotion-приоритетный ORDER BY тир→created_at DESC→id DESC).
@@ -42,9 +43,28 @@ export const BATHROOMS_MIN_VALUES = [1, 1.5, 2, 2.5, 3, 4];
 export const LISTING_SOURCES = ['OWNER', 'AGENCY'] as const;
 export type ListingSource = (typeof LISTING_SOURCES)[number];
 
+/**
+ * «Новостройка» (`?new_construction=true`) — вычисляемая категория, не
+ * PropertyType: зданию МЕНЬШЕ этого числа лет (year_built за последние
+ * N-1 календарных лет или в будущем — недострой «сдача в 2028»).
+ */
+export const NEW_CONSTRUCTION_MAX_AGE_YEARS = 3;
+
 /** query-строка → массив (single или повторяющийся параметр). */
 const toArray = ({ value }: { value: unknown }) =>
   value === undefined ? undefined : Array.isArray(value) ? value : [value];
+
+/**
+ * query-строка → массив ЧИСЕЛ (single или повторяющийся параметр, TASK-247).
+ * Зеркалит {@link toArray}, но дополнительно приводит каждый элемент к `Number`
+ * — `@IsInt({ each: true })` затем валидирует результат (нечисловой элемент →
+ * `NaN`, не является `int`, 400 VALIDATION_ERROR).
+ */
+const toNumberArray = ({ value }: { value: unknown }) => {
+  if (value === undefined) return undefined;
+  const arr = Array.isArray(value) ? value : [value];
+  return arr.map((v) => Number(v));
+};
 
 /**
  * query-строка 'true' → true, 'false' → false; иначе value as-is (→ @IsBoolean
@@ -127,6 +147,15 @@ export class SearchListingsQueryDto {
   @IsUUID()
   district_id?: string;
 
+  /**
+   * Только объявления этого владельца-агента (страница агента, ADR-0140).
+   * Значение — users.id; применяется к owner_id без проверки роли: owner_id
+   * и так публичен в detail-ответе, скрывать нечего.
+   */
+  @IsOptional()
+  @IsUUID()
+  agent_id?: string;
+
   // ── Forward-compatible поля (API.md §9, TASK-081/082) ──────────────────────
   // Клиент уже шлёт эти параметры; пока валидируется только форма, фильтрация/
   // сортировка по ним НЕ применяется (см. SearchService.buildWhereSql). При
@@ -155,14 +184,23 @@ export class SearchListingsQueryDto {
   q?: string;
 
   /**
-   * Число комнат (TASK-207). 0..3 — точное совпадение; 4 = «4 и более».
+   * Число комнат (TASK-207/TASK-247, ADR-0133). Повторяющийся query-параметр
+   * (`rooms=2&rooms=3&rooms=5`) → массив, семантика OR/IN; одиночное значение
+   * (обратная совместимость) заворачивается в массив из 1 элемента той же
+   * `toNumberArray`-трансформацией, что и одиночный `property_type`/`amenities`.
+   *
+   * Семантика КАЖДОГО значения: 0..4 — ТОЧНОЕ совпадение (`rooms = N`), 5 —
+   * «5 и более» (`rooms >= 5`). BREAKING (ADR-0133): раньше `rooms=4`
+   * трактовался как «4 и более» (схлопывал 4/5/6 в одну выдачу) — теперь `rooms=4`
+   * это РОВНО 4; для «4+» см. `rooms_min=4` либо явный список `rooms=4&rooms=5`.
    * Применяется во всех эндпоинтах поиска (включая гео-варианты).
    */
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  rooms?: number;
+  @Transform(toNumberArray)
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  rooms?: number[];
 
   /** «N+ комнат» (rooms >= N) — кнопки 1+/2+/…/5+. */
   @IsOptional()
@@ -188,8 +226,10 @@ export class SearchListingsQueryDto {
   @IsOptional()
   @Transform(toArray)
   @IsArray()
-  @IsEnum(Amenity, { each: true })
-  amenities?: Amenity[];
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  amenities?: string[];
 
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_min?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) floor_max?: number;
@@ -203,6 +243,12 @@ export class SearchListingsQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) total_floors_max?: number;
   @IsOptional() @Type(() => Number) @IsInt() year_min?: number;
   @IsOptional() @Type(() => Number) @IsInt() year_max?: number;
+
+  /**
+   * Новостройка: year_built за последние {@link NEW_CONSTRUCTION_MAX_AGE_YEARS}
+   * лет либо в будущем (недострой). Порог вычисляет сервер — URL стабилен.
+   */
+  @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() new_construction?: boolean;
 
   /**
    * Источник: ['OWNER'] → agency_id IS NULL; ['AGENCY'] → IS NOT NULL; оба/пусто → без фильтра.
@@ -232,6 +278,19 @@ export class SearchListingsQueryDto {
   /** Площадь участка, соток (Zillow Phase 2). */
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) lot_area_min?: number;
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) lot_area_max?: number;
+
+  /**
+   * Полигон нарисованной территории (freehand-лассо, TASK-249) — та же строка
+   * `lat,lng;...`, что у `/search/polygon` (`PolygonSearchQueryDto.points`), но
+   * НЕОБЯЗАТЕЛЬНАЯ: если задана, пересечение с контуром (`ST_Within`)
+   * подмешивается к остальным фильтрам в `/search` и `/search/bounds`
+   * (SearchService.search/searchBounds), а не только к bbox/скалярам.
+   * `@IsPolygonRingOptional()` (не `@IsOptional() + @IsPolygonRing()`) — см.
+   * комментарий у декоратора в `polygon-ring.util.ts` про гочу наследования
+   * class-validator с `PolygonSearchQueryDto` (там `points` обязателен).
+   */
+  @IsPolygonRingOptional()
+  points?: string;
 
   /** Фильтр по типу промо. Пока игнорируется. */
   @IsOptional()

@@ -4,7 +4,7 @@ import {
   HttpException,
   NotFoundException,
 } from '@nestjs/common';
-import { Language, UserStatus } from '@prisma/client';
+import { Language, ListingStatus, UserStatus } from '@prisma/client';
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AdminUsersService } from './admin-users.service';
@@ -43,6 +43,7 @@ describe('AdminUsersService', () => {
       displayName: 'Ali V.',
       avatarUrl: null,
       contactPhone: '+998901234567',
+      contactPhoneVerified: true,
       preferredLanguage: Language.RU,
     },
   };
@@ -60,8 +61,20 @@ describe('AdminUsersService', () => {
         create: jest.fn().mockResolvedValue({}),
         delete: jest.fn().mockResolvedValue({}),
       },
+      listing: {
+        findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      refreshToken: {
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
       role: { findUnique: jest.fn() },
-      auditLog: { create: jest.fn().mockResolvedValue({}) },
+      auditLog: {
+        create: jest.fn().mockResolvedValue({}),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      // resolveAuthTypes: DISTINCT ON audit_logs — по умолчанию нет входов.
+      $queryRaw: jest.fn().mockResolvedValue([]),
       $transaction: jest.fn((arg: any) =>
         typeof arg === 'function' ? arg(prisma) : Promise.all(arg),
       ),
@@ -83,6 +96,10 @@ describe('AdminUsersService', () => {
     it('applies status/role/q filters and returns paginated snake_case items', async () => {
       prisma.user.findMany.mockResolvedValue([detailRow]);
       prisma.user.count.mockResolvedValue(1);
+      // Последний вход через Google → auth_type='GOOGLE'.
+      prisma.$queryRaw.mockResolvedValue([
+        { actor_id: USER_ID, metadata: { provider: 'GOOGLE' } },
+      ]);
 
       const result = await service.listUsers({
         status: UserStatus.ACTIVE,
@@ -108,8 +125,30 @@ describe('AdminUsersService', () => {
         is_email_verified: false,
         created_at: '2026-05-01T00:00:00.000Z',
         last_login_at: '2026-06-01T00:00:00.000Z',
+        // Плоские поля имени из профиля + способ входа из аудита.
+        first_name: 'Ali',
+        last_name: 'Valiev',
+        display_name: 'Ali V.',
+        auth_type: 'GOOGLE',
       });
       expect(result.data[0]).not.toHaveProperty('profile');
+    });
+
+    it('maps OTP channel to auth_type and null when no LOGIN audit', async () => {
+      prisma.user.count.mockResolvedValue(2);
+      prisma.user.findMany.mockResolvedValue([
+        { ...detailRow, id: 'sms-user' },
+        { ...detailRow, id: 'never-logged-in' },
+      ]);
+      // Только у первого есть LOGIN-аудит (SMS); второй — не в карте.
+      prisma.$queryRaw.mockResolvedValue([
+        { actor_id: 'sms-user', metadata: { channel: 'SMS' } },
+      ]);
+
+      const result = await service.listUsers({});
+
+      expect(result.data[0].auth_type).toBe('SMS');
+      expect(result.data[1].auth_type).toBeNull();
     });
 
     it('defaults page/limit and caps limit at 100', async () => {
@@ -188,6 +227,139 @@ describe('AdminUsersService', () => {
 
       const updateArgs = prisma.user.update.mock.calls[0][0];
       expect(updateArgs.data.deletedAt).toBeNull();
+    });
+
+    it('BLOCKED archives ACTIVE listings, revokes tokens and audits their ids', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: USER_ID,
+        status: UserStatus.ACTIVE,
+      });
+      // Владелец имеет два ACTIVE-объявления — их прячем.
+      prisma.listing.findMany.mockResolvedValue([{ id: 'L1' }, { id: 'L2' }]);
+      prisma.user.update.mockResolvedValue({
+        ...detailRow,
+        status: UserStatus.BLOCKED,
+      });
+
+      const result = await service.updateStatus(ADMIN_ID, USER_ID, {
+        status: UserStatus.BLOCKED,
+        reason: 'abuse',
+      });
+
+      // ACTIVE → ARCHIVED только для этого владельца.
+      expect(prisma.listing.updateMany).toHaveBeenCalledWith({
+        where: { ownerId: USER_ID, status: ListingStatus.ACTIVE },
+        data: { status: ListingStatus.ARCHIVED },
+      });
+      // Активные refresh-токены отозваны (kick out).
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: USER_ID, revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+      // Спрятанные id зафиксированы в аудите для обратимости.
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: {
+          actorId: ADMIN_ID,
+          action: 'ADMIN_USER_UPDATE',
+          entityType: 'user',
+          entityId: USER_ID,
+          metadata: {
+            old_status: UserStatus.ACTIVE,
+            new_status: UserStatus.BLOCKED,
+            reason: 'abuse',
+            archived_listing_ids: ['L1', 'L2'],
+          },
+        },
+      });
+      expect(result.status).toBe(UserStatus.BLOCKED);
+    });
+
+    it('ACTIVE restores exactly the hidden ids that are still ARCHIVED', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: USER_ID,
+        status: UserStatus.BLOCKED,
+      });
+      // Последняя BLOCKED-запись аудита хранит два спрятанных id.
+      prisma.auditLog.findFirst.mockResolvedValue({
+        metadata: {
+          new_status: UserStatus.BLOCKED,
+          archived_listing_ids: ['L1', 'L2'],
+        },
+      });
+      prisma.user.update.mockResolvedValue({
+        ...detailRow,
+        status: UserStatus.ACTIVE,
+      });
+
+      await service.updateStatus(ADMIN_ID, USER_ID, {
+        status: UserStatus.ACTIVE,
+      });
+
+      // Возврат ограничен сохранёнными id И фильтром status: ARCHIVED — объявление,
+      // заархивированное владельцем и не входящее в набор, не воскреснет.
+      expect(prisma.listing.updateMany).toHaveBeenCalledTimes(1);
+      expect(prisma.listing.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: { in: ['L1', 'L2'] },
+          ownerId: USER_ID,
+          status: ListingStatus.ARCHIVED,
+        },
+        data: { status: ListingStatus.ACTIVE },
+      });
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: {
+          actorId: ADMIN_ID,
+          action: 'ADMIN_USER_UPDATE',
+          entityType: 'user',
+          entityId: USER_ID,
+          metadata: {
+            old_status: UserStatus.BLOCKED,
+            new_status: UserStatus.ACTIVE,
+            restored_listing_ids: ['L1', 'L2'],
+          },
+        },
+      });
+    });
+
+    it('ACTIVE without a prior block audit restores nothing', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: USER_ID,
+        status: UserStatus.BLOCKED,
+      });
+      prisma.auditLog.findFirst.mockResolvedValue(null);
+      prisma.user.update.mockResolvedValue(detailRow);
+
+      await service.updateStatus(ADMIN_ID, USER_ID, {
+        status: UserStatus.ACTIVE,
+      });
+
+      expect(prisma.listing.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('DELETED takes down all listings and revokes tokens (self-service parity)', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: USER_ID,
+        status: UserStatus.ACTIVE,
+      });
+      prisma.user.update.mockResolvedValue({
+        ...detailRow,
+        status: UserStatus.DELETED,
+        deletedAt: new Date('2026-06-06T00:00:00Z'),
+      });
+
+      await service.updateStatus(ADMIN_ID, USER_ID, {
+        status: UserStatus.DELETED,
+        reason: 'fraud',
+      });
+
+      expect(prisma.listing.updateMany).toHaveBeenCalledWith({
+        where: { ownerId: USER_ID, status: { not: ListingStatus.DELETED } },
+        data: { status: ListingStatus.DELETED },
+      });
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: USER_ID, revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
     });
 
     it('throws 404 when user missing', async () => {

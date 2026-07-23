@@ -66,6 +66,8 @@ describe('ModerationService', () => {
         lastName: 'Усманов',
         displayName: 'Алишер У.',
         contactPhone: '+998907654321',
+        // ADR-0151: contact_phone инлайн-профиля показывается только verified.
+        contactPhoneVerified: true,
       },
     },
   };
@@ -106,6 +108,54 @@ describe('ModerationService', () => {
       expect(res.code).toBe(code);
     }
   }
+
+  describe('getListingOwner', () => {
+    it('returns the inline owner profile for an existing listing', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ owner: dbListItem.owner });
+
+      const owner = await service.getListingOwner(LISTING_ID);
+
+      expect(prisma.listing.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: LISTING_ID } }),
+      );
+      expect(owner).toEqual({
+        id: OWNER_ID,
+        display_name: 'Алишер У.',
+        first_name: 'Алишер',
+        last_name: 'Усманов',
+        email: 'seller@example.com',
+        phone: '+998901234567',
+        contact_phone: '+998907654321',
+        status: UserStatus.ACTIVE,
+        roles: ['OWNER'],
+        created_at: '2026-05-20T10:00:00.000Z',
+      });
+    });
+
+    it('throws NOT_FOUND when the listing does not exist', async () => {
+      prisma.listing.findUnique.mockResolvedValue(null);
+      await expectCode(
+        service.getListingOwner(LISTING_ID),
+        ApiErrorCode.NOT_FOUND,
+      );
+    });
+
+    // ADR-0151: неподтверждённый contact_phone не отдаётся модератору (null),
+    // в отличие от detail/tour/agent-application фолбэков — тут нет отдельного
+    // поля для телефона аккаунта, поэтому дублировать его в contact_phone не надо.
+    it('hides an unverified contact_phone (null, no fallback to account phone)', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        owner: {
+          ...dbListItem.owner,
+          profile: { ...dbListItem.owner.profile, contactPhoneVerified: false },
+        },
+      });
+
+      const owner = await service.getListingOwner(LISTING_ID);
+
+      expect(owner.contact_phone).toBeNull();
+    });
+  });
 
   describe('listListings', () => {
     it('returns a paginated snake_case list with owner_id and meta.total', async () => {

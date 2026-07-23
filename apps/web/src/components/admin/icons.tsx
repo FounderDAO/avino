@@ -10,6 +10,7 @@ import {
   Home,
   Check,
   User,
+  UserCheck,
   Sparkles,
   List,
   SlidersHorizontal,
@@ -29,6 +30,11 @@ import {
   Send,
   MessageSquare,
   Megaphone,
+  TriangleAlert,
+  ListChecks,
+  Pencil,
+  FileText,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -38,6 +44,7 @@ export const IC = {
   Home,
   Check,
   User,
+  UserCheck,
   Sparkle: Sparkles,
   ListIcon: List,
   Sliders: SlidersHorizontal,
@@ -57,6 +64,11 @@ export const IC = {
   Send,
   MessageSquare,
   Megaphone,
+  Alert: TriangleAlert,
+  Checklist: ListChecks,
+  Edit: Pencil,
+  FileText,
+  ShieldCheck,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof IC;

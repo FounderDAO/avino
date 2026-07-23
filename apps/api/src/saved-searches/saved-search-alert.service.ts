@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserStatus } from '@prisma/client';
 import { EmailService } from '../email';
 import { NotificationsService } from '../notifications';
 import { PrismaService } from '../prisma';
@@ -80,7 +80,7 @@ export class SavedSearchAlertService {
   async run(): Promise<number> {
     const runAt = new Date();
     const searches = (await this.prisma.savedSearch.findMany({
-      where: { isActive: true },
+      where: { isActive: true, user: { status: { not: UserStatus.DELETED } } },
       select: {
         id: true,
         userId: true,
@@ -212,6 +212,14 @@ export class SavedSearchAlertService {
    * не ломается на старых схемах). Отбрасывает `null`/`undefined`-значения, чтобы
    * не сформировать условие `column = NULL` (совпадений всегда ноль). Невалидный
    * контейнер → пустые фильтры (матч по всем ACTIVE в окне).
+   *
+   * TASK-253: сырой путь идёт в обход DTO `@Transform(toArray)`, а клиент
+   * исторически пишет scalar-строки (`property_type: "HOUSE"`) и plural-ключи
+   * (`property_types`, `parking_types`). Без нормализации `Prisma.join(строка)`
+   * в {@link SearchService.buildWhereSql} падает с «r.reduce is not a function»
+   * (алерты по поиску не шлются, watermark не двигается). Поэтому array-поля
+   * приводятся к массивам: `property_types`/`parking_types` имеют приоритет над
+   * одиночным legacy-значением (клиент кладёт в него только ПЕРВЫЙ выбор).
    */
   private extractFilters(
     filtersJson: Prisma.JsonValue,
@@ -232,6 +240,26 @@ export class SavedSearchAlertService {
     for (const [key, value] of Object.entries(inner as Record<string, unknown>)) {
       if (value !== null && value !== undefined) {
         sanitized[key] = value;
+      }
+    }
+
+    const asArray = (v: unknown): unknown[] => (Array.isArray(v) ? v : [v]);
+    // plural-ключ клиента → канонический ключ buildWhereSql (plural удаляется,
+    // чтобы не утёк в SQL-слой); одиночное legacy-значение — фолбэк.
+    for (const [plural, canonical] of [
+      ['property_types', 'property_type'],
+      ['parking_types', 'parking_type'],
+    ] as const) {
+      if (sanitized[plural] !== undefined) {
+        sanitized[canonical] = asArray(sanitized[plural]);
+        delete sanitized[plural];
+      } else if (sanitized[canonical] !== undefined) {
+        sanitized[canonical] = asArray(sanitized[canonical]);
+      }
+    }
+    for (const key of ['amenities', 'listing_source'] as const) {
+      if (sanitized[key] !== undefined) {
+        sanitized[key] = asArray(sanitized[key]);
       }
     }
     return sanitized;

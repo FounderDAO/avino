@@ -1,13 +1,14 @@
 import { baseApi } from './baseApi';
+import { setTokens } from '../slices/authSlice';
 
 /**
- * authApi (ADMIN-03) — passwordless OTP flow (docs/API.md §3).
+ * authApi (ADMIN-03, ADR-0153) — passwordless OTP flow (docs/API.md §3).
  *
  * Контракты:
  * - POST /auth/otp/request  { channel, destination } → request metadata
  * - POST /auth/otp/verify   { channel, destination, code } → access+refresh+user
- * - POST /auth/refresh      { refresh_token } → новая пара токенов
- * - POST /auth/logout       { refresh_token } → 204
+ * - POST /auth/refresh      (без тела; refresh из cookie avino_rt) → новая пара
+ * - POST /auth/logout       (без тела; family из cookie avino_rt) → 204
  * - GET  /auth/me           → пользователь + профиль + роли
  *
  * Подстановка Bearer и авто-refresh — ADMIN-04 (baseQueryWithReauth);
@@ -75,15 +76,9 @@ export interface VerifyOtpResponse extends TokenPair {
   user: AuthUser;
 }
 
-export interface RefreshBody {
-  refresh_token: string;
-}
-
+/** Ответ `/auth/refresh`. Тело всё ещё несёт refresh_token (mobile), но web
+ *  его игнорирует — токен приходит/уходит через httpOnly cookie (ADR-0153). */
 export type RefreshResponse = TokenPair;
-
-export interface LogoutBody {
-  refresh_token: string;
-}
 
 export interface MeResponse {
   id: string;
@@ -119,19 +114,31 @@ export const authApi = baseApi.injectEndpoints({
       invalidatesTags: ['Auth'],
     }),
 
-    refresh: build.mutation<RefreshResponse, RefreshBody>({
-      query: (body) => ({
+    // Ротация БЕЗ ТЕЛА: сервер читает refresh из httpOnly cookie `avino_rt`
+    // (ADR-0153) и ставит новую cookie. Успех → кладём новый access через
+    // setTokens (без user → identityResetListener трактует как ротацию, кэш не
+    // сбрасывает). Используется бутстрапом (AdminSessionBootstrap) и baseQuery.
+    refresh: build.mutation<RefreshResponse, void>({
+      query: () => ({
         url: '/auth/refresh',
         method: 'POST',
-        body,
       }),
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(setTokens({ access_token: data.access_token }));
+        } catch {
+          /* нет валидной cookie-сессии → бутстрап/гвард пометят гостя */
+        }
+      },
     }),
 
-    logout: build.mutation<void, LogoutBody>({
-      query: (body) => ({
+    // Логаут БЕЗ ТЕЛА: family адресует cookie `avino_rt` (ADR-0153); Bearer
+    // авторизует. Сервер отзывает family и чистит cookie.
+    logout: build.mutation<void, void>({
+      query: () => ({
         url: '/auth/logout',
         method: 'POST',
-        body,
       }),
       invalidatesTags: ['Auth'],
     }),

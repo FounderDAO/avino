@@ -1,11 +1,16 @@
 import { Module } from '@nestjs/common';
+import { AdminAgentApplicationsController } from '../agent-applications/admin-agent-applications.controller';
+import { AgentApplicationsModule } from '../agent-applications';
+import { AdminAmenitiesController, AmenitiesModule } from '../amenities';
 import { AuditModule } from '../audit';
 import { AdminComplaintsController, ComplaintsModule } from '../complaints';
 import { ModerationModule } from '../moderation';
 import { PromotionsModule } from '../promotions';
 import { RolesModule } from '../roles';
-import { SettingsModule, AdminPromotionsFlagController, AdminMapHoverRecenterFlagController, AdminLegalConsentFlagController } from '../settings';
+import { SettingsModule, AdminPromotionsFlagController, AdminActiveListingLimitController, AdminMapHoverRecenterFlagController, AdminLegalConsentFlagController } from '../settings';
+import { AdminSupportRequestsController, SupportModule } from '../support';
 import { TranslationsModule } from '../translations';
+import { AdminLegalDocumentsController, LegalDocumentsModule } from '../legal-documents';
 import { AdminListingPromotionsController } from './admin-listing-promotions.controller';
 import { AdminListingsController } from './admin-listings.controller';
 import { AdminPromotionPlansController } from './admin-promotion-plans.controller';
@@ -20,6 +25,9 @@ import { AdminTelegramSettingsController } from './admin-telegram-settings.contr
 import { AdminTelegramSettingsService } from './admin-telegram-settings.service';
 import { AdminLogsController } from './admin-logs.controller';
 import { AdminLogsService } from './admin-logs.service';
+import { AdminOtpLogsService } from './admin-otp-logs.service';
+import { AdminLegalConsentsController } from './admin-legal-consents.controller';
+import { AdminLegalConsentsService } from './admin-legal-consents.service';
 import { AdminPromotionsController } from './admin-promotions.controller';
 import { AdminPromotionsOverviewController } from './admin-promotions-overview.controller';
 import { AdminPromotionsOverviewService } from './admin-promotions-overview.service';
@@ -44,6 +52,10 @@ import { AdminUsersService } from './admin-users.service';
  * журналы (audit/moderation/promotion/notification, TASK-131, ADMIN-only).
  * {@link AdminComplaintsController} + `ComplaintsModule` — разбор жалоб
  * (MODERATOR/ADMIN, TASK-132); бизнес-логика живёт в {@link ComplaintsService}.
+ * {@link AdminAgentApplicationsController} + `AgentApplicationsModule` —
+ * модерация заявок «Стать агентом» (ADR-0140, API.md §21).
+ * {@link AdminAmenitiesController} + `AmenitiesModule` — CRUD справочника
+ * удобств (ADR-0111, API.md §22).
  */
 @Module({
   imports: [
@@ -51,11 +63,17 @@ import { AdminUsersService } from './admin-users.service';
     ModerationModule,
     PromotionsModule,
     AuditModule,
+    AgentApplicationsModule,
+    AmenitiesModule,
     ComplaintsModule,
+    SupportModule,
     TranslationsModule,
     SettingsModule,
+    LegalDocumentsModule,
   ],
   controllers: [
+    AdminAgentApplicationsController,
+    AdminAmenitiesController,
     AdminListingsController,
     AdminPromotionsController,
     AdminPromotionsOverviewController,
@@ -66,17 +84,23 @@ import { AdminUsersService } from './admin-users.service';
     AdminSmsSettingsController,
     AdminNotificationSettingsController,
     AdminPromotionsFlagController,
+    AdminActiveListingLimitController,
     AdminMapHoverRecenterFlagController,
     AdminLegalConsentFlagController,
+    AdminLegalDocumentsController,
     AdminUsersController,
     AdminLogsController,
+    AdminLegalConsentsController,
     AdminComplaintsController,
+    AdminSupportRequestsController,
     AdminStatsController,
     AdminAnalyticsController,
   ],
   providers: [
     AdminUsersService,
     AdminLogsService,
+    AdminOtpLogsService,
+    AdminLegalConsentsService,
     AdminStatsService,
     AdminPromotionsOverviewService,
     AdminAnalyticsService,

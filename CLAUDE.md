@@ -2,15 +2,18 @@
 
 ## GitHub-авторизация
 
-Для любых операций с GitHub (push, PR, gh) **используй токен из `~/.gh_token`**.
-Если `gh auth status` показывает «not logged in» — авторизуйся токеном:
+GitHub-операции (push, PR, gh) идут **по HTTPS**; креды отдаёт `gh`
+(`credential.helper = gh auth git-credential`). **Токен-файл `~/.gh_token`
+больше не используем.**
+
+Если `gh auth status` показывает «not logged in» или невалидный токен —
+авторизуйся интерактивно (device-flow в браузере):
 
 ```bash
-gh auth login --with-token < ~/.gh_token
+gh auth login -h github.com -w
 gh auth setup-git   # чтобы git брал креды у gh по HTTPS
 ```
 
-- Значение токена **никогда не печатать** в вывод/логи (читать только редиректом из файла).
 - `origin` использует HTTPS (`https://github.com/FounderDAO/avino.git`); креды отдаёт gh.
 
 ## Прочее

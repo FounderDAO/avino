@@ -1,8 +1,8 @@
 /**
  * Sell — секции лендинга «Продать/Сдать» (порт apps/claudeDesign/scripts/sell.jsx).
- * Server-friendly: вся интерактивность вынесена в SellFaq ('use client').
+ * Server-friendly: интерактивность вынесена в SellFaq и SellPromoCards ('use client').
  * Секции: Hero, «Как продавать» (пути), «Как это работает» (шаги),
- * продвижение (TOP/VIP — мок-тарифы), FAQ, финальный CTA.
+ * продвижение (TOP/VIP — живые тарифы из API), FAQ, финальный CTA.
  */
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -10,6 +10,7 @@ import { Building, Home as HomeIcon, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { SellFaq } from './SellFaq';
+import { SellPromoCards } from './SellPromoCards';
 
 const HERO =
   'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=1200&q=70';
@@ -22,6 +23,7 @@ function Path({
   cta,
   href,
   accent,
+  disabled,
 }: {
   icon: typeof HomeIcon;
   title: string;
@@ -29,6 +31,7 @@ function Path({
   cta: string;
   href: string;
   accent?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex h-full flex-col gap-3 rounded-card bg-surface p-[26px] shadow-card">
@@ -42,9 +45,15 @@ function Path({
       </span>
       <h3 className="text-xl">{title}</h3>
       <p className="flex-1 text-[14.5px] leading-[1.55] text-muted-foreground">{text}</p>
-      <Button asChild variant={accent ? 'primary' : 'outline'} className="self-start">
-        <Link href={href}>{cta}</Link>
-      </Button>
+      {disabled ? (
+        <Button variant="outline" className="self-start" disabled>
+          {cta}
+        </Button>
+      ) : (
+        <Button asChild variant={accent ? 'primary' : 'outline'} className="self-start">
+          <Link href={href}>{cta}</Link>
+        </Button>
+      )}
     </div>
   );
 }
@@ -54,12 +63,6 @@ const STAT_KEYS = ['free', 'langs', 'buyers'] as const;
 
 /** Шаги «как продать на Avino» (тексты — в словаре `sell.how.steps`). */
 const STEP_KEYS = ['post', 'moderation', 'replies', 'deal'] as const;
-
-/** Мок-тарифы продвижения (NORMAL — бесплатно, TOP/VIP — платные). */
-const PROMOS: { tier: string; key: 'top' | 'vip'; color: string }[] = [
-  { tier: 'TOP', key: 'top', color: 'text-[#ff9ca0]' },
-  { tier: 'VIP', key: 'vip', color: 'text-[#E8C07A]' },
-];
 
 export function Sell() {
   const t = useTranslations('sell');
@@ -119,10 +122,11 @@ export function Sell() {
             href="/sell/new"
           />
           <Path
+            disabled
             icon={User}
             title={t('paths.agent.title')}
             text={t('paths.agent.text')}
-            cta={t('paths.agent.cta')}
+            cta={t('paths.agent.comingSoon')}
             href="/sell/new"
           />
           <Path
@@ -130,7 +134,7 @@ export function Sell() {
             title={t('paths.rent.title')}
             text={t('paths.rent.text')}
             cta={t('paths.rent.cta')}
-            href="/sell/new"
+            href="/sell/new?tx=rent"
           />
         </div>
       </section>
@@ -163,20 +167,7 @@ export function Sell() {
             <h2 className="mt-3.5 text-[32px] text-white">{t('promo.title')}</h2>
             <p className="mt-2 max-w-[460px] text-base text-white/70">{t('promo.subtitle')}</p>
           </div>
-          <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2">
-            {PROMOS.map((p) => (
-              <div
-                key={p.tier}
-                className="rounded-[16px] border border-white/10 bg-white/[0.06] px-6 py-[22px]"
-              >
-                <div className="flex items-center justify-between">
-                  <span className={'text-[22px] font-extrabold ' + p.color}>{p.tier}</span>
-                  <span className="text-base font-bold">{t(`promo.${p.key}.price`)}</span>
-                </div>
-                <p className="mt-2.5 text-[14.5px] text-white/70">{t(`promo.${p.key}.text`)}</p>
-              </div>
-            ))}
-          </div>
+          <SellPromoCards />
           <Button asChild size="lg" className="mt-6">
             <Link href="/sell/new">{t('promo.cta')}</Link>
           </Button>

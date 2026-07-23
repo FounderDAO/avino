@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import { makeStore, type AppStore } from './store';
 import { hydrateFavorites, readFavoritesFromStorage } from './favoritesSlice';
 import { hydrateCurrency, readCurrencyFromStorage } from './currencySlice';
+import { hydrateMortgage, readMortgageFromStorage } from './slices/mortgageSlice';
 import { useAppDispatch } from './hooks';
 import { SessionBootstrap } from '@/components/SessionBootstrap';
 import { LegalConsentGate } from '@/components/LegalConsentGate';
@@ -36,6 +37,19 @@ function CurrencyHydrator() {
 }
 
 /**
+ * Гидратация параметров ипотечного калькулятора из localStorage после
+ * монтирования на клиенте. На сервере не выполняется — initialState остаётся
+ * дефолтным (нет рассинхрона SSR).
+ */
+function MortgageHydrator() {
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    dispatch(hydrateMortgage(readMortgageFromStorage()));
+  }, [dispatch]);
+  return null;
+}
+
+/**
  * Redux/RTK Query Provider публичного портала.
  *
  * Store создаётся один раз на клиента через useRef, чтобы каждый SSR-запрос
@@ -50,6 +64,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     <Provider store={storeRef.current}>
       <FavoritesHydrator />
       <CurrencyHydrator />
+      <MortgageHydrator />
       <SessionBootstrap />
       <LegalConsentGate />
       <ApiErrorToasts />

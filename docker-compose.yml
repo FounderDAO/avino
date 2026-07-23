@@ -82,6 +82,13 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-avino}:${POSTGRES_PASSWORD:-avino}@postgres:5432/${POSTGRES_DB:-avino}?schema=public
       REDIS_URL: redis://redis:6379
       CORS_ORIGINS: http://localhost:3000,http://localhost:3001
+      # Серверный ключ Yandex Geocoder (нормализация адреса, ADR-0147) — из
+      # корневого .env; пусто → геокодинг деградирует без падения.
+      YANDEX_MAPS_API_KEY: ${YANDEX_MAPS_API_KEY:-}
+      # Локальный дефолт: OTP по телефону доставляется в Telegram (admin-чат),
+      # минуя Eskiz и master-тоггл sms_enabled. Переопределяется в .env; prod
+      # overlay ставит false (реальные SMS), staging — true.
+      OTP_TELEGRAM_DELIVERY: ${OTP_TELEGRAM_DELIVERY:-true}
     ports:
       - "${API_PORT:-4000}:4000"
     restart: unless-stopped
@@ -132,6 +139,11 @@ services:
         # Google Sign-In Client ID — из корневого .env; пусто → кнопка Google
         # не рендерится. Должен совпадать с GOOGLE_CLIENT_ID на api.
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+        # Sign in with Apple — из корневого .env; пусто → кнопка Apple не
+        # рендерится. CLIENT_ID (Service ID веба) должен входить в APPLE_CLIENT_ID
+        # на api, REDIRECT_URI — зарегистрирован в Apple Developer.
+        NEXT_PUBLIC_APPLE_CLIENT_ID: ${NEXT_PUBLIC_APPLE_CLIENT_ID:-}
+        NEXT_PUBLIC_APPLE_REDIRECT_URI: ${NEXT_PUBLIC_APPLE_REDIRECT_URI:-}
         # Sentry портала (ADR-0129): отдельный Sentry-проект avino-client, поэтому
         # в .env переменная с суффиксом _CLIENT; здесь маппится в имя, которое
         # читает код. Пусто → Sentry выключен.

@@ -14,9 +14,10 @@
  */
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { getAgentById } from '@/lib/api/agents';
 import { getDistricts, getRegions } from '@/lib/api/geo';
 import { searchListingsPage, searchListingsByBounds, type SearchListingsPage } from '@/lib/api/listings';
-import { parseBoundsParams } from '@/lib/geo';
+import { deserializePolygonRing, parseBoundsParams } from '@/lib/geo';
 import type {
   Amenity,
   ListingFilter,
@@ -25,7 +26,7 @@ import type {
   SortOption,
   TransactionType,
 } from '@/lib/mock/types';
-import { AMENITIES, PARKING_TYPES } from '@/lib/mock/types';
+import { PARKING_TYPES } from '@/lib/mock/types';
 import { FilterBar, type FilterValues } from '@/features/search/FilterBar';
 import { SearchResults } from '@/features/search/SearchResults';
 import { alternatesFor } from '@/lib/seo/alternates';
@@ -33,7 +34,7 @@ import { BASE } from '@/lib/seo/base';
 import { routing } from '@/i18n/routing';
 
 /** Семантические параметры поиска — остаются в canonical (формируют лендинги). */
-const SEMANTIC_PARAMS = ['tx', 'type', 'district_id'] as const;
+const SEMANTIC_PARAMS = ['tx', 'type', 'district_id', 'new_construction'] as const;
 
 export async function generateMetadata({
   params,
@@ -55,7 +56,8 @@ export async function generateMetadata({
     sp.total_floors_min || sp.total_floors_max ||
     sp.year_min || sp.year_max ||
     sp.lot_area_min || sp.lot_area_max ||
-    sp.listing_source || sp.tours_enabled || sp.is_basement || sp.parking_type || sp.amenities,
+    sp.listing_source || sp.tours_enabled || sp.is_basement || sp.parking_type || sp.amenities ||
+    sp.agent_id,
   );
 
   // Canonical: оставляем только семантические параметры (strip sort/view/cursor/price/rooms).
@@ -91,7 +93,6 @@ export async function generateMetadata({
 const PROPERTY_TYPES: PropertyType[] = [
   'APARTMENT',
   'HOUSE',
-  'NEW_BUILDING',
   'LAND',
   'COMMERCIAL',
 ];
@@ -108,6 +109,9 @@ const SORT_OPTIONS: SortOption[] = [
 function first(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
 }
+
+/** Код региона «город Ташкент» в /geo/regions — дефолтная локация выдачи. */
+const TASHKENT_REGION_CODE = 'toshkent-shahri';
 
 /** searchParams в Next 15 — Promise. */
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -138,9 +142,16 @@ export default async function SearchPage({
   // Район теперь фильтруется по UUID (`?district_id=`, GET /search) — справочник
   // отдаёт id (ADR-0068). Имя для отображения резолвится в FilterBar по списку.
   const districtId = first(sp.district_id) || undefined;
-  // Регион — UI-уровень каскада «Регион → Район»; API не принимает region_id напрямую.
-  const regionId = first(sp.region_id) || undefined;
+  // Регион: UUID для `?region_id=` (API принимает его напрямую) или сентинел
+  // 'all' — явный выбор «Все регионы», отключающий дефолтный Ташкент (см. ниже).
+  const regionIdRaw = first(sp.region_id) || undefined;
+  const allRegions = regionIdRaw === 'all';
+  const regionId = allRegions ? undefined : regionIdRaw;
   const query = first(sp.query) || undefined;
+  // Объявления конкретного агента (`?agent_id=`, кнопка «Объявления» в /agents,
+  // API.md §21): фильтр по owner_id на бэке, buildSearchParams прокидывает его
+  // во все виды поиска (страница/bbox/радиус/дозагрузка).
+  const agentId = first(sp.agent_id) || undefined;
   const view: 'list' | 'map' = first(sp.view) === 'map' ? 'map' : 'list';
 
   /** Парсит строку в число; undefined если нет или NaN. */
@@ -178,6 +189,13 @@ export default async function SearchPage({
     PROPERTY_TYPES.includes(t as PropertyType),
   );
 
+  // «Новостройка» — вычисляемая категория (?new_construction=true). Legacy-ссылки
+  // ?type=NEW_BUILDING (тип удалён из PropertyType) маппим на неё же.
+  const newConstruction =
+    first(sp.new_construction) === 'true' || rawTypes.includes('NEW_BUILDING')
+      ? true
+      : undefined;
+
   const rawParking = Array.isArray(sp.parking_type)
     ? sp.parking_type
     : sp.parking_type ? [sp.parking_type] : [];
@@ -185,12 +203,13 @@ export default async function SearchPage({
     PARKING_TYPES.includes(p as ParkingType),
   );
 
-  const rawAmenities = Array.isArray(sp.amenities)
+  // Справочник удобств динамический (Task 5, GET /amenities) — отфильтровать
+  // коды по статичному списку больше нельзя, передаём как есть. Неизвестный код
+  // /search не отвергает (DTO принимает любые строки), но и не матчит — выдача
+  // будет пустой.
+  const amenities: Amenity[] = Array.isArray(sp.amenities)
     ? sp.amenities
     : sp.amenities ? [sp.amenities] : [];
-  const amenities = rawAmenities.filter((a): a is Amenity =>
-    AMENITIES.includes(a as Amenity),
-  );
 
   // Строковые диапазоны (в FilterValues остаются строками, в ListingFilter → числа).
   const areaMinRaw = first(sp.area_min);
@@ -210,46 +229,14 @@ export default async function SearchPage({
   const toursEnabled = first(sp.tours_enabled) === 'true' ? true : undefined;
   const isBasement = first(sp.is_basement) === 'true' ? true : undefined;
 
-  // Источник объявления.
-  const rawSource = first(sp.listing_source);
-  const listingSource: 'OWNER' | 'AGENCY' | undefined =
-    rawSource === 'OWNER' || rawSource === 'AGENCY' ? rawSource : undefined;
-
-  // ----- Данные из реального API -----
-  // Первая страница (limit=SEARCH_PAGE_SIZE) + meta (total/next_cursor): курсор прокидываем в
-  // клиентскую дозагрузку «Показать ещё» (TASK-199).
-  const filter: ListingFilter = {
-    tx,
-    type,
-    types: types.length > 0 ? types : undefined,
-    districtId,
-    regionId,
-    roomsExact: rooms,
-    roomsMin,
-    bathroomsMin,
-    priceMin,
-    priceMax,
-    currency,
-    query,
-    sort,
-    areaMin: toNum(areaMinRaw),
-    areaMax: toNum(areaMaxRaw),
-    lotAreaMin: toNum(lotAreaMinRaw),
-    lotAreaMax: toNum(lotAreaMaxRaw),
-    floorMin: toNum(floorMinRaw),
-    floorMax: toNum(floorMaxRaw),
-    totalFloorsMin: toNum(totalFloorsMinRaw),
-    totalFloorsMax: toNum(totalFloorsMaxRaw),
-    yearMin: toNum(yearMinRaw),
-    yearMax: toNum(yearMaxRaw),
-    notFirstFloor,
-    notLastFloor,
-    toursEnabled,
-    listingSource,
-    parkingTypes: parkingTypes.length > 0 ? parkingTypes : undefined,
-    amenities: amenities.length > 0 ? amenities : undefined,
-    isBasement,
-  };
+  // Источник объявления (мультивыбор: повторяющийся ?listing_source=).
+  const rawSource = Array.isArray(sp.listing_source)
+    ? sp.listing_source
+    : sp.listing_source ? [sp.listing_source] : [];
+  const listingSourceArr = rawSource.filter(
+    (s): s is 'OWNER' | 'AGENCY' => s === 'OWNER' || s === 'AGENCY',
+  );
+  const listingSource = listingSourceArr.length > 0 ? listingSourceArr : undefined;
 
   // Viewport-режим (Zillow): bbox из URL восстанавливает область карты и выдачу.
   // Явный гео-фильтр главнее bbox (bbox игнорируется — как boundary у Zillow).
@@ -263,27 +250,103 @@ export default async function SearchPage({
         )
       : null;
 
-  const [page, districts, regions] = await Promise.all([
-    initialBounds
-      ? searchListingsByBounds(filter, initialBounds, locale, 100).then(
-          (listings): SearchListingsPage => ({
-            listings,
-            total: listings.length,
-            nextCursor: null,
-          }),
-        )
-      : searchListingsPage(filter, locale),
+  // Saved-search: нарисованная территория восстанавливается из ?points=.
+  const initialPolygon = deserializePolygonRing(first(sp.points)) ?? undefined;
+
+  // Справочники грузим ДО поиска: дефолтная локация резолвится по code региона.
+  // Агент нужен только для заголовка выдачи, поэтому любая ошибка (404 на
+  // несуществующем id, 400 на кривом uuid) деградирует в общий заголовок.
+  const [districts, regions, agent] = await Promise.all([
     getDistricts(locale),
     getRegions(locale),
+    agentId ? getAgentById(agentId).catch(() => null) : Promise.resolve(null),
   ]);
 
-  // Значения для FilterBar (цена и диапазоны — строкой, как в инпутах).
-  const filterValues: FilterValues = {
+  // Дефолтная локация по-зилловски: без явной гео-привязки (район/регион/
+  // «Все регионы»/текстовый запрос/bbox/полигон) выдача ограничивается Ташкентом —
+  // как и карта по умолчанию, независимо от количества результатов.
+  // Явный выбор «Все регионы» приходит как ?region_id=all и дефолт отключает.
+  // Фильтр по агенту тоже отключает дефолт: его объявления могут быть где угодно.
+  const tashkentRegionId = regions.find((r) => r.code === TASHKENT_REGION_CODE)?.id;
+  const defaultRegionId =
+    !districtId && !regionId && !allRegions && !query && !initialBounds && !initialPolygon && !agentId
+      ? tashkentRegionId
+      : undefined;
+  const effectiveRegionId = regionId ?? defaultRegionId;
+
+  // ----- Данные из реального API -----
+  // Первая страница (limit=SEARCH_PAGE_SIZE) + meta (total/next_cursor): курсор прокидываем в
+  // клиентскую дозагрузку «Показать ещё» (TASK-199).
+  let filter: ListingFilter = {
     tx,
     type,
     types: types.length > 0 ? types : undefined,
     districtId,
+    regionId: effectiveRegionId,
+    roomsExact: rooms,
+    roomsMin,
+    bathroomsMin,
+    priceMin,
+    priceMax,
+    currency,
+    query,
+    agentId,
+    sort,
+    areaMin: toNum(areaMinRaw),
+    areaMax: toNum(areaMaxRaw),
+    lotAreaMin: toNum(lotAreaMinRaw),
+    lotAreaMax: toNum(lotAreaMaxRaw),
+    floorMin: toNum(floorMinRaw),
+    floorMax: toNum(floorMaxRaw),
+    totalFloorsMin: toNum(totalFloorsMinRaw),
+    totalFloorsMax: toNum(totalFloorsMaxRaw),
+    yearMin: toNum(yearMinRaw),
+    yearMax: toNum(yearMaxRaw),
+    newConstruction,
+    notFirstFloor,
+    notLastFloor,
+    toursEnabled,
+    listingSource,
+    parkingTypes: parkingTypes.length > 0 ? parkingTypes : undefined,
+    amenities: amenities.length > 0 ? amenities : undefined,
+    isBasement,
+  };
+
+  let page = await (initialBounds
+    ? searchListingsByBounds(filter, initialBounds, locale, 100).then(
+        (listings): SearchListingsPage => ({
+          listings,
+          total: listings.length,
+          nextCursor: null,
+        }),
+      )
+    : searchListingsPage(filter, locale));
+
+  // Кнопка «Объявления» агента ведёт на /search?agent_id= без tx, а дефолтная
+  // «Продажа» у агента-арендодателя даёт пустую выдачу при бейдже «N активных».
+  // Поэтому без явного ?tx= пустая продажа перепроверяется по аренде.
+  let effectiveTx = tx;
+  if (agentId && !first(sp.tx) && !initialBounds && page.total === 0) {
+    const rentFilter: ListingFilter = { ...filter, tx: 'RENT' };
+    const rentPage = await searchListingsPage(rentFilter, locale);
+    if (rentPage.total > 0) {
+      effectiveTx = 'RENT';
+      filter = rentFilter;
+      page = rentPage;
+    }
+  }
+
+  // Значения для FilterBar (цена и диапазоны — строкой, как в инпутах).
+  const filterValues: FilterValues = {
+    tx: effectiveTx,
+    type,
+    types: types.length > 0 ? types : undefined,
+    districtId,
+    // Дефолтный Ташкент в UI НЕ показываем: чипы пустые, пока пользователь не
+    // выбрал локацию явно; выдача при этом остаётся Ташкентом (effectiveRegionId).
+    // Каскад районов работает через fallbackRegionId у FilterBar.
     regionId,
+    allRegions: allRegions || undefined,
     rooms,
     roomsMin,
     bathroomsMin,
@@ -302,6 +365,7 @@ export default async function SearchPage({
     totalFloorsMax: totalFloorsMaxRaw,
     yearMin: yearMinRaw,
     yearMax: yearMaxRaw,
+    newConstruction,
     notFirstFloor,
     notLastFloor,
     toursEnabled,
@@ -321,13 +385,29 @@ export default async function SearchPage({
   const regionName = regionId
     ? regions.find((r) => r.id === regionId)?.name
     : undefined;
-  const heading = t(tx === 'RENT' ? 'headingRent' : 'headingSale', {
-    query: districtName || regionName || query || t('defaultLocation'),
-  });
+  // Фильтр по агенту главнее локации: «Продажа/Аренда от агента · <имя>».
+  // Фолбэк имени — как в AgentRow: агентство, затем «Частный маклер».
+  let agentHeading: string | undefined;
+  if (agent) {
+    const tCatalog = await getTranslations({ locale, namespace: 'agentsCatalog' });
+    agentHeading = t(effectiveTx === 'RENT' ? 'headingAgentRent' : 'headingAgentSale', {
+      name: agent.name?.trim() || agent.agencyName || tCatalog('privateAgent'),
+    });
+  }
+  const heading =
+    agentHeading ??
+    t(effectiveTx === 'RENT' ? 'headingRent' : 'headingSale', {
+      query: districtName || regionName || query || t('defaultLocation'),
+    });
 
   return (
     <div className="fade-up">
-      <FilterBar values={filterValues} districts={districts} regions={regions} />
+      <FilterBar
+        values={filterValues}
+        districts={districts}
+        regions={regions}
+        fallbackRegionId={tashkentRegionId}
+      />
       <SearchResults
         listings={page.listings}
         total={page.total}
@@ -336,6 +416,8 @@ export default async function SearchPage({
         heading={heading}
         filter={filter}
         initialBounds={initialBounds}
+        initialPolygon={initialPolygon}
+        regionIsDefault={defaultRegionId != null}
       />
     </div>
   );

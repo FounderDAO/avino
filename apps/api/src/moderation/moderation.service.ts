@@ -55,6 +55,8 @@ export interface AdminListingOwner {
  */
 export interface AdminListingListItem {
   id: string;
+  /** Публичный человекочитаемый номер объявления (ADR-0137); поиск по нему в админке. */
+  reference: number;
   status: ListingStatus;
   transaction_type: TransactionType;
   property_type: PropertyType;
@@ -64,6 +66,8 @@ export interface AdminListingListItem {
   district_id: string | null;
   /** Имя района (nameRu) — для колонки «Район» в админ-таблице; нет района → null. */
   district_name: string | null;
+  /** Точный адрес (из Яндекс-карты при создании); null, если не задан. */
+  address: string | null;
   /** Число комнат — для колонки «Комн.»; null для участков и т.п. */
   rooms: number | null;
   /** Счётчик просмотров листинга (`listings.views_count`). */
@@ -116,10 +120,12 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 /**
- * Маппинг действия модерации на целевой `listing_status` (API.md §16).
+ * Маппинг решения модератора на целевой `listing_status` (API.md §16).
  * APPROVE → ACTIVE, SEND_TO_DRAFT → DRAFT, REJECT → REJECTED, DELETE → DELETED.
+ * OWNER_EDIT сюда не входит — это системное событие, не переход по решению
+ * модератора (пишется из ListingsService при правке владельцем).
  */
-const ACTION_TO_STATUS: Record<ModerationAction, ListingStatus> = {
+const ACTION_TO_STATUS: Partial<Record<ModerationAction, ListingStatus>> = {
   [ModerationAction.APPROVE]: ListingStatus.ACTIVE,
   [ModerationAction.SEND_TO_DRAFT]: ListingStatus.DRAFT,
   [ModerationAction.REJECT]: ListingStatus.REJECTED,
@@ -142,8 +148,31 @@ const MODERATABLE_STATUSES: readonly ListingStatus[] = [
 /** Все языки, для которых обязателен перевод перед публикацией (ADR-0091). */
 const REQUIRED_LANGUAGES: readonly Language[] = Object.values(Language);
 
+/**
+ * Поля автора для инлайн-профиля (см. {@link AdminListingOwner}). Вынесено, чтобы
+ * список модерации и `getListingOwner` (admin-деталь, item #6) читали один набор.
+ */
+const OWNER_SELECT = {
+  id: true,
+  email: true,
+  phone: true,
+  status: true,
+  createdAt: true,
+  roles: { select: { role: { select: { code: true } } } },
+  profile: {
+    select: {
+      firstName: true,
+      lastName: true,
+      displayName: true,
+      contactPhone: true,
+      contactPhoneVerified: true,
+    },
+  },
+} as const;
+
 const LISTING_LIST_SELECT = {
   id: true,
+  reference: true,
   ownerId: true,
   status: true,
   transactionType: true,
@@ -153,6 +182,7 @@ const LISTING_LIST_SELECT = {
   currency: true,
   cityId: true,
   districtId: true,
+  address: true,
   rooms: true,
   viewsCount: true,
   publishedAt: true,
@@ -168,24 +198,7 @@ const LISTING_LIST_SELECT = {
     take: 1,
   },
   // Инлайн-профиль автора для карточки модерации (см. AdminListingOwner).
-  owner: {
-    select: {
-      id: true,
-      email: true,
-      phone: true,
-      status: true,
-      createdAt: true,
-      roles: { select: { role: { select: { code: true } } } },
-      profile: {
-        select: {
-          firstName: true,
-          lastName: true,
-          displayName: true,
-          contactPhone: true,
-        },
-      },
-    },
-  },
+  owner: { select: OWNER_SELECT },
 } as const;
 
 type AdminListingRow = Prisma.ListingGetPayload<{
@@ -227,6 +240,8 @@ export class ModerationService {
     if (query.status) where.status = query.status;
     if (query.property_type) where.propertyType = query.property_type;
     if (query.transaction_type) where.transactionType = query.transaction_type;
+    // Точный поиск по короткому номеру объявления (ADR-0137) — «найти быстро по id».
+    if (query.reference !== undefined) where.reference = query.reference;
     if (query.q) {
       where.translations = {
         some: { title: { contains: query.q, mode: 'insensitive' } },
@@ -302,6 +317,7 @@ export class ModerationService {
 
     const newStatus = ACTION_TO_STATUS[dto.action];
     if (
+      !newStatus ||
       !MODERATABLE_STATUSES.includes(existing.status) ||
       newStatus === existing.status
     ) {
@@ -446,6 +462,28 @@ export class ModerationService {
     }));
   }
 
+  /**
+   * `GET /api/v1/admin/listings/:id/owner` — инлайн-профиль автора для
+   * админ-детали (item #6, «Автор»). Публичный `GET /listings/:id` отдаёт лишь
+   * `owner_id` (PII там недопустима), поэтому имя/контакт автора берём этим
+   * admin-only роутом. Доступен и MODERATOR, и ADMIN (в отличие от ADMIN-only
+   * `GET /admin/users/:id`). Не фильтрует по статусу — админ видит автора любого
+   * листинга; отсутствующий листинг → 404.
+   */
+  async getListingOwner(id: string): Promise<AdminListingOwner> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id },
+      select: { owner: { select: OWNER_SELECT } },
+    });
+    if (!listing) {
+      throw new NotFoundException({
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Listing not found',
+      });
+    }
+    return this.toOwner(listing.owner);
+  }
+
   /** Компактная карточка листинга в snake_case для админ-списка. */
   private async toListItem(
     listing: AdminListingRow,
@@ -465,6 +503,7 @@ export class ModerationService {
       : null;
     return {
       id: listing.id,
+      reference: listing.reference,
       status: listing.status,
       transaction_type: listing.transactionType,
       property_type: listing.propertyType,
@@ -474,6 +513,7 @@ export class ModerationService {
       district_id: listing.districtId,
       district_name:
         (listing.districtId && districtNames.get(listing.districtId)) || null,
+      address: listing.address,
       rooms: listing.rooms,
       views_count: listing.viewsCount,
       owner_id: listing.ownerId,
@@ -495,7 +535,10 @@ export class ModerationService {
       last_name: owner.profile?.lastName ?? null,
       email: owner.email,
       phone: owner.phone,
-      contact_phone: owner.profile?.contactPhone ?? null,
+      contact_phone:
+        owner.profile?.contactPhoneVerified && owner.profile.contactPhone
+          ? owner.profile.contactPhone
+          : null,
       status: owner.status,
       roles: owner.roles.map((r) => r.role.code),
       created_at: owner.createdAt.toISOString(),

@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SectionTitle } from '@/components/admin/ui/section-title';
-import { UserStatusPill } from '@/components/admin/ui/pill';
+import { AuthTypePill, UserStatusPill } from '@/components/admin/ui/pill';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
 import { CreateUserModal, type CreateUserForm } from '@/components/admin/CreateUserModal';
@@ -105,18 +105,19 @@ export default function UsersPage() {
       ) : (
         <div className="a-card table-scroll">
           <table className="a-table">
-            <thead><tr><th>Имя</th><th>Телефон</th><th>Роль</th><th>Объявл.</th><th>Статус</th><th>Регистрация</th><th></th></tr></thead>
+            <thead><tr><th>Имя</th><th>Телефон</th><th>Роль</th><th>Вход</th><th>Объявл.</th><th>Статус</th><th>Регистрация</th><th></th></tr></thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 40 }}>Загрузка…</td></tr>
+                <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 40 }}>Загрузка…</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 40 }}>Ничего не найдено.</td></tr>
+                <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 40 }}>Ничего не найдено.</td></tr>
               ) : (
                 rows.map((u) => (
                   <tr key={u.id} style={{ cursor: 'pointer' }} onClick={() => onOpen(u.id)}>
                     <td><div className="row gap-10"><span style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--mint)', color: 'var(--teal-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>{u.name[0]}</span><div><b>{u.name}</b><div className="muted" style={{ fontSize: 12 }}>{u.email}</div></div></div></td>
                     <td className="muted" style={{ whiteSpace: 'nowrap' }}>{u.phone}</td>
                     <td>{roleLabel(u.role)}</td>
+                    <td><AuthTypePill authType={u.authType} /></td>
                     <td>{u.listings}</td>
                     <td><UserStatusPill status={u.status} /></td>
                     <td className="muted">{u.joined}</td>

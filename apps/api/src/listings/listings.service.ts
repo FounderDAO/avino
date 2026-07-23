@@ -4,13 +4,14 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import {
-  Amenity,
   Currency,
   Language,
   ListingStatus,
   MediaType,
+  ModerationAction,
   ParkingType,
   Prisma,
   PromotionType,
@@ -20,10 +21,11 @@ import {
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
-import { DistrictsService } from '../geo';
+import { AddressResolverService, DistrictsService, normalizeAddress } from '../geo';
 import { PrismaService } from '../prisma';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
+import { ActiveListingLimitService } from '../settings';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
@@ -59,7 +61,7 @@ interface ListingScalarInput {
   rooms?: number;
   bathrooms?: number;
   parking_type?: ParkingType;
-  amenities?: Amenity[];
+  amenities?: string[];
   floor?: number;
   is_basement?: boolean;
   total_floors?: number;
@@ -99,7 +101,7 @@ interface ListingScalarData {
   rooms?: number;
   bathrooms?: number;
   parkingType?: ParkingType;
-  amenities?: Amenity[];
+  amenities?: string[];
   floor?: number;
   isBasement?: boolean;
   totalFloors?: number;
@@ -190,6 +192,8 @@ export interface PriceHistoryEntry {
 
 export interface ListingDetailResponse {
   id: string;
+  /** Публичный человекочитаемый номер объявления (ADR-0137). */
+  reference: number;
   status: ListingStatus;
   transaction_type: TransactionType;
   property_type: PropertyType;
@@ -202,7 +206,7 @@ export interface ListingDetailResponse {
   rooms: number | null;
   bathrooms: number | null;
   parking_type: ParkingType | null;
-  amenities: Amenity[];
+  amenities: string[];
   floor: number | null;
   is_basement: boolean;
   total_floors: number | null;
@@ -239,6 +243,7 @@ export interface ListingDetailResponse {
 
 const LISTING_DETAIL_SELECT = {
   id: true,
+  reference: true,
   ownerId: true,
   agencyId: true,
   // Контакт автора (TASK-210, ADR-0069): телефон, профиль и роли владельца.
@@ -251,6 +256,7 @@ const LISTING_DETAIL_SELECT = {
           firstName: true,
           lastName: true,
           contactPhone: true,
+          contactPhoneVerified: true,
         },
       },
       roles: {
@@ -277,6 +283,9 @@ const LISTING_DETAIL_SELECT = {
   totalFloors: true,
   yearBuilt: true,
   address: true,
+  // Адрес на английском (ADR-0147): используется в detail при language === EN,
+  // аналогично search-выдаче (Task 8).
+  addressEn: true,
   cityId: true,
   districtId: true,
   latitude: true,
@@ -344,6 +353,7 @@ export interface ListingListItem {
   is_basement: boolean;
   city_id: string | null;
   district_id: string | null;
+  address: string | null;
   promotion_type: PromotionType;
   promotion_expires_at: string | null;
   original_language: Language;
@@ -381,6 +391,7 @@ const LISTING_LIST_SELECT = {
   isBasement: true,
   cityId: true,
   districtId: true,
+  address: true,
   promotionType: true,
   promotionExpiresAt: true,
   publishedAt: true,
@@ -447,6 +458,8 @@ export class ListingsService {
     private readonly translations: TranslationsService,
     private readonly districts: DistrictsService,
     private readonly uploads: UploadsService,
+    private readonly activeLimit: ActiveListingLimitService,
+    private readonly addressResolver: AddressResolverService,
   ) {}
 
   /** `POST /api/v1/listings` — создать объявление (статус `NEW`). */
@@ -455,7 +468,9 @@ export class ListingsService {
     dto: CreateListingDto,
   ): Promise<ListingResponse> {
     await this.ensureProfileComplete(ownerId);
+    await this.ensureActiveListingQuota(ownerId);
     validateToursInput(dto.tours_enabled ?? false, (dto.tour_windows as TourWindow[]) ?? []);
+    await this.assertAmenityCodes(dto.amenities ?? []);
     // Optional-поля даёт toScalarData; required (после спреда) выставляются явно,
     // чтобы их типы оставались non-undefined. ownerId + nested translations.create
     // резолвят data в UncheckedCreateInput (scalar FK + дочерняя relation).
@@ -475,6 +490,7 @@ export class ListingsService {
         ),
       },
     };
+    await this.applyAddress(data, dto);
 
     // Авто-апгрейд автора до OWNER при первом объявлении и сама запись — в одной
     // транзакции (ADR-0083). Это позволяет свежему USER публиковать сразу, не
@@ -556,6 +572,76 @@ export class ListingsService {
   }
 
   /**
+   * Квота активных объявлений текущего пользователя. Источник правды для
+   * реактивного лимита (`ensureActiveListingQuota`) и проактивного gate-эндпоинта
+   * `GET /listings/quota`. «Занятый слот» = ACTIVE + NEW-на-модерации.
+   * AGENT/AGENCY и лимит `0` → без ограничения (`blocked:false`).
+   */
+  async getActiveListingQuota(
+    ownerId: string,
+  ): Promise<{ limit: number; used: number; blocked: boolean }> {
+    // Агент/агентство публикуют без ограничения.
+    const proRoleCount = await this.prisma.userRole.count({
+      where: {
+        userId: ownerId,
+        role: { code: { in: [UserRole.AGENT, UserRole.AGENCY] } },
+      },
+    });
+    if (proRoleCount > 0) return { limit: 0, used: 0, blocked: false };
+
+    const limit = await this.activeLimit.getLimit();
+    if (limit <= 0) return { limit, used: 0, blocked: false }; // 0 = без лимита
+
+    const used = await this.prisma.listing.count({
+      where: {
+        ownerId,
+        status: { in: [ListingStatus.ACTIVE, ListingStatus.NEW] },
+      },
+    });
+    return { limit, used, blocked: used >= limit };
+  }
+
+  /**
+   * Лимит активных объявлений обычного клиента (admin-настраиваемый,
+   * `active_listing_limit` в app_settings, default 2). Превышение → `422`.
+   * Определение квоты и pro-исключение — в {@link getActiveListingQuota}.
+   */
+  private async ensureActiveListingQuota(ownerId: string): Promise<void> {
+    const { limit, blocked } = await this.getActiveListingQuota(ownerId);
+    if (blocked) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.ACTIVE_LISTING_LIMIT_REACHED,
+          message: `You can have at most ${limit} active listings`,
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+  }
+
+  /**
+   * Коды удобств (`amenities`) должны существовать в справочнике и быть
+   * видимыми (`is_active=true`) — иначе `422 VALIDATION_ERROR` (справочник
+   * удобств, Task 4). Пустой список — no-op (амедства не переданы/сброшены).
+   */
+  private async assertAmenityCodes(codes: string[]): Promise<void> {
+    if (codes.length === 0) return;
+    const unique = [...new Set(codes)];
+    const found = await this.prisma.amenity.findMany({
+      where: { code: { in: unique }, isActive: true },
+      select: { code: true },
+    });
+    const ok = new Set(found.map((a) => a.code));
+    const bad = unique.filter((c) => !ok.has(c));
+    if (bad.length > 0) {
+      throw new UnprocessableEntityException({
+        code: ApiErrorCode.VALIDATION_ERROR,
+        message: `Unknown or hidden amenity codes: ${bad.join(', ')}`,
+      });
+    }
+  }
+
+  /**
    * `PATCH /api/v1/listings/:id` — обновить собственное объявление.
    * Чужое объявление → `403 FORBIDDEN`; отсутствующее/DELETED → `404 NOT_FOUND`.
    */
@@ -566,7 +652,47 @@ export class ListingsService {
   ): Promise<ListingResponse> {
     const existing = await this.prisma.listing.findFirst({
       where: { id: listingId, status: { not: ListingStatus.DELETED } },
-      select: { id: true, ownerId: true, originalLanguage: true, status: true, toursEnabled: true, tourWindows: true, price: true, currency: true },
+      // Контентные поля читаем целиком: по ним считаем diff для лога OWNER_EDIT
+      // и решаем, возвращать ли объявление на модерацию (ADR-0120).
+      select: {
+        id: true,
+        ownerId: true,
+        originalLanguage: true,
+        status: true,
+        toursEnabled: true,
+        tourWindows: true,
+        transactionType: true,
+        propertyType: true,
+        price: true,
+        currency: true,
+        area: true,
+        lotArea: true,
+        livingArea: true,
+        nonLivingArea: true,
+        rooms: true,
+        bathrooms: true,
+        parkingType: true,
+        amenities: true,
+        floor: true,
+        isBasement: true,
+        totalFloors: true,
+        yearBuilt: true,
+        address: true,
+        cityId: true,
+        districtId: true,
+        agencyId: true,
+        latitude: true,
+        longitude: true,
+        translations: {
+          select: {
+            language: true,
+            title: true,
+            description: true,
+            addressNote: true,
+            featuresText: true,
+          },
+        },
+      },
     });
     if (!existing) {
       throw new NotFoundException({
@@ -586,8 +712,16 @@ export class ListingsService {
       (dto.tour_windows as TourWindow[]) ??
       ((existing.tourWindows as unknown as TourWindow[]) ?? []);
     validateToursInput(effectiveEnabled, effectiveWindows);
+    if (dto.amenities !== undefined) {
+      await this.assertAmenityCodes(dto.amenities);
+    }
 
     const data: Prisma.ListingUpdateInput = this.toScalarData(dto);
+    await this.applyAddress(
+      data as { address?: string | null; addressEn?: string | null },
+      dto,
+      existing,
+    );
 
     const translationData = this.toTranslationData(dto.translation);
     if (translationData) {
@@ -606,12 +740,22 @@ export class ListingsService {
       };
     }
 
-    // Правка опубликованного (ACTIVE) объявления возвращает его на повторную
-    // модерацию (NEW): изменённый контент не должен оставаться в публичной
-    // выдаче без проверки (Team Lead decision, ADR-0120). published_at не
-    // сбрасываем — при повторном APPROVE он не перезаписывается
-    // (ModerationService.changeStatus), поэтому дата первой публикации сохранится.
-    if (existing.status === ListingStatus.ACTIVE) {
+    // Правка объявления, уже получившего решение модератора, возвращает его на
+    // повторную проверку (NEW) — но только если реально изменился КОНТЕНТ:
+    //  - ACTIVE   — изменённый контент не должен оставаться в публичной выдаче
+    //               без проверки (Team Lead decision, ADR-0120);
+    //  - REJECTED — исправив замечание модератора (напр. завышенную цену),
+    //               владелец снова попадает в очередь; иначе объявление после
+    //               правки навсегда осталось бы «отклонённым» вне модерации.
+    // Правка одних лишь окон туров (расписание, не контент) статус не меняет.
+    // DRAFT намеренно НЕ ре-модерируется. published_at не сбрасываем — при
+    // повторном APPROVE он не перезаписывается (ModerationService.changeStatus).
+    const changes = this.collectOwnerEditChanges(existing, data, dto.translation);
+    const reModerated =
+      changes.length > 0 &&
+      (existing.status === ListingStatus.ACTIVE ||
+        existing.status === ListingStatus.REJECTED);
+    if (reModerated) {
       data.status = ListingStatus.NEW;
     }
     // Smart-return: правка скрытого (ARCHIVED) листинга требует повторной
@@ -639,6 +783,21 @@ export class ListingsService {
       if (priceChanged) {
         await tx.listingPriceHistory.create({
           data: { listingId, price: nextPrice, currency: nextCurrency },
+        });
+      }
+      // Системная запись в таймлайн модерации: почему объявление вернулось в
+      // очередь. moderator_id = null (не решение модератора), reason — список
+      // изменённых полей, который модератор видит в «Истории модерации».
+      if (reModerated) {
+        await tx.moderationLog.create({
+          data: {
+            listingId,
+            moderatorId: null,
+            action: ModerationAction.OWNER_EDIT,
+            oldStatus: existing.status,
+            newStatus: ListingStatus.NEW,
+            reason: `Изменено: ${changes.join(', ')}`,
+          },
         });
       }
       return row;
@@ -770,7 +929,39 @@ export class ListingsService {
       where: { id: listingId },
       select: LISTING_DETAIL_SELECT,
     });
+    return this.resolveDetail(listing, viewer, langParam, acceptLanguage);
+  }
 
+  /**
+   * `GET /api/v1/listings/by-ref/:reference` — публичная карточка по короткому
+   * человекочитаемому номеру объявления (ADR-0137). Видимость и выбор перевода —
+   * идентичны {@link findOne} (тот же приватный хвост); отличается лишь то, что
+   * объявление ищется по `reference`, а не по UUID.
+   */
+  async findByReference(
+    reference: number,
+    viewer: AuthenticatedUser | undefined,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<ListingDetailResponse> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { reference },
+      select: LISTING_DETAIL_SELECT,
+    });
+    return this.resolveDetail(listing, viewer, langParam, acceptLanguage);
+  }
+
+  /**
+   * Общий хвост detail-выдачи: проверка видимости (DELETED/непубличные статусы),
+   * выбор языка перевода и имени района, сборка ответа. Используется и findOne
+   * (по id), и findByReference (по номеру).
+   */
+  private async resolveDetail(
+    listing: ListingDetailRow | null,
+    viewer: AuthenticatedUser | undefined,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<ListingDetailResponse> {
     const notFound = new NotFoundException({
       code: ApiErrorCode.NOT_FOUND,
       message: 'Listing not found',
@@ -898,6 +1089,144 @@ export class ListingsService {
     return viewer.roles.some((role) => PRIVILEGED_VIEW_ROLES.includes(role));
   }
 
+  /**
+   * Адрес объявления (ADR-0147): координаты в dto → реверс-геокод ru+en
+   * (AddressResolverService); геокодер молчит → строковая нормализация
+   * присланного текста, addressEn сбрасывается (мог протухнуть против нового
+   * ru). Правка только текста без координат ре-геокод НЕ вызывает — ручная
+   * правка владельца уважается (но чистится нормализатором).
+   */
+  private async applyAddress(
+    data: { address?: string | null; addressEn?: string | null },
+    dto: {
+      latitude?: string;
+      longitude?: string;
+      address?: string;
+      district_id?: string;
+    },
+    existing?: { districtId: string | null } | null,
+  ): Promise<void> {
+    const coordsTouched =
+      dto.latitude !== undefined && dto.longitude !== undefined;
+    if (coordsTouched) {
+      const districtId = dto.district_id ?? existing?.districtId ?? null;
+      const resolved = await this.addressResolver.resolve(
+        dto.latitude as string,
+        dto.longitude as string,
+        districtId,
+      );
+      if (resolved) {
+        data.address = resolved.address;
+        data.addressEn = resolved.addressEn;
+        return;
+      }
+    }
+    if (dto.address !== undefined) {
+      data.address = normalizeAddress(dto.address);
+      data.addressEn = null;
+    }
+  }
+
+  /**
+   * Список реально изменённых КОНТЕНТНЫХ полей — человекочитаемо (RU, админка
+   * русскоязычная) — для reason лога OWNER_EDIT. Сравниваем финальные значения
+   * (DB-форма `data`) со старыми (`existing`): «тихое» сохранение без изменений
+   * не считается правкой и не возвращает объявление на модерацию. Окна туров
+   * (`tours_*`) — расписание, не контент: намеренно исключены.
+   */
+  private collectOwnerEditChanges(
+    existing: Record<string, unknown>,
+    data: Record<string, unknown>,
+    translation: UpdateListingDto['translation'],
+  ): string[] {
+    const changes: string[] = [];
+    const has = (k: string) => data[k] !== undefined;
+    const norm = (v: unknown) => (v == null ? null : String(v));
+    const decEq = (a: unknown, b: unknown): boolean => {
+      if (a == null || b == null) return a == null && b == null;
+      return new Prisma.Decimal(a as Prisma.Decimal.Value).equals(
+        new Prisma.Decimal(b as Prisma.Decimal.Value),
+      );
+    };
+
+    // Цена — самый частый повод (пример: «цена повышена»); даём old → new.
+    if (has('price') || has('currency')) {
+      const oldPrice = existing.price as Prisma.Decimal;
+      const oldCur = existing.currency as string;
+      const newPrice = (data.price as string) ?? oldPrice.toFixed(2);
+      const newCur = (data.currency as string) ?? oldCur;
+      if (!decEq(oldPrice, newPrice) || oldCur !== newCur) {
+        changes.push(
+          `цена ${oldPrice.toFixed(2)} ${oldCur} → ${new Prisma.Decimal(newPrice).toFixed(2)} ${newCur}`,
+        );
+      }
+    }
+
+    for (const [k, label] of [
+      ['area', 'площадь'],
+      ['lotArea', 'площадь участка'],
+      ['livingArea', 'жилая площадь'],
+      ['nonLivingArea', 'нежилая площадь'],
+      ['bathrooms', 'санузлы'],
+    ] as const) {
+      if (has(k) && !decEq(existing[k], data[k])) changes.push(label);
+    }
+
+    for (const [k, label] of [
+      ['transactionType', 'тип сделки'],
+      ['propertyType', 'тип недвижимости'],
+      ['rooms', 'комнаты'],
+      ['parkingType', 'парковка'],
+      ['floor', 'этаж'],
+      ['isBasement', 'цоколь'],
+      ['totalFloors', 'этажность'],
+      ['yearBuilt', 'год постройки'],
+      ['address', 'адрес'],
+      ['cityId', 'город'],
+      ['districtId', 'район'],
+      ['agencyId', 'агентство'],
+    ] as const) {
+      if (has(k) && norm(existing[k]) !== norm(data[k])) changes.push(label);
+    }
+
+    // Удобства — сравнение множеств (порядок неважен).
+    if (has('amenities')) {
+      const before = new Set((existing.amenities as string[] | null) ?? []);
+      const after = new Set((data.amenities as string[] | null) ?? []);
+      if (before.size !== after.size || [...after].some((x) => !before.has(x))) {
+        changes.push('удобства');
+      }
+    }
+
+    // Координаты (map-пин) — одна метка на сдвиг точки.
+    if (
+      (has('latitude') && !decEq(existing.latitude, data.latitude)) ||
+      (has('longitude') && !decEq(existing.longitude, data.longitude))
+    ) {
+      changes.push('координаты');
+    }
+
+    // Авторский перевод: старые значения — из existing.translations (строка
+    // original_language).
+    if (translation) {
+      const orig =
+        ((existing.translations as Record<string, unknown>[] | undefined) ?? []).find(
+          (t) => t.language === existing.originalLanguage,
+        ) ?? {};
+      for (const [dtoKey, dbKey, label] of [
+        ['title', 'title', 'заголовок'],
+        ['description', 'description', 'описание'],
+        ['address_note', 'addressNote', 'примечание к адресу'],
+        ['features_text', 'featuresText', 'особенности'],
+      ] as const) {
+        const nv = (translation as Record<string, unknown>)[dtoKey];
+        if (nv !== undefined && norm(nv) !== norm(orig[dbKey])) changes.push(label);
+      }
+    }
+
+    return changes;
+  }
+
   /** DTO (snake_case) → Prisma scalar data (camelCase). Пропускает undefined. */
   private toScalarData(dto: ListingScalarInput): ListingScalarData {
     const data: ListingScalarData = {};
@@ -1004,6 +1333,7 @@ export class ListingsService {
       is_basement: listing.isBasement,
       city_id: listing.cityId,
       district_id: listing.districtId,
+      address: listing.address,
       promotion_type: listing.promotionType,
       promotion_expires_at: listing.promotionExpiresAt?.toISOString() ?? null,
       original_language: listing.originalLanguage,
@@ -1038,7 +1368,10 @@ export class ListingsService {
         profile?.displayName ?? (fullName.length > 0 ? fullName : null),
       type,
       is_pro: type !== 'owner',
-      phone: profile?.contactPhone ?? owner.phone ?? null,
+      phone:
+        profile?.contactPhoneVerified && profile.contactPhone
+          ? profile.contactPhone
+          : (owner.phone ?? null),
     };
   }
 
@@ -1066,6 +1399,7 @@ export class ListingsService {
     );
     return {
       id: listing.id,
+      reference: listing.reference,
       contact: this.buildContact(listing.owner),
       status: listing.status,
       transaction_type: listing.transactionType,
@@ -1088,7 +1422,12 @@ export class ListingsService {
       city_id: listing.cityId,
       district_id: listing.districtId,
       district_name: districtName,
-      address: listing.address,
+      // Адрес по языку (ADR-0147): для EN отдаём addressEn (если заполнен),
+      // иначе — канонический RU address; для остальных языков — всегда RU.
+      address:
+        language === Language.EN
+          ? (listing.addressEn ?? listing.address)
+          : listing.address,
       latitude: listing.latitude?.toFixed(6) ?? null,
       longitude: listing.longitude?.toFixed(6) ?? null,
       promotion_type: listing.promotionType,

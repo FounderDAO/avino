@@ -48,6 +48,16 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(dto({ is_basement: 'false' }).inst.is_basement).toBe(false);
   });
 
+  it('парсит new_construction из query-строки', () => {
+    expect(dto({ new_construction: 'true' }).inst.new_construction).toBe(true);
+    expect(dto({ new_construction: 'false' }).inst.new_construction).toBe(false);
+    expect(dto({ new_construction: 'true' }).errors).toHaveLength(0);
+  });
+
+  it('отклоняет мусорное значение new_construction', () => {
+    expect(dto({ new_construction: 'yes' }).errors.length).toBeGreaterThan(0);
+  });
+
   it('нормализует listing_source в массив и валидирует значения', () => {
     expect(dto({ listing_source: 'OWNER' }).inst.listing_source).toEqual(['OWNER']);
     expect(dto({ listing_source: ['OWNER', 'AGENCY'] }).errors).toHaveLength(0);
@@ -66,9 +76,12 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(inst.amenities).toEqual(['POOL']);
   });
 
-  it('отклоняет невалидное значение amenities', () => {
-    const { errors } = dto({ amenities: ['NOPE'] });
-    expect(errors.length).toBeGreaterThan(0);
+  it('принимает произвольный код amenities (справочник, валидация не в DTO)', () => {
+    // amenities теперь text[] справочника (не enum) — DTO пропускает любой
+    // строковый код; сверка с активным справочником делается на слое сервиса.
+    const { inst, errors } = dto({ amenities: ['NEW_CODE'] });
+    expect(errors).toHaveLength(0);
+    expect(inst.amenities).toEqual(['NEW_CODE']);
   });
 
   it('нормализует одиночный amenities в массив (toArray)', () => {
@@ -85,6 +98,57 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
 
   it.each(['3.5', '1.3', '0', '5'])('отклоняет bathrooms_min=%s (вне набора 1/1.5/2/2.5/3/4)', (v) => {
     const { errors } = dto({ bathrooms_min: v });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('SearchListingsQueryDto — rooms (TASK-247, ADR-0133)', () => {
+  it('нормализует одиночный rooms в массив из 1 элемента (back-compat)', () => {
+    const { inst, errors } = dto({ rooms: '2' });
+    expect(errors).toHaveLength(0);
+    expect(inst.rooms).toEqual([2]);
+  });
+
+  it('принимает повторяющийся rooms как массив чисел', () => {
+    const { inst, errors } = dto({ rooms: ['2', '3', '5'] });
+    expect(errors).toHaveLength(0);
+    expect(inst.rooms).toEqual([2, 3, 5]);
+  });
+
+  it('отклоняет нечисловой элемент rooms', () => {
+    const { errors } = dto({ rooms: ['abc'] });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('отклоняет отрицательный rooms', () => {
+    const { errors } = dto({ rooms: ['-1'] });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('SearchListingsQueryDto — points (TASK-249)', () => {
+  it('необязателен — отсутствие points валидно', () => {
+    const { errors } = dto({});
+    expect(errors).toHaveLength(0);
+  });
+
+  it('принимает валидный полигон (>= 3 вершины)', () => {
+    const { inst, errors } = dto({
+      points: '41.30,69.27;41.30,69.29;41.32,69.28',
+    });
+    expect(errors).toHaveLength(0);
+    expect(inst.points).toBe('41.30,69.27;41.30,69.29;41.32,69.28');
+  });
+
+  it('отклоняет невалидный полигон (< 3 вершин)', () => {
+    const { errors } = dto({ points: '41.30,69.27;41.30,69.29' });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('отклоняет нечисловые координаты', () => {
+    const { errors } = dto({
+      points: 'abc,69.27;41.30,69.29;41.32,69.28',
+    });
     expect(errors.length).toBeGreaterThan(0);
   });
 });

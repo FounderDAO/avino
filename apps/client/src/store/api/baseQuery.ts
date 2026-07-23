@@ -5,26 +5,28 @@ import {
   type FetchBaseQueryError,
 } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '../store';
-import {
-  clearCredentials,
-  setCredentials,
-  selectAccessToken,
-  selectRefreshToken,
-} from '../slices/authSlice';
+import { clearCredentials, setCredentials, selectAccessToken } from '../slices/authSlice';
 import type { RefreshResponse } from './authApi';
 
 /**
- * baseQueryWithReauth публичного портала (TASK-150).
+ * baseQueryWithReauth публичного портала (TASK-150, ADR-0153).
  *
- * 1. Подставляет `Authorization: Bearer <access>` в каждый запрос.
- * 2. На `401` один раз дёргает `/auth/refresh`, обновляет токены и повторяет
- *    исходный запрос.
+ * 1. Подставляет `Authorization: Bearer <access>` в каждый запрос; `credentials:
+ *    'include'` шлёт httpOnly cookie `avino_rt` на API (cross-origin same-site;
+ *    CORS API отвечает Allow-Credentials).
+ * 2. На `401` один раз дёргает `/auth/refresh` — БЕЗ ТЕЛА: сервер ротирует по
+ *    cookie `avino_rt` и ставит новую cookie (ADR-0153). Обновляет access и
+ *    повторяет исходный запрос.
  * 3. При неудаче refresh — разлогинивает (clearCredentials).
  *
- * Конкурентные 401-ответы обслуживаются одним refresh (single-flight):
- * пока идёт ротация, остальные запросы ждут её результат, а не плодят
- * параллельные /auth/refresh (повторное использование ротированного токена
- * отозвало бы всю session family — docs/API.md §3).
+ * Конкурентные 401-ответы обслуживаются одним refresh (single-flight): пока
+ * идёт ротация, остальные запросы ждут её результат, а не плодят параллельные
+ * `/auth/refresh`.
+ *
+ * Кросс-вкладочный Web Locks остаётся как defense-in-depth переходного периода
+ * (#447): refresh больше не в JS, поэтому «двойная ротация одного токена из
+ * localStorage» архитектурно невозможна — но лок ничему не мешает и снимет
+ * лишние параллельные бутстрап-рефреши между вкладками.
  */
 
 const API_BASE_URL = `${
@@ -33,6 +35,8 @@ const API_BASE_URL = `${
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
+  // Слать/принимать httpOnly cookie avino_rt cross-origin (ADR-0153).
+  credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
     const token = selectAccessToken(getState() as RootState);
     if (token) {
@@ -50,8 +54,53 @@ const rawBaseQuery = fetchBaseQuery({
 type RtkApi = Parameters<typeof rawBaseQuery>[1];
 type RtkExtra = Parameters<typeof rawBaseQuery>[2];
 
-/** Промис текущей ротации (single-flight mutex). */
+/** Промис текущей ротации внутри ЭТОЙ вкладки (single-flight mutex). */
 let refreshInFlight: Promise<boolean> | null = null;
+
+/** Имя кросс-вкладочного лока (Web Locks API). */
+const REFRESH_LOCK = 'avino.client.auth-refresh';
+
+/**
+ * Один реальный обмен refresh → новая пара токенов. Тело НЕ передаётся: сервер
+ * читает refresh из httpOnly cookie `avino_rt` (ADR-0153) и ставит новую cookie.
+ * В ответе интересует только `access_token` (refresh теперь невидим для JS).
+ */
+async function performRefresh(
+  api: RtkApi,
+  extraOptions: RtkExtra,
+): Promise<boolean> {
+  const result = await rawBaseQuery(
+    { url: '/auth/refresh', method: 'POST' },
+    api,
+    extraOptions,
+  );
+
+  const data = result.data as RefreshResponse | undefined;
+  if (data?.access_token) {
+    api.dispatch(setCredentials({ access_token: data.access_token }));
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Сериализация refresh МЕЖДУ вкладками (Web Locks API, defense-in-depth #447).
+ * Fallback (нет `navigator.locks`: SSR, старые браузеры) — только
+ * внутривкладочный single-flight.
+ */
+function refreshUnderCrossTabLock(
+  api: RtkApi,
+  extraOptions: RtkExtra,
+): Promise<boolean> {
+  const locks =
+    typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  if (!locks) return performRefresh(api, extraOptions);
+  // lib.dom-оверлоад LockManager.request выводит T=Promise<boolean> (двойной
+  // Promise в типе); в рантайме async-цепочка его разворачивает.
+  return locks.request(REFRESH_LOCK, () =>
+    performRefresh(api, extraOptions),
+  ) as unknown as Promise<boolean>;
+}
 
 async function refreshTokens(
   api: RtkApi,
@@ -60,30 +109,7 @@ async function refreshTokens(
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
-        const refreshToken = selectRefreshToken(api.getState() as RootState);
-        if (!refreshToken) return false;
-
-        const result = await rawBaseQuery(
-          {
-            url: '/auth/refresh',
-            method: 'POST',
-            body: { refresh_token: refreshToken },
-          },
-          api,
-          extraOptions,
-        );
-
-        const data = result.data as RefreshResponse | undefined;
-        if (data?.access_token && data?.refresh_token) {
-          api.dispatch(
-            setCredentials({
-              access_token: data.access_token,
-              refresh_token: data.refresh_token,
-            }),
-          );
-          return true;
-        }
-        return false;
+        return await refreshUnderCrossTabLock(api, extraOptions);
       } catch {
         return false;
       } finally {

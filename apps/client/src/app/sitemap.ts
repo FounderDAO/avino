@@ -56,6 +56,7 @@ const STATIC_ROUTES: MetadataRoute.Sitemap = [
   staticEntry('/search?tx=SALE', 0.9, 'daily'),
   staticEntry('/search?tx=RENT', 0.9, 'daily'),
   staticEntry('/sell', 0.7, 'monthly'),
+  staticEntry('/about', 0.5, 'monthly'),
   staticEntry('/help', 0.5, 'monthly'),
   staticEntry('/map', 0.8, 'daily'),
 ];

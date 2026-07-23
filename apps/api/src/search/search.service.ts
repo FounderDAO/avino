@@ -24,7 +24,11 @@ import {
   RadiusSearchQueryDto,
 } from './dto/geo-search.dto';
 import { polygonVerticesFromFilters } from './dto/polygon-ring.util';
-import { SearchListingsQueryDto, SortMode } from './dto/search-listings.dto';
+import {
+  NEW_CONSTRUCTION_MAX_AGE_YEARS,
+  SearchListingsQueryDto,
+  SortMode,
+} from './dto/search-listings.dto';
 import {
   PriceBucketDto,
   PriceDistributionQueryDto,
@@ -79,6 +83,8 @@ const PINNED_PROMO_COUNT = 3;
  */
 export interface SearchListItem {
   id: string;
+  /** Публичный человекочитаемый номер объявления (ADR-0137). */
+  reference: number;
   status: ListingStatus;
   transaction_type: TransactionType;
   property_type: PropertyType;
@@ -88,9 +94,13 @@ export interface SearchListItem {
   bathrooms: number | null;
   parking_type: ParkingType | null;
   is_basement: boolean;
+  /** Общая площадь, м² (Decimal-строка); нужна клиенту для сортировки area_desc. */
+  area: string | null;
   lot_area: string | null;
   city_id: string | null;
   district_id: string | null;
+  /** Точный адрес объявления (VarChar 500); `null`, если не заполнен. */
+  address: string | null;
   latitude: string | null;
   longitude: string | null;
   promotion_type: PromotionType;
@@ -232,6 +242,7 @@ const SORTS: Record<SortMode, SortConfig> = {
 
 const SEARCH_SELECT = {
   id: true,
+  reference: true,
   status: true,
   transactionType: true,
   propertyType: true,
@@ -241,9 +252,12 @@ const SEARCH_SELECT = {
   bathrooms: true,
   parkingType: true,
   isBasement: true,
+  area: true,
   lotArea: true,
   cityId: true,
   districtId: true,
+  address: true,
+  addressEn: true,
   latitude: true,
   longitude: true,
   promotionType: true,
@@ -307,6 +321,10 @@ export class SearchService {
    * PINNED_PROMO_COUNT} промо закреплены в начале, остальное строго по выбранному
    * ключу; для `price_*` ключ нормализуется в USD по текущему курсу ЦБУ
    * ({@link SearchService.searchExplicitSort}).
+   *
+   * `points` (TASK-249, ADR-0133): необязательная нарисованная территория —
+   * если задана, пересечение с контуром ({@link pointsFilterSql}) подмешивается
+   * к остальным фильтрам (`ST_Within`, зеркало `/search/polygon`).
    */
   async search(
     query: SearchListingsQueryDto,
@@ -315,7 +333,7 @@ export class SearchService {
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const cursor = this.decodeCursor(query.cursor);
-    const filterSql = this.buildWhereSql(query, await this.fxRateForFilter(query));
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, await this.fxRateForFilter(query))} ${this.pointsFilterSql(query.points)}`;
 
     // Явная сортировка → гибрид (закреплённое промо + строгий ключ + FX).
     if (query.sort !== undefined) {
@@ -581,6 +599,9 @@ export class SearchService {
    * по осевому прямоугольнику уже эквивалентен «точка внутри», но `ST_Within`
    * оставлен явно (контракт API.md §10, комментарий миграции idx_listings_location).
    * Гео-эндпоинт всегда использует `date_desc`-конфиг (created_at DESC).
+   *
+   * `points` (TASK-249, ADR-0133): необязательная нарисованная территория —
+   * если задана, результат — пересечение bbox И контура ({@link pointsFilterSql}).
    */
   async searchBounds(
     query: BoundsSearchQueryDto,
@@ -593,7 +614,7 @@ export class SearchService {
     const envelope = this.envelopeSql(query);
     const fxRate = await this.fxRateForFilter(query);
     // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
-    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND ${this.boundsPrefilterSql(query)} AND ST_Within(location::geometry, ${envelope})`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND ${this.boundsPrefilterSql(query)} AND ST_Within(location::geometry, ${envelope}) ${this.pointsFilterSql(query.points)}`;
     const pageWhere = cursor
       ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
@@ -953,6 +974,23 @@ export class SearchService {
   }
 
   /**
+   * Условие территории по необязательному `points` (TASK-249, ADR-0133) для
+   * `/search` и `/search/bounds` — та же полигональная фильтрация, что у
+   * `/search/polygon` ({@link polygonSql}), но подмешиваемая ДОПОЛНИТЕЛЬНО к
+   * bbox/скалярным фильтрам, а не вместо них. `undefined` (контур не задан) →
+   * `Prisma.empty` (условие не добавляется). Валидность строки уже гарантирована
+   * DTO-декоратором (`IsPolygonRingOptional`), поэтому `parsePolygonRing` здесь
+   * не должен бросать — как и в {@link searchPolygon}/{@link
+   * matchNewlyActiveListings}, парсинг — единственный источник истины
+   * ({@link parsePolygonRing}), расхождение невозможно.
+   */
+  private pointsFilterSql(points: string | undefined): Prisma.Sql {
+    if (points === undefined) return Prisma.empty;
+    const polygon = this.polygonSql(parsePolygonRing(points));
+    return Prisma.sql`AND location IS NOT NULL AND location && ${polygon}::geography AND ST_Within(location::geometry, ${polygon})`;
+  }
+
+  /**
    * Сборка keyset-envelope из ранжированных строк (+1 строка — индикатор
    * следующей страницы): срез до `limit`, гидратация карточек, tier-aware
    * `next_cursor` по последнему показанному элементу. `cfg` определяет, как
@@ -1151,7 +1189,12 @@ export class SearchService {
    * фильтр совпадал с конвертированными ценами, которые видит пользователь;
    * `rate=null` → деградация к сравнению в пределах одной валюты.
    *
-   * `rooms` (TASK-207): 0..3 — точное совпадение; 4 = «4+» (rooms >= 4).
+   * `rooms` (TASK-207/TASK-247, ADR-0133, BREAKING): массив ИЛИ одиночное число —
+   * `matchNewlyActiveListings` передаёт сырой `filters_json` в обход DTO, поэтому
+   * этот метод принимает `query.rooms` нативно как `number | number[]`. Каждое
+   * значение 0..4 — ТОЧНОЕ совпадение (`IN (...)`), 5 — «5 и более» (`>= 5`);
+   * ветки комбинируются через OR. Раньше одиночное `rooms=4` трактовалось как
+   * «4 и более» — теперь это РОВНО 4 (BREAKING).
    * `rooms_min`: «N и более» (rooms >= N) — для кнопок 1+/2+/…/5+.
    * Применяется во всех эндпоинтах поиска (включая гео-варианты).
    *
@@ -1183,6 +1226,9 @@ export class SearchService {
       conds.push(
         Prisma.sql`district_id IN (SELECT id FROM districts WHERE region_id = ${query.region_id}::uuid)`,
       );
+    // Страница агента (ADR-0140): только объявления этого владельца.
+    if (query.agent_id !== undefined)
+      conds.push(Prisma.sql`owner_id = ${query.agent_id}::uuid`);
 
     // Ценовой диапазон + валюта. Цену пользователь видит КОНВЕРТИРОВАННОЙ в
     // выбранную валюту (usePriceFormatter «≈ $X»), поэтому и фильтр обязан
@@ -1207,12 +1253,24 @@ export class SearchService {
       if (query.price_max !== undefined)
         conds.push(Prisma.sql`price <= ${query.price_max}::numeric`);
     }
-    if (query.rooms !== undefined)
-      conds.push(
-        query.rooms >= 4
-          ? Prisma.sql`rooms >= 4`
-          : Prisma.sql`rooms = ${query.rooms}`,
-      );
+    // TASK-247 (ADR-0133): `query.rooms` — массив (DTO) ИЛИ одиночное число
+    // (сырые `filters_json` в matchNewlyActiveListings, в обход DTO-трансформа).
+    // Каждое значение 0..4 — точное совпадение (IN), 5 — «5 и более» (>= 5).
+    if (query.rooms !== undefined) {
+      const roomsValues = Array.isArray(query.rooms)
+        ? query.rooms
+        : [query.rooms];
+      if (roomsValues.length > 0) {
+        const exact = roomsValues.filter((v) => v < 5);
+        const hasFivePlus = roomsValues.some((v) => v >= 5);
+        const parts: Prisma.Sql[] = [];
+        if (exact.length > 0)
+          parts.push(Prisma.sql`rooms IN (${Prisma.join(exact)})`);
+        if (hasFivePlus) parts.push(Prisma.sql`rooms >= 5`);
+        if (parts.length > 0)
+          conds.push(Prisma.sql`(${Prisma.join(parts, ' OR ')})`);
+      }
+    }
 
     // Zillow Phase 1: «N+ комнат»
     if (query.rooms_min !== undefined)
@@ -1229,11 +1287,11 @@ export class SearchService {
       );
 
     // Zillow Phase 2: удобства (AND — есть ВСЕ выбранные; пустой/NULL-массив не матчит).
-    // Нативный тип `"Amenity"[]` (не ::text[]) — чтобы GIN-индекс listings_amenities_idx
-    // реально задействовался планировщиком (каст колонки сбил бы индекс на seq-scan).
+    // Колонка теперь text[] (справочник amenities), containment @> ARRAY[...]::text[]
+    // сохраняет GIN-индекс listings_amenities_idx (типы совпадают, каста колонки нет).
     if (query.amenities !== undefined && query.amenities.length > 0)
       conds.push(
-        Prisma.sql`amenities @> ARRAY[${Prisma.join(query.amenities)}]::"Amenity"[]`,
+        Prisma.sql`amenities @> ARRAY[${Prisma.join(query.amenities)}]::text[]`,
       );
 
     // Zillow Phase 1: диапазон площади (м²)
@@ -1273,6 +1331,15 @@ export class SearchService {
       conds.push(Prisma.sql`year_built >= ${query.year_min}`);
     if (query.year_max !== undefined)
       conds.push(Prisma.sql`year_built <= ${query.year_max}`);
+
+    // Новостройка — вычисляемая категория: зданию меньше 3 лет ЛИБО год
+    // постройки в будущем (недострой — «сдача в 2028»). NULL year_built не
+    // проходит. Порог считаем на сервере, чтобы URL был стабильным
+    // (?new_construction=true, без «протухающего» года на клиенте).
+    if (query.new_construction === true)
+      conds.push(
+        Prisma.sql`year_built >= ${new Date().getFullYear() - NEW_CONSTRUCTION_MAX_AGE_YEARS + 1}`,
+      );
 
     // Zillow Phase 1: источник (собственник / агентство)
     if (query.listing_source !== undefined && query.listing_source.length === 1)
@@ -1358,6 +1425,7 @@ export class SearchService {
 
     return {
       id: listing.id,
+      reference: listing.reference,
       status: listing.status,
       transaction_type: listing.transactionType,
       property_type: listing.propertyType,
@@ -1369,9 +1437,16 @@ export class SearchService {
       bathrooms: listing.bathrooms?.toNumber() ?? null,
       parking_type: listing.parkingType,
       is_basement: listing.isBasement,
+      area: listing.area?.toFixed(2) ?? null,
       lot_area: listing.lotArea?.toFixed(2) ?? null,
       city_id: listing.cityId,
       district_id: listing.districtId,
+      // Локализованный адрес (ADR-0147): EN — перевод с фолбэком на канон;
+      // остальные языки (включая UZ, у которого своего перевода адреса нет) — канон RU.
+      address:
+        language === Language.EN
+          ? (listing.addressEn ?? listing.address)
+          : listing.address,
       latitude: listing.latitude?.toFixed(6) ?? null,
       longitude: listing.longitude?.toFixed(6) ?? null,
       promotion_type: listing.promotionType,

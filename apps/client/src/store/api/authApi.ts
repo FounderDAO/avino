@@ -7,8 +7,8 @@ import { clearCredentials, setCredentials, setUser } from '../slices/authSlice';
  * Контракты:
  * - POST /auth/otp/request  { channel, destination } → request metadata
  * - POST /auth/otp/verify   { channel, destination, code } → access+refresh+user
- * - POST /auth/refresh      { refresh_token } → новая пара токенов
- * - POST /auth/logout       { refresh_token } → 204
+ * - POST /auth/refresh      (без тела; refresh из cookie avino_rt) → новая пара
+ * - POST /auth/logout       (без тела; family из cookie avino_rt) → 204
  * - GET  /auth/me           → пользователь + профиль + роли
  *
  * Подстановка Bearer и авто-refresh — baseQueryWithReauth; здесь
@@ -19,7 +19,7 @@ import { clearCredentials, setCredentials, setUser } from '../slices/authSlice';
 // ─── Общие типы ───────────────────────────────────────────────────────────
 
 export type OtpChannel = 'SMS' | 'EMAIL';
-export type UserRole = 'USER' | 'AGENT' | 'MODERATOR' | 'ADMIN';
+export type UserRole = 'USER' | 'AGENT' | 'AGENCY' | 'MODERATOR' | 'ADMIN';
 export type UserStatus = 'ACTIVE' | 'BLOCKED' | 'DELETED';
 export type Language = 'UZ' | 'RU' | 'EN';
 
@@ -42,6 +42,7 @@ export interface UserProfile {
   display_name: string | null;
   avatar_url: string | null;
   contact_phone: string | null;
+  contact_phone_verified: boolean;
   preferred_language: Language;
 }
 
@@ -77,15 +78,9 @@ export interface VerifyOtpResponse extends TokenPair {
   user: AuthUser;
 }
 
-export interface RefreshBody {
-  refresh_token: string;
-}
-
+/** Ответ `/auth/refresh`. Тело всё ещё несёт refresh_token (mobile), но web
+ *  его игнорирует — токен приходит/уходит через httpOnly cookie (ADR-0153). */
 export type RefreshResponse = TokenPair;
-
-export interface LogoutBody {
-  refresh_token: string;
-}
 
 export interface MeLegalConsent {
   /** Версия последнего согласия; null — ни разу не соглашался. */
@@ -132,7 +127,6 @@ export const authApi = baseApi.injectEndpoints({
           dispatch(
             setCredentials({
               access_token: data.access_token,
-              refresh_token: data.refresh_token,
               user: data.user,
             }),
           );
@@ -156,7 +150,6 @@ export const authApi = baseApi.injectEndpoints({
           dispatch(
             setCredentials({
               access_token: data.access_token,
-              refresh_token: data.refresh_token,
               user: data.user,
             }),
           );
@@ -183,7 +176,6 @@ export const authApi = baseApi.injectEndpoints({
           dispatch(
             setCredentials({
               access_token: data.access_token,
-              refresh_token: data.refresh_token,
               user: data.user,
             }),
           );
@@ -193,19 +185,31 @@ export const authApi = baseApi.injectEndpoints({
       },
     }),
 
-    refresh: build.mutation<RefreshResponse, RefreshBody>({
-      query: (body) => ({
+    // Ротация БЕЗ ТЕЛА: сервер читает refresh из httpOnly cookie `avino_rt`
+    // (ADR-0153) и ставит новую cookie. Успех → кладём новый access в стор
+    // (без `user` → identityResetListener трактует как ротацию, кэш не сбрасывает).
+    // Используется бутстрапом (SessionBootstrap) и авто-refresh в baseQuery.
+    refresh: build.mutation<RefreshResponse, void>({
+      query: () => ({
         url: '/auth/refresh',
         method: 'POST',
-        body,
       }),
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(setCredentials({ access_token: data.access_token }));
+        } catch {
+          /* нет валидной cookie-сессии → SessionBootstrap пометит гостя */
+        }
+      },
     }),
 
-    logout: build.mutation<void, LogoutBody>({
-      query: (body) => ({
+    // Логаут БЕЗ ТЕЛА: family адресует cookie `avino_rt` (ADR-0153); Bearer
+    // авторизует запрос. Сервер отзывает family и чистит cookie.
+    logout: build.mutation<void, void>({
+      query: () => ({
         url: '/auth/logout',
         method: 'POST',
-        body,
       }),
       invalidatesTags: ['Auth', 'User'],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {

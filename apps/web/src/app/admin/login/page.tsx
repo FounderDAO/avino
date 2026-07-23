@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useDispatch } from 'react-redux';
 import type { AppDispatch } from '@/store/store';
 import { setCredentials } from '@/store/slices/authSlice';
@@ -11,6 +12,7 @@ import {
 } from '@/store/api/authApi';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import { IC } from '@/components/admin/icons';
+import logoIcon from '@/assets/logo/avino-appicon.svg';
 
 /**
  * Логин админа — passwordless OTP по EMAIL (API.md §3, коды ошибок §17).
@@ -105,9 +107,10 @@ export default function AdminLoginPage() {
     if (!codeValid) { setError(`Код состоит из ${OTP_LENGTH} цифр.`); return; }
     try {
       const res = await verifyOtp({ channel: 'EMAIL', destination: destination(), code }).unwrap();
+      // refresh_token приходит в httpOnly cookie avino_rt (Set-Cookie на verify,
+      // ADR-0153) — в JS не храним; в стор кладём только access + user.
       dispatch(setCredentials({
         access_token: res.access_token,
-        refresh_token: res.refresh_token,
         user: res.user,
       }));
       router.replace('/admin');
@@ -125,13 +128,14 @@ export default function AdminLoginPage() {
     >
       <div style={{ width: '100%', maxWidth: 420 }}>
         <div className="row" style={{ justifyContent: 'center', gap: 10, marginBottom: 24 }}>
-          <span
-            style={{
-              width: 40, height: 40, borderRadius: 12, background: 'var(--red)',
-              color: '#fff', fontWeight: 800, fontSize: 18, display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-            }}
-          >A</span>
+          <Image
+            src={logoIcon}
+            alt="Avino"
+            width={40}
+            height={40}
+            priority
+            style={{ width: 40, height: 40, borderRadius: 12, display: 'block' }}
+          />
           <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>Avino</span>
         </div>
 

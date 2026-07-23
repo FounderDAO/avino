@@ -26,9 +26,9 @@ export function convertPrice(value: number, from: Currency, to: Currency, rate: 
   return from === 'USD' ? value * rate : value / rate;
 }
 
-/** Округление под валюту отображения: USD → целые $, UZS → до 1000. */
+/** Округление под валюту отображения: USD → целые $, UZS → до 10 000. */
 function roundForCurrency(value: number, currency: Currency): number {
-  return currency === 'USD' ? Math.round(value) : Math.round(value / 1000) * 1000;
+  return currency === 'USD' ? Math.round(value) : Math.round(value / 10_000) * 10_000;
 }
 
 /**
@@ -140,8 +140,8 @@ export function specs(
   if (l.bathrooms) parts.push(t('bathroomsShort', { count: l.bathrooms }));
   const areaNorm = normalizeArea(l.area);
   if (areaNorm) parts.push(t('area', { value: areaNorm }));
-  if (l.floor && l.totalFloors) parts.push(t('floorOf', { floor: l.floor, total: l.totalFloors }));
-  else if (l.type === 'LAND' && areaNorm) parts.push(t('landArea', { value: areaNorm }));
+  // Этаж/этажность в этой строке не показываем — он в блоке «Ключевые факты».
+  if (l.type === 'LAND' && areaNorm) parts.push(t('landArea', { value: areaNorm }));
   return parts;
 }
 

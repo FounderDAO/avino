@@ -4,7 +4,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  Amenity,
   Currency,
   Language,
   ListingStatus,
@@ -19,7 +18,8 @@ import {
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
-import { DistrictsService } from '../geo';
+import { AddressResolverService, DistrictsService } from '../geo';
+import { ActiveListingLimitService } from '../settings';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
 import { ListingsService } from './listings.service';
@@ -34,6 +34,8 @@ describe('ListingsService', () => {
   const LISTING_ID = '11111111-1111-1111-1111-111111111111';
 
   let prisma: any;
+  let activeLimit: { getLimit: jest.Mock };
+  let addressResolver: { resolve: jest.Mock };
   let service: ListingsService;
 
   const dbListing = {
@@ -85,6 +87,11 @@ describe('ListingsService', () => {
       listingPriceHistory: {
         create: jest.fn().mockResolvedValue({}),
       },
+      // Лог модерации: update() пишет системную запись OWNER_EDIT при возврате
+      // отредактированного ACTIVE/REJECTED-объявления в очередь (ADR-0120).
+      moderationLog: {
+        create: jest.fn().mockResolvedValue({}),
+      },
       // Гейт полноты профиля (ADR-0125): create() читает автора с профилем.
       // Дефолт — полный профиль, чтобы остальные create-тесты не задевало.
       user: {
@@ -92,6 +99,16 @@ describe('ListingsService', () => {
           phone: '+998901234567',
           profile: { firstName: 'Али', lastName: 'Валиев', contactPhone: null },
         }),
+      },
+      // Справочник удобств (Task 4): дефолт «любой запрошенный код валиден»
+      // (эхо запрошенных кодов), чтобы базовые create/update-тесты amenities не
+      // задевало. Кейсы валидации ниже переопределяют mockResolvedValue напрямую.
+      amenity: {
+        findMany: jest.fn().mockImplementation(({ where }: any) =>
+          Promise.resolve(
+            ((where?.code?.in ?? []) as string[]).map((code) => ({ code })),
+          ),
+        ),
       },
     };
     // create() оборачивает апгрейд роли + запись листинга в один $transaction;
@@ -114,11 +131,20 @@ describe('ListingsService', () => {
         Promise.resolve(key ?? url),
       ),
     } as unknown as UploadsService;
+    // Лимит активных объявлений (ADR-…): дефолт 2. Базовые create-тесты держат
+    // userRole.count=1 (автор трактуется как «продавец/pro») → квота пропускает
+    // проверку; кейсы лимита ниже переопределяют getLimit + listing.count.
+    activeLimit = { getLimit: jest.fn().mockResolvedValue(2) };
+    // AddressResolver (ADR-0147): дефолт «геокодер недоступен» (null) — базовые
+    // тесты create идут строковым фолбэком; геокод-кейсы переопределяют resolve.
+    addressResolver = { resolve: jest.fn().mockResolvedValue(null) };
     service = new ListingsService(
       prisma,
       new TranslationsService(prisma),
       districts,
       uploads,
+      activeLimit as unknown as ActiveListingLimitService,
+      addressResolver as unknown as AddressResolverService,
     );
   });
 
@@ -360,6 +386,76 @@ describe('ListingsService', () => {
     });
   });
 
+  describe('create — active listing limit', () => {
+    it('rejects with 422 ACTIVE_LISTING_LIMIT_REACHED when the client is at the limit', async () => {
+      prisma.userRole.count.mockResolvedValue(0); // обычный клиент (не AGENT/AGENCY)
+      activeLimit.getLimit.mockResolvedValue(2);
+      prisma.listing.count.mockResolvedValue(2); // уже 2 активных (ACTIVE+NEW)
+      await expectCode(
+        service.create(OWNER_ID, validCreate as any),
+        ApiErrorCode.ACTIVE_LISTING_LIMIT_REACHED,
+      );
+      expect(prisma.listing.create).not.toHaveBeenCalled();
+    });
+
+    it('allows the create when under the limit', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      activeLimit.getLimit.mockResolvedValue(2);
+      prisma.listing.count.mockResolvedValue(1); // 1 < 2
+      prisma.listing.create.mockResolvedValue(dbListing);
+      await expect(service.create(OWNER_ID, validCreate as any)).resolves.toBeDefined();
+    });
+
+    it('does not apply the limit to professionals (AGENT/AGENCY)', async () => {
+      prisma.userRole.count.mockResolvedValue(1); // есть AGENT/AGENCY
+      prisma.listing.count.mockResolvedValue(999);
+      prisma.listing.create.mockResolvedValue(dbListing);
+      await expect(service.create(OWNER_ID, validCreate as any)).resolves.toBeDefined();
+      expect(activeLimit.getLimit).not.toHaveBeenCalled(); // ранний выход
+    });
+
+    it('treats limit 0 as unlimited', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      activeLimit.getLimit.mockResolvedValue(0);
+      prisma.listing.create.mockResolvedValue(dbListing);
+      await expect(service.create(OWNER_ID, validCreate as any)).resolves.toBeDefined();
+      expect(prisma.listing.count).not.toHaveBeenCalled(); // до подсчёта не доходим
+    });
+  });
+
+  describe('getActiveListingQuota', () => {
+    it('AGENT/AGENCY — без лимита (blocked=false), счёт не запрашивается', async () => {
+      prisma.userRole.count.mockResolvedValue(1); // pro-роль есть
+      const q = await service.getActiveListingQuota('owner-1');
+      expect(q).toEqual({ limit: 0, used: 0, blocked: false });
+      expect(prisma.listing.count).not.toHaveBeenCalled();
+    });
+
+    it('лимит 0 = без ограничения → blocked=false', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      activeLimit.getLimit.mockResolvedValue(0);
+      const q = await service.getActiveListingQuota('owner-1');
+      expect(q).toEqual({ limit: 0, used: 0, blocked: false });
+      expect(prisma.listing.count).not.toHaveBeenCalled();
+    });
+
+    it('used < limit → blocked=false', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      activeLimit.getLimit.mockResolvedValue(2);
+      prisma.listing.count.mockResolvedValue(1);
+      const q = await service.getActiveListingQuota('owner-1');
+      expect(q).toEqual({ limit: 2, used: 1, blocked: false });
+    });
+
+    it('used >= limit → blocked=true', async () => {
+      prisma.userRole.count.mockResolvedValue(0);
+      activeLimit.getLimit.mockResolvedValue(2);
+      prisma.listing.count.mockResolvedValue(2);
+      const q = await service.getActiveListingQuota('owner-1');
+      expect(q).toEqual({ limit: 2, used: 2, blocked: true });
+    });
+  });
+
   describe('update', () => {
     it('updates own listing scalar fields and the author translation', async () => {
       prisma.listing.findFirst.mockResolvedValue({
@@ -401,7 +497,7 @@ describe('ListingsService', () => {
       expect(result.price).toBe('4300000.00');
     });
 
-    it('sends an edited ACTIVE listing back to moderation (NEW)', async () => {
+    it('sends an edited ACTIVE listing back to moderation (NEW) and logs the change', async () => {
       prisma.listing.findFirst.mockResolvedValue({
         id: LISTING_ID,
         ownerId: OWNER_ID,
@@ -418,9 +514,57 @@ describe('ListingsService', () => {
 
       const data = prisma.listing.update.mock.calls[0][0].data;
       expect(data.status).toBe(ListingStatus.NEW);
+      // Системный OWNER_EDIT в таймлайн модерации с человекочитаемым дифом.
+      const log = prisma.moderationLog.create.mock.calls[0][0].data;
+      expect(log.action).toBe('OWNER_EDIT');
+      expect(log.moderatorId).toBeNull();
+      expect(log.oldStatus).toBe(ListingStatus.ACTIVE);
+      expect(log.newStatus).toBe(ListingStatus.NEW);
+      expect(log.reason).toContain('цена');
     });
 
-    it('does not change status when editing a non-ACTIVE listing', async () => {
+    it('does NOT re-moderate an ACTIVE listing when only tour windows change', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.ACTIVE,
+        toursEnabled: true,
+        tourWindows: [{ start: '07:00', end: '10:00' }],
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, {
+        tour_windows: [{ start: '08:00', end: '11:00' }],
+      } as any);
+
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.status).toBeUndefined();
+      expect(prisma.moderationLog.create).not.toHaveBeenCalled();
+    });
+
+    it('sends an edited REJECTED listing back to moderation (NEW)', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.REJECTED,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, {
+        price: '4300000.00',
+      } as any);
+
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.status).toBe(ListingStatus.NEW);
+    });
+
+    it('does not change status when editing a DRAFT listing', async () => {
       prisma.listing.findFirst.mockResolvedValue({
         id: LISTING_ID,
         ownerId: OWNER_ID,
@@ -603,12 +747,110 @@ describe('ListingsService', () => {
     });
   });
 
+  describe('address resolution (ADR-0147)', () => {
+    beforeEach(() => {
+      prisma.listing.create.mockResolvedValue(dbListing);
+    });
+
+    it('create с координатами: геокод успешен → address ru + addressEn', async () => {
+      addressResolver.resolve.mockResolvedValue({
+        address: 'Ташкент, Чиланзар, ул. Сеул, 7/1',
+        addressEn: 'Tashkent, Chilanzar, Seul koʻchasi, 7/1',
+      });
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        address: 'город Ташкент, Чиланзар, улица Сеул, 7/1, Чиланзарский р-н',
+        latitude: '41.299500',
+        longitude: '69.240100',
+        district_id: 'd1',
+      } as any);
+      expect(addressResolver.resolve).toHaveBeenCalledWith('41.299500', '69.240100', 'd1');
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.address).toBe('Ташкент, Чиланзар, ул. Сеул, 7/1');
+      expect(data.addressEn).toBe('Tashkent, Chilanzar, Seul koʻchasi, 7/1');
+    });
+
+    it('create: геокодер молчит → строковый фолбэк, addressEn null', async () => {
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        address: 'город Ташкент, Мирзо-Улугбек, ул. Бабура, 13, Мирзо-Улугбек р-н, Ташкент',
+        latitude: '41.325000',
+        longitude: '69.295000',
+      } as any);
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.address).toBe('Ташкент, Мирзо-Улугбек, ул. Бабура, 13');
+      expect(data.addressEn).toBeNull();
+    });
+
+    it('create без координат: только нормализация, геокодер не зовётся', async () => {
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        address: 'Узбекистан, Ташкент, Юнусабад, массив Файзли, 18',
+      } as any);
+      expect(addressResolver.resolve).not.toHaveBeenCalled();
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.address).toBe('Ташкент, Юнусабад, массив Файзли, 18');
+    });
+
+    it('update: новые координаты → ре-геокод с district_id из existing', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.ACTIVE,
+        toursEnabled: false,
+        tourWindows: [],
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+        latitude: new Prisma.Decimal('41.2000'),
+        longitude: new Prisma.Decimal('69.2000'),
+        districtId: 'd-existing',
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+      addressResolver.resolve.mockResolvedValue({ address: 'Ташкент, ул. Новая, 1', addressEn: null });
+      await service.update(OWNER_ID, LISTING_ID, {
+        latitude: '41.311000',
+        longitude: '69.280000',
+      } as any);
+      expect(addressResolver.resolve).toHaveBeenCalledWith('41.311000', '69.280000', 'd-existing');
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.address).toBe('Ташкент, ул. Новая, 1');
+      expect(data.addressEn).toBeNull();
+    });
+
+    it('update: правка только текста адреса → нормализация БЕЗ ре-геокода', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.ACTIVE,
+        toursEnabled: false,
+        tourWindows: [],
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+        latitude: new Prisma.Decimal('41.2000'),
+        longitude: new Prisma.Decimal('69.2000'),
+        districtId: 'd-existing',
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+      await service.update(OWNER_ID, LISTING_ID, {
+        address: 'город Ташкент, свой дом у парка',
+      } as any);
+      expect(addressResolver.resolve).not.toHaveBeenCalled();
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.address).toBe('Ташкент, свой дом у парка');
+      expect(data.addressEn).toBeNull();
+    });
+  });
+
   describe('findOne', () => {
     const detailRow = {
       id: LISTING_ID,
+      reference: 100042,
       ownerId: OWNER_ID,
       agencyId: null,
-      // Контакт автора (TASK-210): профиль + роль AGENT.
+      // Контакт автора (TASK-210): профиль + роль AGENT. contact_phone здесь
+      // подтверждён (ADR-0151) — иначе detail отдал бы телефон аккаунта.
       owner: {
         phone: '+998901112233',
         profile: {
@@ -616,6 +858,7 @@ describe('ListingsService', () => {
           firstName: 'Алишер',
           lastName: 'Усманов',
           contactPhone: '+998905556677',
+          contactPhoneVerified: true,
         },
         roles: [{ role: { code: 'AGENT' } }],
       },
@@ -638,7 +881,7 @@ describe('ListingsService', () => {
       districtId: 'd1',
       latitude: new Prisma.Decimal('41.35'),
       longitude: new Prisma.Decimal('69.29'),
-      amenities: [Amenity.ELEVATOR],
+      amenities: ['ELEVATOR'],
       promotionType: PromotionType.VIP,
       promotionExpiresAt: new Date('2026-06-20T00:00:00.000Z'),
       publishedAt: new Date('2026-06-01T10:00:00.000Z'),
@@ -689,6 +932,7 @@ describe('ListingsService', () => {
       );
       expect(result).toMatchObject({
         id: LISTING_ID,
+        reference: 100042,
         status: ListingStatus.ACTIVE,
         price: '4500000.00',
         area: '62.50',
@@ -725,6 +969,45 @@ describe('ListingsService', () => {
           type: MediaType.IMAGE,
         },
       ]);
+    });
+
+    // ADR-0151: contact_phone показывается только после OTP-подтверждения,
+    // иначе detail фолбэчится на верифицированный телефон аккаунта.
+    it('shows the verified contact_phone in contact.phone', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        owner: {
+          ...detailRow.owner,
+          profile: {
+            ...detailRow.owner.profile,
+            contactPhone: '+998905556677',
+            contactPhoneVerified: true,
+          },
+        },
+      });
+
+      const result = await service.findOne(LISTING_ID, undefined);
+
+      expect(result.contact.phone).toBe('+998905556677');
+    });
+
+    it('falls back to the account phone when contact_phone is not verified', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        owner: {
+          ...detailRow.owner,
+          phone: '+998901112233',
+          profile: {
+            ...detailRow.owner.profile,
+            contactPhone: '+998905556677',
+            contactPhoneVerified: false,
+          },
+        },
+      });
+
+      const result = await service.findOne(LISTING_ID, undefined);
+
+      expect(result.contact.phone).toBe('+998901112233');
     });
 
     it('selects the requested ?lang translation', async () => {
@@ -834,12 +1117,12 @@ describe('ListingsService', () => {
     it('detail отдаёт amenities из БД', async () => {
       prisma.listing.findUnique.mockResolvedValue({
         ...detailRow,
-        amenities: [Amenity.ELEVATOR, Amenity.INTERNET],
+        amenities: ['ELEVATOR', 'INTERNET'],
       });
 
       const result = await service.findOne(LISTING_ID, undefined);
 
-      expect(result.amenities).toEqual([Amenity.ELEVATOR, Amenity.INTERNET]);
+      expect(result.amenities).toEqual(['ELEVATOR', 'INTERNET']);
     });
 
     it('detail отдаёт пустой amenities если массив пуст', async () => {
@@ -885,6 +1168,56 @@ describe('ListingsService', () => {
         },
       ]);
     });
+
+    // Адрес по языку в detail (ADR-0147, Task 9): аналогично search-выдаче
+    // (Task 8) — при lang=en отдаём addressEn, если он заполнен; для других
+    // языков (в т.ч. UZ, у которого нет своего address-поля) — канонический RU address.
+    it('returns addressEn for lang=en, and the canonical RU address for other languages', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        address: 'Ташкент, Чиланзар, ул. Сеул, 7/1',
+        addressEn: 'Tashkent, Chilanzar, Seul koʻchasi, 7/1',
+        translations: [
+          ...detailRow.translations,
+          {
+            language: Language.UZ,
+            title: '2 xonali kvartira',
+            description: 'Yorugʻ',
+            addressNote: 'metro yaqinida',
+            featuresText: 'balkon',
+          },
+        ],
+      });
+
+      const en = await service.findOne(LISTING_ID, undefined, 'en');
+      expect(en.address).toBe('Tashkent, Chilanzar, Seul koʻchasi, 7/1');
+
+      const uz = await service.findOne(LISTING_ID, undefined, 'uz');
+      expect(uz.language).toBe(Language.UZ);
+      expect(uz.address).toBe('Ташкент, Чиланзар, ул. Сеул, 7/1');
+    });
+
+    // findByReference (ADR-0137): поиск по короткому номеру повторяет видимость
+    // findOne, отличается лишь ключом поиска (reference вместо UUID-id).
+    it('finds an ACTIVE listing by its reference number', async () => {
+      prisma.listing.findUnique.mockResolvedValue(detailRow);
+
+      const result = await service.findByReference(100042, undefined);
+
+      expect(prisma.listing.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { reference: 100042 } }),
+      );
+      expect(result).toMatchObject({ id: LISTING_ID, reference: 100042 });
+    });
+
+    it('throws 404 NOT_FOUND when no listing has that reference', async () => {
+      prisma.listing.findUnique.mockResolvedValue(null);
+
+      await expectCode(
+        service.findByReference(999999, undefined),
+        ApiErrorCode.NOT_FOUND,
+      );
+    });
   });
 
   describe('amenities', () => {
@@ -893,11 +1226,11 @@ describe('ListingsService', () => {
 
       await service.create(OWNER_ID, {
         ...validCreate,
-        amenities: [Amenity.ELEVATOR, Amenity.INTERNET],
+        amenities: ['ELEVATOR', 'INTERNET'],
       } as any);
 
       const data = prisma.listing.create.mock.calls[0][0].data;
-      expect(data.amenities).toEqual([Amenity.ELEVATOR, Amenity.INTERNET]);
+      expect(data.amenities).toEqual(['ELEVATOR', 'INTERNET']);
     });
 
     it('passes amenities through to Prisma on update', async () => {
@@ -911,11 +1244,72 @@ describe('ListingsService', () => {
       prisma.listing.update.mockResolvedValue(dbListing);
 
       await service.update(OWNER_ID, LISTING_ID, {
-        amenities: [Amenity.FURNITURE, Amenity.HEATING],
+        amenities: ['FURNITURE', 'HEATING'],
       } as any);
 
       const data = prisma.listing.update.mock.calls[0][0].data;
-      expect(data.amenities).toEqual([Amenity.FURNITURE, Amenity.HEATING]);
+      expect(data.amenities).toEqual(['FURNITURE', 'HEATING']);
+    });
+
+    it('create отклоняет неизвестный код удобства (422)', async () => {
+      // Справочник знает только INTERNET — NOPE не найден.
+      prisma.amenity.findMany.mockResolvedValue([{ code: 'INTERNET' }]);
+
+      await expectCode(
+        service.create(OWNER_ID, {
+          ...validCreate,
+          amenities: ['INTERNET', 'NOPE'],
+        } as any),
+        ApiErrorCode.VALIDATION_ERROR,
+      );
+      expect(prisma.listing.create).not.toHaveBeenCalled();
+    });
+
+    it('create отклоняет скрытый код удобства (is_active=false не возвращается findMany)', async () => {
+      // Запрос уже фильтрует isActive:true — скрытый код просто не приходит.
+      prisma.amenity.findMany.mockResolvedValue([]);
+
+      await expectCode(
+        service.create(OWNER_ID, {
+          ...validCreate,
+          amenities: ['HIDDEN_CODE'],
+        } as any),
+        ApiErrorCode.VALIDATION_ERROR,
+      );
+    });
+
+    it('update отклоняет неизвестный код удобства (422)', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.amenity.findMany.mockResolvedValue([]);
+
+      await expectCode(
+        service.update(OWNER_ID, LISTING_ID, {
+          amenities: ['NOPE'],
+        } as any),
+        ApiErrorCode.VALIDATION_ERROR,
+      );
+      expect(prisma.listing.update).not.toHaveBeenCalled();
+    });
+
+    it('update без amenities в DTO не запрашивает справочник (поле не тронуто)', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, { rooms: 3 } as any);
+
+      expect(prisma.amenity.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -966,6 +1360,7 @@ describe('ListingsService', () => {
       isBasement: false,
       cityId: 'c1',
       districtId: 'd1',
+      address: 'Ташкент, Яшнабадский район, массив Городок',
       promotionType: PromotionType.NORMAL,
       promotionExpiresAt: null,
       publishedAt: null,
@@ -1013,6 +1408,7 @@ describe('ListingsService', () => {
         is_basement: false,
         city_id: 'c1',
         district_id: 'd1',
+        address: 'Ташкент, Яшнабадский район, массив Городок',
         promotion_type: PromotionType.NORMAL,
         promotion_expires_at: null,
         original_language: Language.RU,

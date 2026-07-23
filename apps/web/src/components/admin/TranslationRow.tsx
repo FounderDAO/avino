@@ -27,10 +27,9 @@ interface TranslationRowProps {
 }
 
 export function TranslationRow({ item, original, onSave, saving }: TranslationRowProps) {
-  const [title, setTitle] = useState(item.title);
   const [description, setDescription] = useState(item.description ?? '');
 
-  const isDirty = title !== item.title || description !== (item.description ?? '');
+  const isDirty = description !== (item.description ?? '');
 
   return (
     <div
@@ -76,21 +75,6 @@ export function TranslationRow({ item, original, onSave, saving }: TranslationRo
             className="muted"
             style={{ fontSize: 11.5, fontWeight: 700, display: 'block', marginBottom: 4 }}
           >
-            Заголовок
-          </label>
-          <input
-            className="a-field"
-            style={{ width: '100%' }}
-            value={title}
-            readOnly={original}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-        <div>
-          <label
-            className="muted"
-            style={{ fontSize: 11.5, fontWeight: 700, display: 'block', marginBottom: 4 }}
-          >
             Описание
           </label>
           <textarea
@@ -110,7 +94,7 @@ export function TranslationRow({ item, original, onSave, saving }: TranslationRo
             disabled={saving || !isDirty}
             onClick={() =>
               onSave({
-                title,
+                title: item.title,
                 description: description || null,
               })
             }

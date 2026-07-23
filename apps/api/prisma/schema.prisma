@@ -48,19 +48,22 @@ enum ParkingType {
   UNDERGROUND
 }
 
-/// Удобства объявления (ADR-0111, Zillow Phase 2). Мультизначный enum-массив на
-/// listings.amenities. Фиксированный UI-словарь (лейблы i18n на клиенте), как
-/// PropertyType/ParkingType. Добавление значения — non-breaking (ADR-0008).
-enum Amenity {
-  AIR_CONDITIONING
-  FURNITURE
-  APPLIANCES
-  INTERNET
-  ELEVATOR
-  BALCONY
-  HEATING
-  SECURITY
-  POOL
+/// Справочник удобств объявления. Управляется из админки (CRUD): код стабилен и
+/// неизменяем (listings.amenities хранит его), лейблы RU/UZ/EN редактируемы,
+/// is_active — флаг видимости (soft-hide). Заменил фиксированный enum Amenity.
+model Amenity {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  labelRu   String   @map("label_ru")
+  labelUz   String   @map("label_uz")
+  labelEn   String   @map("label_en")
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("amenities")
+  @@index([isActive, sortOrder])
 }
 
 /// Тип сделки по объявлению (DB_SCHEMA.md §3). Создаётся как Postgres enum
@@ -70,13 +73,11 @@ enum TransactionType {
   RENT
 }
 
-/// Тип недвижимости (DB_SCHEMA.md §3). Значения совпадают с контрактом §3;
-/// NEW_BUILDING присутствует в БД-контракте (расхождение с packages/shared
-/// фиксируется отдельной задачей — см. DONE.md TASK-035).
+/// Тип недвижимости (DB_SCHEMA.md §3). NEW_BUILDING удалён: «новостройка» —
+/// вычисляемая категория по year_built (`?new_construction=true`), не тип.
 enum PropertyType {
   APARTMENT
   HOUSE
-  NEW_BUILDING
   LAND
   COMMERCIAL
 }
@@ -117,10 +118,13 @@ enum OtpChannel {
   EMAIL
 }
 
-/// Назначение OTP-кода. В MVP только LOGIN; значения расширяются без breaking
-/// change (verify-контакт, сброс и т.п. — будущие задачи).
+/// Назначение OTP-кода. LOGIN — вход/регистрация; CONTACT_CHANGE — подтверждение
+/// владения НОВЫМ логин-контактом при смене телефона/email (verify нового
+/// значения). Значения расширяются без breaking change.
 enum OtpPurpose {
   LOGIN
+  CONTACT_CHANGE
+  CONTACT_PHONE_CHANGE
 }
 
 /// Источник перевода объявления (DB_SCHEMA.md §3, ADR-005). USER — авторский
@@ -148,6 +152,15 @@ enum ComplaintStatus {
   IN_REVIEW
   RESOLVED
   REJECTED
+}
+
+/// Статус обращения в поддержку (support_requests). NEW — не разобрано,
+/// IN_REVIEW — взято в работу, RESOLVED — закрыто. REJECTED нет намеренно:
+/// обращение нельзя «отклонить», только решить.
+enum SupportRequestStatus {
+  NEW
+  IN_REVIEW
+  RESOLVED
 }
 
 /// Статус строки продвижения в ledger'е listing_promotions (DB_SCHEMA.md §3/§8,
@@ -194,6 +207,12 @@ enum ModerationAction {
   SEND_TO_DRAFT
   REJECT
   DELETE
+  // Системное событие (moderator_id = null): владелец отредактировал контент
+  // ACTIVE/REJECTED-объявления, из-за чего оно вернулось в очередь (→ NEW).
+  // reason несёт человекочитаемый список изменённых полей (ADR-0120). Модератор
+  // видит его в «Истории модерации» и понимает, почему объявление вернулось.
+  // НЕ является решением модератора — ModerateListingDto его не принимает.
+  OWNER_EDIT
 }
 
 /// Тип уведомления (DB_SCHEMA.md §3/§11, TASK-038). Доменное событие, по которому
@@ -208,6 +227,7 @@ enum NotificationType {
   PROMOTION_EXPIRED
   TOUR_REQUEST_STATUS_CHANGED
   ADMIN_BROADCAST
+  AGENT_APPLICATION_RESOLVED
 }
 
 /// Канал доставки уведомления (DB_SCHEMA.md §3/§11). В MVP надёжно доставляются
@@ -284,6 +304,9 @@ model User {
   // Жалобы (TASK-132): поданные пользователем и обработанные им как модератором.
   complaintsReported   Complaint[]          @relation("ComplaintReporter")
   complaintsHandled    Complaint[]          @relation("ComplaintHandler")
+  // Обращения в поддержку (/help): оставленные пользователем и обработанные им.
+  supportRequests        SupportRequest[]   @relation("SupportRequestAuthor")
+  supportRequestsHandled SupportRequest[]   @relation("SupportRequestHandler")
   // Вовлечённость (TASK-038).
   favorites            Favorite[]
   savedSearches        SavedSearch[]
@@ -302,6 +325,11 @@ model User {
   broadcastsReceived   Broadcast[]          @relation("BroadcastTargetUser")
   // Согласия с юр-документами (Правила+Политика); append-only аудит-след (design 2026-06-29).
   legalConsents        LegalConsent[]
+  // Юр-документы, созданные этим пользователем как админ.
+  legalDocuments       LegalDocument[]
+  // Заявки «Стать агентом» (ADR-0140): поданные и рассмотренные как модератор.
+  agentApplications          AgentApplication[] @relation("AgentApplicant")
+  agentApplicationsModerated AgentApplication[] @relation("AgentApplicationModerator")
 
   @@map("users")
 }
@@ -314,7 +342,14 @@ model UserProfile {
   lastName          String?   @map("last_name") @db.VarChar(100)
   displayName       String?   @map("display_name") @db.VarChar(150)
   avatarUrl         String?   @map("avatar_url")
+  // R2-ключ загруженного пользователем аватара (TASK-248, ADR-0134); отдельно
+  // от avatarUrl, который хранит внешнюю ссылку на фото OAuth-провайдера
+  // (Google/Apple) и НЕ должен перезаписываться. sign-on-read по образцу
+  // ListingMedia.storageKey (ADR-0086): при чтении, если задан, приоритетнее
+  // avatarUrl.
+  avatarStorageKey  String?   @map("avatar_storage_key")
   contactPhone      String?   @map("contact_phone") @db.VarChar(20)
+  contactPhoneVerified Boolean @default(false) @map("contact_phone_verified")
   preferredLanguage Language? @map("preferred_language")
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -356,6 +391,36 @@ model UserRole {
   @@index([userId])
   @@index([roleId])
   @@map("user_roles")
+}
+
+/// Статус заявки «Стать агентом» (ADR-0140).
+enum AgentApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// agent_applications — заявки «Стать агентом» (ADR-0140). Одна PENDING-заявка
+// на пользователя — partial unique index в SQL-миграции (Prisma не выражает).
+// agency_name NULL = частный маклер. После REJECTED допустима новая заявка
+// (новая строка — история сохраняется).
+model AgentApplication {
+  id           String                 @id @default(uuid()) @db.Uuid
+  userId       String                 @map("user_id") @db.Uuid
+  agencyName   String?                @map("agency_name") @db.VarChar(255)
+  about        String
+  status       AgentApplicationStatus @default(PENDING)
+  rejectReason String?                @map("reject_reason")
+  moderatorId  String?                @map("moderator_id") @db.Uuid
+  createdAt    DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  resolvedAt   DateTime?              @map("resolved_at") @db.Timestamptz(6)
+
+  user      User  @relation("AgentApplicant", fields: [userId], references: [id], onDelete: Cascade)
+  moderator User? @relation("AgentApplicationModerator", fields: [moderatorId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("agent_applications")
 }
 
 // otp_codes — одноразовые коды для OTP-логина (DB_SCHEMA.md §4, ADR-0010).
@@ -424,6 +489,11 @@ model RefreshToken {
 /// появятся целевые таблицы (отдельные задачи).
 model Listing {
   id                 String                                 @id @default(uuid()) @db.Uuid
+  // Публичный человекочитаемый номер объявления (ADR-0137). Отдельная колонка
+  // рядом с UUID-PK: PK не меняем (FK/URL остаются). Sequence стартует со 100000,
+  // чтобы номера не раскрывали общее число объявлений (анти-энумерация) —
+  // конкретный START задаёт raw-SQL миграция, не Prisma.
+  reference          Int                                    @unique @default(autoincrement())
   ownerId            String                                 @map("owner_id") @db.Uuid
   agencyId           String?                                @map("agency_id") @db.Uuid
   transactionType    TransactionType                        @map("transaction_type")
@@ -439,12 +509,13 @@ model Listing {
   rooms              Int?                                   @db.SmallInt
   bathrooms          Decimal?                               @db.Decimal(3, 1)
   parkingType        ParkingType?                           @map("parking_type")
-  amenities          Amenity[]
+  amenities          String[]
   floor              Int?                                   @db.SmallInt
   isBasement         Boolean                                @default(false) @map("is_basement")
   totalFloors        Int?                                   @map("total_floors") @db.SmallInt
   yearBuilt          Int?                                   @map("year_built") @db.SmallInt
   address            String?                                @db.VarChar(500)
+  addressEn          String?                                @map("address_en") @db.VarChar(500)
   cityId             String?                                @map("city_id") @db.Uuid
   districtId         String?                                @map("district_id") @db.Uuid
   latitude           Decimal?                               @db.Decimal(9, 6)
@@ -680,6 +751,9 @@ model AppSetting {
 /// действие модератора над объявлением логируется здесь (доменный лог) — в
 /// дополнение к audit_logs(LISTING_STATUS_CHANGE). old_status/new_status
 /// фиксируют переход; reason — опциональная причина (например для REJECT).
+/// Также сюда пишется системное событие OWNER_EDIT (moderator_id = null): когда
+/// владелец правит контент ACTIVE/REJECTED-объявления и оно возвращается в
+/// очередь (→ NEW), reason несёт список изменённых полей (ADR-0120).
 ///
 /// listing_id → listings ON DELETE CASCADE: лог не переживает физического
 /// удаления объявления. moderator_id → users ON DELETE SET NULL, nullable —
@@ -733,6 +807,30 @@ model Complaint {
   @@index([status])
   @@index([listingId])
   @@map("complaints")
+}
+
+/// Обращение в поддержку с формы «Помощь» (/help). Гость может писать без
+/// аккаунта — user_id nullable; contact (телефон/email) обязателен, т.к. иначе
+/// ответить некуда. handled_by/handled_at — кто и когда сменил статус.
+/// user_id/handled_by → users ON DELETE SET NULL: обращение переживает
+/// удаление аккаунта (как complaints.reporter_id).
+model SupportRequest {
+  id        String               @id @default(uuid()) @db.Uuid
+  userId    String?              @map("user_id") @db.Uuid
+  name      String?              @db.VarChar(120)
+  contact   String               @db.VarChar(160)
+  message   String
+  status    SupportRequestStatus @default(NEW)
+  handledBy String?              @map("handled_by") @db.Uuid
+  handledAt DateTime?            @map("handled_at") @db.Timestamptz(6)
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  author  User? @relation("SupportRequestAuthor", fields: [userId], references: [id], onDelete: SetNull)
+  handler User? @relation("SupportRequestHandler", fields: [handledBy], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("support_requests")
 }
 
 /// Избранное (DB_SCHEMA.md §9, TASK-038). Один пользователь — одна строка на
@@ -1065,4 +1163,44 @@ model LegalConsent {
 
   @@index([userId])
   @@map("legal_consents")
+}
+
+/// Тип юр-документа (Правила или Политика).
+enum LegalDocKind {
+  TERMS
+  PRIVACY
+}
+
+/// Статус юр-документа в жизненном цикле.
+enum LegalDocStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// legal_documents — версионируемые юр-документы (Правила/Политика), спека
+/// 2026-07-21. Инвариант: на kind ≤1 DRAFT (version 0 + unique) и ≤1 PUBLISHED;
+/// история — ARCHIVED. PUBLISHED/ARCHIVED неизменяемы — аудит-трейл для
+/// legal_consents.version.
+model LegalDocument {
+  id          String         @id @default(uuid()) @db.Uuid
+  kind        LegalDocKind
+  version     Int            @default(0)
+  status      LegalDocStatus @default(DRAFT)
+  titleRu     String         @default("") @map("title_ru")
+  titleUz     String         @default("") @map("title_uz")
+  titleEn     String         @default("") @map("title_en")
+  bodyMdRu    String         @default("") @map("body_md_ru") @db.Text
+  bodyMdUz    String         @default("") @map("body_md_uz") @db.Text
+  bodyMdEn    String         @default("") @map("body_md_en") @db.Text
+  publishedAt DateTime?      @map("published_at") @db.Timestamptz(6)
+  createdById String         @map("created_by_id") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@unique([kind, version])
+  @@index([kind, status])
+  @@map("legal_documents")
 }

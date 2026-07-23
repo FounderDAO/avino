@@ -21,12 +21,13 @@ import {
   MessageCircle,
   Sparkles,
   TrendingDown,
+  UserCheck,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated } from '@/store/slices/authSlice';
@@ -48,6 +49,7 @@ const TYPE_ICON: Record<NotificationType, LucideIcon> = {
   PROMOTION_ACTIVATED: Sparkles,
   PROMOTION_EXPIRED: Sparkles,
   TOUR_REQUEST_STATUS_CHANGED: CalendarCheck,
+  AGENT_APPLICATION_RESOLVED: UserCheck,
 };
 
 function iconFor(type: NotificationType): LucideIcon {
@@ -56,6 +58,10 @@ function iconFor(type: NotificationType): LucideIcon {
 
 export function Notifications() {
   const format = useFormatter();
+  // Явный now: без него relativeTime падает на неявный Date.now() → next-intl
+  // логирует ENVIRONMENT_FALLBACK (риск hydration-mismatch). updateInterval —
+  // «минуту назад» тикает без ручного перерендера.
+  const now = useNow({ updateInterval: 60_000 });
   const t = useTranslations('account');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
@@ -161,7 +167,7 @@ export function Notifications() {
                 <div className="flex items-center justify-between gap-2.5">
                   <b className="text-[15px]">{title}</b>
                   <span className="whitespace-nowrap text-xs text-muted-foreground">
-                    {format.relativeTime(new Date(n.created_at))}
+                    {format.relativeTime(new Date(n.created_at), now)}
                   </span>
                 </div>
                 <p className="mt-[3px] text-sm text-muted-foreground">{body}</p>

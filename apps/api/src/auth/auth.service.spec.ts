@@ -66,7 +66,8 @@ describe('AuthService.verifyOtp', () => {
       assertCanVerify: jest.fn().mockResolvedValue(undefined),
       recordFailedVerify: jest.fn().mockResolvedValue(undefined),
     };
-    service = new AuthService(prisma, config, tokenService, telegram, rateLimitService as any);
+    const uploads = { getObjectUrl: jest.fn().mockResolvedValue('https://signed/a.webp') };
+    service = new AuthService(prisma, config, tokenService, telegram, rateLimitService as any, uploads as any);
   });
 
   const dto = (code = CODE) => ({
@@ -383,6 +384,7 @@ describe('AuthService.getMe', () => {
       displayName: 'Ali V.',
       avatarUrl: null,
       contactPhone: '+998901234567',
+      contactPhoneVerified: true,
       preferredLanguage: 'RU',
     },
     legalConsents: [] as { version: number; acceptedAt: Date }[],
@@ -396,6 +398,7 @@ describe('AuthService.getMe', () => {
       {} as any,
       { sendAdminAlert: jest.fn() } as any,
       { assertCanVerify: jest.fn().mockResolvedValue(undefined), recordFailedVerify: jest.fn().mockResolvedValue(undefined) } as any,
+      { getObjectUrl: jest.fn().mockResolvedValue('https://signed/a.webp') } as any,
     );
   });
 
@@ -419,13 +422,17 @@ describe('AuthService.getMe', () => {
         display_name: 'Ali V.',
         avatar_url: null,
         contact_phone: '+998901234567',
+        contact_phone_verified: true,
         preferred_language: 'RU',
       },
       legal_consent: { accepted_version: null, accepted_at: null },
     });
-    // не отдаём DELETED-аккаунты по валидному токену
+    // не отдаём DELETED/BLOCKED-аккаунты по валидному токену (kick out)
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
-      where: { id: 'u1', status: { not: UserStatus.DELETED } },
+      where: {
+        id: 'u1',
+        status: { notIn: [UserStatus.DELETED, UserStatus.BLOCKED] },
+      },
       include: {
         profile: true,
         roles: { include: { role: true } },
@@ -449,6 +456,7 @@ describe('AuthService.getMe', () => {
       display_name: null,
       avatar_url: null,
       contact_phone: null,
+      contact_phone_verified: false,
       preferred_language: 'UZ',
     });
   });
@@ -490,6 +498,93 @@ describe('AuthService.getMe', () => {
     expect(result.legal_consent).toEqual({
       accepted_version: 2,
       accepted_at: '2026-06-29T10:00:00.000Z',
+    });
+  });
+});
+
+/**
+ * Юнит-тесты управления сессиями (ADR-0143): маппинг списка в snake_case-контракт,
+ * 404 на чужую family и аудит успешного отзыва. TokenService мокается.
+ */
+describe('AuthService sessions (ADR-0143)', () => {
+  let prisma: any;
+  let tokenService: any;
+  let service: AuthService;
+
+  beforeEach(() => {
+    prisma = {
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    tokenService = {
+      listSessions: jest.fn(),
+      revokeUserFamily: jest.fn(),
+    };
+    service = new AuthService(
+      prisma,
+      { get: jest.fn() } as any,
+      tokenService,
+      { sendAdminAlert: jest.fn() } as any,
+      {} as any,
+      {} as any,
+    );
+  });
+
+  it('listSessions maps SessionInfo to the snake_case contract', async () => {
+    tokenService.listSessions.mockResolvedValue([
+      {
+        familyId: 'fam1',
+        createdAt: new Date('2026-07-01T00:00:00.000Z'),
+        lastRotatedAt: new Date('2026-07-10T00:00:00.000Z'),
+        userAgent: 'Chrome',
+        ip: '1.1.1.1',
+        isCurrent: true,
+      },
+    ]);
+
+    await expect(service.listSessions('u1', 'fam1')).resolves.toEqual([
+      {
+        id: 'fam1',
+        created_at: '2026-07-01T00:00:00.000Z',
+        last_rotated_at: '2026-07-10T00:00:00.000Z',
+        user_agent: 'Chrome',
+        ip: '1.1.1.1',
+        is_current: true,
+      },
+    ]);
+    expect(tokenService.listSessions).toHaveBeenCalledWith('u1', 'fam1');
+  });
+
+  it('revokeSessionById throws 404 NOT_FOUND for a foreign/unknown family without audit', async () => {
+    tokenService.revokeUserFamily.mockResolvedValue(false);
+
+    const promise = service.revokeSessionById('u1', 'fam-alien', '1.1.1.1');
+    await expect(promise).rejects.toBeInstanceOf(HttpException);
+    try {
+      await promise;
+    } catch (e) {
+      expect((e as HttpException).getStatus()).toBe(404);
+      expect((e as HttpException).getResponse()).toMatchObject({
+        code: ApiErrorCode.NOT_FOUND,
+      });
+    }
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it('revokeSessionById revokes an own family and writes SESSION_REVOKED audit', async () => {
+    tokenService.revokeUserFamily.mockResolvedValue(true);
+
+    await service.revokeSessionById('u1', 'fam1', '1.1.1.1', 'Chrome');
+
+    expect(tokenService.revokeUserFamily).toHaveBeenCalledWith('u1', 'fam1');
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        actorId: 'u1',
+        action: 'SESSION_REVOKED',
+        entityType: 'refresh_token_family',
+        entityId: 'fam1',
+        ip: '1.1.1.1',
+        userAgent: 'Chrome',
+      },
     });
   });
 });

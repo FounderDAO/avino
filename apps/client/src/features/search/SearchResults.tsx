@@ -22,24 +22,35 @@ import { PropertyCard } from '@/features/search/PropertyCard';
 import { PropertyCardSkeleton } from '@/features/search/PropertyCardSkeleton';
 import { SortControl } from '@/features/search/SortControl';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { serializePolygonRing, type LatLng, type LatLngBounds } from '@/lib/geo';
+import { useSearchParams } from 'next/navigation';
+import {
+  deserializePolygonRing,
+  serializePolygonRing,
+  type LatLng,
+  type LatLngBounds,
+} from '@/lib/geo';
 import {
   useSearchByPolygonQuery,
   useLazySearchPageQuery,
 } from '@/store/api/searchApi';
 import type { Listing, ListingFilter } from '@/lib/mock/types';
 import { SEARCH_PAGE_SIZE } from '@/lib/api/listings';
-import { useCurrencyPreference } from '@/lib/useCurrencyPreference';
+import { useCurrencyPreference, useSetCurrency } from '@/lib/useCurrencyPreference';
 import { useMapHoverRecenter } from '@/lib/useMapHoverRecenter';
 import { MapPreviewCard } from '@/features/map/MapPreviewCard';
 import { useViewportSearch } from '@/features/map/useViewportSearch';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   setTerritory,
   clearTerritory as clearTerritoryRedux,
 } from '@/store/territorySlice';
+import { setResultPrices, clearResultPrices } from '@/store/resultPricesSlice';
+import { selectSort } from '@/store/sortSlice';
+import { sortListings } from '@/lib/sortListings';
+import { useGetExchangeRateQuery } from '@/store/api/exchangeRateApi';
 
 // Карта — только на клиенте (Yandex JS API требует window). next/dynamic ssr:false.
 const MapView = dynamic(
@@ -67,6 +78,14 @@ export interface SearchResultsProps {
   loading?: boolean;
   /** SSR-восстановленная область карты (?sw_lat=…) — стартуем в viewport-режиме. */
   initialBounds?: LatLngBounds | null;
+  /** Восстановленная из ?points= нарисованная территория (saved-search open). */
+  initialPolygon?: LatLng[] | null;
+  /**
+   * filter.regionId — ДЕФОЛТНЫЙ Ташкент (search/page.tsx), а не выбор пользователя.
+   * Ограничивает только SSR-выдачу/дозагрузку; карта ведёт себя как без гео-фильтра
+   * (viewport-режим активен, без autoFit, bounds-запросы без региона).
+   */
+  regionIsDefault?: boolean;
 }
 
 export function SearchResults({
@@ -78,6 +97,8 @@ export function SearchResults({
   filter,
   loading,
   initialBounds = null,
+  initialPolygon = null,
+  regionIsDefault = false,
 }: SearchResultsProps) {
   const t = useTranslations('search');
   const tCommon = useTranslations('common');
@@ -88,9 +109,23 @@ export function SearchResults({
   // Предпочтение валюты из Redux (Task 14): добавляем в RTK-запросы (polygon/keyset),
   // чтобы бэкенд фильтровал price_min/price_max в правильной валюте.
   const displayCurrency = useCurrencyPreference();
-  const filterWithCurrency = React.useMemo<ListingFilter>(
-    () => ({ ...filter, currency: displayCurrency }),
-    [filter, displayCurrency],
+  // Фильтр для ЗАПРОСОВ (viewport/полигон/дозагрузка) — БЕЗ sort: сорт теперь
+  // клиентский, смена не должна триггерить рефетч или сброс пагинации. (Гео-
+  // эндпоинты сорт и так игнорируют — всегда date_desc.)
+  const filterWithCurrency = React.useMemo<ListingFilter>(() => {
+    const { sort: _ignoredSort, ...rest } = filter;
+    return { ...rest, currency: displayCurrency };
+  }, [filter, displayCurrency]);
+  // Для bounds/polygon-запросов дефолтный Ташкент снимаем: пользователь двигает
+  // карту или рисует территорию → выдача следует за гео-жестом (по-зилловски),
+  // регион не липнет. Дозагрузка «Показать ещё» остаётся на filterWithCurrency —
+  // в рамках SSR-выдачи («· Ташкент»).
+  const geoQueryFilter = React.useMemo<ListingFilter>(
+    () =>
+      regionIsDefault
+        ? { ...filterWithCurrency, regionId: undefined }
+        : filterWithCurrency,
+    [filterWithCurrency, regionIsDefault],
   );
   // Режим рисования территории + нарисованное кольцо (как на /map).
   const [drawing, setDrawing] = React.useState(false);
@@ -108,10 +143,20 @@ export function SearchResults({
   // ── Viewport-режим (Zillow): список = видимая область карты ──
   // Активен только без явного гео-фильтра и территории; активация — жестом
   // пользователя на карте (или сразу, если SSR восстановил bbox из URL).
-  const geoFilterActive = Boolean(filter.districtId || filter.regionId);
+  const geoFilterActive = Boolean(
+    filter.districtId || (filter.regionId && !regionIsDefault),
+  );
+  // Автоподгон карты под маркеры нужен ТОЛЬКО когда пользователь задал локацию
+  // (район/регион или текстовый запрос) — тогда фокусируемся на результатах. В
+  // «чистом» дефолте (без локации) НЕ фитим: карта остаётся на дефолт-центре
+  // Ташкента (MapView), иначе autoFit растянул бы вид на объявления по всей
+  // стране, хотя выдача по умолчанию — «· Ташкент».
+  const hasLocationIntent = Boolean(
+    filter.districtId || (filter.regionId && !regionIsDefault) || filter.query,
+  );
   const vp = useViewportSearch({
     mode: 'gesture',
-    filter: filterWithCurrency,
+    filter: geoQueryFilter,
     geoFilterActive,
     polygonActive: Boolean(points),
     syncUrl: true,
@@ -127,11 +172,35 @@ export function SearchResults({
   // Уходим со страницы поиска — сбрасываем, чтобы не утащить чужую территорию.
   React.useEffect(() => () => void dispatch(clearTerritoryRedux()), [dispatch]);
 
+  // Восстановление нарисованной территории из saved-search: сидим локальный
+  // полигон из initialPolygon. Ключ — сериализованное кольцо (стабильная строка),
+  // чтобы эффект не зациклился на новой ссылке массива и не перетёр ручную обводку.
+  const initialPolyKey = React.useMemo(
+    () => (initialPolygon ? serializePolygonRing(initialPolygon) : null),
+    [initialPolygon],
+  );
+  React.useEffect(() => {
+    setPolygon(initialPolyKey ? deserializePolygonRing(initialPolyKey) : null);
+    setDrawing(false);
+    // Сид/ресид только при появлении/смене восстановленной территории.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPolyKey]);
+
+  // Восстановление display-валюты из saved-search (?currency=).
+  const searchParams = useSearchParams();
+  const setCurrencyPref = useSetCurrency();
+  const currencyParam = searchParams.get('currency');
+  React.useEffect(() => {
+    if (currencyParam === 'UZS' || currencyParam === 'USD') {
+      setCurrencyPref(currencyParam);
+    }
+  }, [currencyParam, setCurrencyPref]);
+
   // Поиск по территории (ST_Within на сервере). Без территории — skip, показываем
   // SSR-выдачу по фильтрам. Смена фильтров при активной территории автоматически
   // рефетчит (ключ кэша = points + filterWithCurrency).
   const { data: polygonData, isFetching } = useSearchByPolygonQuery(
-    points ? { points, filter: filterWithCurrency, limit: 100 } : skipToken,
+    points ? { points, filter: geoQueryFilter, limit: 100 } : skipToken,
   );
 
   // ── Пагинация по keyset-курсору (TASK-199) ──
@@ -165,11 +234,38 @@ export function SearchResults({
   // в viewport-режиме — bounds-выдача (до первого ответа — SSR-страница:
   // при SSR-восстановлении bbox она уже посчитана по bounds).
   const paged = React.useMemo(() => [...listings, ...extra], [listings, extra]);
-  const displayed = points
-    ? polygonData ?? []
-    : vp.active
-      ? vp.listings ?? paged
-      : paged;
+  const displayed = React.useMemo(
+    () =>
+      points
+        ? polygonData ?? []
+        : vp.active
+          ? vp.listings ?? paged
+          : paged,
+    [points, polygonData, vp.active, vp.listings, paged],
+  );
+
+  // ── Клиентская сортировка (без запроса к API) ──
+  // Сорт из Redux применяется к УЖЕ загруженной выдаче (реплика гибрида ADR-0117).
+  // Курс ЦБУ нужен только для price_* (нормализация UZS/USD в USD); эндпоинт уже
+  // в кэше (usePriceFormatter его тянет). Результат идёт и в список, и в карту.
+  const sort = useAppSelector(selectSort);
+  const { data: rateData } = useGetExchangeRateQuery();
+  const rate = rateData ? Number(rateData.rate) : undefined;
+  const sortedForDisplay = React.useMemo(
+    () => sortListings(displayed, sort, rate),
+    [displayed, sort, rate],
+  );
+
+  // Зеркалим цены текущей выдачи в Redux: PriceFilter (соседний компонент)
+  // строит по ним домен слайдера и гистограмму (спека 2026-07-06).
+  React.useEffect(() => {
+    dispatch(
+      setResultPrices(
+        sortedForDisplay.map((l) => ({ price: Number(l.price), currency: l.currency })),
+      ),
+    );
+  }, [sortedForDisplay, dispatch]);
+  React.useEffect(() => () => void dispatch(clearResultPrices()), [dispatch]);
 
   // Viewport-режим: один запрос (limit=100), список раскрывается локальными
   // батчами по SEARCH_PAGE_SIZE без сети (маркеры при этом видят весь набор).
@@ -177,14 +273,15 @@ export function SearchResults({
   React.useEffect(() => {
     setVisibleCount(SEARCH_PAGE_SIZE);
   }, [vp.listings]);
-  const listShown = vp.active && !points ? displayed.slice(0, visibleCount) : displayed;
+  const listShown =
+    vp.active && !points ? sortedForDisplay.slice(0, visibleCount) : sortedForDisplay;
 
   const shownCount = listShown.length;
-  const totalCount = points || vp.active ? displayed.length : totalAll;
+  const totalCount = points || vp.active ? sortedForDisplay.length : totalAll;
   const hasMore = points
     ? false
     : vp.active
-      ? visibleCount < displayed.length
+      ? visibleCount < sortedForDisplay.length
       : cursor != null;
   const busy = Boolean(loading) || isFetching;
   const onShowMore = vp.active
@@ -210,12 +307,14 @@ export function SearchResults({
 
   // Превью по клику на пин (Zillow): MapView позиционирует карточку у пина.
   const preview = vp.previewId
-    ? displayed.find((l) => l.id === vp.previewId) ?? null
+    ? sortedForDisplay.find((l) => l.id === vp.previewId) ?? null
     : null;
 
   return (
-    // Рабочая область сплита занимает высоту вьюпорта под хедером и фильтр-баром.
-    <div className="relative flex h-[calc(100dvh-var(--header-h)-61px)] min-h-[480px]">
+    // Рабочая область сплита занимает высоту вьюпорта под хедером и фильтр-баром:
+    // вьюпорт минус хедер (+1px его border-b) минус фильтр-бар (--filterbar-h).
+    // Иначе документ выше вьюпорта и body скроллится (панель рисования уезжает).
+    <div className="relative flex h-[calc(100dvh-var(--header-h)-var(--filterbar-h)-1px)] min-h-[480px]">
       {/* ---- Карта (слева) ---- */}
       <div
         className={cn(
@@ -229,7 +328,7 @@ export function SearchResults({
         )}
       >
         <MapView
-          listings={displayed}
+          listings={sortedForDisplay}
           activeId={activeId}
           onSelect={(id) => {
             setActiveId(id);
@@ -242,7 +341,7 @@ export function SearchResults({
           onPolygonComplete={handlePolygonComplete}
           onBoundsChange={vp.handleBoundsChange}
           initialBounds={initialBounds}
-          autoFit={!vp.active}
+          autoFit={hasLocationIntent && !vp.active}
           recenterOnHover={recenterOnHover}
           preview={
             preview
@@ -303,11 +402,13 @@ export function SearchResults({
       {/* ---- Колонка со списком (справа, свой скролл) ---- */}
       <div
         className={cn(
-          'min-w-0 overflow-y-auto',
+          // flex-col + overscroll-contain: футер прижат к низу, докрутка списка
+          // не скроллит страницу (Zillow, спека 2026-07-17).
+          'flex min-w-0 flex-col overflow-y-auto overscroll-contain',
           // Десктоп: 40% (уже карты → карточки уже и ниже, видно больше). Мобайл:
-          // вся ширина, скрыт когда показана карта.
+          // вся ширина, скрыт когда показана карта. lg:flex — не перебить flex-col.
           'w-full lg:w-2/5 lg:max-w-[40%]',
-          mobView === 'map' && 'hidden lg:block',
+          mobView === 'map' && 'hidden lg:flex',
         )}
       >
         {/* Заголовок + счётчик + сортировка (Zillow-стиль, Task 9) */}
@@ -393,6 +494,12 @@ export function SearchResults({
             </p>
           </div>
         )}
+
+        {/* Компактный футер внизу скроллящейся колонки (Zillow, спека 2026-07-17);
+            mt-auto прижимает его к низу при короткой/пустой выдаче. */}
+        <div className="mt-auto">
+          <Footer variant="panel" />
+        </div>
       </div>
 
       {/* ---- Мобильный переключатель Список / Карта ---- */}

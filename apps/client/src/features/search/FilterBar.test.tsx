@@ -8,7 +8,7 @@
  * - @/store/hooks (useAppSelector) — не авторизован по умолчанию
  * - @/store/api/savedSearchesApi (useCreateSavedSearchMutation)
  * - @/lib/useCurrencyPreference — возвращает 'UZS'
- * - SearchAutocomplete, ActiveFilters, BedroomsControl,
+ * - SearchAutocomplete, BedroomsControl,
  *   HomeTypeMultiSelect, FiltersPanel — заглушки
  * - useGeoSuggest — пустые подсказки
  */
@@ -87,10 +87,6 @@ vi.mock('./SearchAutocomplete', () => ({
   ),
 }));
 
-vi.mock('./ActiveFilters', () => ({
-  ActiveFilters: () => null,
-}));
-
 vi.mock('./useGeoSuggest', () => ({
   useGeoSuggest: () => ({ items: [], loading: false }),
 }));
@@ -109,6 +105,12 @@ vi.mock('./controls/HomeTypeMultiSelect', () => ({
 
 vi.mock('./FiltersPanel', () => ({
   FiltersPanel: () => <div data-testid="filters-panel-stub" />,
+}));
+
+// LoginModal тянет authApi/Google/Apple — заглушка (как в ContactCard.test).
+vi.mock('@/components/layout/LoginModal', () => ({
+  LoginModal: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="login-modal-stub" /> : null,
 }));
 
 // Импорт ПОСЛЕ моков
@@ -193,12 +195,14 @@ describe('FilterBar (Zillow-раскладка)', () => {
     expect(screen.queryByRole('combobox')).toBeNull();
   });
 
-  it('НЕ показывает кнопку сохранения поиска для гостя', () => {
+  it('показывает кнопку сохранения поиска гостю и открывает вход по клику', async () => {
     render(<FilterBar values={baseValues} districts={districts} regions={[]} />);
-    // useAppSelector вернёт false → isAuthenticated=false → кнопки нет
-    expect(
-      screen.queryByRole('button', { name: /search\.filters\.saveSearch/i }),
-    ).toBeNull();
+    // useAppSelector вернёт false → гость, но кнопка теперь видна всегда.
+    const btn = screen.getByRole('button', { name: /search\.filters\.saveSearch/i });
+    expect(btn).toBeInTheDocument();
+    // Клик гостя открывает LoginModal (заглушка рендерится при open).
+    await userEvent.click(btn);
+    expect(screen.getByTestId('login-modal-stub')).toBeInTheDocument();
   });
 
   it('триггер Купить отражает tx=RENT корректным лейблом', () => {
@@ -266,6 +270,56 @@ describe('FilterBar (Zillow-раскладка)', () => {
     expect(screen.getByText('Юнусабадский')).toBeInTheDocument();
     expect(screen.getByText('Чиланзарский')).toBeInTheDocument();
     expect(screen.queryByText('Ангрен')).toBeNull();
+  });
+
+  it('без региона, но с fallbackRegionId «Район» доступен и показывает районы дефолтного региона', async () => {
+    const user = userEvent.setup();
+    render(
+      <FilterBar
+        values={baseValues}
+        districts={districtsWithRegions}
+        regions={regions}
+        fallbackRegionId="r1"
+      />,
+    );
+    const trigger = screen.getByTestId('filter-district');
+    expect(trigger).toBeEnabled();
+    await user.click(trigger);
+    expect(screen.getByText('Юнусабадский')).toBeInTheDocument();
+    expect(screen.queryByText('Ангрен')).toBeNull();
+  });
+
+  it('выбор района без явного региона пишет в URL и region_id (fallback), и district_id', async () => {
+    const user = userEvent.setup();
+    render(
+      <FilterBar
+        values={baseValues}
+        districts={districtsWithRegions}
+        regions={regions}
+        fallbackRegionId="r1"
+      />,
+    );
+    await user.click(screen.getByTestId('filter-district'));
+    await user.click(screen.getByText('Юнусабадский'));
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+    const url = mockReplace.mock.calls[0][0] as string;
+    expect(url).toContain('region_id=r1');
+    expect(url).toContain('district_id=yuna-id');
+  });
+
+  it('чип «Регион» неактивен без явного выбора даже при fallbackRegionId', () => {
+    render(
+      <FilterBar
+        values={baseValues}
+        districts={districtsWithRegions}
+        regions={regions}
+        fallbackRegionId="r1"
+      />,
+    );
+    // Лейбл остаётся плейсхолдером 'search.filters.region' — не именем региона.
+    expect(
+      screen.getByRole('button', { name: /search\.filters\.region$/i }),
+    ).toBeInTheDocument();
   });
 
   it('смена региона сбрасывает district_id в URL', async () => {

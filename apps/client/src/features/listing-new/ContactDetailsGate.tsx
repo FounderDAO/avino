@@ -1,17 +1,27 @@
 /**
  * ContactDetailsGate — экран «Контактные данные» в визарде /sell/new
  * (ADR-0125). Показывается вошедшему пользователю с неполным профилем
- * (см. isProfileCompleteForListing). Сохраняет Имя/Фамилию/Телефон через
+ * (см. isProfileCompleteForListing). Сохраняет Имя/Фамилию через
  * PATCH /users/me/profile; мутация инвалидирует Auth → getMe перечитывается →
- * родитель сам скрывает гейт. Телефон пишется в contact_phone (без OTP).
+ * родитель сам скрывает гейт.
+ *
+ * Телефон здесь только для показа (публичный контакт = contact_phone профиля
+ * или телефон логина, тот же фолбэк, что в бэкенд-гейте) и НЕ редактируется:
+ * смена публичного контакт-телефона требует OTP (ADR-0150) и вынесена в
+ * Аккаунт → ContactPhoneModal. Поэтому в PATCH профиля contact_phone больше
+ * НЕ входит — иначе backend отвечает VALIDATION_ERROR («property contact_phone
+ * should not exist»).
  */
 'use client';
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { UserRound } from 'lucide-react';
+import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
+import { PhoneField } from '@/components/ui/phone-field';
+import { formatUzPhone } from '@/lib/phone-mask';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
 import { useUpdateProfileMutation } from '@/store/api/usersApi';
@@ -25,9 +35,8 @@ export function ContactDetailsGate() {
   const [firstName, setFirstName] = React.useState(
     user?.profile?.first_name ?? '',
   );
-  const [lastName, setLastName] = React.useState(user?.profile?.last_name ?? '');
-  const [phone, setPhone] = React.useState(
-    user?.profile?.contact_phone ?? user?.phone ?? '',
+  const [lastName, setLastName] = React.useState(
+    user?.profile?.last_name ?? '',
   );
   const [error, setError] = React.useState<string | null>(null);
 
@@ -37,11 +46,19 @@ export function ContactDetailsGate() {
     if (!user) return;
     setFirstName(user.profile?.first_name ?? '');
     setLastName(user.profile?.last_name ?? '');
-    setPhone(user.profile?.contact_phone ?? user.phone ?? '');
   }, [user]);
 
+  // Публичный контакт-телефон: contact_phone профиля или телефон логина
+  // (зеркало isProfileCompleteForListing и бэкенд-гейта). Пусто только у
+  // аккаунтов без телефона (вход через Google/Apple без привязки номера) —
+  // им нужно сначала добавить телефон в настройках аккаунта (там OTP).
+  const contactPhone =
+    user?.profile?.contact_phone?.trim() || user?.phone?.trim() || '';
+
   const canSubmit =
-    Boolean(firstName.trim()) && Boolean(lastName.trim()) && Boolean(phone.trim());
+    Boolean(firstName.trim()) &&
+    Boolean(lastName.trim()) &&
+    Boolean(contactPhone);
 
   const onSubmit = async () => {
     setError(null);
@@ -49,7 +66,6 @@ export function ContactDetailsGate() {
       await updateProfile({
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        contact_phone: phone.trim(),
       }).unwrap();
       // Успех: инвалидация Auth перечитает getMe, гейт исчезнет сам.
     } catch (err) {
@@ -69,7 +85,10 @@ export function ContactDetailsGate() {
       </p>
       <div className="mx-auto flex max-w-[420px] flex-col gap-4">
         <div>
-          <label htmlFor="cg-first" className="mb-[7px] block text-[13px] font-bold">
+          <label
+            htmlFor="cg-first"
+            className="mb-[7px] block text-[13px] font-bold"
+          >
             {t('contactGate.firstName')}
           </label>
           <Field
@@ -79,7 +98,10 @@ export function ContactDetailsGate() {
           />
         </div>
         <div>
-          <label htmlFor="cg-last" className="mb-[7px] block text-[13px] font-bold">
+          <label
+            htmlFor="cg-last"
+            className="mb-[7px] block text-[13px] font-bold"
+          >
             {t('contactGate.lastName')}
           </label>
           <Field
@@ -89,17 +111,36 @@ export function ContactDetailsGate() {
           />
         </div>
         <div>
-          <label htmlFor="cg-phone" className="mb-[7px] block text-[13px] font-bold">
+          <label
+            htmlFor="cg-phone"
+            className="mb-[7px] block text-[13px] font-bold"
+          >
             {t('contactGate.phone')}
           </label>
-          <Field
+          <PhoneField
             id="cg-phone"
-            type="tel"
-            maxLength={20}
             placeholder={t('contactGate.phonePlaceholder')}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            value={formatUzPhone(contactPhone)}
+            onChange={() => {}}
+            readOnly
+            disabled
+            className="cursor-not-allowed opacity-70"
           />
+          {contactPhone ? (
+            <p className="mt-[7px] text-[13px] text-muted-foreground">
+              {t('contactGate.phoneHint')}
+            </p>
+          ) : (
+            <p className="mt-[7px] text-[13px] font-semibold text-red">
+              {t.rich('contactGate.noPhoneHint', {
+                link: (chunks) => (
+                  <Link href="/account/profile" className="underline">
+                    {chunks}
+                  </Link>
+                ),
+              })}
+            </p>
+          )}
         </div>
         {error && <p className="text-[13px] font-semibold text-red">{error}</p>}
         <Button

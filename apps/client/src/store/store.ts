@@ -2,10 +2,15 @@ import { configureStore } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
 import { baseApi } from './api/baseApi';
 import { apiErrorToastMiddleware } from './apiErrorToastMiddleware';
+import { identityResetListener } from './identityResetListener';
 import favoritesReducer from './favoritesSlice';
 import currencyReducer from './currencySlice';
 import { authReducer } from './slices/authSlice';
+import { mortgageReducer } from './slices/mortgageSlice';
 import territoryReducer from './territorySlice';
+import resultPricesReducer from './resultPricesSlice';
+import sortReducer from './sortSlice';
+import realtimeReducer from './realtimeSlice';
 
 export const makeStore = () => {
   const store = configureStore({
@@ -14,10 +19,16 @@ export const makeStore = () => {
       favorites: favoritesReducer,
       currency: currencyReducer,
       auth: authReducer,
+      mortgage: mortgageReducer,
       territory: territoryReducer,
+      resultPrices: resultPricesReducer,
+      sort: sortReducer,
+      realtime: realtimeReducer,
     },
     middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware().concat(baseApi.middleware, apiErrorToastMiddleware),
+      getDefaultMiddleware()
+        .prepend(identityResetListener.middleware)
+        .concat(baseApi.middleware, apiErrorToastMiddleware),
   });
   // Трекинг фокуса/сети окна — без него skipPollingIfUnfocused (шапка) не
   // приостанавливает поллинг в фоне. На сервере setupListeners — no-op.

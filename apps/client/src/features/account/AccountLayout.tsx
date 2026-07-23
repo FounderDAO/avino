@@ -11,10 +11,10 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import { CalendarDays, Home, Heart, Bell, MessageCircle, User, Settings as SettingsIcon } from 'lucide-react';
+import { CalendarDays, Home, Heart, Bell, Loader2, MessageCircle, MonitorSmartphone, User, Settings as SettingsIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
-import { selectCurrentUser } from '@/store/slices/authSlice';
+import { selectAuthResolved, selectCurrentUser } from '@/store/slices/authSlice';
 import { CountBadge } from '@/components/ui/count-badge';
 import { useUnreadCounts } from '@/store/useUnreadCounts';
 
@@ -35,6 +35,7 @@ export const ACCOUNT_TABS: AccountTab[] = [
   { key: 'notifications', labelKey: 'notifications', icon: Bell },
   { key: 'profile', labelKey: 'profile', icon: User },
   { key: 'settings', labelKey: 'settings', icon: SettingsIcon },
+  { key: 'devices', labelKey: 'devices', icon: MonitorSmartphone },
   { key: 'tours', labelKey: 'tours', icon: CalendarDays },
 ];
 
@@ -47,6 +48,10 @@ export interface AccountLayoutProps {
 export function AccountLayout({ tab, children }: AccountLayoutProps) {
   const t = useTranslations('account');
   const user = useAppSelector(selectCurrentUser);
+  // Сессия ещё не определена (пробный silent-refresh, ADR-0153): не рендерим
+  // контент вкладки, иначе вошедший юзер мельком увидел бы гость-экран вкладки
+  // (у каждой вкладки свой `if (!isAuthenticated)`-бранч). Один гейт на все.
+  const authResolved = useAppSelector(selectAuthResolved);
 
   // Счётчики без поллинга — читаем общий кэш (двигатель поллинга — шапка).
   const { messages, notifications, tours } = useUnreadCounts();
@@ -64,6 +69,7 @@ export function AccountLayout({ tab, children }: AccountLayoutProps) {
     t('userCard.guest');
   const accountPhone = user?.profile?.contact_phone ?? user?.phone ?? null;
   const initial = accountName.trim().charAt(0).toUpperCase() || '?';
+  const avatarUrl = user?.profile?.avatar_url ?? null;
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 pb-16 pt-7">
@@ -72,8 +78,13 @@ export function AccountLayout({ tab, children }: AccountLayoutProps) {
         <aside>
           {/* Карточка пользователя (реальный текущий юзер из Redux) */}
           <div className="flex items-center gap-3 px-1.5 pb-4">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-teal text-lg font-extrabold text-white">
-              {initial}
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal text-lg font-extrabold text-white">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                initial
+              )}
             </span>
             <div className="min-w-0">
               <div className="truncate font-bold">{accountName}</div>
@@ -113,8 +124,16 @@ export function AccountLayout({ tab, children }: AccountLayoutProps) {
           </nav>
         </aside>
 
-        {/* Контент активной вкладки */}
-        <main className="min-w-0">{children}</main>
+        {/* Контент активной вкладки (после разрешения сессии — иначе loader) */}
+        <main className="min-w-0">
+          {authResolved ? (
+            children
+          ) : (
+            <div className="flex items-center justify-center py-24 text-muted-foreground">
+              <Loader2 className="animate-spin" size={22} />
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );

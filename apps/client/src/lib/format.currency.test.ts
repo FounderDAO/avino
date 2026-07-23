@@ -37,10 +37,17 @@ describe('formatPrice with display currency', () => {
     expect(formatPrice(uzs, t, { display: 'USD', rate: RATE })).toBe('≈ $115');
   });
 
-  it('USD listing shown in UZS is converted, rounded to 1000, with ≈', () => {
-    // 98000 * 12650 = 1,239,700,000 (already on 1000s)
+  it('USD listing shown in UZS is converted, rounded to 10 000, with ≈', () => {
+    // 98000 * 12650 = 1,239,700,000 (уже кратно 10 000)
     const actual = formatPrice(usd, t, { display: 'UZS', rate: RATE });
     expect(actual).toBe('≈ 1,239,700,000 сум');
+  });
+
+  it('rounds converted UZS down to nearest 10 000', () => {
+    // $120 000 * 11971.2 = 1,436,544,000 → 1,436,540,000
+    const listing = { price: '120000', currency: 'USD' as const, tx: 'SALE' as const };
+    const actual = formatPrice(listing, t, { display: 'UZS', rate: 11_971.2 });
+    expect(actual).toBe('≈ 1,436,540,000 сум');
   });
 
   it('falls back to native when rate is missing', () => {

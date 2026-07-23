@@ -1,7 +1,7 @@
 /**
  * Корневой layout публичного портала Avino (под [locale]-префиксом).
  * Inter (latin + cyrillic), next-intl provider, Redux/RTK Provider,
- * chrome (Header + Footer), колоночная раскладка min-h-dvh.
+ * Header + FooterGate (футер скрыт по маршруту на /map и /search), колоночная раскладка min-h-dvh.
  */
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
@@ -11,7 +11,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
 import { StoreProvider } from '@/store/StoreProvider';
 import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
+import { FooterGate } from '@/components/layout/FooterGate';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { BASE } from '@/lib/seo/base';
 import '../globals.css';
@@ -32,9 +32,11 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
+// Полный LayoutProps (не Pick): сгенерированная проверка Next (.next/types)
+// требует, чтобы параметр generateMetadata принимал все пропсы layout.
 export async function generateMetadata({
   params,
-}: Pick<LayoutProps, 'params'>): Promise<Metadata> {
+}: LayoutProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'meta' });
   return {
@@ -93,7 +95,8 @@ export default async function RootLayout({ children, modal, params }: LayoutProp
             <div className="flex min-h-dvh flex-col">
               <Header />
               <main className="flex-1">{children}</main>
-              <Footer />
+              {/* Футер по маршруту: на /map и /search скрыт (Zillow-сплит) */}
+              <FooterGate />
             </div>
             {modal}
           </StoreProvider>

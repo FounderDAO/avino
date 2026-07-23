@@ -15,6 +15,7 @@ export interface MeProfile {
   display_name: string | null;
   avatar_url: string | null;
   contact_phone: string | null;
+  contact_phone_verified: boolean;
   preferred_language: Language;
 }
 

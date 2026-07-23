@@ -12,7 +12,7 @@
  *    неймспейса, ключи `savedSearch.*` и `enums.propertyType.*`),
  *  - filtersToSearchHref → ссылка `/search?...` для перехода в выдачу.
  */
-import { AMENITIES, PARKING_TYPES, PROPERTY_TYPES, type Amenity, type ParkingType, type PropertyType } from '@/lib/mock/types';
+import { PARKING_TYPES, PROPERTY_TYPES, type ParkingType, type PropertyType } from '@/lib/mock/types';
 import type { T } from '@/lib/format';
 
 /** Внутренний объект фильтров (произвольные ключи API.md §12). */
@@ -103,8 +103,14 @@ export function describeFilters(filters: SavedSearchFilters, t: T): string {
   else if (yearMin) parts.push(`${t('search.filters.yearTitle')}: ${t('search.filters.rangeFrom')} ${yearMin}`);
   else if (yearMax) parts.push(`${t('search.filters.yearTitle')}: ${t('search.filters.rangeTo')} ${yearMax}`);
 
-  if (filters.listing_source === 'OWNER') parts.push(t('search.filters.sourceOwner'));
-  else if (filters.listing_source === 'AGENCY') parts.push(t('search.filters.sourceAgency'));
+  if (filters.new_construction) parts.push(t('search.filters.newConstruction'));
+
+  // listing_source — массив (мультивыбор); старые записи могли хранить строку.
+  const sources = Array.isArray(filters.listing_source)
+    ? (filters.listing_source as string[])
+    : filters.listing_source ? [filters.listing_source as string] : [];
+  if (sources.includes('OWNER')) parts.push(t('search.filters.sourceOwner'));
+  if (sources.includes('AGENCY')) parts.push(t('search.filters.sourceAgency'));
 
   if (filters.tours_enabled) parts.push(t('search.filters.toursEnabled'));
   if (filters.is_basement) parts.push(t('search.filters.isBasement'));
@@ -136,7 +142,25 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   };
 
   set('tx', asString(filters.transaction_type));
-  set('type', asString(filters.property_type));
+  // Мультивыбор типа: повторяем ?type= для каждого, иначе фолбэк на одиночный.
+  const rawTypes = Array.isArray(filters.property_types)
+    ? (filters.property_types as unknown[])
+    : [];
+  const propertyTypes = rawTypes.filter(isPropertyType);
+  if (propertyTypes.length > 0) {
+    for (const pt of propertyTypes) params.append('type', pt);
+  } else if (asString(filters.property_type) !== 'NEW_BUILDING') {
+    set('type', asString(filters.property_type));
+  }
+  // Legacy: сохранённые поиски с упразднённым типом NEW_BUILDING →
+  // вычисляемая категория «новостройка».
+  if (
+    filters.new_construction ||
+    rawTypes.includes('NEW_BUILDING') ||
+    asString(filters.property_type) === 'NEW_BUILDING'
+  ) {
+    params.set('new_construction', 'true');
+  }
   set('region_id', asString(filters.region_id));
   set('district_id', asString(filters.district_id));
   set('priceMin', asString(filters.price_min));
@@ -156,7 +180,13 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   set('year_max', asString(filters.year_max));
   if (filters.not_first_floor) params.set('not_first_floor', 'true');
   if (filters.not_last_floor) params.set('not_last_floor', 'true');
-  set('listing_source', asString(filters.listing_source));
+  // listing_source — повторяющийся параметр; старые записи могли хранить строку.
+  const sources = Array.isArray(filters.listing_source)
+    ? (filters.listing_source as string[])
+    : filters.listing_source ? [filters.listing_source as string] : [];
+  for (const s of sources) {
+    if (s === 'OWNER' || s === 'AGENCY') params.append('listing_source', s);
+  }
   if (filters.tours_enabled) params.set('tours_enabled', 'true');
   if (filters.is_basement) params.set('is_basement', 'true');
   if (Array.isArray(filters.parking_types)) {
@@ -164,15 +194,23 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
       if (PARKING_TYPES.includes(p as ParkingType)) params.append('parking_type', p);
     }
   }
+  // Справочник удобств динамический (Task 5, GET /amenities) — клиент коды не
+  // валидирует, передаёт как есть. /search матчит их через `@> ARRAY`, поэтому
+  // код, скрытый админом после сохранения поиска, не игнорируется, а сузит
+  // выдачу до нуля — это осознанный компромисс: чинить надо в справочнике.
   if (Array.isArray(filters.amenities)) {
     for (const a of filters.amenities as string[]) {
-      if (AMENITIES.includes(a as Amenity)) params.append('amenities', a);
+      params.append('amenities', a);
     }
   }
   set('query', asString(filters.q));
+  set('sort', asString(filters.sort));
+  set('currency', asString(filters.currency));
 
-  // `points` (нарисованная территория) намеренно НЕ мапим в URL: по клику территорию
-  // заново не рисуем (MVP) — выдача перезапускается по скалярам (решение 2026-06-19).
+  // `points` (нарисованная территория) восстанавливаем в URL: SearchResults
+  // сидит из него локальный полигон и перезапускает polygon-поиск.
+  set('points', asString(filters.points));
+
   const qs = params.toString();
   return qs ? `/search?${qs}` : '/search';
 }

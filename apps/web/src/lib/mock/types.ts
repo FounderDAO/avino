@@ -9,7 +9,6 @@ export type TransactionType = 'SALE' | 'RENT';
 export type PropertyType =
   | 'APARTMENT'
   | 'HOUSE'
-  | 'NEW_BUILDING'
   | 'LAND'
   | 'COMMERCIAL';
 
@@ -78,6 +77,8 @@ export interface SourceListing {
 /** Строка таблицы объявлений в админке (порт admin-data.js → listings). */
 export interface AdminListing {
   id: string;
+  /** Публичный человекочитаемый номер объявления (ADR-0137); «—» без источника. */
+  reference?: number | string;
   title: string;
   photo: string;
   /** Отформатированная цена без суффикса (например «$98 000»). */
@@ -100,6 +101,8 @@ export interface AdminListing {
   promo: PromotionType;
   /** «Аренда» / «Продажа». */
   tx: string;
+  /** Точный адрес (из Яндекс-карты) для строки списка; отсутствует — не показываем. */
+  address?: string;
 }
 
 /** Объект очереди модерации. */

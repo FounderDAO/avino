@@ -28,8 +28,13 @@ const BATHROOM_OPTIONS: { value: number; label: string }[] = [
 export function BathroomsControl({ value, onChange }: BathroomsControlProps) {
   const t = useTranslations('search.filters');
   return (
-    <div className="flex flex-wrap gap-2">
-      <Pill active={value === undefined} onClick={() => onChange(undefined)}>
+    /* Одной линией без переноса (7 пилюль — контейнер должен быть ≥ ~390px) */
+    <div className="flex flex-nowrap gap-1.5 overflow-x-auto">
+      <Pill
+        active={value === undefined}
+        onClick={() => onChange(undefined)}
+        className="shrink-0 px-2.5"
+      >
         {t('any')}
       </Pill>
       {BATHROOM_OPTIONS.map((opt) => (
@@ -37,6 +42,7 @@ export function BathroomsControl({ value, onChange }: BathroomsControlProps) {
           key={opt.value}
           active={value === opt.value}
           onClick={() => onChange(value === opt.value ? undefined : opt.value)}
+          className="shrink-0 px-2.5"
         >
           {opt.label}
         </Pill>

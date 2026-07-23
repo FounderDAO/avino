@@ -33,7 +33,6 @@ import { Chip } from '@/components/ui/pill';
 import { cn } from '@/lib/utils';
 import { propertyTypeLabel } from '@/lib/format';
 import {
-  AMENITIES,
   PARKING_TYPES,
   PROPERTY_TYPES,
   type Amenity,
@@ -42,8 +41,13 @@ import {
   type PropertyType,
   type TransactionType,
 } from '@/lib/mock';
+import { useListAmenitiesQuery } from '@/store/api/amenitiesApi';
+import { amenityLabel } from '@/lib/amenities';
 import { useAppSelector } from '@/store/hooks';
-import { selectIsAuthenticated } from '@/store/slices/authSlice';
+import {
+  selectAuthResolved,
+  selectIsAuthenticated,
+} from '@/store/slices/authSlice';
 import { getApiError } from '@/store/api/apiError';
 import { AddressStep } from '@/features/listing-new/AddressStep';
 import { PhotoUploader, type UploadPhoto } from '@/features/listing-new/PhotoUploader';
@@ -69,7 +73,6 @@ const BATHROOM_OPTIONS = ['1', '1.5', '2', '2.5', '3', '4+'] as const;
 const TYPE_ICONS: Record<PropertyType, typeof HomeIcon> = {
   APARTMENT: Building,
   HOUSE: HomeIcon,
-  NEW_BUILDING: Building,
   LAND: Trees,
   COMMERCIAL: Store,
 };
@@ -225,6 +228,7 @@ export type RequiredField =
   | 'location'
   | 'area'
   | 'rooms'
+  | 'year'
   | 'price'
   | 'photos';
 
@@ -241,6 +245,9 @@ export function missingRequiredFields(f: EditForm, photoCount: number): Required
   if (!f.regionId || !f.districtId) missing.push('location');
   if (!f.area) missing.push('area');
   if (!noRooms && !f.rooms) missing.push('rooms');
+  // Год постройки обязателен для квартир/домов (категория «новостройка»
+  // вычисляется из него на бэке); может быть будущим — недострой.
+  if (!noRooms && !f.year) missing.push('year');
   if (!f.price) missing.push('price');
   if (photoCount === 0) missing.push('photos');
   return missing;
@@ -297,8 +304,10 @@ export function ListingEdit({
   const tEnums = useTranslations('enums');
   const tUnits = useTranslations('units');
   const locale = useLocale();
+  const { data: amenities = [] } = useListAmenitiesQuery();
   const router = useRouter();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const authResolved = useAppSelector(selectAuthResolved);
 
   const { data, isLoading, isError } = useGetListingForEditQuery(id, {
     skip: !isAuthenticated,
@@ -339,7 +348,9 @@ export function ListingEdit({
     </div>
   );
 
-  if (!isAuthenticated) {
+  // Гость-экран показываем ТОЛЬКО после разрешения сессии (ADR-0153); пока
+  // идёт пробный silent-refresh (query выше skip'нут → !f), падаем в loader ниже.
+  if (authResolved && !isAuthenticated) {
     return notice(t('authTitle'), t('authText'));
   }
   if (isLoading || (!f && !isError)) {
@@ -364,6 +375,7 @@ export function ListingEdit({
     location: t('fieldLocation'),
     area: tNew('fields.area.label'),
     rooms: tNew('fields.rooms.label'),
+    year: tNew('fields.yearBuilt'),
     price: tNew('fields.price.label'),
     photos: tNew('fields.photos'),
   };
@@ -393,13 +405,16 @@ export function ListingEdit({
 
       // 3. Загрузить новые фото; собрать итоговый порядок media id.
       const finalOrder: string[] = [];
+      let mediaFailures = 0;
       for (const p of photos) {
         if (p.file) {
           try {
             const created = await addMedia({ listingId: id, file: p.file }).unwrap();
             finalOrder.push(created.id);
           } catch {
-            /* одно фото не загрузилось — продолжаем с остальными */
+            // Одно фото не загрузилось — продолжаем с остальными, но сбой не
+            // замалчиваем: иначе сохранение выглядит успешным без фото.
+            mediaFailures += 1;
           }
         } else {
           finalOrder.push(p.id);
@@ -415,6 +430,9 @@ export function ListingEdit({
         }
       }
 
+      if (mediaFailures > 0) {
+        toast.error(tToasts('mediaUploadFailed', { count: mediaFailures }));
+      }
       toast.success(tToasts('listingSaved'));
       router.push('/account/my-listings');
     } catch (e) {
@@ -538,20 +556,20 @@ export function ListingEdit({
           </FormField>
           <FormField label={tNew('fields.amenities.label')}>
             <div className="flex flex-wrap gap-2">
-              {AMENITIES.map((a) => (
+              {amenities.map((a) => (
                 <Chip
-                  key={a}
-                  active={f.amenities.includes(a)}
+                  key={a.code}
+                  active={f.amenities.includes(a.code)}
                   onClick={() =>
                     set(
                       'amenities',
-                      f.amenities.includes(a)
-                        ? f.amenities.filter((v) => v !== a)
-                        : ([...f.amenities, a] as Amenity[]),
+                      f.amenities.includes(a.code)
+                        ? f.amenities.filter((v) => v !== a.code)
+                        : [...f.amenities, a.code],
                     )
                   }
                 >
-                  {tEnums(`amenities.${a}`)}
+                  {amenityLabel(a, locale)}
                 </Chip>
               ))}
             </div>
@@ -610,7 +628,7 @@ export function ListingEdit({
                   onChange={(e) => set('totalFloors', e.target.value.replace(/\D/g, ''))}
                 />
               </FormField>
-              <FormField label={tNew('fields.yearBuilt')}>
+              <FormField label={tNew('fields.yearBuilt')} hint={tNew('fields.yearBuiltHint')}>
                 <Field
                   placeholder="2022"
                   inputMode="numeric"

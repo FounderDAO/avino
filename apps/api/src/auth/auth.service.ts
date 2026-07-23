@@ -16,13 +16,15 @@ import {
   formatLoginSuccess,
 } from '../telegram';
 import { normalizeContact } from './contact.util';
-import { verifyOtpCode } from './otp-hash.util';
+import { consumeActiveOtpCode } from './otp-code.util';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 import { TokenService } from './token.service';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { SessionResponse } from './dto/session-response.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { MeResponse } from './dto/me-response.dto';
 import { isReviewerBypass, type OtpBypassConfig } from './otp-bypass.util';
+import { UploadsService } from '../uploads';
+import { resolveAvatarUrl } from '../users/avatar-url.util';
 
 /** Сводка пользователя в ответе verify (API.md §3). */
 export interface AuthUserSummary {
@@ -92,6 +94,7 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly telegram: TelegramService,
     private readonly rateLimitService: OtpRateLimitService,
+    private readonly uploads: UploadsService,
   ) {}
 
   /** Коды OTP-ошибок, на которые шлём admin-алерт о неудачном входе. */
@@ -153,73 +156,15 @@ export class AuthService {
 
       const maxAttempts = this.config.get<number>('otp.maxAttempts') ?? 5;
 
-      // Последний активный код на контакт: request гасит прежние, поэтому валиден
-      // только самый свежий неиспользованный.
-      const otp = await this.prisma.otpCode.findFirst({
-        where: {
-          destination,
-          purpose: OtpPurpose.LOGIN,
-          consumedAt: null,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (!otp) {
-        throw this.otpError(
-          ApiErrorCode.OTP_INVALID,
-          HttpStatus.BAD_REQUEST,
-          'Invalid verification code',
-        );
-      }
-
-      if (otp.expiresAt.getTime() <= Date.now()) {
-        await this.prisma.otpCode.update({
-          where: { id: otp.id },
-          data: { consumedAt: new Date() },
-        });
-        throw this.otpError(
-          ApiErrorCode.OTP_EXPIRED,
-          HttpStatus.BAD_REQUEST,
-          'Verification code has expired',
-        );
-      }
-
-      if (otp.attempts >= maxAttempts) {
-        throw this.otpError(
-          ApiErrorCode.OTP_ATTEMPTS_EXCEEDED,
-          HttpStatus.TOO_MANY_REQUESTS,
-          'Too many invalid attempts, request a new code',
-        );
-      }
-
-      const matches = await verifyOtpCode(dto.code, otp.codeHash);
-      if (!matches) {
-        const attempts = otp.attempts + 1;
-        await this.prisma.otpCode.update({
-          where: { id: otp.id },
-          data: { attempts },
-        });
-        // Кумулятивный счётчик brute-force (H-1): запоминаем неудачу даже если
-        // потом запросят новый код — бюджет не сбрасывается при ре-запросе.
-        void this.rateLimitService.recordFailedVerify(destination);
-        // Если эта попытка исчерпала лимит — сразу локаут, иначе обычный мисс.
-        throw attempts >= maxAttempts
-          ? this.otpError(
-              ApiErrorCode.OTP_ATTEMPTS_EXCEEDED,
-              HttpStatus.TOO_MANY_REQUESTS,
-              'Too many invalid attempts, request a new code',
-            )
-          : this.otpError(
-              ApiErrorCode.OTP_INVALID,
-              HttpStatus.BAD_REQUEST,
-              'Invalid verification code',
-            );
-      }
-
-      // Успех: код одноразовый — гасим, чтобы повторный verify не прошёл.
-      await this.prisma.otpCode.update({
-        where: { id: otp.id },
-        data: { consumedAt: new Date() },
+      // Проверка+погашение последнего активного LOGIN-кода на контакт (request
+      // гасит прежние, поэтому валиден только самый свежий). Brute-force счётчик
+      // (H-1) — через onFailedAttempt: бюджет не сбрасывается при ре-запросе.
+      await consumeActiveOtpCode(this.prisma, {
+        destination,
+        code: dto.code,
+        purpose: OtpPurpose.LOGIN,
+        maxAttempts,
+        onFailedAttempt: (dest) => void this.rateLimitService.recordFailedVerify(dest),
       });
 
       return await this.completeLogin(dto.channel, destination, ip, userAgent);
@@ -305,7 +250,10 @@ export class AuthService {
    */
   async getMe(userId: string): Promise<MeResponse> {
     const user = await this.prisma.user.findFirst({
-      where: { id: userId, status: { not: UserStatus.DELETED } },
+      where: {
+        id: userId,
+        status: { notIn: [UserStatus.DELETED, UserStatus.BLOCKED] },
+      },
       include: {
         profile: true,
         roles: { include: { role: true } },
@@ -321,6 +269,13 @@ export class AuthService {
     }
 
     const latestConsent = user.legalConsents[0];
+    // Загруженный аватар (avatarStorageKey) → свежая подписанная R2-ссылка;
+    // иначе фото OAuth-провайдера или null (TASK-248, ADR-0134).
+    const avatarUrl = await resolveAvatarUrl(
+      this.uploads,
+      user.profile?.avatarStorageKey,
+      user.profile?.avatarUrl,
+    );
 
     return {
       id: user.id,
@@ -335,8 +290,9 @@ export class AuthService {
         first_name: user.profile?.firstName ?? null,
         last_name: user.profile?.lastName ?? null,
         display_name: user.profile?.displayName ?? null,
-        avatar_url: user.profile?.avatarUrl ?? null,
+        avatar_url: avatarUrl,
         contact_phone: user.profile?.contactPhone ?? null,
+        contact_phone_verified: user.profile?.contactPhoneVerified ?? false,
         preferred_language:
           user.profile?.preferredLanguage ?? user.defaultLanguage,
       },
@@ -349,16 +305,17 @@ export class AuthService {
 
   /**
    * Ротация refresh-токена (`POST /api/v1/auth/refresh`, API.md §3, TASK-043).
-   * Делегирует {@link TokenService.rotateSession}; reuse-detection и отзыв family
-   * — внутри сервиса токенов.
+   * Токен приходит уже разрешённым из контроллера (cookie `avino_rt` или тело —
+   * ADR-0153). Делегирует {@link TokenService.rotateSession}; reuse-detection и
+   * отзыв family — внутри сервиса токенов.
    */
   async refresh(
-    dto: RefreshTokenDto,
+    refreshToken: string,
     ip: string,
     userAgent?: string,
   ): Promise<RefreshResult> {
     const tokens = await this.tokenService.rotateSession(
-      dto.refresh_token,
+      refreshToken,
       ip,
       userAgent,
     );
@@ -372,14 +329,16 @@ export class AuthService {
 
   /**
    * Отзыв сессии (`POST /api/v1/auth/logout`, API.md §3, TASK-043) → 204.
-   * Идемпотентен; при найденной сессии пишет `audit_logs` (`action='LOGOUT'`).
+   * Токен приходит уже разрешённым из контроллера (cookie `avino_rt` или тело —
+   * ADR-0153). Идемпотентен; при найденной сессии пишет `audit_logs`
+   * (`action='LOGOUT'`).
    */
   async logout(
-    dto: RefreshTokenDto,
+    refreshToken: string,
     ip: string,
     userAgent?: string,
   ): Promise<void> {
-    const userId = await this.tokenService.revokeSession(dto.refresh_token);
+    const userId = await this.tokenService.revokeSession(refreshToken);
     if (userId) {
       await this.prisma.auditLog.create({
         data: {
@@ -392,6 +351,60 @@ export class AuthService {
         },
       });
     }
+  }
+
+  /**
+   * Активные сессии пользователя (`GET /api/v1/auth/sessions`, ADR-0143).
+   * Делегирует {@link TokenService.listSessions}; `currentFamilyId` — `fid`
+   * предъявленного access-токена (метит `is_current`).
+   */
+  async listSessions(
+    userId: string,
+    currentFamilyId?: string | null,
+  ): Promise<SessionResponse[]> {
+    const sessions = await this.tokenService.listSessions(
+      userId,
+      currentFamilyId,
+    );
+    return sessions.map((s) => ({
+      id: s.familyId,
+      created_at: s.createdAt.toISOString(),
+      last_rotated_at: s.lastRotatedAt.toISOString(),
+      user_agent: s.userAgent,
+      ip: s.ip,
+      is_current: s.isCurrent,
+    }));
+  }
+
+  /**
+   * Отозвать сессию по id family (`DELETE /api/v1/auth/sessions/:fid`,
+   * ADR-0143) → 204. Family чужого пользователя или несуществующая → 404
+   * NOT_FOUND (существование чужой сессии не раскрывается). Успешный отзыв
+   * пишется в `audit_logs` (`action='SESSION_REVOKED'`).
+   */
+  async revokeSessionById(
+    userId: string,
+    familyId: string,
+    ip: string,
+    userAgent?: string,
+  ): Promise<void> {
+    const revoked = await this.tokenService.revokeUserFamily(userId, familyId);
+    if (!revoked) {
+      throw new HttpException(
+        { code: ApiErrorCode.NOT_FOUND, message: 'Session not found' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: userId,
+        action: 'SESSION_REVOKED',
+        entityType: 'refresh_token_family',
+        entityId: familyId,
+        ip: ip ? ip.slice(0, 64) : null,
+        userAgent: userAgent ?? null,
+      },
+    });
   }
 
   /**
@@ -508,13 +521,5 @@ export class AuthService {
         metadata: { channel },
       },
     });
-  }
-
-  private otpError(
-    code: ApiErrorCode,
-    status: HttpStatus,
-    message: string,
-  ): HttpException {
-    return new HttpException({ code, message }, status);
   }
 }

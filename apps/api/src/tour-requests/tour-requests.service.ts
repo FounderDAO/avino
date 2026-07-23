@@ -5,6 +5,7 @@ import {
 import { ListingStatus, Prisma, TourRequestStatus } from '@prisma/client';
 import { PrismaService } from '../prisma';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeEmitter } from '../realtime';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
@@ -40,7 +41,13 @@ const TOUR_LIST_SELECT = {
         select: {
           phone: true,
           profile: {
-            select: { displayName: true, firstName: true, lastName: true, contactPhone: true },
+            select: {
+              displayName: true,
+              firstName: true,
+              lastName: true,
+              contactPhone: true,
+              contactPhoneVerified: true,
+            },
           },
         },
       },
@@ -112,6 +119,7 @@ export class TourRequestsService {
     private readonly notifications: NotificationsService,
     private readonly translations: TranslationsService,
     private readonly uploads: UploadsService,
+    private readonly realtime: RealtimeEmitter,
   ) {}
 
   /** UTC-полночь текущего дня — нижняя граница «сегодня» всего тур-домена. */
@@ -189,6 +197,8 @@ export class TourRequestsService {
       }
       throw error;
     }
+    this.realtime.emit(listing.ownerId, { type: 'tour' });
+    this.realtime.emit(listing.ownerId, { type: 'notification' });
     return this.toResponse(created);
   }
 
@@ -286,6 +296,8 @@ export class TourRequestsService {
       }
       throw error;
     }
+    this.realtime.emit(notifyUserId, { type: 'tour' });
+    this.realtime.emit(notifyUserId, { type: 'notification' });
     return this.toResponse(updated);
   }
 
@@ -440,7 +452,9 @@ export class TourRequestsService {
       name: profile?.displayName ?? (fullName.length > 0 ? fullName : null),
       phone:
         status === TourRequestStatus.CONFIRMED
-          ? (profile?.contactPhone ?? owner.phone ?? null)
+          ? (profile?.contactPhoneVerified && profile.contactPhone
+              ? profile.contactPhone
+              : (owner.phone ?? null))
           : null,
     };
   }

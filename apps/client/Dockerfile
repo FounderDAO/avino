@@ -39,6 +39,15 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
+# Sign in with Apple — тоже NEXT_PUBLIC (инлайнится на build). Оба значения
+# нужны кнопке (AppleSignInButton): нет любого → кнопка не рендерится, OTP
+# работает как прежде. CLIENT_ID = Service ID веба (aud id-token'а, должен
+# входить в APPLE_CLIENT_ID на api). REDIRECT_URI зарегистрирован в Apple.
+ARG NEXT_PUBLIC_APPLE_CLIENT_ID=
+ENV NEXT_PUBLIC_APPLE_CLIENT_ID=$NEXT_PUBLIC_APPLE_CLIENT_ID
+ARG NEXT_PUBLIC_APPLE_REDIRECT_URI=
+ENV NEXT_PUBLIC_APPLE_REDIRECT_URI=$NEXT_PUBLIC_APPLE_REDIRECT_URI
+
 # Sentry DSN портала — тоже NEXT_PUBLIC (инлайнится на build, ADR-0129).
 # Пусто → Sentry полностью выключен. DSN — публичный ключ, не секрет;
 # смена DSN/окружения = пересборка образа (как у остальных NEXT_PUBLIC_*).

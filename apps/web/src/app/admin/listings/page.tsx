@@ -12,7 +12,7 @@ import { StatusPill } from '@/components/admin/ui/pill';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
 import { useListAdminListingsQuery } from '@/store/api/adminListingsApi';
-import { totalPages } from '@/store/api/adminApi';
+import { totalPages, type TransactionType } from '@/store/api/adminApi';
 import { rowToAdminListing, UI_FILTER_TO_API_STATUS } from '@/lib/adapters/listings';
 
 const LIMIT = 20;
@@ -43,10 +43,17 @@ const filters: [string, string][] = [
   ['ARCHIVED', 'Архив'],
 ];
 
+/** Фильтр по типу сделки (независимая ось от статуса). Пусто — все сделки. */
+const txFilters: [TransactionType, string][] = [
+  ['SALE', 'Продажа'],
+  ['RENT', 'Аренда'],
+];
+
 export default function ListingsPage() {
   const router = useRouter();
   const toast = useToast();
   const [filter, setFilter] = useState<string>('ALL');
+  const [tx, setTx] = useState<TransactionType | undefined>(undefined);
   const [q, setQ] = useState<string>('');
   const [debouncedQ, setDebouncedQ] = useState<string>('');
   const [page, setPage] = useState<number>(1);
@@ -61,11 +68,18 @@ export default function ListingsPage() {
   // Смена фильтра/запроса — на первую страницу.
   useEffect(() => {
     setPage(1);
-  }, [filter, debouncedQ]);
+  }, [filter, tx, debouncedQ]);
+
+  // Умный поиск: если ввод — целое число, ищем по номеру объявления (reference,
+  // ADR-0137), иначе — по названию (q). Один инпут закрывает оба сценария.
+  const trimmedQ = debouncedQ.trim();
+  const refQuery = /^\d+$/.test(trimmedQ) ? Number(trimmedQ) : undefined;
 
   const { data, isLoading, isFetching, isError, refetch } = useListAdminListingsQuery({
     status: UI_FILTER_TO_API_STATUS[filter],
-    q: debouncedQ.trim() || undefined,
+    transaction_type: tx,
+    reference: refQuery,
+    q: refQuery === undefined ? trimmedQ || undefined : undefined,
     page,
     limit: LIMIT,
   });
@@ -96,10 +110,14 @@ export default function ListingsPage() {
       <div className="row gap-8" style={{ marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', minWidth: 240 }}>
           <IC.Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
-          <input className="a-field" style={{ paddingLeft: 36, width: '100%' }} placeholder="Поиск по названию…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="a-field" style={{ paddingLeft: 36, width: '100%' }} placeholder="Поиск по названию или № (ID)…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         {filters.map(([k, v]) => (
           <button key={k} onClick={() => setFilter(k)} className="abtn abtn-sm" style={{ background: filter === k ? 'var(--ink)' : 'var(--surface)', color: filter === k ? '#fff' : 'var(--ink)', border: filter === k ? 'none' : '1.5px solid var(--border)' }}>{v}</button>
+        ))}
+        <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: 'var(--border)', margin: '2px 4px' }} />
+        {txFilters.map(([k, v]) => (
+          <button key={k} onClick={() => setTx((prev) => (prev === k ? undefined : k))} className="abtn abtn-sm" style={{ background: tx === k ? 'var(--ink)' : 'var(--surface)', color: tx === k ? '#fff' : 'var(--ink)', border: tx === k ? 'none' : '1.5px solid var(--border)' }}>{v}</button>
         ))}
       </div>
       {sel.size > 0 && (
@@ -120,23 +138,25 @@ export default function ListingsPage() {
           <table className="a-table">
             <thead><tr>
               <th style={{ width: 36 }}><input type="checkbox" checked={allSel} onChange={toggleAll} disabled={rows.length === 0} /></th>
+              <th style={{ width: 84 }}>№</th>
               <th>Объявление</th><th>Цена</th><th>Тип</th><th>Комн.</th><th>Район</th><th>Агент</th><th>Статус</th><th>Просм.</th><th>Создано</th><th></th>
             </tr></thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={11} className="muted" style={{ textAlign: 'center', padding: 40 }}>Загрузка…</td></tr>
+                <tr><td colSpan={12} className="muted" style={{ textAlign: 'center', padding: 40 }}>Загрузка…</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={11} className="muted" style={{ textAlign: 'center', padding: 40 }}>Ничего не найдено.</td></tr>
+                <tr><td colSpan={12} className="muted" style={{ textAlign: 'center', padding: 40 }}>Ничего не найдено.</td></tr>
               ) : (
                 rows.map((l) => (
                   <tr key={l.id} className="clickable" onClick={() => router.push(`/admin/listings/${l.id}`)}>
                     <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={sel.has(l.id)} onChange={() => toggle(l.id)} /></td>
+                    <td className="muted" style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{l.reference}</td>
                     <td><div className="row" style={{ minWidth: 220, gap: 14 }}>
                       <div style={{ width: 48, height: 38, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={l.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       </div>
-                      <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{l.title}</div><div className="muted" style={{ fontSize: 12 }}>{l.tx} · {l.promo !== 'NORMAL' ? l.promo : '—'}</div></div>
+                      <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', maxWidth: 260 }}>{l.address ?? l.tx}</div>{l.address && <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{l.tx}</div>}</div>
                     </div></td>
                     <td style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{l.price}</td>
                     <td className="muted">{l.type}</td>

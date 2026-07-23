@@ -11,6 +11,7 @@ import {
   useGetLegalConsentFlagQuery,
   useUpdateLegalConsentFlagMutation,
 } from '@/store/api/adminLegalConsentFlagApi';
+import { Switch } from '@/components/admin/ui/switch';
 
 export function LegalConsentRequiredToggle() {
   const { data, isLoading } = useGetLegalConsentFlagQuery();
@@ -39,14 +40,12 @@ export function LegalConsentRequiredToggle() {
             По умолчанию выключено. Без пересборки.
           </div>
         </div>
-        <button
-          type="button"
-          className={required ? 'abtn abtn-primary' : 'abtn'}
+        <Switch
+          checked={required}
           disabled={isLoading || isSaving}
-          onClick={() => void update({ required: !required })}
-        >
-          {isLoading ? '…' : required ? 'Включено' : 'Выключено'}
-        </button>
+          onChange={() => void update({ required: !required })}
+          label="Требовать согласие с Правилами и Политикой"
+        />
       </div>
 
       <div style={{ marginTop: 16 }}>

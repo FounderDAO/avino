@@ -4,6 +4,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { buildCorsOptions } from './common/cors/cors.options';
@@ -11,6 +12,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { setupSwagger } from './common/openapi';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
 import { validationPipeOptions } from './common/validation/validation.options';
+import { RedisIoAdapter } from './realtime';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -20,6 +22,10 @@ async function bootstrap() {
   // API versioning обязателен с первого дня (CLAUDE.md §14): /api/v1/...
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+  // cookie-parser: наполняет req.cookies (нужно для refresh-токена в httpOnly
+  // cookie avino_rt — ADR-0153). Ставится до пайпов/гвардов, чтобы контроллеры
+  // видели разобранные cookie. Подпись не используем (значение — сам JWT).
+  app.use(cookieParser());
   // request_id для каждого запроса + заголовок X-Request-Id (TASK-023).
   app.useGlobalInterceptors(new RequestIdInterceptor());
   // Глобальная валидация входных DTO: whitelist + transform (TASK-022).
@@ -66,6 +72,13 @@ async function bootstrap() {
   );
   // Swagger/OpenAPI: смонтировать после префикса/версионирования.
   setupSwagger(app);
+  // Redis-backed socket.io adapter: emit долетает до всех инстансов (spec real-time).
+  const redisIoAdapter = new RedisIoAdapter(app);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
+  // Мягкий drain при деплое: на SIGTERM закрываем сервер корректно — WS-клиенты
+  // получают close-фрейм и реконнектятся сразу, а не по pingTimeout.
+  app.enableShutdownHooks();
   const port = config.get<number>('app.port') ?? 4000;
   await app.listen(port);
   // eslint-disable-next-line no-console

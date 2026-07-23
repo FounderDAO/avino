@@ -1,25 +1,19 @@
 import { Language } from '@prisma/client';
-import { IsEmail, IsEnum, IsOptional, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional } from 'class-validator';
 
 /**
  * Тело запроса `PATCH /api/v1/users/me` (TASK-040, API.md §5).
  *
- * Любое подмножество базовых полей пользователя. В foundation поддерживаются
- * `email` и `default_language`:
- *  - смена `email` инициирует re-verify (сервис сбрасывает `is_email_verified`)
- *    и проверяет уникальность среди non-DELETED аккаунтов (CONTACT_TAKEN, ADR-013);
- *  - смена `phone` НЕ поддержана здесь намеренно: для неё нужен OTP verify-flow
- *    смены контакта (`OtpPurpose` пока только `LOGIN`) — отдельная задача.
+ * Базовые поля пользователя, меняемые напрямую. В foundation — только
+ * `default_language`.
  *
- * Имена свойств повторяют snake_case ключи контракта (как в `RefreshTokenDto`).
- * `forbidNonWhitelisted` отклонит любые поля вне этого DTO (включая `phone`).
+ * Смена логин-контакта (`email`/`phone`) здесь НЕ поддержана намеренно: оба
+ * требуют подтверждения владения новым значением OTP-кодом — отдельный flow
+ * `POST /api/v1/users/me/contact-change/{request,verify}`
+ * (`OtpPurpose.CONTACT_CHANGE`). `forbidNonWhitelisted` отклонит любые поля вне
+ * этого DTO (включая `email`/`phone`).
  */
 export class UpdateUserDto {
-  @IsOptional()
-  @IsEmail()
-  @MaxLength(255)
-  email?: string;
-
   @IsOptional()
   @IsEnum(Language)
   default_language?: Language;

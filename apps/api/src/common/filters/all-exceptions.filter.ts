@@ -95,6 +95,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
         tags: { request_id: requestId },
         extra: { method: request.method, url: request.url },
       });
+    } else if (
+      status >= HttpStatus.BAD_REQUEST &&
+      status < HttpStatus.INTERNAL_SERVER_ERROR
+    ) {
+      // 4xx — ожидаемые отказы, поэтому не error и без стека. Но совсем без
+      // следа они делают прод неотлаживаемым: разбор «при публикации не
+      // загрузилось 12 фото» упёрся именно в это — ни Caddy (access-логов нет),
+      // ни API не сохранили причину (415 / 413 / 401 неразличимы постфактум).
+      // Одна компактная строка с кодом и request_id закрывает пробел.
+      this.logger.warn(
+        `${request.method ?? '-'} ${request.url ?? '-'} → ${status} ${body.code} [${requestId}]`,
+      );
     }
 
     response.setHeader(REQUEST_ID_HEADER, requestId);

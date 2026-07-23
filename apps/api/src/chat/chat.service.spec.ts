@@ -31,6 +31,7 @@ describe('ChatService', () => {
   let prisma: any;
   let search: any;
   let notifications: any;
+  let realtime: any;
   let service: ChatService;
 
   beforeEach(() => {
@@ -55,7 +56,15 @@ describe('ChatService', () => {
     };
     search = { cardsByIds: jest.fn().mockResolvedValue([]) };
     notifications = { queueChatMessage: jest.fn() };
-    service = new ChatService(prisma, search, notifications);
+    const uploads = { getObjectUrl: jest.fn().mockResolvedValue('https://signed/a.webp') };
+    realtime = { emit: jest.fn() };
+    service = new ChatService(
+      prisma,
+      search,
+      notifications,
+      uploads as any,
+      realtime,
+    );
   });
 
   async function expectError(p: Promise<unknown>, code: ApiErrorCode) {
@@ -661,6 +670,36 @@ describe('ChatService', () => {
       });
       const res = await service.createMessage(user, T1, 'ещё доступно?');
       expect(res.id).toBe(M1);
+    });
+
+    it('эмитит инвалидации получателю после коммита', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue(threadRow());
+      prisma.chatMessage.create.mockResolvedValue({
+        id: M1,
+        threadId: T1,
+        senderId: USER_ID,
+        body: 'Актуально?',
+        isRead: false,
+        createdAt: new Date('2026-06-05T12:00:00.000Z'),
+      });
+
+      await service.createMessage(user, T1, 'Актуально?');
+
+      // Отправитель = initiator (USER_ID) → эмиты идут owner'у, не отправителю.
+      expect(realtime.emit).toHaveBeenCalledWith(OWNER_ID, {
+        type: 'thread',
+        id: T1,
+      });
+      expect(realtime.emit).toHaveBeenCalledWith(OWNER_ID, {
+        type: 'thread_list',
+      });
+      expect(realtime.emit).toHaveBeenCalledWith(OWNER_ID, {
+        type: 'notification',
+      });
+      expect(realtime.emit).not.toHaveBeenCalledWith(
+        USER_ID,
+        expect.anything(),
+      );
     });
   });
 

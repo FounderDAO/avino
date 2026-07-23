@@ -8,15 +8,28 @@ import {
 } from '@prisma/client';
 import { ListingsService } from '../listings/listings.service';
 import { PrismaService } from '../prisma';
+import { ActiveListingLimitService } from '../settings';
 import { SearchService } from '../search/search.service';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
+import { AddressResolverService } from './address-resolver.service';
 import { DistrictsService } from './districts.service';
 
 // Медиа-подпись здесь не тестируется (ADR-0086) — echo сохранённого url, без S3.
 const uploadsStub = {
   resolveMediaUrl: async (_key: string | null | undefined, url: string) => url,
 } as unknown as UploadsService;
+
+// Лимит активных объявлений в integration-сидинге отключаем (0 = без лимита).
+const activeLimitStub = {
+  getLimit: async () => 0,
+} as unknown as ActiveListingLimitService;
+
+// Геокодер здесь не тестируется (ADR-0147) — null = недоступен, адрес идёт
+// строковым фолбэком через normalizeAddress.
+const addressResolverStub = {
+  resolve: async () => null,
+} as unknown as AddressResolverService;
 
 /**
  * Integration-тесты справочника районов и встраивания `district_name` (TASK-209,
@@ -42,6 +55,8 @@ describe('DistrictsService + district_name (integration, TASK-209)', () => {
     translations,
     districts,
     uploadsStub,
+    activeLimitStub,
+    addressResolverStub,
   );
 
   const CITY_ID = '44444444-3333-4444-8555-000000000209';

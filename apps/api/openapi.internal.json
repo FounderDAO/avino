@@ -180,6 +180,55 @@
         }
       }
     },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "operationId": "AuthController_sessions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sessions/{fid}": {
+      "delete": {
+        "operationId": "AuthController_revokeSession",
+        "parameters": [
+          {
+            "name": "fid",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/auth/refresh": {
       "post": {
         "operationId": "AuthController_refresh",
@@ -310,6 +359,127 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "UsersController_deleteMe",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/contact-change/request": {
+      "post": {
+        "operationId": "UsersController_requestContactChange",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestContactChangeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/contact-change/verify": {
+      "post": {
+        "operationId": "UsersController_verifyContactChange",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyContactChangeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/contact-phone/request": {
+      "post": {
+        "operationId": "UsersController_requestContactPhoneChange",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestContactPhoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/contact-phone/verify": {
+      "post": {
+        "operationId": "UsersController_verifyContactPhoneChange",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyContactPhoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/users/me/profile": {
@@ -364,6 +534,26 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/avatar": {
+      "post": {
+        "operationId": "UsersController_uploadAvatar",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "operationId": "UsersController_deleteAvatar",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
           }
         }
       }
@@ -468,6 +658,67 @@
         "responses": {
           "200": {
             "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/listings/by-ref/{reference}": {
+      "get": {
+        "operationId": "ListingsController_findByReference",
+        "parameters": [
+          {
+            "name": "reference",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "lang",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accept-language",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/listings/quota": {
+      "get": {
+        "operationId": "ListingsController_getQuota",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingQuotaDto"
+                }
+              }
+            }
           }
         }
       }
@@ -849,6 +1100,14 @@
             }
           },
           {
+            "name": "agent_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
@@ -877,7 +1136,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -903,6 +1165,18 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -982,6 +1256,14 @@
             }
           },
           {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "listing_source",
             "required": false,
             "in": "query",
@@ -1035,6 +1317,14 @@
             "schema": {
               "minimum": 0,
               "type": "number"
+            }
+          },
+          {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -1126,6 +1416,14 @@
             }
           },
           {
+            "name": "agent_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
@@ -1154,7 +1452,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -1180,6 +1481,18 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -1259,6 +1572,14 @@
             }
           },
           {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "listing_source",
             "required": false,
             "in": "query",
@@ -1312,6 +1633,14 @@
             "schema": {
               "minimum": 0,
               "type": "number"
+            }
+          },
+          {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -1433,6 +1762,14 @@
             }
           },
           {
+            "name": "agent_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
@@ -1461,7 +1798,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -1487,6 +1827,18 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -1566,6 +1918,14 @@
             }
           },
           {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "listing_source",
             "required": false,
             "in": "query",
@@ -1619,6 +1979,14 @@
             "schema": {
               "minimum": 0,
               "type": "number"
+            }
+          },
+          {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -1801,6 +2169,14 @@
             }
           },
           {
+            "name": "agent_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
@@ -1829,7 +2205,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -1855,6 +2234,18 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -1934,6 +2325,14 @@
             }
           },
           {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "listing_source",
             "required": false,
             "in": "query",
@@ -1987,6 +2386,14 @@
             "schema": {
               "minimum": 0,
               "type": "number"
+            }
+          },
+          {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -2069,6 +2476,14 @@
             }
           },
           {
+            "name": "agent_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
@@ -2097,7 +2512,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -2123,6 +2541,18 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -2202,6 +2632,14 @@
             }
           },
           {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "listing_source",
             "required": false,
             "in": "query",
@@ -2255,6 +2693,14 @@
             "schema": {
               "minimum": 0,
               "type": "number"
+            }
+          },
+          {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -2409,6 +2855,14 @@
             }
           },
           {
+            "name": "agent_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
@@ -2437,7 +2891,10 @@
             "in": "query",
             "schema": {
               "minimum": 0,
-              "type": "number"
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
             }
           },
           {
@@ -2463,6 +2920,18 @@
                 4
               ],
               "type": "number"
+            }
+          },
+          {
+            "name": "amenities",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -2542,6 +3011,14 @@
             }
           },
           {
+            "name": "new_construction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "listing_source",
             "required": false,
             "in": "query",
@@ -2598,6 +3075,14 @@
             }
           },
           {
+            "name": "points",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "cursor",
             "required": false,
             "in": "query",
@@ -2613,14 +3098,6 @@
               "minimum": 1,
               "maximum": 100,
               "type": "number"
-            }
-          },
-          {
-            "name": "points",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
             }
           },
           {
@@ -3402,10 +3879,226 @@
         }
       }
     },
+    "/api/v1/support/requests": {
+      "post": {
+        "operationId": "SupportRequestsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSupportRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/agent-applications": {
+      "get": {
+        "operationId": "AdminAgentApplicationsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/admin/agent-applications/{id}/approve": {
+      "post": {
+        "operationId": "AdminAgentApplicationsController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/agent-applications/{id}/reject": {
+      "post": {
+        "operationId": "AdminAgentApplicationsController_reject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectAgentApplicationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/amenities": {
+      "get": {
+        "operationId": "AdminAmenitiesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "AdminAmenitiesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAmenityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/amenities/{id}": {
+      "patch": {
+        "operationId": "AdminAmenitiesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAmenityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/listings": {
       "get": {
         "operationId": "AdminListingsController_list",
         "parameters": [
+          {
+            "name": "reference",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
           {
             "name": "q",
             "required": false,
@@ -3509,6 +4202,33 @@
         }
       }
     },
+    "/api/v1/admin/listings/{id}/owner": {
+      "get": {
+        "operationId": "AdminListingsController_findOwner",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/listings/{id}/translations/generate": {
       "post": {
         "operationId": "AdminListingsController_generateTranslations",
@@ -3522,6 +4242,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateTranslationsDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "",
@@ -4041,6 +4771,36 @@
         }
       }
     },
+    "/api/v1/admin/active-listing-limit": {
+      "get": {
+        "operationId": "AdminActiveListingLimitController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "operationId": "AdminActiveListingLimitController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateActiveListingLimitDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/admin/map-hover-recenter-flag": {
       "get": {
         "operationId": "AdminMapHoverRecenterFlagController_get",
@@ -4103,6 +4863,184 @@
         },
         "responses": {
           "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/legal-documents": {
+      "get": {
+        "operationId": "AdminLegalDocumentsController_list",
+        "parameters": [
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "description": "Фильтр по типу документа (TERMS или PRIVACY); без параметра возвращаются все",
+            "schema": {
+              "enum": [
+                "TERMS",
+                "PRIVACY"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "AdminLegalDocumentsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLegalDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/legal-documents/{id}": {
+      "get": {
+        "operationId": "AdminLegalDocumentsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "AdminLegalDocumentsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLegalDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "AdminLegalDocumentsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/admin/legal-documents/{id}/publish": {
+      "post": {
+        "operationId": "AdminLegalDocumentsController_publish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishLegalDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -4499,6 +5437,132 @@
         }
       }
     },
+    "/api/v1/admin/otp-logs": {
+      "get": {
+        "operationId": "AdminLogsController_otpLogs",
+        "parameters": [
+          {
+            "name": "destination",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 255,
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/admin/legal-consents": {
+      "get": {
+        "operationId": "AdminLegalConsentsController_list",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 255,
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/admin/legal-consents/versions": {
+      "get": {
+        "operationId": "AdminLegalConsentsController_versions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/complaints": {
       "get": {
         "operationId": "AdminComplaintsController_list",
@@ -4575,6 +5639,74 @@
         }
       }
     },
+    "/api/v1/admin/support/requests": {
+      "get": {
+        "operationId": "AdminSupportRequestsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/admin/support/requests/{id}": {
+      "patch": {
+        "operationId": "AdminSupportRequestsController_updateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSupportRequestStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/stats": {
       "get": {
         "operationId": "AdminStatsController_getStats",
@@ -4597,6 +5729,106 @@
       "get": {
         "operationId": "AdminAnalyticsController_getAnalytics",
         "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/agent-application": {
+      "post": {
+        "operationId": "AgentApplicationsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentApplicationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "AgentApplicationsController_getMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/amenities": {
+      "get": {
+        "operationId": "AmenitiesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legal/{kind}": {
+      "get": {
+        "operationId": "LegalDocumentsController_get",
+        "parameters": [
+          {
+            "name": "kind",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accept-language",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -4820,6 +6052,64 @@
           }
         }
       }
+    },
+    "/api/v1/agents": {
+      "get": {
+        "operationId": "AgentsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}": {
+      "get": {
+        "operationId": "AgentsController_getById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "info": {
@@ -4914,22 +6204,83 @@
           "refresh_token": {
             "type": "string"
           }
-        },
-        "required": [
-          "refresh_token"
-        ]
+        }
       },
       "UpdateUserDto": {
         "type": "object",
         "properties": {
-          "email": {
-            "type": "string",
-            "maxLength": 255
-          },
           "default_language": {
             "type": "object"
           }
         }
+      },
+      "RequestContactChangeDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "object"
+          },
+          "destination": {
+            "type": "string",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "channel",
+          "destination"
+        ]
+      },
+      "VerifyContactChangeDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "object"
+          },
+          "destination": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "code": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 6
+          }
+        },
+        "required": [
+          "channel",
+          "destination",
+          "code"
+        ]
+      },
+      "RequestContactPhoneDto": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string",
+            "maxLength": 32
+          }
+        },
+        "required": [
+          "destination"
+        ]
+      },
+      "VerifyContactPhoneDto": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "code": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 8
+          }
+        },
+        "required": [
+          "destination",
+          "code"
+        ]
       },
       "UpdateProfileDto": {
         "type": "object",
@@ -4949,10 +6300,6 @@
           "avatar_url": {
             "type": "string",
             "maxLength": 2048
-          },
-          "contact_phone": {
-            "type": "string",
-            "maxLength": 20
           },
           "preferred_language": {
             "type": "object"
@@ -4980,6 +6327,9 @@
           "promotionsEnabled": {
             "type": "boolean"
           },
+          "activeListingLimit": {
+            "type": "number"
+          },
           "mapHoverRecenter": {
             "type": "boolean"
           },
@@ -4992,6 +6342,7 @@
         },
         "required": [
           "promotionsEnabled",
+          "activeListingLimit",
           "mapHoverRecenter",
           "legalConsentRequired",
           "legalConsentVersion"
@@ -5086,7 +6437,8 @@
           "amenities": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "string",
+              "maxLength": 80
             }
           },
           "floor": {
@@ -5146,6 +6498,25 @@
           "price",
           "currency",
           "translation"
+        ]
+      },
+      "ListingQuotaDto": {
+        "type": "object",
+        "properties": {
+          "used": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "blocked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "used",
+          "limit",
+          "blocked"
         ]
       },
       "UpdateListingTranslationDto": {
@@ -5214,7 +6585,8 @@
           "amenities": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "string",
+              "maxLength": 80
             }
           },
           "floor": {
@@ -5641,11 +7013,112 @@
           "reason"
         ]
       },
+      "CreateSupportRequestDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "contact": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 160
+          },
+          "message": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 5000
+          }
+        },
+        "required": [
+          "contact",
+          "message"
+        ]
+      },
+      "RejectAgentApplicationDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      },
+      "CreateAmenityDto": {
+        "type": "object",
+        "properties": {
+          "label_ru": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "label_uz": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "label_en": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "code": {
+            "type": "string",
+            "pattern": "/^[A-Z][A-Z0-9_]*$/"
+          },
+          "sort_order": {
+            "type": "number",
+            "minimum": 0
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label_ru",
+          "label_uz",
+          "label_en"
+        ]
+      },
+      "UpdateAmenityDto": {
+        "type": "object",
+        "properties": {
+          "label_ru": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "label_uz": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "label_en": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "sort_order": {
+            "type": "number",
+            "minimum": 0
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        }
+      },
       "ModerateListingDto": {
         "type": "object",
         "properties": {
           "action": {
-            "type": "object"
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "SEND_TO_DRAFT",
+              "REJECT",
+              "DELETE"
+            ]
           },
           "reason": {
             "type": "string",
@@ -5655,6 +7128,14 @@
         "required": [
           "action"
         ]
+      },
+      "GenerateTranslationsDto": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean"
+          }
+        }
       },
       "UpdateModeratorTranslationDto": {
         "type": "object",
@@ -5787,6 +7268,19 @@
           "enabled"
         ]
       },
+      "UpdateActiveListingLimitDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "limit"
+        ]
+      },
       "UpdateMapHoverRecenterFlagDto": {
         "type": "object",
         "properties": {
@@ -5809,6 +7303,51 @@
             "minimum": 1
           }
         }
+      },
+      "CreateLegalDocumentDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "UpdateLegalDocumentDto": {
+        "type": "object",
+        "properties": {
+          "title_ru": {
+            "type": "string"
+          },
+          "title_uz": {
+            "type": "string"
+          },
+          "title_en": {
+            "type": "string"
+          },
+          "body_md_ru": {
+            "type": "string"
+          },
+          "body_md_uz": {
+            "type": "string"
+          },
+          "body_md_en": {
+            "type": "string"
+          }
+        }
+      },
+      "PublishLegalDocumentDto": {
+        "type": "object",
+        "properties": {
+          "requires_consent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requires_consent"
+        ]
       },
       "UpdateAdminUserDto": {
         "type": "object",
@@ -5856,6 +7395,33 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "UpdateSupportRequestStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "CreateAgentApplicationDto": {
+        "type": "object",
+        "properties": {
+          "agency_name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "about": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "about"
         ]
       },
       "CreateTourRequestDto": {

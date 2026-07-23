@@ -5,6 +5,7 @@ import {
   Headers,
   HttpCode,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -21,6 +22,7 @@ import {
 } from '../common/guards';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
+import { ListingQuotaDto } from './dto/listing-quota.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { OwnerStatusDto } from './dto/owner-status.dto';
 import {
@@ -81,6 +83,40 @@ export class ListingsController {
     @Query() query: ListMyListingsQueryDto,
   ): Promise<PaginatedResponse<ListingListItem>> {
     return this.listingsService.findMine(userId, query);
+  }
+
+  /**
+   * `GET /api/v1/listings/by-ref/:reference` — публичная карточка по короткому
+   * человекочитаемому номеру (ADR-0137). Объявлен ДО `@Get(':id')`, чтобы
+   * двухсегментный путь не перехватывался UUID-роутом. Видимость и выбор
+   * перевода — как у `GET :id`.
+   */
+  @Get('by-ref/:reference')
+  @UseGuards(OptionalJwtAuthGuard)
+  findByReference(
+    @Param('reference', ParseIntPipe) reference: number,
+    @CurrentUser() viewer: AuthenticatedUser | undefined,
+    @Query('lang') lang?: string,
+    @Headers('accept-language') acceptLanguage?: string,
+  ): Promise<ListingDetailResponse> {
+    return this.listingsService.findByReference(
+      reference,
+      viewer,
+      lang,
+      acceptLanguage,
+    );
+  }
+
+  /**
+   * `GET /api/v1/listings/quota` — квота активных объявлений текущего
+   * пользователя (Bearer). Объявлен ДО `:id`, чтобы статический путь не
+   * перехватывался параметрическим роутом. Проактивный agent-gate визарда:
+   * `blocked=true` → клиент сразу показывает модалку «Стать агентом».
+   */
+  @Get('quota')
+  @UseGuards(JwtAuthGuard)
+  getQuota(@CurrentUser('id') userId: string): Promise<ListingQuotaDto> {
+    return this.listingsService.getActiveListingQuota(userId);
   }
 
   /**

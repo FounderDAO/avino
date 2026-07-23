@@ -2,91 +2,91 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { AuthUser, MeResponse } from '../api/authApi';
 
 /**
- * authSlice — хранилище аутентификации публичного портала (TASK-150).
+ * authSlice — хранилище аутентификации публичного портала (TASK-150, ADR-0153).
  *
  * Стратегия хранения токенов:
- * - access + refresh зеркалятся в localStorage (переживают перезагрузку),
- *   состояние гидрируется из storage лениво в initialState — но только в
- *   браузере (SSR-guard: на сервере window отсутствует, initialState пуст,
- *   чтобы не было рассинхрона при гидрации Next.js).
+ * - access — ТОЛЬКО в памяти Redux (ADR-0142). В localStorage не пишется: XSS/
+ *   сторонний скрипт не может его прочитать.
+ * - refresh — БОЛЬШЕ НЕ В JS (ADR-0153, TASK-256 PR-2). Живёт в httpOnly cookie
+ *   `avino_rt`, недоступной скрипту (нет XSS-эксфильтрации, нет JS-токена для
+ *   гонки вкладок). Сервер сам ротирует его по cookie на `/auth/refresh`.
+ *
+ * Следствие: при загрузке страницы JS НЕ ЗНАЕТ синхронно, есть ли сессия
+ * (cookie не видна). Поэтому `status` начинается с `idle` = «проверяем»: на
+ * старте SessionBootstrap делает пробный silent-refresh и переводит статус в
+ * `authenticated` (cookie валидна) либо `unauthenticated` (гость). До этого
+ * момента гейты (авто-LoginModal, гость-экраны) обязаны ждать `resolved`.
  *
  * `user` хранит полный MeResponse (из GET /auth/me) либо краткую форму
  * AuthUser (из verifyOtp) — обе совместимы по общему набору полей.
  */
 
-const ACCESS_TOKEN_KEY = 'avino.client.access_token';
-const REFRESH_TOKEN_KEY = 'avino.client.refresh_token';
+/** Легаси-ключи localStorage — вычищаются при старте (в JS токенов больше нет). */
+const LEGACY_ACCESS_TOKEN_KEY = 'avino.client.access_token'; // до ADR-0142
+const LEGACY_REFRESH_TOKEN_KEY = 'avino.client.refresh_token'; // до ADR-0153
 
 function isBrowser(): boolean {
   return typeof window !== 'undefined';
 }
 
-function readStored(key: string): string | null {
-  if (!isBrowser()) return null;
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function persist(key: string, value: string | null): void {
+function clearStored(key: string): void {
   if (!isBrowser()) return;
   try {
-    if (value) {
-      window.localStorage.setItem(key, value);
-    } else {
-      window.localStorage.removeItem(key);
-    }
+    window.localStorage.removeItem(key);
   } catch {
     /* приватный режим / отключённый storage — игнорируем */
   }
 }
 
+/**
+ * status:
+ * - `idle` — сессия ещё не определена (пробный silent-refresh не завершён);
+ * - `authenticated` — есть access-токен (silent-refresh или логин удались);
+ * - `unauthenticated` — гость (silent-refresh дал 401) либо после логаута.
+ */
 export type AuthStatus = 'idle' | 'authenticated' | 'unauthenticated';
 
 export interface AuthState {
   accessToken: string | null;
-  refreshToken: string | null;
   /** Текущий пользователь (из verify / me). */
   user: MeResponse | null;
   status: AuthStatus;
 }
 
-const hydratedAccess = readStored(ACCESS_TOKEN_KEY);
-const hydratedRefresh = readStored(REFRESH_TOKEN_KEY);
-
-const initialState: AuthState = {
-  accessToken: hydratedAccess,
-  refreshToken: hydratedRefresh,
-  user: null,
-  status: hydratedRefresh ? 'authenticated' : 'idle',
-};
+/**
+ * initialState всегда одинаков на сервере и клиенте (никакого чтения window) —
+ * нет рассинхрона гидрации Next.js. refresh-токен из JS больше не читается: его
+ * держит httpOnly cookie. Смена локали ремонтирует store в `idle` → бутстрап
+ * заново поднимет сессию из cookie (токен переживает пересоздание store).
+ */
+function buildInitialState(): AuthState {
+  // Миграция: вычистить токены, оставленные в localStorage прежними версиями.
+  clearStored(LEGACY_ACCESS_TOKEN_KEY);
+  clearStored(LEGACY_REFRESH_TOKEN_KEY);
+  return { accessToken: null, user: null, status: 'idle' };
+}
 
 const authSlice = createSlice({
   name: 'auth',
-  initialState,
+  initialState: buildInitialState,
   reducers: {
     /**
-     * Полная/частичная установка кредов. Используется и verifyOtp
-     * (access + refresh + user), и refresh-ротацией (только токены).
+     * Установка кредов. Используется логином (verifyOtp/google/apple — с `user`)
+     * и refresh-ротацией / бутстрапом (только access, без `user`). refresh в JS
+     * не хранится — он в cookie `avino_rt`.
      */
     setCredentials(
       state,
       action: PayloadAction<{
         access_token: string;
-        refresh_token: string;
         user?: AuthUser | MeResponse | null;
       }>,
     ) {
       state.accessToken = action.payload.access_token;
-      state.refreshToken = action.payload.refresh_token;
       if (action.payload.user !== undefined) {
         state.user = (action.payload.user as MeResponse) ?? null;
       }
       state.status = 'authenticated';
-      persist(ACCESS_TOKEN_KEY, action.payload.access_token);
-      persist(REFRESH_TOKEN_KEY, action.payload.refresh_token);
     },
 
     /** Обновление текущего пользователя (из GET /auth/me). */
@@ -94,14 +94,14 @@ const authSlice = createSlice({
       state.user = action.payload;
     },
 
-    /** Разлогин — чистим память и localStorage. */
+    /**
+     * Гость / разлогин: сессии нет. Чистим память; refresh-cookie гасит сервер
+     * (clearCookie на `/auth/logout`) — из JS её всё равно не достать.
+     */
     clearCredentials(state) {
       state.accessToken = null;
-      state.refreshToken = null;
       state.user = null;
       state.status = 'unauthenticated';
-      persist(ACCESS_TOKEN_KEY, null);
-      persist(REFRESH_TOKEN_KEY, null);
     },
   },
 });
@@ -117,8 +117,13 @@ export const authReducer = authSlice.reducer;
 type AuthSliceRoot = { auth: AuthState };
 
 export const selectAccessToken = (s: AuthSliceRoot) => s.auth.accessToken;
-export const selectRefreshToken = (s: AuthSliceRoot) => s.auth.refreshToken;
 export const selectCurrentUser = (s: AuthSliceRoot) => s.auth.user;
 export const selectAuthStatus = (s: AuthSliceRoot) => s.auth.status;
 export const selectIsAuthenticated = (s: AuthSliceRoot) =>
-  Boolean(s.auth.accessToken) || Boolean(s.auth.refreshToken);
+  Boolean(s.auth.accessToken);
+/**
+ * Сессия определена (пробный silent-refresh завершён). Гейты, зависящие от
+ * «залогинен ли», должны ждать resolved, иначе во время `idle`-окна ошибочно
+ * открыли бы LoginModal / показали гость-экран уже вошедшему пользователю.
+ */
+export const selectAuthResolved = (s: AuthSliceRoot) => s.auth.status !== 'idle';

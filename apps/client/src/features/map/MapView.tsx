@@ -9,8 +9,8 @@
  *    зажал → обвёл → отпустил → `onPolygonComplete`), оверлей территории
  *    (`polygon`) и отчёт о видимой области (`onBoundsChange`, debounce).
  *
- * Маркеры — кластеризуются (ymaps.Clusterer). Пины брендовые (ADR-0060): все
- * красные, активный — тёмный (ink). Клик по пину → `onSelect`,
+ * Маркеры — кластеризуются (ymaps.Clusterer). Пины брендовые (ADR-0060):
+ * аренда — оранжевые, продажа — красные, активный — тёмный (ink). Клик по пину → `onSelect`,
  * наведение → `onHover`; активный пин подсвечивается, центрирование карты —
  * опционально (admin-флаг recenterOnHover).
  *
@@ -23,7 +23,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { usePriceFormatter } from '@/lib/usePriceFormatter';
 import { clampRadius, type LatLng, type LatLngBounds } from '@/lib/geo';
-import type { Listing, RadiusCircle } from '@/lib/mock/types';
+import type { Listing, RadiusCircle, TransactionType } from '@/lib/mock/types';
 import { useYmaps, type Ymaps, type YmapsStatus } from './useYmaps';
 
 export type DrawMode = 'radius' | 'polygon' | null;
@@ -100,9 +100,10 @@ const OVERLAY_STYLE = {
   fillOpacity: 0.08,
 } as const;
 
-/** HTML ценового пина: все пины красные; активный — тёмный. */
-function pinHTML(active: boolean, priceText: string): string {
-  const bg = active ? 'var(--ink, #282218)' : 'var(--red, #e03c42)';
+/** HTML ценового пина: аренда — оранжевый, продажа — красный; активный — тёмный. */
+function pinHTML(active: boolean, priceText: string, tx: TransactionType): string {
+  const base = tx === 'RENT' ? 'var(--orange, #f2820b)' : 'var(--red, #e03c42)';
+  const bg = active ? 'var(--ink, #282218)' : base;
   return `<div class="av-ypin ${active ? 'active' : ''}" style="background:${bg};color:#fff;border:none">${priceText}</div>`;
 }
 
@@ -127,9 +128,22 @@ function ensurePinStyles() {
   document.head.appendChild(style);
 }
 
-/** Кэш классов iconLayout по html — чтобы не пересоздавать на каждый рендер. */
+/**
+ * Кэш классов iconLayout по html. `templateLayoutFactory.createClass` компилирует
+ * шаблон — дорого; без кэша пересоздавался класс на КАЖДЫЙ маркер при каждом
+ * перестроении и на каждый ховер (N×createClass → фриз выдачи при смене сорта).
+ * Одинаковый html (та же цена/tx/active) → тот же класс. Cap-clear от утечки:
+ * различных html столько, сколько (цена × tx × active), в сессии — сотни.
+ */
+const ICON_LAYOUT_CACHE = new Map<string, unknown>();
 function makeIconLayout(ymaps: Ymaps, html: string): any {
-  return ymaps.templateLayoutFactory.createClass(html);
+  let cls = ICON_LAYOUT_CACHE.get(html);
+  if (!cls) {
+    if (ICON_LAYOUT_CACHE.size > 1000) ICON_LAYOUT_CACHE.clear();
+    cls = ymaps.templateLayoutFactory.createClass(html);
+    ICON_LAYOUT_CACHE.set(html, cls);
+  }
+  return cls;
 }
 
 export function MapView({
@@ -300,7 +314,14 @@ export function MapView({
   }, [ymaps]);
 
   // ── (Пере)строение маркеров при смене набора листингов ──
-  const listingsKey = listings.map((l) => l.id).join(',');
+  // Ключ порядко-НЕзависим (сортируем id): пины позиционные, порядок списка на
+  // карту не влияет. Смена сорта = ре-ордер того же набора → ключ не меняется →
+  // НЕ перестраиваем карту зря (иначе фриз 5-10с на createClass каждого пина).
+  // Меняется только реальный НАБОР (add/remove, «Показать ещё», др. фильтр) → rebuild.
+  const listingsKey = listings
+    .map((l) => l.id)
+    .sort()
+    .join(',');
   React.useEffect(() => {
     const map = mapRef.current;
     const clusterer = clustererRef.current;
@@ -317,7 +338,7 @@ export function MapView({
         [l.lat, l.lng],
         { listingId: l.id },
         {
-          iconLayout: makeIconLayout(ymaps, pinHTML(l.id === activeId, priceText)),
+          iconLayout: makeIconLayout(ymaps, pinHTML(l.id === activeId, priceText, l.tx)),
           iconShape: { type: 'Rectangle', coordinates: [[-46, -16], [46, 16]] },
         },
       );
@@ -349,7 +370,7 @@ export function MapView({
     listings.forEach((l) => {
       const pm = placemarksRef.current[l.id];
       if (!pm) return;
-      pm.options.set('iconLayout', makeIconLayout(ymaps, pinHTML(l.id === activeId, fmtRef.current.pin(l))));
+      pm.options.set('iconLayout', makeIconLayout(ymaps, pinHTML(l.id === activeId, fmtRef.current.pin(l), l.tx)));
       pm.options.set('zIndex', l.id === activeId ? 1000 : 0);
     });
     if (recenterOnHover && activeId) {

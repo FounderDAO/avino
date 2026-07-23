@@ -205,6 +205,44 @@ Body: `{ "refresh_token": "eyJ..." }` → 204 No Content.
 ```
 Errors: `401 UNAUTHORIZED`.
 
+### GET /api/v1/auth/sessions
+
+Активные сессии (session families refresh-токенов) текущего пользователя
+(ADR-0143). Auth: **Bearer**. `is_current` метится по `fid` предъявленного
+access-токена (refresh-токен не передаётся).
+
+200:
+```json
+[
+  {
+    "id": "3f1c...-fid",
+    "created_at": "2026-07-01T10:00:00.000Z",
+    "last_rotated_at": "2026-07-12T08:30:00.000Z",
+    "user_agent": "Mozilla/5.0 ...",
+    "ip": "203.0.113.7",
+    "is_current": true
+  }
+]
+```
+`created_at` — момент логина, `last_rotated_at` — последняя ротация refresh
+(равно `created_at`, если ротаций не было). Errors: `401 UNAUTHORIZED`.
+
+Лимит: активных сессий не больше `AUTH_MAX_SESSIONS` (дефолт 5). Логин сверх
+лимита не отклоняется — тихо отзывается сессия, дольше всех неактивная по
+`last_rotated_at`; её устройство получит `401` на следующем `/auth/refresh`
+(ADR-0143).
+
+### DELETE /api/v1/auth/sessions/:fid
+
+Отозвать конкретную сессию по её id (session family, ADR-0143). Auth: **Bearer**.
+Только свою: чужой или несуществующий `fid` → `404 NOT_FOUND` (существование
+чужой сессии не раскрывается). После отзыва refresh-токены family перестают
+ротироваться (`401 TOKEN_REUSED` на `/auth/refresh`); повторный отзыв своей
+family идемпотентен.
+
+204 No Content. Errors: `400 VALIDATION_ERROR` (не-UUID `fid`),
+`401 UNAUTHORIZED`, `404 NOT_FOUND`.
+
 ---
 
 ## 4. Common conventions
@@ -316,6 +354,21 @@ Body:
 ```
 200 → объект профиля.
 
+### POST /api/v1/users/me/avatar
+Загрузка аватара (TASK-248, ADR-0134). Auth: **Bearer**. `multipart/form-data`,
+поле `file` (`image/jpeg|png|webp`, ≤10 MiB) — та же proxy-загрузка, что у медиа
+объявлений. Файл кладётся в R2 (`user_profiles.avatar_storage_key`), `avatar_url`
+подписывается заново на каждое чтение (sign-on-read, ADR-0086) и **не**
+перезаписывает `avatar_url` фото OAuth-провайдера.
+→ `201 { "avatar_url": "https://..." }`. Errors: `400 VALIDATION_ERROR` (нет
+файла), `415 UNSUPPORTED_MEDIA_TYPE`, `413 FILE_TOO_LARGE`.
+
+### DELETE /api/v1/users/me/avatar
+Убрать загруженный аватар (`avatar_storage_key → null`, объект в R2 удаляется
+best-effort). Auth: **Bearer**. → `204`. После этого `avatar_url` снова отдаёт
+фото OAuth-провайдера или `null`. Чтение аватара (в `/users/me`, `/auth/me`,
+`/chat/threads`) резолвит подписанную ссылку из `avatar_storage_key`, если задан.
+
 ### DELETE /api/v1/users/me
 Soft-delete собственного аккаунта (ADR-013): `status → DELETED`, `deleted_at`
 устанавливается; строка сохраняется (referential history), контакт освобождается
@@ -392,6 +445,10 @@ Body:
 - `price`/`area` — строки-Decimal (никогда float, ADR-002). `latitude`/`longitude`
   — источник для `location` (PostGIS синхронизируется на бэке, ADR-001).
 - Координаты берутся только из map-picker, **не** из EXIF фото (ADR-008).
+- `year_built` **обязателен** для `property_type = APARTMENT | HOUSE` (иначе 400
+  `VALIDATION_ERROR`): категория «новостройка» вычисляется из него. Значение
+  **может быть в будущем** — недострой («сдача в 2028», квартиру перепродают до
+  сдачи дома). Для `LAND | COMMERCIAL` — опционален.
 
 201:
 ```json
@@ -415,11 +472,14 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `422 PROFILE_INCOMPLETE`
 к новым: `[{ "price": "<decimal>", "currency": "<UZS|USD>", "created_at": "<ISO8601>" }]`.
 Первая запись — цена при создании объявления. Используется для отображения динамики
 цены на клиенте.
+`reference` — публичный человекочитаемый номер объявления (ADR-0137, `Int`,
+нумерация со сдвига от 100000); короткий id, по которому объявление можно найти/
+продиктовать. UUID `id` остаётся каноническим ключом для всех связей и ссылок.
 
 200:
 ```json
 {
-  "id": "l1", "status": "ACTIVE",
+  "id": "l1", "reference": 100042, "status": "ACTIVE",
   "transaction_type": "RENT", "property_type": "APARTMENT",
   "price": "4500000.00", "currency": "UZS", "area": "62.50",
   "rooms": 2, "floor": 4, "total_floors": 9, "year_built": 2018,
@@ -442,6 +502,11 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `422 PROFILE_INCOMPLETE`
 }
 ```
 Errors: `404 NOT_FOUND`.
+
+### GET /api/v1/listings/by-ref/:reference
+То же, что `GET /api/v1/listings/:id`, но поиск по публичному номеру
+(`listings.reference`, ADR-0137) вместо UUID. `:reference` — целое число.
+Ответ и правила видимости идентичны `GET :id`. Errors: `404 NOT_FOUND`.
 
 ### PATCH /api/v1/listings/:id
 Обновить собственный листинг. Auth: **владелец / agency-admin / AGENT с правом**.
@@ -565,13 +630,16 @@ Query-фильтры (`ARCHITECTURE` §12):
 | `q` | string | свободный текст (TASK-208, ADR-0067): ILIKE-подстрока (pg_trgm GIN, case-insensitive) по `listing_translations.title`/`description` на **любом** языке (uz/ru/en) и по `listings.address`; пустая строка игнорируется; максимум 200 символов |
 | `city_id`, `district_id` | uuid | локация |
 | `transaction_type` | `SALE \| RENT` | |
-| `property_type` | `APARTMENT \| HOUSE \| NEW_BUILDING \| LAND \| COMMERCIAL` | |
+| `property_type` | `APARTMENT \| HOUSE \| LAND \| COMMERCIAL` | `NEW_BUILDING` удалён: «новостройка» — не тип, а вычисляемая категория (см. `new_construction`) |
 | `price_min`, `price_max` | decimal | в пределах `currency`, без FX |
 | `currency` | `UZS \| USD` | валюта диапазона цен |
 | `area_min`, `area_max` | decimal | |
-| `rooms` | int | число комнат: 0..3 — точное совпадение; **4 = «4+»** (`rooms >= 4`) |
+| `rooms` | int (повтор.) | число комнат, **повторяющийся** параметр → OR/IN (`rooms=2&rooms=3&rooms=5`). Каждое **0..4 — ТОЧНОЕ** совпадение (`4` = ровно 4, **BREAKING** vs прежнего «4+»); **`5` = «5+»** (`rooms >= 5`). Одиночный скаляр совместим. Для «4+» — `rooms_min=4`. TASK-247/ADR-0133 |
 | `floor`, `total_floors`, `year_built` | int | |
+| `new_construction` | bool | «Новостройка»: `year_built` за последние 3 календарных года **или в будущем** (недострой — «сдача в 2028»). Порог вычисляет сервер (URL стабилен); `year_built IS NULL` не проходит. Работает во всех поисковых эндпоинтах (`/search`, `/search/bounds`, `/search/radius`, `/search/polygon`, `/search/clusters`, price-distribution) |
 | `feature_ids` | uuid[] | амenities (CSV или повтор параметра) |
+| `points` | string | необязательная нарисованная территория `lat,lng;lat,lng;…` (≥3 вершин); пересечение с контуром (`ST_Within`) поверх остальных фильтров и bbox. Тот же формат, что `/search/polygon`; невалидная строка → `400 VALIDATION_ERROR`. Принимается и в `/search/bounds`. TASK-249/ADR-0133 |
+| `agent_id` | uuid | только объявления этого владельца (страница агента, ADR-0140, §21): применяется к `owner_id` без проверки роли — `owner_id` и так публичен в detail-ответе (§7). Наследован во всех гео-эндпоинтах `/search/*` (их DTO расширяют этот) — отдельного `/agents/:id/listings` нет |
 | `promotion_type` | `NORMAL \| TOP \| VIP` | фильтр по тиру (опц.) |
 | `sort` | `date_desc \| price_asc \| price_desc \| area_desc` | ключ сортировки; **умолчание** `date_desc`; невалидное значение → 400. При явном выборе — гибрид (см. ниже): закреплённое промо + строгий ключ; `price_*` нормализуется по курсу (ADR-0117) |
 | `cursor`, `limit` | | keyset-пагинация |
@@ -875,9 +943,14 @@ notification (`notify_chat_message`).
 
 Типы (`notification_type`): `SAVED_SEARCH_NEW_LISTING | FAVORITE_PRICE_DROP |
 NEW_CHAT_MESSAGE | LISTING_MODERATION_STATUS_CHANGED | NEW_LEAD |
-PROMOTION_ACTIVATED | PROMOTION_EXPIRED`. Каналы: `EMAIL | PUSH | IN_APP`. MVP
-надёжно доставляет `EMAIL + IN_APP`; `PUSH` (FCM/APNs) — задокументированный stub
-через реестр устройств (ADR-010). Все отправки — BullMQ-джобы.
+PROMOTION_ACTIVATED | PROMOTION_EXPIRED | AGENT_APPLICATION_RESOLVED`. Каналы:
+`EMAIL | PUSH | IN_APP`. MVP надёжно доставляет `EMAIL + IN_APP`; `PUSH`
+(FCM/APNs) — задокументированный stub через реестр устройств (ADR-010).
+Фактический набор каналов на тип задаёт routing-конфиг
+(`notification-routing.ts`); большинство типов идут в `EMAIL + IN_APP`,
+`AGENT_APPLICATION_RESOLVED` (решение по заявке «Стать агентом», ADR-0140,
+§21) — **только `IN_APP`** (`data_json: { application_id, status,
+reject_reason }`). Все отправки — BullMQ-джобы.
 
 ### GET /api/v1/notifications
 In-app лента уведомлений. Auth: **Bearer**. Query: `status` (`PENDING|SENT|
@@ -1085,9 +1158,11 @@ ADMIN**.
 
 ### GET /api/v1/admin/listings
 Очередь модерации и админ-список. Query: `status` (например `NEW`),
-`property_type`, `transaction_type`, `q`, `page`, `limit`.
+`property_type`, `transaction_type`, `reference` (точный поиск по номеру
+объявления, ADR-0137), `q`, `page`, `limit`.
 ```text
 GET /api/v1/admin/listings?status=NEW
+GET /api/v1/admin/listings?reference=100042
 ```
 200 → пагинированный список листингов (любые статусы). Каждый элемент несёт
 `owner_id`, `created_at`, `published_at`, `photo_url` (обложка) и инлайн-профиль
@@ -1096,6 +1171,7 @@ GET /api/v1/admin/listings?status=NEW
 ```json
 {
   "id": "l1",
+  "reference": 100042,
   "status": "NEW",
   "owner_id": "u1",
   "created_at": "2026-06-02T08:00:00Z",
@@ -1229,11 +1305,15 @@ Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
 #### GET /api/v1/admin/stats
 Сводные счётчики дашборда админ-панели (ADMIN-15). Auth: **MODERATOR / ADMIN**.
 Без query-параметров.
-200 → `{ listings_new, complaints_new, users_total, promotions_active }`:
+200 → `{ listings_new, complaints_new, users_total, promotions_active,
+listings_active, listings_archived, listings_sale, listings_rent,
+agent_applications_new, support_requests_new }`:
 - `listings_new` — листинги в очереди модерации (`ListingStatus.NEW`);
 - `complaints_new` — необработанные жалобы (`ComplaintStatus.NEW`);
 - `users_total` — все пользователи (как `meta.total` в `/admin/users` без фильтра);
-- `promotions_active` — активные промо VIP/TOP (`PromotionStatus.ACTIVE`).
+- `promotions_active` — активные промо VIP/TOP (`PromotionStatus.ACTIVE`);
+- `agent_applications_new` — заявки «Стать агентом» в очереди (`PENDING`);
+- `support_requests_new` — новые обращения в поддержку (`SupportRequestStatus.NEW`).
 
 #### GET /api/v1/admin/analytics
 Ряды для графиков дашборда и лента «Последних действий» (ADR-0101). Auth:
@@ -1285,6 +1365,12 @@ Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | MIME вне allow-list (jpeg/png/webp) |
 | `FILE_TOO_LARGE` | 413 | Превышен max размер файла |
 | `MEDIA_LIMIT_EXCEEDED` | 422 | Превышено число файлов на листинг |
+| `AGENT_APPLICATION_PENDING` | 409 | Заявка «Стать агентом» уже на рассмотрении |
+| `ALREADY_AGENT` | 409 | У пользователя уже есть роль AGENT/AGENCY |
+| `AMENITY_CODE_TAKEN` | 409 | `code` удобства уже занят (или не удалось сгенерировать slug из label_en) |
+| `LEGAL_DRAFT_EXISTS` | 422 | Черновик этого типа документа уже существует; удалите его или опубликуйте перед созданием нового |
+| `LEGAL_NOT_DRAFT` | 422 | Документ не в статусе DRAFT (операция доступна только для черновиков) |
+| `LEGAL_TRANSLATIONS_INCOMPLETE` | 422 | Не все 6 полей (title_ru/uz/en, body_md_ru/uz/en) заполнены для публикации |
 | `INTERNAL_ERROR` | 500 | Внутренняя ошибка |
 
 Примеры тел:
@@ -1321,6 +1407,8 @@ Backend client-neutral — один контракт для web (RTK Query) и F
   `initiator_id`/`owner_id`. Эти имена зафиксированы, чтобы не вызвать v2 после
   выпуска клиентов.
 - **Единые envelope/ошибки/пагинация** — §4 — одинаковы для всех клиентов.
+- **Realtime (foreground)**: socket.io-канал `/rt` с тонкими инвалидациями —
+  §20 и `docs/GUIDE_MOBILE_REALTIME_WS.md`; фон остаётся за FCM.
 - Полный мобильный гайд ведётся в `docs/MOBILE_API_GUIDE.md`.
 
 ---
@@ -1360,3 +1448,368 @@ Body: `{ "rate": "12700" }` — decimal до 6 знаков дроби. 200 → 
 
 ### POST /api/v1/admin/exchange-rate/refresh
 Немедленный прогон обновления из ЦБ. Auth: **ADMIN**. 200 → текущий `ExchangeRateView`.
+
+---
+
+## 20. Realtime WebSocket (`/rt`)
+
+Push-сигналы об устаревании данных чата/уведомлений/туров (ADR-0138). Это **не
+REST** и не входит в `openapi.*.json` (OpenAPI не описывает WS): канал —
+socket.io v4, namespace `/rt` на том же хосте, транспорт `websocket`, путь
+engine.io стандартный `/socket.io/`.
+
+Ключевой инвариант: сокет **не несёт данных** — только тонкий сигнал
+инвалидации; источником истины остаются REST-эндпоинты этого документа.
+Канал односторонний (сервер → клиент), клиентских событий нет.
+
+**Auth** — access JWT (тот же, что REST) в `handshake.auth.token` (без
+`Bearer `). Невалидный/протухший токен → немедленный disconnect; клиент
+обновляет токен через `POST /auth/refresh` и переподключается. Успешный
+handshake джойнит сокет в комнату `user:<id>` автоматически.
+
+**Событие `invalidate`:**
+
+```json
+{ "type": "thread" | "thread_list" | "notification" | "tour", "id"?: "<uuid>" }
+```
+
+| `type` | Перезапросить |
+|--------|---------------|
+| `thread` (`id`=threadId) | `GET /chat/threads/{id}/messages` |
+| `thread_list` | `GET /chat/threads` |
+| `notification` | `GET /notifications` |
+| `tour` | `GET /tour-requests/incoming` + `/outgoing` |
+
+Сигнал шлётся **только получателю** (после commit транзакции): новое сообщение —
+собеседнику; создание тура — владельцу листинга; смена статуса тура — второй
+стороне. Пропущенные за разрыв события не реплеятся — при `connect`/reconnect
+клиент обязан перезапросить все три подсистемы (gap-fill). Неизвестные значения
+`type` игнорировать (канал расширяемый без версии).
+
+WS — канал foreground; фон/закрытое приложение покрывает FCM push (§14).
+Полный гайд для Flutter: `docs/GUIDE_MOBILE_REALTIME_WS.md`.
+
+---
+
+## 21. Agents & agent applications
+
+Заявка «Стать агентом» (риелтор) + модерация + публичный каталог агентов
+(ADR-0140). Лимит активных объявлений обычного клиента
+(`app_settings.active_listing_limit`, default 2, `0` = без лимита) публичен в
+`GET /api/v1/settings/public → activeListingLimit`; агент/агентство (роль
+`AGENT`/`AGENCY`) публикуют без лимита. Бейдж «риелтор» на detail-странице
+объявления — уже существующее поле `contact.type` (`owner`/`agent`/`agency`,
+§7); отдельного поля `owner_is_agent` не добавлялось.
+
+### POST /api/v1/users/me/agent-application
+Подать заявку. Auth: **Bearer**. Анкета-минимум: имя/телефон/аватар берутся
+из профиля пользователя.
+```json
+{ "agency_name": "Ideal Estate", "about": "10 лет на рынке недвижимости Ташкента" }
+```
+`agency_name` опционален (`null` — частный маклер, макс. 255 симв.); `about`
+обязателен (макс. 2000 симв.).
+201:
+```json
+{ "id": "aa1", "status": "PENDING", "agency_name": "Ideal Estate",
+  "about": "10 лет на рынке недвижимости Ташкента", "reject_reason": null,
+  "created_at": "2026-07-12T10:00:00Z", "resolved_at": null }
+```
+После `REJECTED` повторная подача разрешена — создаётся новая запись, история
+предыдущих сохраняется. Errors: `400 VALIDATION_ERROR`,
+`409 AGENT_APPLICATION_PENDING` (уже есть заявка на рассмотрении),
+`409 ALREADY_AGENT` (уже есть роль `AGENT`/`AGENCY`, §17).
+
+### GET /api/v1/users/me/agent-application
+Последняя заявка текущего пользователя (любой статус). Auth: **Bearer**.
+200 → тот же контракт, что ответ `POST` выше. Errors: `404 NOT_FOUND` (заявок
+ещё не было, либо последняя заявка `APPROVED`, но роль `AGENT`/`AGENCY` с тех
+пор отозвана админом — такая заявка считается историей и не блокирует
+повторную подачу).
+
+### GET /api/v1/admin/agent-applications
+Модерационный список заявок. Auth: **MODERATOR / ADMIN**. Query: `status`
+(`PENDING|APPROVED|REJECTED`), `page`, `limit`.
+200 → пагинированный список; каждый элемент — контракт `POST` выше + заявитель
+и модератор:
+```json
+{ "data": [ { "id": "aa1", "status": "PENDING", "agency_name": "Ideal Estate",
+    "about": "10 лет на рынке недвижимости Ташкента", "reject_reason": null,
+    "created_at": "2026-07-12T10:00:00Z", "resolved_at": null,
+    "moderator_id": null,
+    "user": { "id": "u1", "name": "Алишер Усманов", "phone": "+998901234567",
+      "avatar_url": "https://cdn.avino.uz/u1/avatar.webp?..." } } ],
+  "meta": { "page": 1, "limit": 20, "total": 1 } }
+```
+`user.avatar_url` — общий хелпер `resolveAvatarUrl` (ADR-0134): storageKey
+(загружен через `POST /users/me/avatar`) → sign-on-read; иначе внешний
+`avatarUrl` (Google/Apple) как есть; иначе `null`. `user.name` — `display_name`
+профиля либо «first last», иначе `null`.
+
+### POST /api/v1/admin/agent-applications/:id/approve
+Одобрить заявку. Auth: **MODERATOR / ADMIN**. Тела запроса нет. В одной
+транзакции: статус → `APPROVED` + `resolved_at`/`moderator_id`, выдаётся роль
+`AGENT` (`upsert` — идемпотентно, переживает роль, выданную админом вручную
+ранее), запись `audit_logs(ROLE_CHANGE)`, уведомление заявителю (см. ниже).
+200 → тот же контракт, что элемент `GET /admin/agent-applications`.
+Errors: `404 NOT_FOUND`, `422 INVALID_STATUS_TRANSITION` (заявка не в
+`PENDING`, §17).
+
+### POST /api/v1/admin/agent-applications/:id/reject
+Отклонить заявку. Auth: **MODERATOR / ADMIN**.
+```json
+{ "reason": "Недостаточно данных для проверки" }
+```
+`reason` опционален (макс. 2000 симв.). 200 → тот же контракт, что approve.
+Errors: `404 NOT_FOUND`, `422 INVALID_STATUS_TRANSITION`.
+
+Approve/reject создают уведомление `AGENT_APPLICATION_RESOLVED` заявителю в
+одной транзакции со сменой статуса (канал — **только `IN_APP`**, §14):
+`data_json: { application_id, status, reject_reason }`.
+
+### GET /api/v1/agents
+Публичный каталог агентов. Auth: **public**. Агент — `ACTIVE`-пользователь с
+ролью `AGENT`/`AGENCY`, независимо от того, назначена роль по одобренной
+заявке или админом вручную напрямую. Query: `page`, `limit`. Сортировка — по
+числу активных объявлений, убыв.
+200:
+```json
+{ "data": [ { "id": "u1", "name": "Алишер Усманов",
+    "avatar_url": "https://cdn.avino.uz/u1/avatar.webp?...",
+    "agency_name": "Ideal Estate", "about": "10 лет на рынке недвижимости Ташкента",
+    "active_listings_count": 14 } ],
+  "meta": { "page": 1, "limit": 20, "total": 6 } }
+```
+`agency_name`/`about` — из последней `APPROVED`-заявки пользователя; `null`
+для агентов, назначенных админом напрямую без заявки.
+
+### GET /api/v1/agents/:id
+Публичный профиль агента. Auth: **public**. 200 → контракт элемента
+`GET /agents` + контакты (ADR-0155):
+```json
+{ "id": "u1", "name": "Алишер Усманов",
+  "avatar_url": "https://cdn.avino.uz/u1/avatar.webp?...",
+  "agency_name": "Ideal Estate", "about": "10 лет на рынке недвижимости Ташкента",
+  "active_listings_count": 14,
+  "phone": "+998901234567", "email": "agent@example.com" }
+```
+`phone` — по тому же правилу, что `contact.phone` в detail-ответе объявления
+(§7): подтверждённый `contact_phone` профиля, иначе телефон аккаунта, иначе
+`null`. `email` — e-mail аккаунта или `null`. Контакты отдаёт **только этот
+эндпоинт**: в списке `GET /agents` их нет намеренно — иначе один запрос
+выгружал бы телефоны и почты всех агентов сразу.
+Errors: `404 NOT_FOUND` (пользователь не найден или не является агентом).
+
+### Объявления агента — `GET /search?agent_id=`
+
+Отдельного `GET /agents/:id/listings` нет: страница профиля агента
+переиспользует публичный поиск (§9) с фильтром `agent_id` (значение —
+`users.id` агента, применяется к `owner_id`). Параметр наследован во всех
+гео-эндпоинтах (`/search/bounds`, `/search/radius`, `/search/near-me`,
+`/search/polygon`, `/search/clusters`) — их DTO расширяют
+`SearchListingsQueryDto`.
+```text
+GET /api/v1/search?agent_id=u1&transaction_type=SALE
+```
+200 → тот же envelope/card-shape, что `/search` (§9); только `status = ACTIVE`.
+
+## 22. Amenities (справочник удобств)
+
+Справочник удобств объявления (ADR-0111): таблица `amenities`
+(`code`/`label_ru`/`label_uz`/`label_en`/`is_active`/`sort_order`), а не enum.
+Soft-delete-only — скрытие через `PATCH { is_active:false }`, жёсткого `DELETE`
+нет. Сортировка списков — `sort_order asc, code asc`.
+
+Контракт элемента (везде одинаковый, snake_case):
+```json
+{ "id": "am1", "code": "PARKING", "label_ru": "Парковка",
+  "label_uz": "Avtoturargoh", "label_en": "Parking",
+  "is_active": true, "sort_order": 0 }
+```
+
+### GET /api/v1/amenities
+Публичный список для форм/фильтров. Auth: **public**. Только `is_active =
+true`. 200 → массив элементов (без пагинации).
+
+### GET /api/v1/admin/amenities
+Полный список (активные + скрытые). Auth: **ADMIN**. 200 → массив элементов.
+
+### POST /api/v1/admin/amenities
+Создать удобство. Auth: **ADMIN**.
+```json
+{ "label_ru": "Парковка", "label_uz": "Avtoturargoh", "label_en": "Parking",
+  "sort_order": 0 }
+```
+`label_ru`/`label_uz`/`label_en` обязательны. `code` опционален — если не
+передан, генерируется slug из `label_en` (UPPER_SNAKE, напр. `Video
+surveillance` → `VIDEO_SURVEILLANCE`); если передан вручную — только
+`A-Z0-9_`, начинается с буквы. `sort_order` (default `0`) и `is_active`
+(default `true`) опциональны.
+201 → созданный элемент. Errors: `400 VALIDATION_ERROR`,
+`409 AMENITY_CODE_TAKEN` (`code` уже занят, §17).
+
+### PATCH /api/v1/admin/amenities/:id
+Править лейблы/порядок/видимость. Auth: **ADMIN**. `code` неизменяем — DTO его
+не принимает.
+```json
+{ "is_active": false }
+```
+200 → обновлённый элемент. Errors: `400 VALIDATION_ERROR`,
+`404 NOT_FOUND`.
+
+## 23. Legal documents (версионированные юр-документы + согласие)
+
+Юридические документы (Условия использования, Политика конфиденциальности) —
+версионируемые многоязычные тексты. Хранятся в трёх локалях (uz/ru/en) и имеют
+три статуса: DRAFT (в редакции), PUBLISHED (опубликована, заморожена),
+ARCHIVED (заменена новой версией). Старая PUBLISHED версия при публикации новой
+архивируется. При публикации с `requires_consent=true` бампится
+`legal_consent_version` — все пользователи получат блок-модалку повторного согласия
+при следующем входе.
+
+Контракт полного документа (admin, snake_case):
+```json
+{
+  "id": "uuid",
+  "kind": "TERMS" | "PRIVACY",
+  "version": 1,
+  "status": "DRAFT" | "PUBLISHED" | "ARCHIVED",
+  "published_at": "2026-07-21T12:00:00.000Z" | null,
+  "created_at": "2026-07-20T12:00:00.000Z",
+  "updated_at": "2026-07-21T12:00:00.000Z",
+  "title_ru": "Условия использования",
+  "title_uz": "Foydalanish shartlari",
+  "title_en": "Terms of Use",
+  "body_md_ru": "## Общие положения {#general}\nТекст раздела...",
+  "body_md_uz": "## Umumiy qoidalar {#general}\nBo'lim matni...",
+  "body_md_en": "## General provisions {#general}\nSection text..."
+}
+```
+
+### GET /api/v1/legal/:kind
+Получить опубликованную версию юр-документа одной локали. Auth: **public**.
+`:kind` = `terms` или `privacy` (слаги, строчные). Accept-Language определяет
+локаль (`uz*` → uz, `en*` → en, иначе ru; дефолт ru).
+
+```bash
+GET /api/v1/legal/terms
+Accept-Language: ru-RU
+```
+
+200 → контракт одной локали:
+```json
+{
+  "kind": "terms",
+  "version": 1,
+  "title": "Условия использования",
+  "body_md": "## Общие положения {#general}\nТекст раздела...",
+  "published_at": "2026-07-21T12:00:00.000Z"
+}
+```
+
+404 → `{ "code": "NOT_FOUND", "message": "..." }` — пока нет опубликованной
+версии или неизвестный kind (клиент должен иметь встроенный fallback).
+
+### GET /api/v1/admin/legal-documents
+Список всех версий (метаданные, без тел). Auth: **ADMIN**.
+
+Query parameters:
+- `?kind=TERMS` или `?kind=PRIVACY` — фильтр (опционально).
+
+200 → массив элементов (без `title_*` и `body_md_*`):
+```json
+[
+  {
+    "id": "uuid",
+    "kind": "TERMS",
+    "version": 1,
+    "status": "PUBLISHED",
+    "published_at": "2026-07-21T12:00:00.000Z",
+    "created_at": "2026-07-20T12:00:00.000Z",
+    "updated_at": "2026-07-21T12:00:00.000Z"
+  },
+  {
+    "id": "uuid",
+    "kind": "TERMS",
+    "version": 2,
+    "status": "DRAFT",
+    "published_at": null,
+    "created_at": "2026-07-21T13:00:00.000Z",
+    "updated_at": "2026-07-21T13:00:00.000Z"
+  }
+]
+```
+
+### GET /api/v1/admin/legal-documents/:id
+Получить полный документ (все 3 локали + метаданные). Auth: **ADMIN**.
+
+```bash
+GET /api/v1/admin/legal-documents/uuid
+```
+
+200 → полный контракт (см. выше). Errors: `404 NOT_FOUND`.
+
+### POST /api/v1/admin/legal-documents
+Создать черновик (DRAFT). Копирует тексты из последней PUBLISHED версии
+(если существует). Auth: **ADMIN**.
+
+Request body:
+```json
+{ "kind": "TERMS" }
+```
+
+`kind` обязателен (TERMS или PRIVACY).
+
+201 → новый DRAFT контракт. Errors: `422 LEGAL_DRAFT_EXISTS` (черновик по этому
+типу уже существует; удалите старый или опубликуйте его перед созданием нового),
+`400 VALIDATION_ERROR`.
+
+### PATCH /api/v1/admin/legal-documents/:id
+Редактировать тексты DRAFT версии (любое подмножество 6 полей). Auth: **ADMIN**.
+
+Request body (опциональные поля):
+```json
+{
+  "title_ru": "...",
+  "title_uz": "...",
+  "title_en": "...",
+  "body_md_ru": "...",
+  "body_md_uz": "...",
+  "body_md_en": "..."
+}
+```
+
+DTO допускает пустые строки — гейт непустоты применяется только при публикации
+(см. ниже `POST .../publish`, `422 LEGAL_TRANSLATIONS_INCOMPLETE`), не на PATCH.
+
+200 → обновлённый документ. Errors: `422 LEGAL_NOT_DRAFT` (документ не черновик,
+статус не DRAFT), `404 NOT_FOUND`.
+
+### POST /api/v1/admin/legal-documents/:id/publish
+Опубликовать DRAFT версию. Старая PUBLISHED архивируется (status → ARCHIVED),
+новая получает version = max+1. При `requires_consent=true` также бампится
+`legal_consent_version`. Auth: **ADMIN**.
+
+Request body:
+```json
+{ "requires_consent": true }
+```
+
+`requires_consent` обязателен (boolean: true или false). При `true` бампится
+`legal_consent_version`, что приведёт к блок-модалке согласия для всех пользователей
+при следующем входе.
+
+201 → опубликованный документ (status = PUBLISHED, version увеличена).
+Errors: `422 LEGAL_NOT_DRAFT` (только черновики можно публиковать),
+`422 LEGAL_TRANSLATIONS_INCOMPLETE` (не все 6 полей title_*/body_md_* непусты),
+`404 NOT_FOUND`.
+
+### DELETE /api/v1/admin/legal-documents/:id
+Удалить DRAFT версию. Auth: **ADMIN**.
+
+```bash
+DELETE /api/v1/admin/legal-documents/uuid
+```
+
+204 → успешно удалён. Errors: `422 LEGAL_NOT_DRAFT` (только черновики можно
+удалять), `404 NOT_FOUND`.

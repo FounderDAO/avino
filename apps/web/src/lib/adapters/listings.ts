@@ -82,7 +82,7 @@ function fmtDate(iso: string): string {
 }
 
 /** Имя автора для колонки «Агент»: display_name → имя+фамилия → email → phone → «—». */
-function ownerName(owner: AdminListingOwner | undefined): string {
+export function ownerName(owner: AdminListingOwner | undefined): string {
   if (!owner) return DASH;
   const display = owner.display_name?.trim();
   if (display) return display;
@@ -121,7 +121,7 @@ export function rowToAdminListing(r: AdminListingRow): AdminListing {
     totalFloors: null,
     year: null,
     district: r.district_name ?? DASH,
-    address: DASH,
+    address: r.address ?? DASH,
     lat: null,
     lng: null,
     photos: [],
@@ -133,6 +133,8 @@ export function rowToAdminListing(r: AdminListingRow): AdminListing {
   };
   return {
     id: r.id,
+    // Публичный номер объявления (ADR-0137); старый бэкенд без поля → «—».
+    reference: r.reference ?? DASH,
     title: r.title,
     // Главное фото из списка (sign-on-read, ADR-0086); нет фото / старый бэкенд
     // без поля → брендовый плейсхолдер.
@@ -151,6 +153,7 @@ export function rowToAdminListing(r: AdminListingRow): AdminListing {
     created: fmtDate(r.created_at),
     promo: 'NORMAL',
     tx: TX_LABEL[r.transaction_type] ?? r.transaction_type,
+    address: r.address?.trim() || undefined,
   };
 }
 

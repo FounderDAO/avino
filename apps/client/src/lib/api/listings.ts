@@ -60,12 +60,17 @@ export interface ApiSearchItem {
   currency: Currency;
   rooms: number | null;
   bathrooms: number | null;
+  // Общая площадь для client-сортировки area_desc. Опционально: карточка избранного
+  // (FavoriteSearchItem) шарит этот маппер и area не отдаёт; /search — всегда отдаёт.
+  area?: string | null;
   lot_area: string | null;
   parking_type: ParkingType | null;
   city_id: string | null;
   district_id: string | null;
   /** Имя района на языке ответа (TASK-209); null если район не найден. */
   district_name: string | null;
+  /** Точный адрес объявления; null если не заполнен. */
+  address: string | null;
   latitude: string | null;
   longitude: string | null;
   promotion_type: PromotionType;
@@ -100,6 +105,8 @@ interface ApiContactBlock {
 /** Ответ GET /listings/:id (детальная карточка). */
 interface ApiListingDetail {
   id: string;
+  /** Публичный человекочитаемый номер объявления (ADR-0137). Optional — старый бэкенд. */
+  reference?: number;
   status: ListingStatus;
   transaction_type: TransactionType;
   property_type: PropertyType;
@@ -283,11 +290,14 @@ export function mapListing(api: AnyApiListing): Listing {
         pro: detail.contact.is_pro,
         agency: '',
         phone: detail.contact.phone ?? undefined,
+        kind: detail.contact.type,
       }
-    : { name: '', pro: false, agency: '', phone: undefined };
+    : { name: '', pro: false, agency: '', phone: undefined, kind: 'owner' };
 
   return {
     id: api.id,
+    // Публичный номер объявления есть только в detail-ответе (ADR-0137).
+    reference: detail?.reference,
     tx: api.transaction_type,
     type: api.property_type,
     // effective_tier есть только у карточки поиска; у detail — promotion_type.
@@ -298,7 +308,8 @@ export function mapListing(api: AnyApiListing): Listing {
     price: api.price,
     currency: api.currency,
 
-    area: detail?.area ?? undefined,
+    // area отдаётся и в выдаче поиска (для client-сортировки area_desc), и в detail.
+    area: (api as ApiSearchItem | ApiListingDetail).area ?? undefined,
     lotArea: (api as ApiSearchItem | ApiListingDetail).lot_area ?? undefined,
     rooms: api.rooms ?? undefined,
     bathrooms: (api as ApiSearchItem | ApiListingDetail).bathrooms ?? undefined,
@@ -326,7 +337,8 @@ export function mapListing(api: AnyApiListing): Listing {
 
     // Имя района на языке ответа (TASK-209, ADR-0068); null → '' (без uuid в UI).
     district: api.district_name ?? '',
-    address: detail?.address ?? '',
+    // Точный адрес отдаётся и в выдаче поиска, и в detail (оба члена union).
+    address: api.address ?? '',
     lat: toNumberOrUndef(api.latitude),
     lng: toNumberOrUndef(api.longitude),
 
@@ -427,6 +439,7 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   }
   if (filter.regionId) params.set('region_id', filter.regionId);
   if (filter.districtId) params.set('district_id', filter.districtId);
+  if (filter.agentId) params.set('agent_id', filter.agentId);
   if (filter.priceMin != null) params.set('price_min', String(filter.priceMin));
   if (filter.priceMax != null) params.set('price_max', String(filter.priceMax));
   // Валюта ценового диапазона — только когда задан хотя бы один рубеж (зеркало
@@ -453,7 +466,10 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   if (filter.totalFloorsMax != null) params.set('total_floors_max', String(filter.totalFloorsMax));
   if (filter.yearMin != null) params.set('year_min', String(filter.yearMin));
   if (filter.yearMax != null) params.set('year_max', String(filter.yearMax));
-  if (filter.listingSource) params.set('listing_source', filter.listingSource);
+  if (filter.newConstruction) params.set('new_construction', 'true');
+  if (filter.listingSource && filter.listingSource.length > 0) {
+    for (const s of filter.listingSource) params.append('listing_source', s);
+  }
   if (filter.toursEnabled) params.set('tours_enabled', 'true');
   if (filter.isBasement) params.set('is_basement', 'true');
   if (filter.parkingTypes && filter.parkingTypes.length > 0) {

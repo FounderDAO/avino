@@ -14,6 +14,7 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
+import { PhoneField } from '@/components/ui/phone-field';
 import { Logo } from './Logo';
 import { GoogleSignInButton } from './GoogleSignInButton';
 import { AppleSignInButton } from './AppleSignInButton';
@@ -22,27 +23,13 @@ import {
   useVerifyOtpMutation,
 } from '@/store/api/authApi';
 import { getApiError, getApiErrorCode, isNetworkError } from '@/store/api/apiError';
+import { uzPhoneComplete, uzPhoneE164 } from '@/lib/phone-mask';
 
 export interface LoginModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Контекст вызова (например «Войдите, чтобы добавить в избранное»). */
   context?: string;
-}
-
-/**
- * Нормализует ввод в E.164 узбекский формат: +998XXXXXXXXX.
- * Стрипаем всё, кроме цифр; гарантируем ведущие 998; префикс «+».
- */
-function toE164Uzbek(raw: string): string {
-  let digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('998')) {
-    digits = digits.slice(3);
-  } else if (digits.startsWith('8') && digits.length === 10) {
-    // На случай ввода с местным «8»-префиксом — отбрасываем.
-    digits = digits.slice(1);
-  }
-  return `+998${digits}`;
 }
 
 /** Ключи переводов (`auth.errors.*`) для кодов ошибок шага «Подтвердить». */
@@ -81,7 +68,8 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
   const [verifyOtp, verifyState] = useVerifyOtpMutation();
 
   const channel = method === 'phone' ? 'SMS' : 'EMAIL';
-  const phoneValid = phone.replace(/\D/g, '').length >= 9;
+  // Ровно 9 цифр абонента: старая проверка «>= 9 цифр» считала и префикс 998.
+  const phoneValid = uzPhoneComplete(phone);
   const inputValid = method === 'phone' ? phoneValid : isValidEmail(email);
 
   // Сброс состояния при закрытии.
@@ -122,7 +110,7 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
       : null;
 
   const handleRequest = async () => {
-    const dest = method === 'phone' ? toE164Uzbek(phone) : email.trim();
+    const dest = method === 'phone' ? uzPhoneE164(phone) : email.trim();
     try {
       await requestOtp({ channel, destination: dest }).unwrap();
       setDestination(dest);
@@ -206,26 +194,34 @@ export function LoginModal({ open, onOpenChange, context }: LoginModalProps) {
               <label className="mt-4 block text-[13px] font-bold text-ink">
                 {method === 'phone' ? t('phoneLabel') : t('emailLabel')}
               </label>
-              <Field
-                className="mt-2"
-                type={method === 'email' ? 'email' : 'text'}
-                placeholder={
-                  method === 'phone' ? t('phonePlaceholder') : t('emailPlaceholder')
-                }
-                value={method === 'phone' ? phone : email}
-                onChange={(e) =>
-                  method === 'phone'
-                    ? setPhone(e.target.value)
-                    : setEmail(e.target.value)
-                }
-                inputMode={method === 'phone' ? 'tel' : 'email'}
-                autoComplete={method === 'phone' ? 'tel' : 'email'}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && inputValid && !requestState.isLoading) {
-                    void handleRequest();
-                  }
-                }}
-              />
+              {method === 'phone' ? (
+                <PhoneField
+                  className="mt-2"
+                  placeholder={t('phonePlaceholder')}
+                  value={phone}
+                  onChange={setPhone}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && inputValid && !requestState.isLoading) {
+                      void handleRequest();
+                    }
+                  }}
+                />
+              ) : (
+                <Field
+                  className="mt-2"
+                  type="email"
+                  placeholder={t('emailPlaceholder')}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  inputMode="email"
+                  autoComplete="email"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && inputValid && !requestState.isLoading) {
+                      void handleRequest();
+                    }
+                  }}
+                />
+              )}
               {requestErrorMessage && (
                 <p
                   role="alert"

@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { NotificationType } from '@prisma/client';
+import { NotificationType, UserStatus } from '@prisma/client';
 import { SavedSearchAlertService } from './saved-search-alert.service';
 
 /**
@@ -76,12 +76,25 @@ describe('SavedSearchAlertService', () => {
 
     expect(prisma.savedSearch.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { isActive: true },
+        where: { isActive: true, user: { status: { not: UserStatus.DELETED } } },
         take: 25,
         orderBy: [
           { lastCheckedAt: { sort: 'asc', nulls: 'first' } },
           { id: 'asc' },
         ],
+      }),
+    );
+  });
+
+  it('excludes saved searches owned by deleted users', async () => {
+    await service.run();
+
+    expect(prisma.savedSearch.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isActive: true,
+          user: { status: { not: UserStatus.DELETED } },
+        }),
       }),
     );
   });
@@ -105,6 +118,102 @@ describe('SavedSearchAlertService', () => {
     expect(publishedAfter).toEqual(LAST_CHECKED);
     expect(publishedUntil).toBeInstanceOf(Date);
     expect(limit).toBe(50);
+  });
+
+  // TASK-253: клиент исторически пишет scalar-строки/plural-ключи в filters_json;
+  // сырой путь (в обход DTO @Transform(toArray)) обязан их нормализовать, иначе
+  // Prisma.join(строка) в buildWhereSql падает с «r.reduce is not a function».
+  describe('legacy filter normalization (TASK-253)', () => {
+    const filtersOf = () => search.matchNewlyActiveListings.mock.calls[0][0];
+
+    it('wraps a legacy scalar property_type into an array', async () => {
+      prisma.savedSearch.findMany.mockResolvedValue([
+        savedSearch({
+          filtersJson: {
+            schemaVersion: 1,
+            filters: { property_type: 'HOUSE', transaction_type: 'SALE' },
+          },
+        }),
+      ]);
+
+      await service.run();
+
+      expect(filtersOf()).toEqual({
+        property_type: ['HOUSE'],
+        transaction_type: 'SALE',
+      });
+    });
+
+    it('prefers the property_types multi-select array over the legacy single value', async () => {
+      prisma.savedSearch.findMany.mockResolvedValue([
+        savedSearch({
+          filtersJson: {
+            schemaVersion: 1,
+            filters: {
+              property_type: 'APARTMENT',
+              property_types: ['APARTMENT', 'HOUSE'],
+            },
+          },
+        }),
+      ]);
+
+      await service.run();
+
+      expect(filtersOf()).toEqual({ property_type: ['APARTMENT', 'HOUSE'] });
+    });
+
+    it('keeps an already-array property_type untouched', async () => {
+      prisma.savedSearch.findMany.mockResolvedValue([
+        savedSearch({
+          filtersJson: {
+            schemaVersion: 1,
+            filters: { property_type: ['LAND'] },
+          },
+        }),
+      ]);
+
+      await service.run();
+
+      expect(filtersOf()).toEqual({ property_type: ['LAND'] });
+    });
+
+    it('maps client parking_types (plural) to parking_type', async () => {
+      prisma.savedSearch.findMany.mockResolvedValue([
+        savedSearch({
+          filtersJson: {
+            schemaVersion: 1,
+            filters: { parking_types: ['GARAGE', 'STREET'] },
+          },
+        }),
+      ]);
+
+      await service.run();
+
+      expect(filtersOf()).toEqual({ parking_type: ['GARAGE', 'STREET'] });
+    });
+
+    it('wraps scalar parking_type, amenities and listing_source into arrays', async () => {
+      prisma.savedSearch.findMany.mockResolvedValue([
+        savedSearch({
+          filtersJson: {
+            schemaVersion: 1,
+            filters: {
+              parking_type: 'GARAGE',
+              amenities: 'INTERNET',
+              listing_source: 'OWNER',
+            },
+          },
+        }),
+      ]);
+
+      await service.run();
+
+      expect(filtersOf()).toEqual({
+        parking_type: ['GARAGE'],
+        amenities: ['INTERNET'],
+        listing_source: ['OWNER'],
+      });
+    });
   });
 
   it('uses created_at as the floor when lastCheckedAt is null', async () => {

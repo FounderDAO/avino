@@ -1,53 +1,68 @@
 /**
- * Districts — популярные районы Ташкента (из home.jsx).
- * Данные берём из GET /geo/districts (lib/api/geo); фото-обложки — статичный
- * мок-маппинг (Unsplash) по индексу. Каждая плитка — ссылка на
- * /search?district_id=... Server component (async fetch, без интерактива).
+ * Districts — популярные районы города Ташкента (блок на главной).
+ *
+ * Подборка курируемая и статичная (НЕ из GET /geo/districts): справочник
+ * districts содержит ~200 районов всей страны, отсортированных по русскому
+ * имени, поэтому раньше сюда попадали случайные районы (Акалтын, Алат…) с
+ * непереведённым `name_en` («… tumani»). Здесь фиксируем 8 центральных районов
+ * города Ташкента в редакционном порядке с чистыми трёхъязычными именами —
+ * секция всегда осмысленна и не зависит от состояния API/справочника.
+ *
+ * Каждый район — горизонтальный чип: смысловая лайн-иконка в бейдже
+ * (`{@link ./districtIcons}`, красится темой) + локализованное название. Раньше
+ * тут были размытые нерелевантные фото (Unsplash) — заменены на иконки. Плитка
+ * ссылается на /search?district_id= (фиксированные UUID районов, seed districts).
+ * Server component (async только ради locale/translations, без интерактива).
  */
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { PhotoImg } from '@/components/ui/photo-img';
-import { getDistricts } from '@/lib/api/geo';
+import { DISTRICT_ICONS } from './districtIcons';
 
-/** Мок-обложки районов (Unsplash photo id), как в дизайн-источнике. */
-const COVER_IDS = [
-  '1545324418-cc1a3fa10c00',
-  '1480714378408-67cf0d13bc1b',
-  '1486325212027-8081e485255e',
-  '1496564203457-11bb12075d90',
-  '1449824913935-59a10b8d2000',
-  '1444723121867-7a241cacace9',
-];
+/**
+ * Курируемая подборка центральных районов города Ташкента (порядок = редакционная
+ * «популярность»). `id` — фиксированные UUID из seed-миграции districts
+ * (region «Toshkent shahri»); имена — чистые, без суффикса «tumani». Правится
+ * вручную при смене подборки.
+ */
+const TASHKENT_DISTRICTS = [
+  { id: 'd0000000-0000-4000-8000-000000000003', uz: 'Mirobod', ru: 'Мирабад', en: 'Mirabad' },
+  { id: 'd0000000-0000-4000-8000-000000000004', uz: "Mirzo Ulug'bek", ru: 'Мирзо-Улугбек', en: 'Mirzo-Ulugbek' },
+  { id: 'd0000000-0000-4000-8000-000000000012', uz: 'Yunusobod', ru: 'Юнусабад', en: 'Yunusabad' },
+  { id: 'd0000000-0000-4000-8000-000000000002', uz: 'Chilonzor', ru: 'Чиланзар', en: 'Chilanzar' },
+  { id: 'd0000000-0000-4000-8000-000000000007', uz: 'Shayxontohur', ru: 'Шайхантахур', en: 'Shaykhantakhur' },
+  { id: 'd0000000-0000-4000-8000-000000000009', uz: 'Yakkasaroy', ru: 'Яккасарай', en: 'Yakkasaray' },
+  { id: 'd0000000-0000-4000-8000-000000000006', uz: 'Sergeli', ru: 'Сергели', en: 'Sergeli' },
+  { id: 'd0000000-0000-4000-8000-000000000010', uz: 'Yashnobod', ru: 'Яшнабад', en: 'Yashnobod' },
+] as const;
+
+/** Имя района по языку интерфейса: `uz→uz`, `en→en`, иначе ru. */
+function districtName(d: (typeof TASHKENT_DISTRICTS)[number], locale: string): string {
+  const l = locale.toLowerCase();
+  if (l.startsWith('uz')) return d.uz;
+  if (l.startsWith('en')) return d.en;
+  return d.ru;
+}
 
 export async function Districts() {
   const locale = await getLocale();
   const t = await getTranslations('home');
-  // Берём первые 6 районов для сетки 3×2. Пустой список (API недоступен) → секция
-  // не рендерится (без пустой «дырки» на главной).
-  const districts = (await getDistricts(locale)).slice(0, 6);
-  if (districts.length === 0) return null;
+  const districts = TASHKENT_DISTRICTS.map((d) => ({ id: d.id, name: districtName(d, locale) }));
 
   return (
     <section className="mx-auto max-w-[1280px] px-4 pt-14 sm:px-6">
       <h2 className="mb-[18px] text-2xl sm:text-[30px]">{t('districts.title')}</h2>
-      <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
-        {districts.map((d, i) => (
+      <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-4">
+        {districts.map((d) => (
           <Link
             key={d.id}
             href={`/search?tx=SALE&district_id=${encodeURIComponent(d.id)}`}
-            className="group relative block aspect-[16/10] overflow-hidden rounded-card"
+            className="group flex items-center gap-4 rounded-card border border-border bg-card p-4 transition-colors hover:border-primary/40"
           >
-            <PhotoImg
-              src={`https://images.unsplash.com/photo-${COVER_IDS[i % COVER_IDS.length]}?auto=format&fit=crop&w=600&q=60`}
-              alt={d.name}
-              className="transition-transform duration-[400ms] group-hover:scale-105"
-              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 25vw"
-            />
-            {/* Затемнение снизу для читаемости подписи */}
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgba(26,26,26,0.78))]" />
-            <div className="absolute bottom-3.5 left-4 text-white">
-              <div className="text-[19px] font-extrabold">{d.name}</div>
-            </div>
+            {/* Смысловая иконка района в бейдже; красится темой (text-primary). */}
+            <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-primary/10 text-primary">
+              {DISTRICT_ICONS[d.id]}
+            </span>
+            <span className="text-[17px] font-bold text-foreground">{d.name}</span>
           </Link>
         ))}
       </div>

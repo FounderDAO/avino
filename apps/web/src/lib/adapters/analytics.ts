@@ -41,6 +41,7 @@ const ACTION_VERB: Record<ModerationAction, string> = {
   SEND_TO_DRAFT: 'вернул в черновики',
   REJECT: 'отклонил',
   DELETE: 'удалил',
+  OWNER_EDIT: 'отредактировал',
 };
 
 const timeFmt = new Intl.DateTimeFormat('ru-RU', {

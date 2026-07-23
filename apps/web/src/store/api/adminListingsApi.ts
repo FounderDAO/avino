@@ -4,11 +4,13 @@ import type { Paginated } from './pagination';
 import type {
   AdminListingRow,
   AdminListingFilters,
+  AdminListingOwner,
   ListingDetail,
   ListingModerationLogEntry,
   ModerateListingRequest,
   ModerationResult,
   ListingTranslations,
+  GenerateTranslationsResult,
   TranslationEditRequest,
 } from './adminTypes';
 
@@ -46,6 +48,16 @@ export const adminListingsApi = adminApi.injectEndpoints({
       providesTags: ['Admin'],
     }),
 
+    /**
+     * `GET /admin/listings/:id/owner` → инлайн-профиль автора (LOG.md #6).
+     * Публичный `GET /listings/:id` отдаёт только `owner_id`; имя/контакт автора
+     * для админ-детали берём этим admin-only роутом (доступен MODERATOR/ADMIN).
+     */
+    getAdminListingOwner: build.query<AdminListingOwner, string>({
+      query: (id) => ({ url: `/admin/listings/${id}/owner` }),
+      providesTags: ['Admin'],
+    }),
+
     listingModerationLogs: build.query<ListingModerationLogEntry[], string>({
       query: (id) => ({ url: `/admin/listings/${id}/moderation-logs` }),
       providesTags: ['Admin'],
@@ -71,12 +83,18 @@ export const adminListingsApi = adminApi.injectEndpoints({
 
     /**
      * `POST /admin/listings/:id/translations/generate` — запуск машинного
-     * перевода всех языков (§7/ADR-0091). Возвращает обновлённый набор переводов.
+     * перевода целевых языков (§7/ADR-0091). `force=true` перезаписывает даже
+     * правленные вручную языки (оригинал не трогается). Ответ содержит
+     * `regenerated`/`skipped` для честного тоста в UI.
      */
-    generateTranslations: build.mutation<ListingTranslations, string>({
-      query: (id) => ({
+    generateTranslations: build.mutation<
+      GenerateTranslationsResult,
+      { id: string; force?: boolean }
+    >({
+      query: ({ id, force }) => ({
         url: `/admin/listings/${id}/translations/generate`,
         method: 'POST',
+        body: { force },
       }),
       invalidatesTags: ['Admin'],
     }),
@@ -103,6 +121,7 @@ export const adminListingsApi = adminApi.injectEndpoints({
 export const {
   useListAdminListingsQuery,
   useGetAdminListingQuery,
+  useGetAdminListingOwnerQuery,
   useListingModerationLogsQuery,
   useModerateListingMutation,
   useGetListingTranslationsQuery,

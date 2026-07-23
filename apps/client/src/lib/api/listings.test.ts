@@ -30,6 +30,7 @@ const searchItem: ApiSearchItem = {
   city_id: 'c1',
   district_id: 'uuid-district',
   district_name: 'Юнусабадский',
+  address: 'ул. Амира Темура, 15',
   latitude: '41.31',
   longitude: '69.27',
   promotion_type: 'NORMAL',
@@ -88,6 +89,24 @@ describe('mapListing — district_name', () => {
 
   it('null district_name → пустая строка (без uuid в UI)', () => {
     expect(mapListing({ ...searchItem, district_name: null }).district).toBe('');
+  });
+});
+
+describe('mapListing — agent.kind (TASK-210/ADR-0069)', () => {
+  it('прокидывает contact.type в agent.kind для детальной карточки', () => {
+    expect(mapListing(asListing(detail)).agent.kind).toBe('agent');
+  });
+
+  it('agency: contact.type=agency → agent.kind=agency', () => {
+    const agencyDetail = {
+      ...detail,
+      contact: { ...detail.contact, type: 'agency' as const },
+    };
+    expect(mapListing(asListing(agencyDetail)).agent.kind).toBe('agency');
+  });
+
+  it('краткая карточка поиска (без contact) → agent.kind=owner по умолчанию', () => {
+    expect(mapListing(searchItem).agent.kind).toBe('owner');
   });
 });
 
@@ -390,6 +409,16 @@ describe('buildSearchParams — Zillow-фильтры (Task 4)', () => {
     expect(p.has('region_id')).toBe(false);
   });
 
+  it('agentId → agent_id в параметрах запроса (страница /agents/:id, API.md §21)', () => {
+    const p = buildSearchParams({ agentId: 'u1' }, 24);
+    expect(p.get('agent_id')).toBe('u1');
+  });
+
+  it('agentId не задан → agent_id отсутствует', () => {
+    const p = buildSearchParams({ tx: 'SALE' }, 24);
+    expect(p.has('agent_id')).toBe(false);
+  });
+
   it('rooms_min, area, floor, year, source, tours', () => {
     const p = buildSearchParams(
       {
@@ -397,7 +426,7 @@ describe('buildSearchParams — Zillow-фильтры (Task 4)', () => {
         areaMin: 40, areaMax: 90,
         floorMin: 2, notFirstFloor: true,
         yearMin: 2010,
-        listingSource: 'OWNER',
+        listingSource: ['OWNER', 'AGENCY'],
         toursEnabled: true,
       },
       24,
@@ -408,7 +437,12 @@ describe('buildSearchParams — Zillow-фильтры (Task 4)', () => {
     expect(p.get('floor_min')).toBe('2');
     expect(p.get('not_first_floor')).toBe('true');
     expect(p.get('year_min')).toBe('2010');
-    expect(p.get('listing_source')).toBe('OWNER');
+    expect(p.getAll('listing_source')).toEqual(['OWNER', 'AGENCY']);
     expect(p.get('tours_enabled')).toBe('true');
+  });
+
+  it('newConstruction → new_construction=true; отсутствие — параметра нет', () => {
+    expect(buildSearchParams({ newConstruction: true }, 24).get('new_construction')).toBe('true');
+    expect(buildSearchParams({}, 24).has('new_construction')).toBe(false);
   });
 });

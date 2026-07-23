@@ -33,6 +33,7 @@ import { totalPages } from '@/store/api/adminApi';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import { detailToAdminListing, rowToModerationItem } from '@/lib/adapters/listings';
 import { ROLE_LABEL } from '@/lib/adapters/users';
+import { translationResultToast } from '@/lib/translations';
 import type { UserStatus } from '@/store/api/authApi';
 import type {
   AdminListingOwner,
@@ -202,10 +203,14 @@ export default function ModerationPage() {
   const [generate, { isLoading: isGenerating }] = useGenerateTranslationsMutation();
   const [saveTr, { isLoading: isSavingTr }] = useUpdateTranslationMutation();
   const presentLangs = new Set((tr?.translations ?? []).map((t) => t.language));
-  // APPROVE недоступен пока нет всех языков (дублирует серверный гейт 422).
+  // APPROVE гейтится предупреждением пока нет всех языков (дублирует серверный гейт 422).
   const translationsComplete = REQUIRED_LANGS.every((l) => presentLangs.has(l));
 
   const act = async (id: string, action: ModerationAction) => {
+    if (action === 'APPROVE' && !translationsComplete) {
+      toast('Сначала сгенерируйте переводы на все языки');
+      return;
+    }
     if (action === 'REJECT' && !reason) {
       toast('Выберите причину отклонения');
       return;
@@ -252,7 +257,7 @@ export default function ModerationPage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={m.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </div>
-                  <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div><div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{m.tx}</div><StatusPill status="PENDING" /></div>
+                  <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600, fontSize: 13.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{m.address ?? m.tx}</div>{m.address && <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{m.tx}</div>}<StatusPill status="PENDING" /></div>
                 </button>
               ))}
             </div>
@@ -270,7 +275,7 @@ export default function ModerationPage() {
                 ) : detailFetching ? (
                   <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>Загрузка деталей…</div>
                 ) : null}
-                <h2 style={{ fontSize: 22 }}>{detailModel?.title ?? sel.title}</h2>
+                <h2 style={{ fontSize: 22 }}>{full?.address ?? sel.address ?? DASH}</h2>
                 <div style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>{detailModel?.price ?? sel.price}</div>
                 <div className="row gap-12 muted" style={{ fontSize: 14, marginTop: 8, flexWrap: 'wrap' }}>
                   <span>{detailModel?.type ?? sel.type}</span>
@@ -307,18 +312,31 @@ export default function ModerationPage() {
                 </div>
 
                 <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
-                  <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4, gap: 8, flexWrap: 'wrap' }}>
                     <h3 style={{ fontSize: 15 }}>Переводы</h3>
-                    <button
-                      className="abtn abtn-outline abtn-sm"
-                      disabled={isGenerating}
-                      onClick={async () => {
-                        try { await generate(sel.id).unwrap(); toast('Переводы сгенерированы'); }
-                        catch { toast('Не удалось сгенерировать переводы'); }
-                      }}
-                    >
-                      {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
-                    </button>
+                    <div className="row gap-8">
+                      <button
+                        className="abtn abtn-outline abtn-sm"
+                        disabled={isGenerating}
+                        onClick={async () => {
+                          try { toast(translationResultToast(await generate({ id: sel.id }).unwrap())); }
+                          catch { toast('Не удалось сгенерировать переводы'); }
+                        }}
+                      >
+                        {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
+                      </button>
+                      <button
+                        className="abtn abtn-outline abtn-sm"
+                        disabled={isGenerating}
+                        onClick={async () => {
+                          if (!window.confirm('Перевести заново все языки? Правки, внесённые вручную, будут перезаписаны машинным переводом.')) return;
+                          try { toast(translationResultToast(await generate({ id: sel.id, force: true }).unwrap(), { forced: true })); }
+                          catch { toast('Не удалось сгенерировать переводы'); }
+                        }}
+                      >
+                        Перевести заново
+                      </button>
+                    </div>
                   </div>
                   {(tr?.translations ?? []).map((t) => (
                     <TranslationRow
@@ -345,8 +363,13 @@ export default function ModerationPage() {
                     <option value="">— выберите причину —</option>
                     {sel.reasonOptions.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
+                  {!translationsComplete && (
+                    <div className="row gap-8" style={{ background: 'var(--warn-bg)', color: 'var(--warn)', borderRadius: 10, padding: '10px 13px', fontSize: 13.5, fontWeight: 600, marginBottom: 12, alignItems: 'center' }}>
+                      <IC.Alert size={16} style={{ flexShrink: 0 }} /> Перед публикацией сгенерируйте переводы на все языки (UZ, RU, EN)
+                    </div>
+                  )}
                   <div className="row gap-10">
-                    <button className="abtn abtn-ok" style={{ flex: 1 }} disabled={isActing || !translationsComplete} title={translationsComplete ? undefined : 'Сначала сгенерируйте переводы на все языки'} onClick={() => act(sel.id, 'APPROVE')}><IC.Check size={18} /> Одобрить</button>
+                    <button className="abtn abtn-ok" style={{ flex: 1 }} disabled={isActing} onClick={() => act(sel.id, 'APPROVE')}><IC.Check size={18} /> Одобрить</button>
                     <button className="abtn abtn-danger" style={{ flex: 1 }} disabled={isActing} onClick={() => act(sel.id, 'REJECT')}><IC.X size={18} /> Отклонить</button>
                   </div>
                   <div className="row gap-10" style={{ marginTop: 10 }}>

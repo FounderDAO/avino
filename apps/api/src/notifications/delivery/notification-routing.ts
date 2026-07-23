@@ -34,6 +34,9 @@ export const notificationRouting: Record<
     NotificationChannel.PUSH,
   ],
 
+  // Решение по заявке «Стать агентом» (ADR-0140): только in-app лента.
+  [NotificationType.AGENT_APPLICATION_RESOLVED]: [NotificationChannel.IN_APP],
+
   // Смена статуса модерации → email + push.
   [NotificationType.LISTING_MODERATION_STATUS_CHANGED]: [
     NotificationChannel.IN_APP,

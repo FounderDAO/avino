@@ -8,6 +8,7 @@ import { SectionTitle } from '@/components/admin/ui/section-title';
 import { TelegramNotificationsToggle } from '@/components/admin/TelegramNotificationsToggle';
 import { SmsSendingToggle } from '@/components/admin/SmsSendingToggle';
 import { PromotionsAvailabilityToggle } from '@/components/admin/PromotionsAvailabilityToggle';
+import { ActiveListingLimitControl } from '@/components/admin/ActiveListingLimitControl';
 import { MapHoverRecenterToggle } from '@/components/admin/MapHoverRecenterToggle';
 import { LegalConsentRequiredToggle } from '@/components/admin/LegalConsentRequiredToggle';
 import { ExchangeRatePanel } from '@/components/admin/ExchangeRatePanel';
@@ -17,11 +18,16 @@ export default function SettingsPage() {
   return (
     <div>
       <SectionTitle sub="Конфигурация платформы">Настройки</SectionTitle>
-      <TelegramNotificationsToggle />
-      <SmsSendingToggle />
-      <NotificationsSendingToggle />
-      <PromotionsAvailabilityToggle />
-      <MapHoverRecenterToggle />
+      {/* Тумблеры каналов/флагов — сетка 2 колонки (switch ON/OFF). */}
+      <div className="settings-grid">
+        <TelegramNotificationsToggle />
+        <SmsSendingToggle />
+        <NotificationsSendingToggle />
+        <PromotionsAvailabilityToggle />
+        <MapHoverRecenterToggle />
+      </div>
+      {/* Контролы с вводом (лимит, версия документов, курс) — во всю ширину. */}
+      <ActiveListingLimitControl />
       <LegalConsentRequiredToggle />
       <ExchangeRatePanel />
     </div>

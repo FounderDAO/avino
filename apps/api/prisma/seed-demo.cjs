@@ -178,7 +178,7 @@ async function main() {
   await upsertListing(
     3, O1,
     {
-      transactionType: 'SALE', propertyType: 'NEW_BUILDING', status: 'ACTIVE',
+      transactionType: 'SALE', propertyType: 'APARTMENT', status: 'ACTIVE',
       price: '95000.00', currency: 'USD', area: '78.00', rooms: 2,
       floor: 11, totalFloors: 16, yearBuilt: 2024,
       address: 'Ташкент, Мирабад, ЖК «Nest One»', districtId: D.mirobod,
