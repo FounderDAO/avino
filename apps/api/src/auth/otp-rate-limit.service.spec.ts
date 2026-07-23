@@ -134,7 +134,7 @@ describe('OtpRateLimitService.startCooldown — прогрессивная ле�
     return { svc: new OtpRateLimitService(redis, config), redis };
   }
 
-  it('первый запрос в окне → базовый cooldown 60с и TTL окна 24ч', async () => {
+  it('первый запрос в окне → базовый cooldown 60с и TTL окна 15 мин', async () => {
     const { svc, redis } = makeSvc(1);
     await expect(
       svc.startCooldown(OtpChannel.SMS, '+998901234567'),
@@ -142,7 +142,7 @@ describe('OtpRateLimitService.startCooldown — прогрессивная ле�
     expect(redis.incr).toHaveBeenCalledWith('otp:req:SMS:+998901234567');
     expect(redis.expire).toHaveBeenCalledWith(
       'otp:req:SMS:+998901234567',
-      86_400,
+      900,
     );
     expect(redis.set).toHaveBeenCalledWith(
       'otp:cooldown:SMS:+998901234567',
@@ -152,19 +152,16 @@ describe('OtpRateLimitService.startCooldown — прогрессивная ле�
     );
   });
 
-  it('лестница: 2-й → 120с, 3-й → 300с, 4-й и далее → 600с', async () => {
+  it('лестница: 2-й → 120с, 3-й и далее → 120с (потолок 2 мин)', async () => {
     await expect(
       makeSvc(2).svc.startCooldown(OtpChannel.SMS, '+998901234567'),
     ).resolves.toBe(120);
     await expect(
       makeSvc(3).svc.startCooldown(OtpChannel.SMS, '+998901234567'),
-    ).resolves.toBe(300);
-    await expect(
-      makeSvc(4).svc.startCooldown(OtpChannel.SMS, '+998901234567'),
-    ).resolves.toBe(600);
+    ).resolves.toBe(120);
     await expect(
       makeSvc(9).svc.startCooldown(OtpChannel.SMS, '+998901234567'),
-    ).resolves.toBe(600);
+    ).resolves.toBe(120);
   });
 
   it('не первый запрос в окне — TTL окна не переустанавливается', async () => {
@@ -174,11 +171,11 @@ describe('OtpRateLimitService.startCooldown — прогрессивная ле�
   });
 });
 
-describe('OtpRateLimitService.assertCanRequest — суточный кап', () => {
+describe('OtpRateLimitService.assertCanRequest — канальный кап', () => {
   function makeSvc(reqCount: string | null) {
     const redis: any = {
       // 1-й вызов ttl — cooldown-ключа нет (-2); 2-й — TTL счётчика для текста ошибки.
-      ttl: jest.fn().mockResolvedValueOnce(-2).mockResolvedValue(3600),
+      ttl: jest.fn().mockResolvedValueOnce(-2).mockResolvedValue(900),
       get: jest.fn().mockResolvedValue(reqCount),
       incr: jest.fn().mockResolvedValue(1),
       expire: jest.fn().mockResolvedValue(1),
@@ -205,9 +202,9 @@ describe('OtpRateLimitService.assertCanRequest — суточный кап', () 
     ).resolves.toBeUndefined();
   });
 
-  it('пропускает при count < 5', async () => {
+  it('SMS: пропускает при count < 6', async () => {
     await expect(
-      makeSvc('4').assertCanRequest(
+      makeSvc('5').assertCanRequest(
         OtpChannel.SMS,
         '+998901234567',
         '1.2.3.4',
@@ -215,10 +212,29 @@ describe('OtpRateLimitService.assertCanRequest — суточный кап', () 
     ).resolves.toBeUndefined();
   });
 
-  it('бросает 429 при count >= 5', async () => {
-    const svc = makeSvc('5');
+  it('SMS: бросает 429 при count >= 6', async () => {
     await expect(
-      svc.assertCanRequest(OtpChannel.SMS, '+998901234567', '1.2.3.4'),
+      makeSvc('6').assertCanRequest(OtpChannel.SMS, '+998901234567', '1.2.3.4'),
+    ).rejects.toBeInstanceOf(HttpException);
+  });
+
+  it('EMAIL: пропускает при count < 10 (мягче SMS)', async () => {
+    await expect(
+      makeSvc('9').assertCanRequest(
+        OtpChannel.EMAIL,
+        'user@example.com',
+        '1.2.3.4',
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it('EMAIL: бросает 429 при count >= 10', async () => {
+    await expect(
+      makeSvc('10').assertCanRequest(
+        OtpChannel.EMAIL,
+        'user@example.com',
+        '1.2.3.4',
+      ),
     ).rejects.toBeInstanceOf(HttpException);
   });
 });
