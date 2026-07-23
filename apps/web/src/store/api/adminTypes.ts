@@ -806,3 +806,29 @@ export interface OtpLogFilters {
   page?: number;
   limit?: number;
 }
+
+/** Запись журнала согласий с юр-документами (`GET /admin/legal-consents`). */
+export interface LegalConsent {
+  id: string;
+  user_id: string;
+  user_name: string | null;
+  user_contact: string | null;
+  version: number;
+  accepted_at: string;
+}
+
+export interface LegalConsentFilters {
+  search?: string;
+  version?: number;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
+/** Сводка версии согласия (`GET /admin/legal-consents/versions`). */
+export interface LegalConsentVersionSummary {
+  version: number;
+  effective_at: string | null;
+  count: number;
+}
