@@ -1246,6 +1246,24 @@
         "text": "Yangi xabar yoki bildirishnoma kelganda signal chalinsin"
       }
     },
+    "deleteAccount": {
+      "sectionTitle": "Akkauntni o‘chirish",
+      "sectionText": "Akkaunt va unga bog‘liq barcha ma’lumotlar tiklab bo‘lmaydigan tarzda o‘chiriladi.",
+      "button": "Akkauntni o‘chirish",
+      "modalTitle": "Akkaunt o‘chirilsinmi?",
+      "warningIntro": "Bu amalni ortga qaytarib bo‘lmaydi. Butunlay o‘chiriladi:",
+      "bulletListings": "barcha e’lonlaringiz",
+      "bulletFavorites": "sevimlilar va saqlangan qidiruvlar",
+      "bulletChats": "yozishmalar va ko‘rish so‘rovlari",
+      "warningReregister": "Keyinchalik shu raqam bilan ro‘yxatdan o‘tsangiz, eski ma’lumotlar tiklanmaydi — bu yangi bo‘sh akkaunt bo‘ladi.",
+      "confirmLabel": "Tasdiqlash uchun «УДАЛИТЬ» so‘zini kiriting",
+      "confirmWord": "УДАЛИТЬ",
+      "confirmPlaceholder": "УДАЛИТЬ",
+      "cancel": "Bekor qilish",
+      "confirmButton": "Butunlay o‘chirish",
+      "error": "Akkauntni o‘chirib bo‘lmadi. Qayta urinib ko‘ring.",
+      "success": "Akkaunt o‘chirildi"
+    },
     "devices": {
       "title": "Mening qurilmalarim",
       "subtitle": "Hisobingizning faol sessiyalari. Notanish qurilma bo'lsa, sessiyani yakunlang.",
