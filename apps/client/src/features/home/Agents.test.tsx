@@ -92,9 +92,11 @@ describe('Agents (блок «Агенты» на главной, реальны�
     expect(seeAll).toHaveAttribute('href', '/agents');
   });
 
-  it('показаны все агенты → ссылки на каталог нет (вести некуда)', () => {
+  it('показаны все агенты → ссылка на каталог всё равно есть (единственный вход в /agents)', () => {
     renderAgents({ agents: AGENTS, total: AGENTS.length });
-    expect(screen.queryByRole('link', { name: /Все агенты/ })).not.toBeInTheDocument();
+
+    const seeAll = screen.getByRole('link', { name: /Все агенты \(2\)/ });
+    expect(seeAll).toHaveAttribute('href', '/agents');
   });
 
   it('пустой список агентов → блок не рендерится', () => {
