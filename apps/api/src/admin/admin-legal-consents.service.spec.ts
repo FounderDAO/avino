@@ -96,4 +96,26 @@ describe('AdminLegalConsentsService', () => {
     expect(args.take).toBe(50);
     expect(args.orderBy).toEqual([{ acceptedAt: 'desc' }, { id: 'desc' }]);
   });
+
+  it('listVersions: count из groupBy + effective_at из аудита, null для v1', async () => {
+    prisma.legalConsent.groupBy.mockResolvedValue([
+      { version: 1, _count: { _all: 10 } },
+      { version: 2, _count: { _all: 3 } },
+    ]);
+    prisma.auditLog.findMany.mockResolvedValue([
+      {
+        metadata: { version: 2 },
+        createdAt: new Date('2026-07-21T09:00:00Z'),
+      },
+    ]);
+
+    const res = await service.listVersions();
+
+    expect(res).toEqual([
+      { version: 2, effective_at: '2026-07-21T09:00:00.000Z', count: 3 },
+      { version: 1, effective_at: null, count: 10 },
+    ]);
+    const auditArgs = prisma.auditLog.findMany.mock.calls[0][0];
+    expect(auditArgs.where).toEqual({ action: 'LEGAL_CONSENT_VERSION_UPDATE' });
+  });
 });

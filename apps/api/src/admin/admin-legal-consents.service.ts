@@ -14,6 +14,14 @@ export interface LegalConsentItem {
   accepted_at: string;
 }
 
+/** Сводка по версии согласия — для фильтра и справочной панели. */
+export interface LegalConsentVersionSummary {
+  version: number;
+  /** Дата введения версии (из аудита LEGAL_CONSENT_VERSION_UPDATE); null для базовой v1. */
+  effective_at: string | null;
+  count: number;
+}
+
 /** Дефолты пагинации админ-списка (API.md §4). */
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -91,6 +99,44 @@ export class AdminLegalConsentsService {
       data: rows.map((r) => this.toItem(r)),
       meta: { page, limit, total },
     };
+  }
+
+  /**
+   * `GET /api/v1/admin/legal-consents/versions` — версии, встречающиеся в
+   * согласиях, с числом согласий и датой введения. Версия — app-wide счётчик
+   * (+1 при публикации с галочкой), не связана FK с legal_documents; дата
+   * введения = createdAt свежайшего аудита LEGAL_CONSENT_VERSION_UPDATE с
+   * metadata.version = N. v1 (env-дефолт, без аудита) → effective_at = null.
+   */
+  async listVersions(): Promise<LegalConsentVersionSummary[]> {
+    const [groups, audits] = await Promise.all([
+      this.prisma.legalConsent.groupBy({
+        by: ['version'],
+        _count: { _all: true },
+      }),
+      this.prisma.auditLog.findMany({
+        where: { action: 'LEGAL_CONSENT_VERSION_UPDATE' },
+        select: { metadata: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    // version → дата введения (свежайшая среди дублей; их не должно быть).
+    const effective = new Map<number, Date>();
+    for (const a of audits) {
+      const v = (a.metadata as { version?: number } | null)?.version;
+      if (typeof v === 'number' && !effective.has(v)) {
+        effective.set(v, a.createdAt);
+      }
+    }
+
+    return groups
+      .map((g) => ({
+        version: g.version,
+        effective_at: effective.get(g.version)?.toISOString() ?? null,
+        count: g._count._all,
+      }))
+      .sort((a, b) => b.version - a.version);
   }
 
   private toItem(row: ConsentRow): LegalConsentItem {
