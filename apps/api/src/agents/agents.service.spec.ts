@@ -154,6 +154,75 @@ describe('AgentsService', () => {
       expect(res.active_listings_count).toBe(3);
     });
 
+    it('phone = verified contact_phone, email = account email (ADR-0155)', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        ...AGENT_A,
+        phone: '+998901111111',
+        email: 'agent@avino.uz',
+        profile: {
+          ...AGENT_A.profile,
+          contactPhone: '+998902222222',
+          contactPhoneVerified: true,
+        },
+      });
+      prisma.listing.groupBy.mockResolvedValue([]);
+
+      const res = await service.getById(AGENT_A.id);
+
+      expect(res.phone).toBe('+998902222222');
+      expect(res.email).toBe('agent@avino.uz');
+    });
+
+    it('phone falls back to the account phone when contact_phone is not verified', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        ...AGENT_A,
+        phone: '+998901111111',
+        email: null,
+        profile: {
+          ...AGENT_A.profile,
+          contactPhone: '+998902222222',
+          contactPhoneVerified: false,
+        },
+      });
+      prisma.listing.groupBy.mockResolvedValue([]);
+
+      const res = await service.getById(AGENT_A.id);
+
+      expect(res.phone).toBe('+998901111111');
+      expect(res.email).toBeNull();
+    });
+
+    it('phone/email = null when the agent has neither', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        ...AGENT_A,
+        phone: null,
+        email: null,
+        profile: {
+          ...AGENT_A.profile,
+          contactPhone: null,
+          contactPhoneVerified: false,
+        },
+      });
+      prisma.listing.groupBy.mockResolvedValue([]);
+
+      const res = await service.getById(AGENT_A.id);
+
+      expect(res.phone).toBeNull();
+      expect(res.email).toBeNull();
+    });
+
+    it('list never exposes contacts — only the profile does (ADR-0155)', async () => {
+      prisma.user.findMany.mockResolvedValue([
+        { ...AGENT_A, phone: '+998901111111', email: 'agent@avino.uz' },
+      ]);
+      prisma.listing.groupBy.mockResolvedValue([]);
+
+      const res = await service.list({});
+
+      expect(res.data[0]).not.toHaveProperty('phone');
+      expect(res.data[0]).not.toHaveProperty('email');
+    });
+
     it('404 for a user without AGENT/AGENCY role', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
 

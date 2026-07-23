@@ -13,7 +13,7 @@ import { UploadsService } from '../uploads';
 import { resolveAvatarUrl } from '../users/avatar-url.util';
 import { ListAgentsQueryDto } from './dto/list-agents.dto';
 
-/** Публичная карточка агента (ADR-0140, API.md §21). */
+/** Публичная карточка агента в списке (ADR-0140, API.md §21). */
 export interface AgentResponse {
   id: string;
   name: string | null;
@@ -21,6 +21,17 @@ export interface AgentResponse {
   agency_name: string | null;
   about: string | null;
   active_listings_count: number;
+}
+
+/**
+ * Публичный профиль агента `GET /agents/:id` — карточка списка + контакты
+ * (ADR-0155). Контакты живут ТОЛЬКО в профиле и сознательно не добавлены в
+ * `AgentResponse`: список отдаётся страницами по 100, и одного запроса хватило
+ * бы, чтобы выгрузить телефоны/почты всех агентов сразу.
+ */
+export interface AgentProfileResponse extends AgentResponse {
+  phone: string | null;
+  email: string | null;
 }
 
 const DEFAULT_PAGE = 1;
@@ -49,6 +60,28 @@ const AGENT_SELECT = {
 } as const;
 
 type AgentRow = Prisma.UserGetPayload<{ select: typeof AGENT_SELECT }>;
+
+/**
+ * Профиль + контакты (ADR-0155). Отдельный select, а не расширение
+ * AGENT_SELECT: списку контакты не нужны, и тянуть их на 100 строк ради
+ * полей, которые не попадут в ответ, незачем.
+ */
+const AGENT_PROFILE_SELECT = {
+  ...AGENT_SELECT,
+  phone: true,
+  email: true,
+  profile: {
+    select: {
+      ...AGENT_SELECT.profile.select,
+      contactPhone: true,
+      contactPhoneVerified: true,
+    },
+  },
+} as const;
+
+type AgentProfileRow = Prisma.UserGetPayload<{
+  select: typeof AGENT_PROFILE_SELECT;
+}>;
 
 /**
  * AgentsService — публичный каталог агентов (ADR-0140, API.md §21).
@@ -92,11 +125,11 @@ export class AgentsService {
     };
   }
 
-  /** `GET /api/v1/agents/:id` — профиль агента; не-агент → 404. */
-  async getById(id: string): Promise<AgentResponse> {
+  /** `GET /api/v1/agents/:id` — профиль агента с контактами; не-агент → 404. */
+  async getById(id: string): Promise<AgentProfileResponse> {
     const row = await this.prisma.user.findFirst({
       where: { id, ...this.agentWhere() },
-      select: AGENT_SELECT,
+      select: AGENT_PROFILE_SELECT,
     });
     if (!row) {
       throw new NotFoundException({
@@ -105,7 +138,17 @@ export class AgentsService {
       });
     }
     const counts = await this.activeCounts([row.id]);
-    return this.toResponse(row, counts.get(row.id) ?? 0);
+    return {
+      ...(await this.toResponse(row, counts.get(row.id) ?? 0)),
+      // Тот же публичный телефон, что в контакте объявления
+      // (ListingsService.buildContact): подтверждённый contact_phone, иначе
+      // телефон аккаунта.
+      phone:
+        row.profile?.contactPhoneVerified && row.profile.contactPhone
+          ? row.profile.contactPhone
+          : (row.phone ?? null),
+      email: row.email ?? null,
+    };
   }
 
   private agentWhere(): Prisma.UserWhereInput {
