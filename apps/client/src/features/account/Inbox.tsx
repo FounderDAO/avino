@@ -29,7 +29,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fieldClass } from '@/components/ui/field';
 import { PhotoImg } from '@/components/ui/photo-img';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { formatMoney, type T } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser, selectIsAuthenticated } from '@/store/slices/authSlice';
@@ -129,6 +129,8 @@ const useIsomorphicLayoutEffect =
 
 export function Inbox() {
   const format = useFormatter();
+  // Явный now против ENVIRONMENT_FALLBACK next-intl (см. Notifications.tsx).
+  const now = useNow({ updateInterval: 60_000 });
   const tUnits = useTranslations('units');
   const tAccount = useTranslations('account');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
@@ -391,7 +393,7 @@ export function Inbox() {
                       <b className="truncate text-[14.5px]">{threadTitle(t)}</b>
                       {t.last_message_at && (
                         <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">
-                          {format.relativeTime(new Date(t.last_message_at))}
+                          {format.relativeTime(new Date(t.last_message_at), now)}
                         </span>
                       )}
                     </span>
