@@ -30,6 +30,7 @@ import {
   FAVORITE_MENU_LINKS,
   contactLabel,
 } from './ProfileMenu';
+import { BecomeAgentButton } from './BecomeAgentButton';
 import { useLogout } from './useLogout';
 import { UnreadIndicators } from './UnreadIndicators';
 import { CountBadge } from '@/components/ui/count-badge';
@@ -203,6 +204,7 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
               {t('login')}
             </Button>
           )}
+          <BecomeAgentButton />
           <Button size="sm" asChild>
             <Link href="/sell">{t('postListing')}</Link>
           </Button>
@@ -261,6 +263,12 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
                 {t('postListingFull')}
               </Link>
             </Button>
+            <BecomeAgentButton
+              size="lg"
+              className="mt-3 w-full"
+              onClick={() => setMenu(false)}
+              withHintText
+            />
 
             <nav className="mt-4">
               {NAV_ITEMS.map((n) => (
