@@ -490,7 +490,11 @@
     "privateAgent": "Xususiy makler",
     "listingsCount": "{count, plural, other {# ta e'lon}}",
     "about": "O'zi haqida",
-    "empty": "Bu agentda hozircha faol e'lonlar yo'q"
+    "empty": "Bu agentda hozircha faol e'lonlar yo'q",
+    "contacts": {
+      "title": "Bog'lanish",
+      "showPhone": "Telefonni ko'rsatish"
+    }
   },
   "tourRequest": {
     "title": "Tur uchun ariza",

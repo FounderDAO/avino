@@ -11,15 +11,16 @@ import { useTranslations } from 'next-intl';
 import { User } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PropertyCard } from '@/features/search/PropertyCard';
-import type { Agent } from '@/lib/api/agents';
+import type { AgentWithContacts } from '@/lib/api/agents';
 import type { Listing } from '@/lib/mock/types';
+import { AgentContacts } from './AgentContacts';
 
 /** Первая буква имени для аватара-плейсхолдера (нет имени → null). */
 const initial = (name: string | null) =>
   name && name.trim() ? name.trim().charAt(0).toUpperCase() : null;
 
 export interface AgentProfileProps {
-  agent: Agent;
+  agent: AgentWithContacts;
   listings: Listing[];
 }
 
@@ -51,6 +52,11 @@ export function AgentProfile({ agent, listings }: AgentProfileProps) {
           </div>
         </div>
       </div>
+
+      {/* Контакты (ADR-0155) — блока нет, если у агента нет ни телефона, ни e-mail */}
+      {(agent.phone || agent.email) && (
+        <AgentContacts phone={agent.phone} email={agent.email} />
+      )}
 
       {/* О себе — только если заполнено */}
       {agent.about && (

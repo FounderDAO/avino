@@ -1,5 +1,12 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
-import { getAgentById, getAgents, mapAgent, type ApiAgent } from './agents';
+import {
+  getAgentById,
+  getAgents,
+  mapAgent,
+  mapAgentProfile,
+  type ApiAgent,
+  type ApiAgentProfile,
+} from './agents';
 
 const SAMPLE: ApiAgent = {
   id: 'u1',
@@ -8,6 +15,13 @@ const SAMPLE: ApiAgent = {
   agency_name: 'Ideal Estate',
   about: '10 лет на рынке недвижимости Ташкента',
   active_listings_count: 14,
+};
+
+/** Профиль `GET /agents/:id` = строка каталога + контакты (ADR-0155). */
+const SAMPLE_PROFILE: ApiAgentProfile = {
+  ...SAMPLE,
+  phone: '+998901234567',
+  email: 'agent@avino.uz',
 };
 
 describe('mapAgent', () => {
@@ -84,13 +98,27 @@ describe('getAgents', () => {
 describe('getAgentById', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('200 → мапит профиль агента', async () => {
+  it('200 → мапит профиль агента с контактами', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => SAMPLE_PROFILE })),
+    );
+    const out = await getAgentById('u1');
+    expect(out).toEqual(mapAgentProfile(SAMPLE_PROFILE));
+    expect(out?.phone).toBe('+998901234567');
+    expect(out?.email).toBe('agent@avino.uz');
+  });
+
+  it('API без контактов (до раската PR-1) → phone/email = null, не падает', async () => {
+    // Клиент раскатывается после API: пока полей нет в ответе, mapAgentProfile
+    // отдаёт null (`?? null`), а блок контактов на странице просто не рендерится.
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({ ok: true, status: 200, json: async () => SAMPLE })),
     );
     const out = await getAgentById('u1');
-    expect(out).toEqual(mapAgent(SAMPLE));
+    expect(out?.phone).toBeNull();
+    expect(out?.email).toBeNull();
   });
 
   it('404 → null', async () => {

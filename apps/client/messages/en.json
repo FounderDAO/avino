@@ -490,7 +490,11 @@
     "privateAgent": "Private agent",
     "listingsCount": "{count, plural, one {# listing} other {# listings}}",
     "about": "About",
-    "empty": "This agent has no active listings yet"
+    "empty": "This agent has no active listings yet",
+    "contacts": {
+      "title": "Get in touch",
+      "showPhone": "Show phone"
+    }
   },
   "tourRequest": {
     "title": "Request a tour",
