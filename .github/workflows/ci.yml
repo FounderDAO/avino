@@ -15,7 +15,7 @@ jobs:
     name: api (build + jest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Версия pnpm берётся из "packageManager" в package.json.
       - uses: pnpm/action-setup@v4
@@ -61,7 +61,7 @@ jobs:
     name: web + client (lint + build + test)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Версия pnpm берётся из "packageManager" в package.json.
       - uses: pnpm/action-setup@v4
@@ -111,7 +111,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://avino:avino@localhost:5432/avino?schema=public
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
 
