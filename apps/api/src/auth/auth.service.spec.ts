@@ -427,9 +427,12 @@ describe('AuthService.getMe', () => {
       },
       legal_consent: { accepted_version: null, accepted_at: null },
     });
-    // не отдаём DELETED-аккаунты по валидному токену
+    // не отдаём DELETED/BLOCKED-аккаунты по валидному токену (kick out)
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
-      where: { id: 'u1', status: { not: UserStatus.DELETED } },
+      where: {
+        id: 'u1',
+        status: { notIn: [UserStatus.DELETED, UserStatus.BLOCKED] },
+      },
       include: {
         profile: true,
         roles: { include: { role: true } },
