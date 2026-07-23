@@ -272,14 +272,28 @@ export interface ListingModerationLogEntry {
  * Строка админ-списка пользователей (`GET /admin/users`, §6).
  *
  * Зеркало `AdminUserListItem` (`apps/api/src/admin`): тот же базовый набор, что
- * и `users/me`, плюс верификация контактов и таймстемпы. Профиль в списке не
- * отдаётся — только в карточке ({@link AdminUserDetail}). `roles` — коды ролей
+ * и `users/me`, плюс верификация контактов и таймстемпы. Полного объекта
+ * `profile` в списке нет (только в карточке, {@link AdminUserDetail}), но есть
+ * плоские поля имени и `auth_type` для колонок списка. `roles` — коды ролей
  * (бэкенд отдаёт `string[]`; здесь сужаем до известного словаря).
  */
+/**
+ * Способ последнего входа пользователя (колонка «Вход»). Источник — аудит
+ * (`audit_logs`, зеркало `AuthType` в `apps/api/src/admin`). Нигде не хранится
+ * на `users`; `null` — входов ещё не было.
+ */
+export type AuthType = 'GOOGLE' | 'APPLE' | 'SMS' | 'EMAIL';
+
 export interface AdminUserRow {
   id: string;
   phone: string | null;
   email: string | null;
+  /** Имя/фамилия/отображаемое имя из профиля (плоские поля списка, могут быть null). */
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  /** Способ последнего входа (из аудита); `null` — входов ещё не было. */
+  auth_type: AuthType | null;
   status: UserStatus;
   default_language: Language;
   is_phone_verified: boolean;

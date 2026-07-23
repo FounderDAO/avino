@@ -15,14 +15,48 @@ import { ListAdminUsersQueryDto } from './dto/list-admin-users.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
 
 /**
- * Пользователь в админ-списке (snake_case контракт, API.md §6). Тот же набор
- * базовых полей, что и `users/me` ({@link UserMeResponse}), плюс таймстемпы —
- * но без профиля (профиль отдаётся только в карточке).
+ * Способ последней авторизации пользователя (колонка «Вход» админ-списка).
+ * Нигде не хранится на `users` (беспарольная OTP-модель, ADR-0010) — источник
+ * истины только `audit_logs(action='LOGIN')`: OAuth-провайдеры пишут
+ * `metadata.provider` (GOOGLE/APPLE), OTP-вход — `metadata.channel` (SMS/EMAIL).
+ */
+export type AuthType = 'GOOGLE' | 'APPLE' | 'SMS' | 'EMAIL';
+
+/**
+ * Метаданные LOGIN-аудита → {@link AuthType}. `null`, если запись без
+ * узнаваемого поля (старый формат/системное действие).
+ */
+function authTypeFromLoginMetadata(
+  metadata: Prisma.JsonValue | null,
+): AuthType | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return null;
+  }
+  const meta = metadata as Record<string, unknown>;
+  if (meta.provider === 'GOOGLE' || meta.provider === 'APPLE') {
+    return meta.provider;
+  }
+  if (meta.channel === 'SMS' || meta.channel === 'EMAIL') {
+    return meta.channel;
+  }
+  return null;
+}
+
+/**
+ * Пользователь в админ-списке (snake_case контракт, API.md §6). Базовые поля
+ * `users/me` ({@link UserMeResponse}) + таймстемпы, плоские поля имени из
+ * профиля (для колонки «Имя» без отдельного запроса карточки) и `auth_type`
+ * (способ последнего входа, из аудита). Полного объекта `profile` в списке нет.
  */
 export interface AdminUserListItem {
   id: string;
   phone: string | null;
   email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  /** Способ последнего входа (из `audit_logs`); `null` — входов ещё не было. */
+  auth_type: AuthType | null;
   status: UserStatus;
   default_language: Language;
   is_phone_verified: boolean;
@@ -56,6 +90,10 @@ const LIST_SELECT = {
   isEmailVerified: true,
   lastLoginAt: true,
   createdAt: true,
+  // Имя из профиля для колонки «Имя» списка (плоские поля, не полный profile).
+  profile: {
+    select: { firstName: true, lastName: true, displayName: true },
+  },
   roles: { select: { role: { select: { code: true } } } },
   // Счётчик объявлений (без DELETED) — filtered relation count (Prisma ≥4.16).
   _count: {
@@ -144,10 +182,41 @@ export class AdminUsersService {
       this.prisma.user.count({ where }),
     ]);
 
+    const authTypes = await this.resolveAuthTypes(rows.map((r) => r.id));
+
     return {
-      data: rows.map((row) => this.toListItem(row)),
+      data: rows.map((row) =>
+        this.toListItem(row, authTypes.get(row.id) ?? null),
+      ),
       meta: { page, limit, total },
     };
+  }
+
+  /**
+   * Способ последнего входа для набора пользователей — одним запросом
+   * `DISTINCT ON (actor_id)` по свежайшей LOGIN-записи аудита. Пустой набор id →
+   * пустая карта (без запроса). Пользователи без LOGIN-аудита в карту не
+   * попадают → `auth_type = null`.
+   */
+  private async resolveAuthTypes(
+    userIds: string[],
+  ): Promise<Map<string, AuthType>> {
+    if (userIds.length === 0) return new Map();
+    const rows = await this.prisma.$queryRaw<
+      { actor_id: string; metadata: Prisma.JsonValue }[]
+    >(Prisma.sql`
+      SELECT DISTINCT ON (actor_id) actor_id, metadata
+      FROM audit_logs
+      WHERE action = 'LOGIN'
+        AND actor_id = ANY(ARRAY[${Prisma.join(userIds)}]::uuid[])
+      ORDER BY actor_id, created_at DESC
+    `);
+    const map = new Map<string, AuthType>();
+    for (const row of rows) {
+      const authType = authTypeFromLoginMetadata(row.metadata);
+      if (authType) map.set(row.actor_id, authType);
+    }
+    return map;
   }
 
   /** `GET /api/v1/admin/users/:id` — карточка пользователя (404 если нет). */
@@ -159,7 +228,8 @@ export class AdminUsersService {
     if (!user) {
       throw this.notFound();
     }
-    return this.toDetail(user);
+    const authTypes = await this.resolveAuthTypes([userId]);
+    return this.toDetail(user, authTypes.get(userId) ?? null);
   }
 
   /**
@@ -209,7 +279,8 @@ export class AdminUsersService {
       return user;
     });
 
-    return this.toDetail(updated);
+    const authTypes = await this.resolveAuthTypes([userId]);
+    return this.toDetail(updated, authTypes.get(userId) ?? null);
   }
 
   /**
@@ -322,11 +393,18 @@ export class AdminUsersService {
     return record;
   }
 
-  private toListItem(row: AdminUserListRow): AdminUserListItem {
+  private toListItem(
+    row: AdminUserListRow,
+    authType: AuthType | null,
+  ): AdminUserListItem {
     return {
       id: row.id,
       phone: row.phone,
       email: row.email,
+      first_name: row.profile?.firstName ?? null,
+      last_name: row.profile?.lastName ?? null,
+      display_name: row.profile?.displayName ?? null,
+      auth_type: authType,
       status: row.status,
       default_language: row.defaultLanguage,
       is_phone_verified: row.isPhoneVerified,
@@ -338,9 +416,12 @@ export class AdminUsersService {
     };
   }
 
-  private toDetail(row: AdminUserDetailRow): AdminUserDetail {
+  private toDetail(
+    row: AdminUserDetailRow,
+    authType: AuthType | null,
+  ): AdminUserDetail {
     return {
-      ...this.toListItem(row),
+      ...this.toListItem(row, authType),
       updated_at: row.updatedAt.toISOString(),
       deleted_at: row.deletedAt?.toISOString() ?? null,
       profile: row.profile ? toProfileResponse(row.profile) : null,

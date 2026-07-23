@@ -63,6 +63,8 @@ describe('AdminUsersService', () => {
       },
       role: { findUnique: jest.fn() },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
+      // resolveAuthTypes: DISTINCT ON audit_logs — по умолчанию нет входов.
+      $queryRaw: jest.fn().mockResolvedValue([]),
       $transaction: jest.fn((arg: any) =>
         typeof arg === 'function' ? arg(prisma) : Promise.all(arg),
       ),
@@ -84,6 +86,10 @@ describe('AdminUsersService', () => {
     it('applies status/role/q filters and returns paginated snake_case items', async () => {
       prisma.user.findMany.mockResolvedValue([detailRow]);
       prisma.user.count.mockResolvedValue(1);
+      // Последний вход через Google → auth_type='GOOGLE'.
+      prisma.$queryRaw.mockResolvedValue([
+        { actor_id: USER_ID, metadata: { provider: 'GOOGLE' } },
+      ]);
 
       const result = await service.listUsers({
         status: UserStatus.ACTIVE,
@@ -109,8 +115,30 @@ describe('AdminUsersService', () => {
         is_email_verified: false,
         created_at: '2026-05-01T00:00:00.000Z',
         last_login_at: '2026-06-01T00:00:00.000Z',
+        // Плоские поля имени из профиля + способ входа из аудита.
+        first_name: 'Ali',
+        last_name: 'Valiev',
+        display_name: 'Ali V.',
+        auth_type: 'GOOGLE',
       });
       expect(result.data[0]).not.toHaveProperty('profile');
+    });
+
+    it('maps OTP channel to auth_type and null when no LOGIN audit', async () => {
+      prisma.user.count.mockResolvedValue(2);
+      prisma.user.findMany.mockResolvedValue([
+        { ...detailRow, id: 'sms-user' },
+        { ...detailRow, id: 'never-logged-in' },
+      ]);
+      // Только у первого есть LOGIN-аудит (SMS); второй — не в карте.
+      prisma.$queryRaw.mockResolvedValue([
+        { actor_id: 'sms-user', metadata: { channel: 'SMS' } },
+      ]);
+
+      const result = await service.listUsers({});
+
+      expect(result.data[0].auth_type).toBe('SMS');
+      expect(result.data[1].auth_type).toBeNull();
     });
 
     it('defaults page/limit and caps limit at 100', async () => {
