@@ -6,6 +6,9 @@
  *   2. l.promo === 'NORMAL' (объявление не продвинуто)
  *
  * Эти два кейса покрывают fail-safe: по умолчанию (флаг выкл.) кнопки нет.
+ *
+ * Плюс отдельный кейс: CTA «Стать агентом» рендерится в шапке вкладки (после
+ * переезда из шапки портала).
  */
 import * as React from 'react';
 import { describe, it, expect, vi } from 'vitest';
@@ -65,6 +68,12 @@ vi.mock('./ownerListingActions', () => ({
   ownerActionsFor: () => [],
 }));
 
+// Правило видимости CTA «Стать агентом» покрыто BecomeAgentButton.test.tsx —
+// здесь заглушка, чтобы проверить только сам факт его места в шапке вкладки.
+vi.mock('./BecomeAgentButton', () => ({
+  BecomeAgentButton: () => <div data-testid="become-agent-cta" />,
+}));
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (k: string) => k,
 }));
@@ -111,5 +120,17 @@ describe('MyListings — promote gate', () => {
 
     render(<MyListings />);
     expect(screen.getByText('myListings.promote')).toBeInTheDocument();
+  });
+});
+
+describe('MyListings — CTA «Стать агентом»', () => {
+  it('рендерится в шапке вкладки рядом с «Разместить объявление»', () => {
+    mockGetMyListings.mockReturnValue({
+      data: { items: [makeListingNormal()], total: 1 },
+      isLoading: false,
+    });
+
+    render(<MyListings />);
+    expect(screen.getByTestId('become-agent-cta')).toBeInTheDocument();
   });
 });
