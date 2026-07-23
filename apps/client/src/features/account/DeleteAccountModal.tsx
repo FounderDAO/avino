@@ -64,7 +64,7 @@ export function DeleteAccountModal({ open, onClose }: DeleteAccountModalProps) {
         <Dialog.Content className="fade-up fixed left-1/2 top-1/2 z-[81] w-[calc(100%-40px)] max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] bg-surface p-7 shadow-raised">
           <Dialog.Title className="text-xl font-extrabold text-red">{td('modalTitle')}</Dialog.Title>
 
-          <p className="mt-3 text-[14px] text-foreground">{td('warningIntro')}</p>
+          <Dialog.Description className="mt-3 text-[14px] text-foreground">{td('warningIntro')}</Dialog.Description>
           <ul className="mt-2 list-disc pl-5 text-[14px] text-muted-foreground">
             <li>{td('bulletListings')}</li>
             <li>{td('bulletFavorites')}</li>
@@ -75,8 +75,9 @@ export function DeleteAccountModal({ open, onClose }: DeleteAccountModalProps) {
           </p>
 
           <div className="mt-4">
-            <label className="mb-[7px] block text-[13px] font-bold">{td('confirmLabel')}</label>
+            <label htmlFor="delete-confirm-word" className="mb-[7px] block text-[13px] font-bold">{td('confirmLabel')}</label>
             <Field
+              id="delete-confirm-word"
               value={word}
               onChange={(e) => setWord(e.target.value)}
               placeholder={td('confirmPlaceholder')}
