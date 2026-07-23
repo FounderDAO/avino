@@ -46,6 +46,18 @@ function roleErrorText(code: string | null): string {
   }
 }
 
+/** Человекочитаемый текст по коду ошибки смены статуса API. */
+function statusErrorText(code: string | null): string {
+  switch (code) {
+    case 'CONTACT_TAKEN':
+      return 'Телефон или e-mail уже принадлежит другому активному аккаунту';
+    case 'NOT_FOUND':
+      return 'Пользователь не найден';
+    default:
+      return 'Не удалось обновить статус';
+  }
+}
+
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
@@ -79,8 +91,8 @@ export default function UserDetailPage() {
     try {
       await updateStatus({ id, body: { status, reason } }).unwrap();
       toast('Статус обновлён');
-    } catch {
-      toast('Не удалось обновить статус');
+    } catch (err) {
+      toast(statusErrorText(getApiErrorCode(err as FetchBaseQueryError | SerializedError)));
     }
   };
 
@@ -146,11 +158,20 @@ export default function UserDetailPage() {
         <div className="a-card" style={{ padding: 20 }}>
           <h3 style={{ fontSize: 15, marginBottom: 14 }}>Действия</h3>
           <div className="col gap-10">
-            <button className="abtn" disabled={statusBusy} style={{ width: '100%', background: user.status === 'active' ? 'var(--red-bg)' : 'var(--green-bg)', color: user.status === 'active' ? 'var(--red)' : 'var(--green)' }} onClick={() => (user.status === 'active' ? setReasonModalTarget('BLOCKED') : changeStatus('ACTIVE'))}>
-              {user.status === 'active' ? 'Заблокировать' : 'Разблокировать'}
-            </button>
-            <div style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} />
-            <button className="abtn abtn-danger" disabled={statusBusy} style={{ width: '100%' }} onClick={() => setReasonModalTarget('DELETED')}>Удалить аккаунт</button>
+            {user.status === 'deleted' ? (
+              /* Аккаунт удалён: «разблокировать» тут нечего — объявления уже сняты
+                 навсегда, а телефон/e-mail мог занять новый аккаунт (частичная
+                 уникальность контактов), поэтому возврат в ACTIVE упирается в 409. */
+              <p className="muted" style={{ fontSize: 13.5, margin: 0 }}>Аккаунт удалён — восстановление не поддерживается. Объявления сняты, а телефон и e-mail могли быть заняты новой регистрацией.</p>
+            ) : (
+              <>
+                <button className="abtn" disabled={statusBusy} style={{ width: '100%', background: user.status === 'active' ? 'var(--red-bg)' : 'var(--green-bg)', color: user.status === 'active' ? 'var(--red)' : 'var(--green)' }} onClick={() => (user.status === 'active' ? setReasonModalTarget('BLOCKED') : changeStatus('ACTIVE'))}>
+                  {user.status === 'active' ? 'Заблокировать' : 'Разблокировать'}
+                </button>
+                <div style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} />
+                <button className="abtn abtn-danger" disabled={statusBusy} style={{ width: '100%' }} onClick={() => setReasonModalTarget('DELETED')}>Удалить аккаунт</button>
+              </>
+            )}
           </div>
         </div>
       </div>
