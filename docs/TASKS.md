@@ -2575,6 +2575,351 @@ Dependencies:
 
 ---
 
+### TASK-252 — Live-verify realtime WebSocket на staging
+
+Status:
+
+```text
+TODO (после деплоя main c #378/#379 на staging)
+```
+
+Branch:
+
+```text
+нет (проверка без кода; фиксы — отдельными ветками)
+```
+
+Scope:
+
+```text
+Шаг 2 Task 12 плана docs/superpowers/plans/2026-07-08-realtime-websocket-delivery.md:
+два браузера (владелец + покупатель) на staging. Проверить: сообщение в чате
+доставляется мгновенно (без ожидания поллинга); заявка на тур мгновенно обновляет
+бейдж владельца; вкладка в фон → возврат → reconnect + gap-fill подтягивает
+пропущенное. Зафиксировать результат (скриншот/лог) в PR/DONE. Убедиться, что
+NEXT_PUBLIC_WS_URL (или фолбэк на NEXT_PUBLIC_API_BASE_URL) корректен в env
+staging и Caddy проксирует /socket.io/ без правок конфига.
+```
+
+Files expected:
+
+```text
+нет (при находках — отдельные fix-задачи)
+```
+
+Acceptance criteria:
+
+```text
+Доставка < 1 c в обоих сценариях (chat, tour); reconnect самозалечивается;
+поллинг при живом сокете реже (60 с) — виден в Network.
+```
+
+Dependencies:
+
+```text
+Деплой main (PR #378, #379) на staging
+```
+
+---
+
+## 22g. M20 — Production launch, Hetzner AX42 (2026-07-13)
+
+Источник: `docs/PROD.md` §8 (план миграции писался под CX53; арендован сразу
+dedicated AX42 — Ryzen 7 PRO 8700GE, 64 GB, 2×512 GB NVMe RAID1, Хельсинки).
+Разблокирует TASK-227 (SMTP → Яндекс, `GUIDE_YANDEX_SMTP_SETUP.md`), TASK-228
+(бэкапы) и TASK-230 (uptime-мониторинг) — их приёмка входит в чек-лист ниже.
+
+### TASK-254 — Запуск production на Hetzner AX42
+
+Status:
+
+```text
+IN_PROGRESS
+```
+
+Branch:
+
+```text
+нет (серверная работа; изменения в репо — отдельными ветками)
+```
+
+Scope:
+
+```text
+Поднять прод с нуля по docs/PROD.md §8 с поправками на dedicated:
+1. Robot: Rescue → installimage Ubuntu 24.04 LTS + RAID1 (2×512 NVMe), SSH-ключ,
+   пароли off.
+2. install-docker.sh → harden-server.sh (ufw 22/80/443).
+3. Cloudflare: A-записи avino.uz / api / admin → IP AX42, proxy ON, SSL Full
+   (strict) + Origin CA в Caddy; WAF-правило «Skip managed challenge» для
+   api.avino.uz (WS /rt); Bot Fight Mode не включать; Caddyfile —
+   stream_close_delay 12h для api.
+4. .env по deploy/prod.env.example: новые POSTGRES_PASSWORD, JWT_*, прод-DSN
+   Sentry ×3, R2-креды, Яндекс SMTP (TASK-227), прод-ключи Yandex Maps
+   (GUIDE_YANDEX_MAPS_PROD_SETUP.md); TELEGRAM_INCLUDE_OTP_CODE НЕ включать.
+   Копию .env — в менеджер секретов.
+5. ./deploy/deploy.sh (compute-limits.sh посчитает лимиты под 64 GB).
+6. Чистая БД + сид справочников регионов/районов (staging-сиды не переносить).
+7. Бэкапы (TASK-228): cron backup.sh + BACKUP_S3_BUCKET → дамп виден в R2,
+   тестовый pg_restore. На dedicated нет Cloud Backups/снапшотов — off-site
+   обязателен с первого дня.
+8. Uptime-мониторинг (TASK-230): 3 домена + /health, алерты в Telegram.
+9. Smoke из UZ: обход сайта, cf-cache-status, OTP-логин (SMS+email), гео-поиск,
+   WS /rt живёт >5 мин через Cloudflare, reconnect после рестарта api.
+10. Freeze staging-канала: cron/CI деплоят только staging; прод — вручную по тегу.
+```
+
+Files expected:
+
+```text
+.env (на сервере, не в git)
+docs/LOG.md (фиксация фактических шагов/значений)
+docs/adr/ADR-XXXX-prod-server-hetzner-ax42.md (отдельной веткой после запуска)
+```
+
+Acceptance criteria:
+
+```text
+Все 3 домена отвечают через Cloudflare с валидным TLS
+/api/v1/health зелёный; OTP-вход работает (SMS + email)
+Дампы появляются в R2; restore прогнан
+Мониторинг активен, тестовый алерт получен в Telegram
+TASK-227/228/230 закрываются этим запуском
+```
+
+Dependencies:
+
+```text
+Доступ к Hetzner Robot + SSH; креды Cloudflare, R2, Sentry, Яндекс (SMTP, Maps),
+Eskiz prod
+```
+
+---
+
+## 22h. Медиа — оптимизация загрузки фото (2026-07-20)
+
+Контекст: на проде объявление создалось, но все 12 фото не загрузились
+(«Failed to upload 12 photos»). Точный код ошибки достать не удалось — 4xx
+нигде не логируются (`all-exceptions.filter.ts:87` пишет только 5xx), доступа
+к прод-серверу на момент разбора не было. PR #417 закрыл сценарии 415/HEIC и
+413 клиентской валидацией + внятными сообщениями; задача ниже убирает саму
+причину 413 и попутно две смежные проблемы.
+
+Проверено при разборе: R2 на проде исправен, multipart доходит до Nest через
+Cloudflare/Caddy. iPhone при выборе из «Медиатеки» отдаёт JPEG (iOS сам
+перекодирует HEIC), поэтому HEIC бьёт в основном по загрузкам с десктопа.
+
+### TASK-255 — Клиентское сжатие фото перед загрузкой (+ EXIF/GPS strip)
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+feature/client-image-downscale
+```
+
+Scope:
+
+```text
+apps/client: пересжимать выбранные фото ПЕРЕД отправкой — canvas, максимальная
+сторона ~2560px, JPEG q≈0.85. Снимок с телефона 8 МБ → 400–800 КБ.
+
+Зачем именно так, а не поднять лимит 10 МБ на бэке:
+1. Серверной обработки медиа НЕТ — генерация thumbnail/web-варианта не
+   реализована (`listing-media.service.ts:94-98`, `thumbnail_url` всегда null).
+   Значит оригинал = то, что скачивает каждый посетитель каталога; при
+   SEARCH_PAGE_SIZE=60 поднятие лимита утяжелит выдачу на десятки МБ.
+2. FileInterceptor без `limits` буферизует файл целиком в памяти, контейнер
+   api ограничен mem_limit 2g (docker-compose.prod.yml:69) — больший лимит
+   повышает риск OOM на одновременных публикациях.
+3. Загрузка 12 фото с мобильного интернета UZ ускоряется в разы — это и была
+   исходная жалоба, только с другой стороны.
+4. Пересжатие через canvas вырезает EXIF, в том числе GPS. Сейчас стриппинг не
+   делается (`uploads.service.ts:34` — TODO на media_processing_queue), то есть
+   в опубликованных фото лежат точные координаты объекта, что обесценивает
+   privacy-радиус 500 м на карточке (ADR-0086 / PR #165).
+
+Лимит 10 МБ НЕ поднимать — после сжатия он становится страховочным.
+
+Ограничение: canvas не декодирует HEIC в Chrome (Safari умеет), поэтому
+клиентская валидация формата из PR #417 остаётся нужной — одно не заменяет
+другое. Приём HEIC как таковой = отдельная задача на серверную конвертацию
+(ImageMagick/libheif в образе api; у sharp из коробки HEIC-декодера обычно нет
+из-за патентных ограничений HEVC).
+```
+
+Files expected:
+
+```text
+apps/client/src/lib/image-downscale.ts (новый)
+apps/client/src/features/listing-new/PhotoUploader.tsx
+apps/client/src/lib/image-downscale.test.ts (новый)
+```
+
+Acceptance criteria:
+
+```text
+Фото >2560px по длинной стороне уменьшается; итоговый размер типового снимка
+с телефона < 1 МБ
+Публикация 12 фото с мобильного проходит целиком
+В загруженном файле нет EXIF-GPS (проверить exiftool на скачанном из R2 объекте)
+Ориентация фото не переворачивается (учесть EXIF Orientation при отрисовке)
+Клиентские тесты зелёные
+```
+
+Dependencies:
+
+```text
+PR #417 (валидация формата/размера) — смёржен
+```
+
+---
+
+## 22i. Безопасность — refresh-токен в httpOnly cookie (2026-07-22)
+
+Контекст: сейчас `access` живёт в памяти (ADR-0142), а `refresh` зеркалится в
+общий для вкладок `localStorage` (`apps/client` и `apps/web`). Это два дефекта:
+(1) XSS/сторонний скрипт может украсть refresh-токен — долгую сессию, что хуже
+кражи короткого access; (2) две вкладки, одновременно поймавшие 401, ротируют
+один и тот же токен → вторая предъявляет отработанный → `TOKEN_REUSED` → сервер
+отзывает всю session-family, устройство ловит каскад 401 + 429 (throttle
+`/auth/refresh` = 20/60s на IP). PR #447 закрыл (2) костылём Web Locks; данная
+задача убирает корень: refresh уезжает в httpOnly Secure cookie, сервер сам
+ротирует, JS-токена для гонки больше нет. Это первый мост к BFF-цели из плана
+security-hardening. Дизайн — ADR-0153.
+
+Жёсткое ограничение (CLAUDE.md §3): backend совместим с Flutter, а мобилка
+шлёт токены в теле/заголовке, НЕ в cookie. Поэтому API обязан поддерживать ОБА
+пути (cookie для web, body для mobile) — cookie только ДОБАВЛЯЕТСЯ, старый флоу
+не ломается.
+
+### TASK-256 — refresh-токен в httpOnly cookie (эпик, 3 PR)
+
+Status:
+
+```text
+TODO
+```
+
+Разбивка (одна app-папка = один PR, CLAUDE.md §5):
+
+```text
+PR-1 apps/api  (additive, backward-compatible; деплой ПЕРВЫМ)
+  - main.ts: подключить cookie-parser (читать req.cookies).
+  - configuration.ts: authCookie{Domain,Secure,MaxAgeSec} из env
+    (AUTH_COOKIE_DOMAIN=.avino.uz, prod Secure=true).
+  - auth.controller.ts: @Res({passthrough:true}); на verify/google/apple/refresh
+    → res.cookie('avino_rt', refresh, {httpOnly, secure, sameSite:'lax',
+      domain, path:'/api/v1/auth', maxAge}); на logout → res.clearCookie.
+  - refresh()/logout(): брать токен из req.cookies.avino_rt ?? dto.refresh_token
+    (RefreshTokenDto.refresh_token → optional; 400 если нет ни там, ни там).
+  - Мобильный body-флоу не меняется (dto по-прежнему принимается).
+  - Тесты: cookie ставится на логин; refresh работает по cookie без body;
+    logout чистит cookie; body-флоу (mobile) продолжает работать.
+
+PR-2 apps/client  (cutover; ТОЛЬКО после деплоя PR-1)
+  - authSlice: убрать зеркалирование refresh в localStorage; refresh больше не
+    хранится в JS (только в cookie). setCredentials перестаёт писать LS-refresh.
+  - baseQuery: /auth/refresh с credentials:'include', без refresh_token в теле;
+    убрать readPersistedRefreshToken из refresh-пути.
+  - SessionBootstrap/selectIsAuthenticated: «есть сессия» определять иначе
+    (cookie из JS не виден) — напр. пробный silent refresh при старте, статус
+    из результата. Продумать SSR-гидрацию.
+  - Web Locks (#447) оставить как defense-in-depth на переходный период.
+
+PR-3 apps/web  (аналогично PR-2 для админки; ADR-0045)
+```
+
+Files expected (PR-1):
+
+```text
+apps/api/src/main.ts
+apps/api/src/config/configuration.ts
+apps/api/src/auth/auth.controller.ts
+apps/api/src/auth/dto/refresh-token.dto.ts
+apps/api/src/auth/auth.controller.int-spec.ts (или spec)
+apps/api/.env.example
+docs/adr/ADR-0153-refresh-httponly-cookie.md
+```
+
+Acceptance criteria (PR-1):
+
+```text
+Логин (verify/google/apple) отдаёт Set-Cookie avino_rt: HttpOnly, Secure(prod),
+  SameSite=Lax, Domain=.avino.uz, Path=/api/v1/auth
+POST /auth/refresh без тела, но с cookie — ротирует и ставит новый cookie
+POST /auth/refresh с телом (mobile) — работает как раньше (обратная совместимость)
+POST /auth/logout по cookie — отзывает family и чистит cookie
+Нет cookie и нет тела → 400 VALIDATION_ERROR
+Тесты зелёные; openapi:export обновлён при изменении контракта
+```
+
+Dependencies / notes:
+
+```text
+ADR-0153 (дизайн, CSRF-обоснование: SameSite=Lax + POST-only refresh)
+Затрагивает auth flow → требует подтверждения Team Lead (CLAUDE.md §2/§13)
+PR-2/PR-3 нельзя мёржить раньше, чем PR-1 задеплоен на prod
+```
+
+---
+
+### TASK-257 — Контакты агента в публичном профиле /agents/:id (2 PR)
+
+Status:
+
+```text
+REVIEW
+```
+
+Профиль агента (ADR-0140) не показывал ни одного способа связаться: чтобы
+позвонить, приходилось открывать любое объявление этого агента и жать
+«Показать телефон» там. Контактов не было по всей вертикали — `AgentResponse`
+(API.md §21) их не содержал, клиентские типы зеркалили тот же набор,
+`AgentProfile.tsx` ничего не рендерил. Дизайн — ADR-0155.
+
+Разбивка (одна app-папка = один PR, CLAUDE.md §5):
+
+```text
+PR-1 apps/api  (additive; деплой ПЕРВЫМ)
+  - AgentProfileResponse extends AgentResponse { phone, email } — только для
+    GET /agents/:id; GET /agents остаётся без контактов (иначе один запрос
+    выгружает контактную базу всех агентов).
+  - AGENT_PROFILE_SELECT (отдельный select с phone/email/contactPhone*).
+  - phone по правилу ListingsService.buildContact: verified contact_phone →
+    телефон аккаунта → null.
+
+PR-2 apps/client  (ТОЛЬКО после деплоя PR-1)
+  - lib/api/agents.ts: AgentWithContacts + mapAgentProfile, getAgentById.
+  - features/agent/AgentContacts.tsx ('use client'): «Показать телефон» →
+    tel:, e-mail → mailto:. Блок скрыт, если контактов нет.
+  - i18n ru/uz/en, тесты.
+```
+
+Acceptance criteria:
+
+```text
+GET /agents/:id отдаёт phone/email; GET /agents — НЕ отдаёт (тест)
+Номер в профиле совпадает с номером в объявлениях того же агента
+Нет телефона → кнопки нет; нет e-mail → строки нет; нет обоих → блока нет
+Тесты apps/api (jest) и apps/client (vitest) зелёные
+```
+
+Dependencies / notes:
+
+```text
+ADR-0155 (дизайн; публикация e-mail — решение Team Lead 2026-07-23)
+Меняет публичный API-контракт → подтверждено Team Lead (CLAUDE.md §2)
+PR-2 нельзя мёржить раньше, чем PR-1 задеплоен
+```
+
+---
+
 ## 23. Priority execution order
 
 Claude should execute in this order:
