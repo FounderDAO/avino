@@ -397,6 +397,9 @@ MODERATOR | ADMIN` (`DB_SCHEMA` §3).
 ```json
 { "status": "BLOCKED", "reason": "spam" }
 ```
+409 `CONTACT_TAKEN` — возврат DELETED-аккаунта в живой статус, когда его
+phone/email уже занят другим не-удалённым пользователем (уникальность контактов
+частичная, ADR-0154).
 
 ### POST /api/v1/admin/users/:id/roles
 Назначить роль. Auth: **ADMIN**. `audit_logs(ROLE_CHANGE)`.
