@@ -124,6 +124,50 @@ export class UsersService {
   }
 
   /**
+   * `DELETE /api/v1/users/me` — самостоятельное удаление аккаунта (soft-delete,
+   * ADR-0013). В одной транзакции: помечает юзера DELETED (освобождает контакт
+   * для повторной регистрации — новый аккаунт, старые данные невозвратны),
+   * снимает все его объявления в DELETED, отзывает ВСЕ активные refresh-токены
+   * (разлогин на всех устройствах) и пишет аудит USER_SELF_DELETE.
+   */
+  async deleteMe(userId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findFirst({
+        where: { id: userId, status: { not: UserStatus.DELETED } },
+        select: { id: true },
+      });
+      if (!user) {
+        throw this.gone();
+      }
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { status: UserStatus.DELETED, deletedAt: new Date() },
+      });
+
+      const { count } = await tx.listing.updateMany({
+        where: { ownerId: userId, status: { not: UserStatus.DELETED } },
+        data: { status: UserStatus.DELETED },
+      });
+
+      await tx.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: userId,
+          action: 'USER_SELF_DELETE',
+          entityType: 'user',
+          entityId: userId,
+          metadata: { listings_taken_down: count },
+        },
+      });
+    });
+  }
+
+  /**
    * `POST /api/v1/users/me/avatar` — загрузка аватара (multipart, поле `file`,
    * TASK-248, ADR-0134). Валидирует MIME (allow-list) и размер — как
    * `ListingMediaService.uploadFile` — грузит в S3/R2 через
