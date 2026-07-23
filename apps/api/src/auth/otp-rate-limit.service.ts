@@ -7,13 +7,23 @@ import { RedisService } from '../redis';
 /**
  * Лестница cooldown между повторными запросами кода на один контакт:
  * множители базового `OTP_RESEND_COOLDOWN` по номеру запроса в rolling-окне.
- * 1-й → ×1 (60с), 2-й → ×2, 3-й → ×5, 4-й и далее → ×10.
+ * 1-й → ×1 (60с), 2-й и далее → ×2 (120с). Потолок — 2 минуты: раньше
+ * лестница уходила в 5/10 минут, что для обычного пользователя читалось как
+ * «система не даёт войти».
  */
-const RESEND_COOLDOWN_MULTIPLIERS = [1, 2, 5, 10] as const;
+const RESEND_COOLDOWN_MULTIPLIERS = [1, 2] as const;
 
-/** Суточный кап кодов на один контакт (rolling-окно от первого запроса). */
-const DAILY_REQUEST_CAP = 5;
-const DAILY_WINDOW_S = 86_400;
+/**
+ * Кап кодов на один контакт в rolling-окне {@link REQUEST_WINDOW_S}. Свой на
+ * канал: e-mail дешёв — даём больше; SMS бьёт по бюджету Eskiz — строже.
+ * Окно короткое (15 мин, не сутки), поэтому исчерпание капа больше не даёт
+ * ожидания «час и дольше»: счётчик восстанавливается максимум за окно.
+ */
+const REQUEST_CAP: Record<OtpChannel, number> = {
+  [OtpChannel.EMAIL]: 10,
+  [OtpChannel.SMS]: 6,
+};
+const REQUEST_WINDOW_S = 900;
 
 /**
  * Rate-limit запросов OTP (TASK-041, DB_SCHEMA §15, ARCHITECTURE §23).
@@ -21,8 +31,9 @@ const DAILY_WINDOW_S = 86_400;
  * Оси защиты, как требует контракт «per destination + per IP» (API.md §3):
  * - **per destination** — прогрессивный cooldown между запросами на один
  *   контакт (лестница {@link RESEND_COOLDOWN_MULTIPLIERS} от
- *   `OTP_RESEND_COOLDOWN`) + суточный кап {@link DAILY_REQUEST_CAP} кодов за
- *   rolling-24ч (ADR-0150): защищают номер/почту от SMS-bombing и бюджет SMS;
+ *   `OTP_RESEND_COOLDOWN`) + канальный кап {@link REQUEST_CAP} кодов за
+ *   rolling-окно {@link REQUEST_WINDOW_S} (ADR-0150): защищают номер/почту от
+ *   SMS-bombing и бюджет SMS;
  * - **per IP** — счётчик в фиксированном окне (`RATE_LIMIT_WINDOW` /
  *   `RATE_LIMIT_MAX`): защищает от перебора получателей с одного источника.
  *
@@ -54,14 +65,14 @@ export class OtpRateLimitService {
       );
     }
 
-    // Суточный кап на контакт (SMS-bombing + бюджет SMS): счётчик ведёт
+    // Канальный кап на контакт (SMS-bombing + бюджет SMS): счётчик ведёт
     // startCooldown; здесь только читаем. >= cap → 429 до истечения окна.
     const reqKey = this.requestCountKey(channel, destination);
     const reqCount = Number((await this.redis.get(reqKey)) ?? 0);
-    if (reqCount >= DAILY_REQUEST_CAP) {
+    if (reqCount >= REQUEST_CAP[channel]) {
       const ttl = await this.redis.ttl(reqKey);
       throw this.rateLimited(
-        `Daily code limit for this contact reached. Try again in ${ttl}s`,
+        `Code request limit for this contact reached. Try again in ${ttl}s`,
       );
     }
 
@@ -80,8 +91,8 @@ export class OtpRateLimitService {
   /**
    * Запустить cooldown на контакт после успешной постановки кода в доставку.
    * Длительность прогрессивная — ступень лестницы по номеру запроса в
-   * rolling-окне 24ч (счётчик и есть база суточного капа). Возвращает
-   * длительность cooldown (для `resend_after` в ответе API).
+   * rolling-окне {@link REQUEST_WINDOW_S} (счётчик и есть база канального
+   * капа). Возвращает длительность cooldown (для `resend_after` в ответе API).
    */
   async startCooldown(
     channel: OtpChannel,
@@ -89,11 +100,11 @@ export class OtpRateLimitService {
   ): Promise<number> {
     const base = this.configService.get<number>('otp.resendCooldown') ?? 60;
 
-    // Номер запроса в rolling-окне: INCR + TTL 24ч от первого запроса.
+    // Номер запроса в rolling-окне: INCR + TTL окна от первого запроса.
     const reqKey = this.requestCountKey(channel, destination);
     const count = await this.redis.incr(reqKey);
     if (count === 1) {
-      await this.redis.expire(reqKey, DAILY_WINDOW_S);
+      await this.redis.expire(reqKey, REQUEST_WINDOW_S);
     }
 
     const idx = Math.min(count - 1, RESEND_COOLDOWN_MULTIPLIERS.length - 1);
