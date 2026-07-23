@@ -35,6 +35,34 @@ done
 log() { printf '\033[1;34m▸ %s\033[0m\n' "$*"; }
 die() { printf '\033[1;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 
+# ── Telegram-уведомления о деплое (best-effort) ──────────────────────────────
+# Токен/чат берём из .env (TELEGRAM_BOT_TOKEN / TELEGRAM_ADMIN_CHAT_ID). Если их
+# нет или Telegram недоступен — тихо пропускаем: уведомление не должно ронять
+# деплой. Без parse_mode — спецсимволы в коммите не ломают отправку.
+env_val() { grep -E "^$1=" .env 2>/dev/null | tail -1 | cut -d= -f2- || true; }
+
+tg_notify() {
+  local token chat
+  token="$(env_val TELEGRAM_BOT_TOKEN)"
+  chat="$(env_val TELEGRAM_ADMIN_CHAT_ID)"
+  [[ -n "$token" && -n "$chat" ]] || return 0
+  curl -fsS --max-time 10 "https://api.telegram.org/bot${token}/sendMessage" \
+    -d chat_id="$chat" --data-urlencode "text=$1" >/dev/null 2>&1 || true
+}
+
+# Fail-уведомление через EXIT-trap: ловит и die (exit 1), и любой сбой под
+# set -e. Шлём только если старт уже анонсировали (иначе pre-flight-ошибки .env,
+# когда токена ещё нет, не порождают «FAILED» без «начался»).
+DEPLOY_START_SENT=0
+on_exit() {
+  local rc=$?
+  if [[ $rc -ne 0 && $DEPLOY_START_SENT -eq 1 ]]; then
+    tg_notify "❌ Avino: деплой FAILED (rc=$rc) — host $(hostname)"
+  fi
+  exit $rc
+}
+trap on_exit EXIT
+
 # ── 1. .env и обязательные переменные ────────────────────────────────────────
 [[ -f .env ]] || die ".env не найден. Скопируйте .env.example → .env и заполните (см. deploy/prod.env.example)."
 
@@ -46,6 +74,10 @@ for var in "${REQUIRED[@]}"; do
   [[ -n "$val" && "$val" != "__CHANGE_ME__" ]] || missing+=("$var")
 done
 [[ ${#missing[@]} -eq 0 ]] || die "В .env не заданы обязательные переменные: ${missing[*]}"
+
+# .env валиден — анонсируем старт (с этого момента активен fail-trap).
+DEPLOY_START_SENT=1
+tg_notify "🚀 Avino: деплой начался — host $(hostname), ref ${REF:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')}"
 
 # ── 2. Обновление кода ───────────────────────────────────────────────────────
 if [[ $DO_PULL -eq 1 ]]; then
@@ -91,3 +123,5 @@ log "Готово. Текущий статус:"
 "${COMPOSE[@]}" ps
 echo
 log "Открыто наружу (через Caddy): https://$(grep -E '^DOMAIN_CLIENT=' .env | cut -d= -f2-) | https://$(grep -E '^DOMAIN_ADMIN=' .env | cut -d= -f2-) | https://$(grep -E '^DOMAIN_API=' .env | cut -d= -f2-)"
+
+tg_notify "✅ Avino: деплой успешно завершён — host $(hostname), $(git rev-parse --short HEAD 2>/dev/null || echo '?') $(git log -1 --pretty=%s 2>/dev/null || true)"
