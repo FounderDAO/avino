@@ -4,7 +4,7 @@ import {
   HttpException,
   NotFoundException,
 } from '@nestjs/common';
-import { Language, ListingStatus, UserStatus } from '@prisma/client';
+import { Language, ListingStatus, Prisma, UserStatus } from '@prisma/client';
 import { UserRole } from '@avino/shared';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AdminUsersService } from './admin-users.service';
@@ -227,6 +227,30 @@ describe('AdminUsersService', () => {
 
       const updateArgs = prisma.user.update.mock.calls[0][0];
       expect(updateArgs.data.deletedAt).toBeNull();
+    });
+
+    it('maps unique-contact violation to 409 CONTACT_TAKEN instead of 500', async () => {
+      // Восстановление DELETED-аккаунта, чей телефон уже занят активным
+      // пользователем: partial-unique `uniq_users_phone_active` даёт P2002.
+      prisma.user.findUnique.mockResolvedValue({
+        id: USER_ID,
+        status: UserStatus.DELETED,
+      });
+      prisma.user.update.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError(
+          'Unique constraint failed on the fields: (`phone`)',
+          {
+            code: 'P2002',
+            clientVersion: '5.22.0',
+            meta: { target: ['phone'] },
+          },
+        ),
+      );
+
+      await expectCode(
+        service.updateStatus(ADMIN_ID, USER_ID, { status: UserStatus.ACTIVE }),
+        ApiErrorCode.CONTACT_TAKEN,
+      );
     });
 
     it('BLOCKED archives ACTIVE listings, revokes tokens and audits their ids', async () => {

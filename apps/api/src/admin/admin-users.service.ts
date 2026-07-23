@@ -265,6 +265,10 @@ export class AdminUsersService {
    * `deleted_at` следует инварианту «DELETED ⇒ установлен; иначе очищается».
    * `reason` (для block/delete) попадает в `metadata`. Каждая ветка пишет
    * `audit_logs(ADMIN_USER_UPDATE)` с обогащённым `metadata`.
+   *
+   * Возврат DELETED-аккаунта в живой статус может упереться в частичную
+   * уникальность контактов — тогда `409 CONTACT_TAKEN` (см.
+   * {@link mapContactConflict}), а не 500.
    */
   async updateStatus(
     adminId: string,
@@ -282,17 +286,22 @@ export class AdminUsersService {
     const reason = dto.reason ?? null;
     const oldStatus = existing.status;
 
-    const updated = await this.prisma.$transaction((tx) => {
-      switch (dto.status) {
-        case UserStatus.BLOCKED:
-          return this.applyBlock(tx, adminId, userId, oldStatus, reason);
-        case UserStatus.DELETED:
-          return this.applyDelete(tx, adminId, userId, oldStatus, reason);
-        case UserStatus.ACTIVE:
-        default:
-          return this.applyUnblock(tx, adminId, userId, oldStatus);
-      }
-    });
+    let updated: AdminUserDetailRow;
+    try {
+      updated = await this.prisma.$transaction((tx) => {
+        switch (dto.status) {
+          case UserStatus.BLOCKED:
+            return this.applyBlock(tx, adminId, userId, oldStatus, reason);
+          case UserStatus.DELETED:
+            return this.applyDelete(tx, adminId, userId, oldStatus, reason);
+          case UserStatus.ACTIVE:
+          default:
+            return this.applyUnblock(tx, adminId, userId, oldStatus);
+        }
+      });
+    } catch (error) {
+      throw this.mapContactConflict(error);
+    }
 
     const authTypes = await this.resolveAuthTypes([userId]);
     return this.toDetail(updated, authTypes.get(userId) ?? null);
@@ -544,6 +553,32 @@ export class AdminUsersService {
         },
       }),
     ]);
+  }
+
+  /**
+   * P2002 на `users` → `409 CONTACT_TAKEN` вместо 500. Возникает при возврате
+   * DELETED-аккаунта в не-DELETED статус, когда его phone/email уже занят живым
+   * пользователем: уникальность контактов частичная
+   * (`uniq_users_phone_active`/`uniq_users_email_active`, `WHERE status <>
+   * 'DELETED'`), поэтому пока строка удалена, дубль легален, а при воскрешении
+   * индекс срабатывает. Прочие ошибки пробрасываются как есть.
+   */
+  private mapContactConflict(error: unknown): unknown {
+    if (
+      !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+      error.code !== 'P2002'
+    ) {
+      return error;
+    }
+    const target = (error.meta as { target?: unknown } | undefined)?.target;
+    const fields = Array.isArray(target)
+      ? target.filter((f): f is string => typeof f === 'string')
+      : [];
+    const contact = fields.includes('email') ? 'Email' : 'Phone';
+    return new ConflictException({
+      code: ApiErrorCode.CONTACT_TAKEN,
+      message: `${contact} already belongs to another active account`,
+    });
   }
 
   /** Резолв кода роли в строку `roles`; неизвестная (напр. GUEST) → 400. */
