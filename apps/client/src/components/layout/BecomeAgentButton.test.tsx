@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 type QuotaResult = { data?: { used: number; limit: number; blocked: boolean } };
+type ApplicationResult = { data?: { status: string } | null };
 
 // Управляемое состояние стора для useAppSelector(<реальный селектор>).
 let mockState: {
@@ -18,8 +19,11 @@ let mockState: {
   };
 };
 let mockQuota: QuotaResult;
+let mockApplication: ApplicationResult;
 /** Аргументы последнего вызова useGetListingQuotaQuery (проверяем skip). */
 let quotaOptions: { skip?: boolean } | undefined;
+/** Аргументы последнего вызова useGetMyAgentApplicationQuery (проверяем skip). */
+let applicationOptions: { skip?: boolean } | undefined;
 
 vi.mock('next-intl', async () => {
   const ru = (await import('../../../messages/ru.json')).default as Record<
@@ -70,6 +74,16 @@ vi.mock('@/store/api/listingsQuotaApi', () => ({
   },
 }));
 
+vi.mock('@/store/api/agentApplicationsApi', () => ({
+  useGetMyAgentApplicationQuery: (
+    _arg: undefined,
+    options?: { skip?: boolean },
+  ) => {
+    applicationOptions = options;
+    return options?.skip ? {} : mockApplication;
+  },
+}));
+
 import { BecomeAgentButton } from './BecomeAgentButton';
 
 beforeEach(() => {
@@ -77,7 +91,9 @@ beforeEach(() => {
     auth: { accessToken: 'access', user: { roles: ['CLIENT'] }, status: 'authenticated' },
   };
   mockQuota = { data: { used: 1, limit: 2, blocked: false } };
+  mockApplication = { data: null }; // заявок ещё не было
   quotaOptions = undefined;
+  applicationOptions = undefined;
 });
 
 afterEach(() => vi.clearAllMocks());
@@ -121,5 +137,51 @@ describe('BecomeAgentButton', () => {
     mockQuota = {};
     render(<BecomeAgentButton />);
     expect(link()).not.toBeInTheDocument();
+  });
+
+  it('не запрашивает заявку, пока кнопка всё равно не видна (used = 0)', () => {
+    mockQuota = { data: { used: 0, limit: 2, blocked: false } };
+    render(<BecomeAgentButton />);
+    expect(applicationOptions?.skip).toBe(true);
+  });
+
+  describe('заявка подана (PENDING)', () => {
+    beforeEach(() => {
+      mockApplication = { data: { status: 'PENDING' } };
+    });
+
+    it('вместо ссылки показывает неактивную кнопку с подсказкой', () => {
+      render(<BecomeAgentButton />);
+      expect(link()).not.toBeInTheDocument();
+
+      const btn = screen.getByRole('button', { name: 'Стать агентом' });
+      expect(btn).toHaveAttribute('aria-disabled', 'true');
+      expect(btn).toHaveAttribute(
+        'title',
+        'Заявка на рассмотрении — дождитесь решения',
+      );
+    });
+
+    it('по требованию показывает подсказку текстом (мобильное меню — нет hover)', () => {
+      render(<BecomeAgentButton withHintText />);
+      expect(
+        screen.getByText('Заявка на рассмотрении — дождитесь решения'),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('после отказа (REJECTED) снова ведёт на форму повторной подачи', () => {
+    mockApplication = { data: { status: 'REJECTED' } };
+    render(<BecomeAgentButton />);
+    expect(link()).toHaveAttribute('href', '/become-agent');
+  });
+
+  it('скрыт при APPROVED, даже если роли ещё не подтянулись', () => {
+    mockApplication = { data: { status: 'APPROVED' } };
+    render(<BecomeAgentButton />);
+    expect(link()).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Стать агентом' }),
+    ).not.toBeInTheDocument();
   });
 });

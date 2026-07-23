@@ -267,6 +267,7 @@ function HeaderBody({ searchParams }: { searchParams: URLSearchParams | null }) 
               size="lg"
               className="mt-3 w-full"
               onClick={() => setMenu(false)}
+              withHintText
             />
 
             <nav className="mt-4">
