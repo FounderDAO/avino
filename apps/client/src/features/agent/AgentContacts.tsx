@@ -8,8 +8,12 @@
  *
  * Кнопка/строка рендерятся только когда контакт реально есть: оба поля
  * nullable (агент мог войти по e-mail и не иметь телефона, и наоборот),
- * иначе элемент был бы «мёртвым». Нет ни одного контакта — блока нет
+ * иначе элемент был бы «мёртвым». Нет ни одного контакта — секции нет
  * (за это отвечает вызывающая сторона, см. AgentProfile).
+ *
+ * Своей карточки-обёртки у секции нет: она — часть единой карточки профиля
+ * (шапка + контакты + «О себе») и вставляется как блок внутрь неё
+ * (AgentProfile), поэтому здесь только заголовок и контролы.
  *
  * Счётчика звонков здесь нет намеренно: POST /listings/:id/calls считает
  * звонки по объявлению, а у профиля агента объявления нет (ADR-0155 п.5).
@@ -31,7 +35,7 @@ export function AgentContacts({ phone, email }: AgentContactsProps) {
   const [phoneShown, setPhoneShown] = React.useState(false);
 
   return (
-    <div className="mt-6 max-w-[360px] rounded-card border border-border bg-surface p-5 shadow-card">
+    <div>
       <h2 className="text-[16px] font-bold text-ink">{t('contacts.title')}</h2>
 
       <div className="mt-3.5 flex flex-col gap-2.5">

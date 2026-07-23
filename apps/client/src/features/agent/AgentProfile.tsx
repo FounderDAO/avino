@@ -29,44 +29,51 @@ export function AgentProfile({ agent, listings }: AgentProfileProps) {
 
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6">
-      {/* Шапка профиля */}
-      <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left">
-        <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-mint text-2xl font-extrabold text-teal-deep">
-          {agent.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={agent.avatarUrl} alt="" className="h-full w-full object-cover" />
-          ) : initial(agent.name) ? (
-            initial(agent.name)
-          ) : (
-            <User size={32} strokeWidth={1.9} />
-          )}
-        </span>
-        <div className="min-w-0 flex-1">
-          {/* Имя — если null, вообще не выдумываем фолбэк-текст, строка скрыта */}
-          {agent.name && <h1 className="text-[24px] font-bold text-ink">{agent.name}</h1>}
-          <div className="mt-1 text-[15px] text-muted-foreground">
-            {agent.agencyName || t('privateAgent')}
-          </div>
-          <div className="mt-2 text-[14px] font-semibold text-teal">
-            {t('listingsCount', { count: agent.activeListingsCount })}
+      {/* Единая карточка профиля агента: шапка + контакты + «О себе» в одной
+          обёртке (тот же card-стиль, что был у блока контактов). Секции внутри
+          разделены тонкой линией, каждая рендерится только если есть данные. */}
+      <div className="max-w-[440px] rounded-card border border-border bg-surface p-6 shadow-card">
+        {/* Шапка: аватар + имя/агентство/счётчик */}
+        <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left">
+          <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-mint text-2xl font-extrabold text-teal-deep">
+            {agent.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={agent.avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : initial(agent.name) ? (
+              initial(agent.name)
+            ) : (
+              <User size={32} strokeWidth={1.9} />
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            {/* Имя — если null, вообще не выдумываем фолбэк-текст, строка скрыта */}
+            {agent.name && <h1 className="text-[24px] font-bold text-ink">{agent.name}</h1>}
+            <div className="mt-1 text-[15px] text-muted-foreground">
+              {agent.agencyName || t('privateAgent')}
+            </div>
+            <div className="mt-2 text-[14px] font-semibold text-teal">
+              {t('listingsCount', { count: agent.activeListingsCount })}
+            </div>
           </div>
         </div>
+
+        {/* Контакты (ADR-0155) — секции нет, если у агента нет ни телефона, ни e-mail */}
+        {(agent.phone || agent.email) && (
+          <div className="mt-5 border-t border-border pt-5">
+            <AgentContacts phone={agent.phone} email={agent.email} />
+          </div>
+        )}
+
+        {/* О себе — только если заполнено */}
+        {agent.about && (
+          <div className="mt-5 border-t border-border pt-5">
+            <h2 className="text-[16px] font-bold text-ink">{t('about')}</h2>
+            <p className="mt-1.5 whitespace-pre-line text-[14.5px] text-muted-foreground">
+              {agent.about}
+            </p>
+          </div>
+        )}
       </div>
-
-      {/* Контакты (ADR-0155) — блока нет, если у агента нет ни телефона, ни e-mail */}
-      {(agent.phone || agent.email) && (
-        <AgentContacts phone={agent.phone} email={agent.email} />
-      )}
-
-      {/* О себе — только если заполнено */}
-      {agent.about && (
-        <div className="mt-6 max-w-[720px]">
-          <h2 className="text-[16px] font-bold text-ink">{t('about')}</h2>
-          <p className="mt-1.5 whitespace-pre-line text-[14.5px] text-muted-foreground">
-            {agent.about}
-          </p>
-        </div>
-      )}
 
       {/* Сетка объявлений агента — первая страница /search?agent_id=. */}
       <div className="mt-8">
