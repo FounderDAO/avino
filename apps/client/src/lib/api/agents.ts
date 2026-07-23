@@ -11,7 +11,7 @@
  */
 import { resolveApiBase } from './base';
 
-/** Строка каталога/профиля агента (snake_case контракт §21). */
+/** Строка каталога агента (snake_case контракт §21). */
 export interface ApiAgent {
   id: string;
   name: string | null;
@@ -21,13 +21,22 @@ export interface ApiAgent {
   active_listings_count: number;
 }
 
+/**
+ * Профиль агента `GET /agents/:id` — строка каталога + контакты (ADR-0155).
+ * Контактов нет в списке `GET /agents`: там их не отдаёт и бэкенд.
+ */
+export interface ApiAgentProfile extends ApiAgent {
+  phone: string | null;
+  email: string | null;
+}
+
 /** Envelope GET /agents (постраничный список). */
 interface ApiAgentsEnvelope {
   data: ApiAgent[];
   meta: { page: number; limit: number; total: number };
 }
 
-/** UI-модель агента публичного каталога/профиля. */
+/** UI-модель агента публичного каталога. */
 export interface Agent {
   id: string;
   name: string | null;
@@ -35,6 +44,12 @@ export interface Agent {
   agencyName: string | null;
   about: string | null;
   activeListingsCount: number;
+}
+
+/** UI-модель профиля агента: каталожные поля + контакты (ADR-0155). */
+export interface AgentWithContacts extends Agent {
+  phone: string | null;
+  email: string | null;
 }
 
 /**
@@ -49,6 +64,20 @@ export function mapAgent(api: ApiAgent): Agent {
     agencyName: api.agency_name,
     about: api.about,
     activeListingsCount: api.active_listings_count,
+  };
+}
+
+/**
+ * snake_case профиль агента → {@link AgentWithContacts}. `?? null` на
+ * контактах не косметика: клиент раскатывается после API, и до деплоя
+ * PR-1 полей в ответе просто нет — тогда блок контактов не рендерится,
+ * а не падает на `undefined`.
+ */
+export function mapAgentProfile(api: ApiAgentProfile): AgentWithContacts {
+  return {
+    ...mapAgent(api),
+    phone: api.phone ?? null,
+    email: api.email ?? null,
   };
 }
 
@@ -97,11 +126,11 @@ export async function getAgents(limit: number, page = 1): Promise<AgentsPage> {
 }
 
 /**
- * Публичный профиль агента. GET /api/v1/agents/:id (404 → null, как
- * getListingById в listings.ts). Прочие ошибки — бросает: страница /agents/:id
- * решает сама (notFound() на null, error boundary на исключение).
+ * Публичный профиль агента с контактами. GET /api/v1/agents/:id (404 → null,
+ * как getListingById в listings.ts). Прочие ошибки — бросает: страница
+ * /agents/:id решает сама (notFound() на null, error boundary на исключение).
  */
-export async function getAgentById(id: string): Promise<Agent | null> {
+export async function getAgentById(id: string): Promise<AgentWithContacts | null> {
   const res = await fetch(`${resolveApiBase()}/agents/${encodeURIComponent(id)}`, {
     cache: 'no-store',
     headers: { Accept: 'application/json' },
@@ -110,5 +139,5 @@ export async function getAgentById(id: string): Promise<Agent | null> {
   if (!res.ok) {
     throw new Error(`API ${res.status} ${res.statusText} for /agents/${id}`);
   }
-  return mapAgent((await res.json()) as ApiAgent);
+  return mapAgentProfile((await res.json()) as ApiAgentProfile);
 }

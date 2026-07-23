@@ -11,9 +11,10 @@
 import * as React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import ru from '../../../messages/ru.json';
-import type { Agent } from '@/lib/api/agents';
+import type { AgentWithContacts } from '@/lib/api/agents';
 import type { Listing } from '@/lib/mock/types';
 
 vi.mock('@/i18n/navigation', () => ({
@@ -47,13 +48,15 @@ function renderProfile(props: React.ComponentProps<typeof AgentProfile>) {
   );
 }
 
-const AGENT: Agent = {
+const AGENT: AgentWithContacts = {
   id: 'ag-1',
   name: 'Дилноза Каримова',
   avatarUrl: 'https://cdn.avino.uz/ag-1/avatar.webp',
   agencyName: 'Estate Group',
   about: 'Более 10 лет на рынке недвижимости Ташкента.',
   activeListingsCount: 2,
+  phone: '+998 90 123 45 67',
+  email: 'dilnoza@estate.uz',
 };
 
 const LISTINGS: Listing[] = [
@@ -130,6 +133,47 @@ describe('AgentProfile (публичный профиль агента, Task 5)'
   it('пустой список объявлений → пустое состояние вместо сетки', () => {
     renderProfile({ agent: AGENT, listings: [] });
     expect(screen.queryAllByRole('link', { name: /\$108 223/ })).toHaveLength(0);
+  });
+
+  describe('контакты (ADR-0155)', () => {
+    it('телефон скрыт за кнопкой и раскрывается в tel:-ссылку по клику', async () => {
+      const user = userEvent.setup();
+      renderProfile({ agent: AGENT, listings: LISTINGS });
+
+      // До клика номера на странице нет — только кнопка.
+      expect(screen.queryByText('+998 90 123 45 67')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /Показать телефон/ }));
+
+      const link = screen.getByRole('link', { name: /\+998 90 123 45 67/ });
+      // Пробелы из номера вычищаются — иначе tel: не наберётся на части устройств.
+      expect(link).toHaveAttribute('href', 'tel:+998901234567');
+    });
+
+    it('e-mail показан сразу mailto-ссылкой', () => {
+      renderProfile({ agent: AGENT, listings: LISTINGS });
+
+      expect(
+        screen.getByRole('link', { name: 'dilnoza@estate.uz' }),
+      ).toHaveAttribute('href', 'mailto:dilnoza@estate.uz');
+    });
+
+    it('нет телефона → кнопки нет, e-mail остаётся', () => {
+      renderProfile({ agent: { ...AGENT, phone: null }, listings: LISTINGS });
+
+      expect(
+        screen.queryByRole('button', { name: /Показать телефон/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'dilnoza@estate.uz' })).toBeInTheDocument();
+    });
+
+    it('нет ни телефона, ни e-mail → блока контактов нет вовсе', () => {
+      renderProfile({
+        agent: { ...AGENT, phone: null, email: null },
+        listings: LISTINGS,
+      });
+
+      expect(screen.queryByText('Связаться')).not.toBeInTheDocument();
+    });
   });
 
   it('listingsCount — корректная ICU-плюрализация для 1/2/5 объявлений (ru)', () => {
