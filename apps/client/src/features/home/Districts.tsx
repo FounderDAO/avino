@@ -8,15 +8,15 @@
  * города Ташкента в редакционном порядке с чистыми трёхъязычными именами —
  * секция всегда осмысленна и не зависит от состояния API/справочника.
  *
- * Фото-обложки — статичный мок-маппинг (Unsplash) по индексу; фото не
- * соответствуют районам, поэтому размыты до цветовой «атмосферы», а название —
- * по центру в glassmorphism-чипе. Каждая плитка — ссылка на /search?district_id=
- * (фиксированные UUID районов Ташкента, seed-миграция districts).
+ * Каждый район — горизонтальный чип: смысловая лайн-иконка в бейдже
+ * (`{@link ./districtIcons}`, красится темой) + локализованное название. Раньше
+ * тут были размытые нерелевантные фото (Unsplash) — заменены на иконки. Плитка
+ * ссылается на /search?district_id= (фиксированные UUID районов, seed districts).
  * Server component (async только ради locale/translations, без интерактива).
  */
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { PhotoImg } from '@/components/ui/photo-img';
+import { DISTRICT_ICONS } from './districtIcons';
 
 /**
  * Курируемая подборка центральных районов города Ташкента (порядок = редакционная
@@ -41,16 +41,6 @@ function districtName(d: (typeof TASHKENT_DISTRICTS)[number], locale: string): s
   return d.ru;
 }
 
-/** Мок-обложки районов (Unsplash photo id), как в дизайн-источнике. */
-const COVER_IDS = [
-  '1545324418-cc1a3fa10c00',
-  '1480714378408-67cf0d13bc1b',
-  '1486325212027-8081e485255e',
-  '1496564203457-11bb12075d90',
-  '1449824913935-59a10b8d2000',
-  '1444723121867-7a241cacace9',
-];
-
 export async function Districts() {
   const locale = await getLocale();
   const t = await getTranslations('home');
@@ -60,28 +50,17 @@ export async function Districts() {
     <section className="mx-auto max-w-[1280px] px-4 pt-14 sm:px-6">
       <h2 className="mb-[18px] text-2xl sm:text-[30px]">{t('districts.title')}</h2>
       <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
-        {districts.map((d, i) => (
+        {districts.map((d) => (
           <Link
             key={d.id}
             href={`/search?tx=SALE&district_id=${encodeURIComponent(d.id)}`}
-            className="group relative block aspect-[16/10] overflow-hidden rounded-card"
+            className="group flex items-center gap-4 rounded-card border border-border bg-card p-4 transition-colors hover:border-primary/40"
           >
-            {/* Фото не соответствует району → размываем до цветового фона;
-                scale-110 прячет прозрачные края от blur, q=40 — детали всё равно не видны. */}
-            <PhotoImg
-              src={`https://images.unsplash.com/photo-${COVER_IDS[i % COVER_IDS.length]}?auto=format&fit=crop&w=600&q=40`}
-              alt={d.name}
-              className="scale-110 blur-[24px] transition-transform duration-[400ms] group-hover:scale-[1.2]"
-              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 25vw"
-            />
-            {/* Равномерное затемнение для контраста текста на светлых фото */}
-            <div className="absolute inset-0 bg-black/20" />
-            {/* Название района — glassmorphism-чип по центру карточки */}
-            <div className="absolute inset-0 flex items-center justify-center p-4">
-              <span className="rounded-full border border-white/25 bg-white/15 px-5 py-2.5 text-center text-[19px] font-extrabold text-white backdrop-blur-md transition-colors group-hover:bg-white/25">
-                {d.name}
-              </span>
-            </div>
+            {/* Смысловая иконка района в бейдже; красится темой (text-primary). */}
+            <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-primary/10 text-primary">
+              {DISTRICT_ICONS[d.id]}
+            </span>
+            <span className="text-[17px] font-bold text-foreground">{d.name}</span>
           </Link>
         ))}
       </div>

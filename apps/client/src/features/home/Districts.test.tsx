@@ -1,12 +1,12 @@
 /**
- * Districts — популярные районы города Ташкента на главной: размытое фото +
- * «матовое стекло».
+ * Districts — популярные районы города Ташкента на главной: горизонтальный чип
+ * (смысловая лайн-иконка в бейдже + название).
  *
- * Подборка теперь курируемая и статичная (НЕ из GET /geo/districts) — раньше в
- * сетку попадали случайные районы всей страны с непереведённым `name_en`
- * («… tumani»). Проверяем: рендерятся ровно 6 центральных районов Ташкента,
- * ссылки на /search?district_id=, blur-класс на фото, имя в стеклянном чипе,
- * и что в EN имена чистые (Mirabad, а не «… tumani»).
+ * Подборка курируемая и статичная (НЕ из GET /geo/districts) — раньше в сетку
+ * попадали случайные районы всей страны с непереведённым `name_en` («… tumani»).
+ * Проверяем: рендерятся ровно 6 центральных районов Ташкента, ссылки на
+ * /search?district_id=, у каждой плитки есть svg-иконка, название видно, и что в
+ * EN имена чистые (Mirabad, а не «… tumani»).
  *
  * Districts — async server component: рендерим через `render(await Districts())`
  * с моками next-intl/server.
@@ -31,8 +31,8 @@ vi.mock('next-intl/server', () => ({
 
 import { Districts } from './Districts';
 
-describe('Districts (курируемые районы Ташкента: размытое фото + стеклянный чип)', () => {
-  it('рендерит 6 районов Ташкента; плитка ссылается на /search?district_id=, фото размыто, имя — в стеклянном чипе', async () => {
+describe('Districts (курируемые районы Ташкента: чип с иконкой)', () => {
+  it('рендерит 6 районов Ташкента; плитка ссылается на /search?district_id=, содержит svg-иконку и название', async () => {
     getLocale.mockResolvedValue('ru');
     const { container } = render(await Districts());
 
@@ -46,14 +46,15 @@ describe('Districts (курируемые районы Ташкента: раз�
       'href',
       '/search?tx=SALE&district_id=d0000000-0000-4000-8000-000000000003',
     );
+    // У плитки Мирабада — векторная иконка (не фото).
+    expect(link.querySelector('svg')).not.toBeNull();
 
-    // Фото размыто (нечитаемый цветовой фон, а не «чужой город»).
-    const img = container.querySelector('img');
-    expect(img?.className).toContain('blur-');
+    // Иконки во всех 6 плитках; размытых фото больше нет.
+    expect(container.querySelectorAll('a svg')).toHaveLength(6);
+    expect(container.querySelector('img')).toBeNull();
 
-    // Название района — в центрированном glassmorphism-чипе.
-    const chip = screen.getByText('Мирабад');
-    expect(chip.closest('[class*="backdrop-blur"]')).not.toBeNull();
+    // Название района видно как текст.
+    expect(screen.getByText('Мирабад')).toBeInTheDocument();
   });
 
   it('в EN имена районов чистые (Mirabad, без суффикса «tumani»)', async () => {
