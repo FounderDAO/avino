@@ -327,6 +327,15 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "UsersController_deleteMe",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        }
       }
     },
     "/api/v1/users/me/contact-change/request": {

@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { NotificationType } from '@prisma/client';
+import { NotificationType, UserStatus } from '@prisma/client';
 import { SavedSearchAlertService } from './saved-search-alert.service';
 
 /**
@@ -76,12 +76,25 @@ describe('SavedSearchAlertService', () => {
 
     expect(prisma.savedSearch.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { isActive: true },
+        where: { isActive: true, user: { status: { not: UserStatus.DELETED } } },
         take: 25,
         orderBy: [
           { lastCheckedAt: { sort: 'asc', nulls: 'first' } },
           { id: 'asc' },
         ],
+      }),
+    );
+  });
+
+  it('excludes saved searches owned by deleted users', async () => {
+    await service.run();
+
+    expect(prisma.savedSearch.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isActive: true,
+          user: { status: { not: UserStatus.DELETED } },
+        }),
       }),
     );
   });

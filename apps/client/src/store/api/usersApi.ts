@@ -164,6 +164,15 @@ export const usersApi = baseApi.injectEndpoints({
       invalidatesTags: ['Auth', 'User'],
     }),
 
+    // Самостоятельное удаление аккаунта (soft-delete на бэке). Локальный сброс
+    // сессии/кэша делает вызывающий компонент через clearCredentials.
+    deleteAccount: build.mutation<void, void>({
+      query: () => ({
+        url: '/users/me',
+        method: 'DELETE',
+      }),
+    }),
+
     // Шаг 1: запросить OTP на новый логин-телефон/email. Ничего ещё не
     // меняется — смена применяется только после verify, поэтому теги не
     // инвалидируем.
@@ -215,6 +224,7 @@ export const {
   useAcceptLegalConsentMutation,
   useUploadAvatarMutation,
   useDeleteAvatarMutation,
+  useDeleteAccountMutation,
   useRequestContactChangeMutation,
   useVerifyContactChangeMutation,
   useRequestContactPhoneChangeMutation,

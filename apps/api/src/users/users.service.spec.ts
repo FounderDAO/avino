@@ -55,6 +55,7 @@ describe('UsersService', () => {
         upsert: jest.fn(),
         update: jest.fn(),
       },
+      $transaction: jest.fn(),
     };
     uploads = {
       rootPrefix: jest.fn().mockReturnValue(''),
@@ -319,6 +320,53 @@ describe('UsersService', () => {
       uploads.delete.mockRejectedValue(new Error('S3 unavailable'));
 
       await expect(service.deleteAvatar(USER_ID)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('deleteMe', () => {
+    it('soft-delete: статус DELETED + deleted_at, снимает объявления, отзывает токены, пишет аудит', async () => {
+      const tx = {
+        user: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'u1' }),
+          update: jest.fn().mockResolvedValue({ id: 'u1' }),
+        },
+        listing: { updateMany: jest.fn().mockResolvedValue({ count: 3 }) },
+        refreshToken: { updateMany: jest.fn().mockResolvedValue({ count: 2 }) },
+        auditLog: { create: jest.fn().mockResolvedValue({}) },
+      };
+      (prisma.$transaction as jest.Mock).mockImplementation((cb: any) => cb(tx));
+
+      await service.deleteMe('u1');
+
+      expect(tx.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'u1' }, data: expect.objectContaining({ status: UserStatus.DELETED }) }),
+      );
+      const updateArg = tx.user.update.mock.calls[0][0];
+      expect(updateArg.data.deletedAt).toBeInstanceOf(Date);
+
+      expect(tx.listing.updateMany).toHaveBeenCalledWith({
+        where: { ownerId: 'u1', status: { not: UserStatus.DELETED } },
+        data: { status: UserStatus.DELETED },
+      });
+      expect(tx.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'u1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+      expect(tx.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          actorId: 'u1',
+          action: 'USER_SELF_DELETE',
+          entityType: 'user',
+          entityId: 'u1',
+          metadata: { listings_taken_down: 3 },
+        }),
+      });
+    });
+
+    it('уже удалён / нет аккаунта → 401 (gone)', async () => {
+      const tx = { user: { findFirst: jest.fn().mockResolvedValue(null) } };
+      (prisma.$transaction as jest.Mock).mockImplementation((cb: any) => cb(tx));
+      await expect(service.deleteMe('u1')).rejects.toMatchObject({ status: 401 });
     });
   });
 });

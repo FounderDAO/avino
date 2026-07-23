@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserStatus } from '@prisma/client';
 import { EmailService } from '../email';
 import { NotificationsService } from '../notifications';
 import { PrismaService } from '../prisma';
@@ -80,7 +80,7 @@ export class SavedSearchAlertService {
   async run(): Promise<number> {
     const runAt = new Date();
     const searches = (await this.prisma.savedSearch.findMany({
-      where: { isActive: true },
+      where: { isActive: true, user: { status: { not: UserStatus.DELETED } } },
       select: {
         id: true,
         userId: true,

@@ -1246,6 +1246,24 @@
         "text": "Play a sound on a new message or notification"
       }
     },
+    "deleteAccount": {
+      "sectionTitle": "Delete account",
+      "sectionText": "Your account and all related data will be permanently deleted and cannot be recovered.",
+      "button": "Delete account",
+      "modalTitle": "Delete your account?",
+      "warningIntro": "This action is irreversible. The following will be permanently deleted:",
+      "bulletListings": "all your listings",
+      "bulletFavorites": "favorites and saved searches",
+      "bulletChats": "chats and tour requests",
+      "warningReregister": "If you register again with the same number later, your old data will not be restored — it will be a new empty account.",
+      "confirmLabel": "Type «УДАЛИТЬ» to confirm",
+      "confirmWord": "УДАЛИТЬ",
+      "confirmPlaceholder": "УДАЛИТЬ",
+      "cancel": "Cancel",
+      "confirmButton": "Delete permanently",
+      "error": "Could not delete the account. Please try again.",
+      "success": "Account deleted"
+    },
     "devices": {
       "title": "My devices",
       "subtitle": "Active sessions of your account. End a session if you don't recognize the device.",

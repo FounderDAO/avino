@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
-import type { CookieOptions, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard, AuthenticatedUser } from '../common/guards';
@@ -32,14 +32,11 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SessionResponse } from './dto/session-response.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
-
-/** Имя httpOnly cookie с refresh-токеном (web-клиенты, ADR-0153). */
-const REFRESH_COOKIE_NAME = 'avino_rt';
-/**
- * Путь cookie: уходит ТОЛЬКО на auth-эндпоинты, не на весь API (сужает
- * CSRF-поверхность; прочие роуты авторизуются Bearer, а не cookie).
- */
-const REFRESH_COOKIE_PATH = '/api/v1/auth';
+import {
+  REFRESH_COOKIE_NAME,
+  clearRefreshCookie,
+  setRefreshCookie,
+} from './refresh-cookie.util';
 
 /**
  * AuthController — публичные эндпоинты аутентификации (TASK-041/042, API.md §3).
@@ -65,31 +62,14 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
-  /** Опции cookie `avino_rt` из конфига (ADR-0153). Express ждёт maxAge в мс. */
-  private refreshCookieOptions(): CookieOptions {
-    return {
-      httpOnly: true,
-      secure: this.config.get<boolean>('authCookie.secure') ?? false,
-      sameSite: 'lax',
-      // Пустой домен → host-only cookie (staging/голый IP). См. configuration.ts.
-      domain: this.config.get<string>('authCookie.domain') || undefined,
-      path: REFRESH_COOKIE_PATH,
-      maxAge: (this.config.get<number>('authCookie.maxAgeSec') ?? 2592000) * 1000,
-    };
-  }
-
   /** Поставить/обновить refresh-cookie (логин и ротация). */
   private setRefreshCookie(res: Response, refreshToken: string): void {
-    res.cookie(REFRESH_COOKIE_NAME, refreshToken, this.refreshCookieOptions());
+    setRefreshCookie(res, refreshToken, this.config);
   }
 
-  /**
-   * Удалить refresh-cookie (logout). domain/path/secure/sameSite должны совпадать
-   * с выставленными, иначе браузер не сматчит cookie и не удалит; maxAge не нужен.
-   */
+  /** Удалить refresh-cookie (logout). */
   private clearRefreshCookie(res: Response): void {
-    const { maxAge: _maxAge, ...opts } = this.refreshCookieOptions();
-    res.clearCookie(REFRESH_COOKIE_NAME, opts);
+    clearRefreshCookie(res, this.config);
   }
 
   /**

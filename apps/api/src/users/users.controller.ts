@@ -4,15 +4,20 @@ import {
   Delete,
   Get,
   HttpCode,
+  HttpStatus,
   Ip,
   Patch,
   Post,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import type { RequestOtpResult } from '../auth/otp.service';
+import { clearRefreshCookie } from '../auth/refresh-cookie.util';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
 import { ProfileResponse, ProfilesService } from '../profiles';
@@ -52,6 +57,7 @@ export class UsersController {
     private readonly legalConsentService: LegalConsentService,
     private readonly contactChangeService: ContactChangeService,
     private readonly contactPhoneChangeService: ContactPhoneChangeService,
+    private readonly config: ConfigService,
   ) {}
 
   /** `GET /api/v1/users/me` — текущий пользователь, профиль и роли. */
@@ -70,6 +76,21 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ): Promise<UserMeResponse> {
     return this.usersService.updateMe(userId, dto);
+  }
+
+  /**
+   * `DELETE /api/v1/users/me` — самостоятельное удаление аккаунта (soft-delete).
+   * Необратимо: контакт освобождается, при повторной регистрации создаётся
+   * новый пустой аккаунт. Отзывает все сессии и чистит refresh-cookie → 204.
+   */
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteMe(
+    @CurrentUser('id') userId: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.usersService.deleteMe(userId);
+    clearRefreshCookie(res, this.config);
   }
 
   /**
