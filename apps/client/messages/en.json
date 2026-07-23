@@ -79,6 +79,65 @@
     "copyright": "© 2026 Avino · www.avino.uz · Support@avino.uz",
     "location": "Tashkent, Uzbekistan · Currency: UZS / $"
   },
+  "about": {
+    "meta": {
+      "title": "About Avino — Real Estate in Uzbekistan",
+      "description": "Avino is Uzbekistan's real estate platform. Our mission, values and who we serve: buyers, owners and agents across the country."
+    },
+    "hero": {
+      "badge": "About us",
+      "title": "Real estate in Uzbekistan — simple, honest, modern",
+      "subtitle": "Avino helps you find, sell and rent property across Uzbekistan — in three languages and without unnecessary middlemen.",
+      "cta": "Get in touch",
+      "note": "We reply within one business day"
+    },
+    "story": {
+      "title": "Why we built Avino",
+      "lead": "Finding a home in Uzbekistan is still harder than it should be.",
+      "p1": "Listings are scattered across dozens of chats and boards, prices are opaque, and a chain of intermediaries often stands between the buyer and the owner. We set out to bring the market together in one place — clear, honest and convenient.",
+      "p2": "Avino is a modern platform where anyone can find an apartment, house or commercial property, contact the other side directly, and decide based on complete information. We're building it for the whole country, in a language that works for everyone."
+    },
+    "numbers": {
+      "title": "Avino today",
+      "subtitle": "A growing real estate platform for all of Uzbekistan",
+      "countryTitle": "Nationwide",
+      "countryText": "Tashkent and every region of Uzbekistan",
+      "listingsTitle": "Thousands of listings",
+      "listingsText": "Apartments, houses, land and commercial property",
+      "agentsTitle": "Verified agents",
+      "agentsText": "Market professionals close to you",
+      "langsTitle": "Three languages",
+      "langsText": "Russian, Uzbek and English"
+    },
+    "values": {
+      "title": "Our values",
+      "subtitle": "The principles we build Avino on",
+      "honestTitle": "Honesty and transparency",
+      "honestText": "Real listings, up-to-date prices and direct contact with the owner or agent — no hidden terms.",
+      "coverageTitle": "Nationwide coverage",
+      "coverageText": "From the capital to the regions: a single platform for real estate across Uzbekistan.",
+      "techTitle": "Modern technology",
+      "techText": "Smart search, map, saved filters and notifications — finding a home is easy on any device."
+    },
+    "audience": {
+      "title": "Who Avino is for",
+      "subtitle": "We work for everyone in the market",
+      "buyersTitle": "Buyers and renters",
+      "buyersText": "Search by map and filters, save your searches and contact owners directly.",
+      "ownersTitle": "Owners and sellers",
+      "ownersText": "Post a listing in a few minutes and receive enquiries from interested people.",
+      "agentsTitle": "Agents and agencies",
+      "agentsText": "Manage listings, find clients and grow your business on Avino."
+    },
+    "contact": {
+      "title": "Have a question or an idea?",
+      "text": "Drop us a line — we always welcome feedback. A phone number will come later; for now reach us by email and Telegram.",
+      "emailLabel": "Email",
+      "telegramLabel": "Telegram",
+      "postCta": "Post a listing",
+      "agentCta": "Become an agent"
+    }
+  },
   "advertise": {
     "meta": {
       "title": "Advertise on Avino — for businesses and brands",

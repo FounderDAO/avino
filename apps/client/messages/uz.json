@@ -79,6 +79,65 @@
     "copyright": "© 2026 Avino · www.avino.uz · Support@avino.uz",
     "location": "Toshkent, O'zbekiston · Valyuta: so'm / $"
   },
+  "about": {
+    "meta": {
+      "title": "Avino haqida — O'zbekiston ko'chmas mulki",
+      "description": "Avino — O'zbekiston ko'chmas mulk platformasi. Bizning missiyamiz, qadriyatlarimiz va biz kimlar uchun ishlaymiz: xaridorlar, mulkdorlar va agentlar butun mamlakat bo'ylab."
+    },
+    "hero": {
+      "badge": "Kompaniya haqida",
+      "title": "O'zbekiston ko'chmas mulki — sodda, halol, zamonaviy",
+      "subtitle": "Avino butun O'zbekiston bo'ylab uy topish, sotish va ijaraga berishga yordam beradi — uch tilda va ortiqcha vositachilarsiz.",
+      "cta": "Biz bilan bog'laning",
+      "note": "Ish kuni davomida javob beramiz"
+    },
+    "story": {
+      "title": "Avino'ni nega yaratdik",
+      "lead": "O'zbekistonda uy topish hali ham kerakidan ko'ra qiyinroq.",
+      "p1": "E'lonlar o'nlab chatlar va e'lon doskalariga tarqalgan, narxlar shaffof emas, xaridor bilan mulkdor o'rtasida esa ko'pincha vositachilar zanjiri turadi. Biz bozorni bitta — tushunarli, halol va qulay joyda jamlashga qaror qildik.",
+      "p2": "Avino — bu zamonaviy platforma bo'lib, unda har kim o'zi kvartira, uy yoki tijorat mulkini topishi, to'g'ridan-to'g'ri bog'lanishi va to'liq ma'lumotga tayanib qaror qabul qilishi mumkin. Biz uni butun mamlakat uchun va har kimga qulay tilda quramiz."
+    },
+    "numbers": {
+      "title": "Avino bugun",
+      "subtitle": "Butun O'zbekiston uchun o'sib borayotgan ko'chmas mulk platformasi",
+      "countryTitle": "Butun mamlakat",
+      "countryText": "Toshkent va O'zbekistonning barcha hududlari",
+      "listingsTitle": "Minglab e'lonlar",
+      "listingsText": "Kvartiralar, uylar, yer uchastkalari va tijorat",
+      "agentsTitle": "Tekshirilgan agentlar",
+      "agentsText": "Bozor mutaxassislari yoningizda",
+      "langsTitle": "Uch til",
+      "langsText": "Rus, o'zbek va ingliz tillari"
+    },
+    "values": {
+      "title": "Bizning qadriyatlarimiz",
+      "subtitle": "Avino'ni quradigan tamoyillar",
+      "honestTitle": "Halollik va shaffoflik",
+      "honestText": "Haqiqiy e'lonlar, dolzarb narxlar va mulkdor yoki agent bilan to'g'ridan-to'g'ri aloqa — yashirin shartlarsiz.",
+      "coverageTitle": "Butun mamlakat bo'ylab qamrov",
+      "coverageText": "Poytaxtdan hududlargacha: butun O'zbekiston ko'chmas mulki uchun yagona platforma.",
+      "techTitle": "Zamonaviy texnologiyalar",
+      "techText": "Aqlli qidiruv, xarita, saqlangan filtrlar va bildirishnomalar — uyni istalgan qurilmadan topish qulay."
+    },
+    "audience": {
+      "title": "Avino kimlar uchun",
+      "subtitle": "Biz bozorning barcha ishtirokchilari uchun ishlaymiz",
+      "buyersTitle": "Xaridorlar va ijarachilar",
+      "buyersText": "Uyni xarita va filtrlar bo'yicha qidiring, qidiruvlarni saqlang va to'g'ridan-to'g'ri bog'laning.",
+      "ownersTitle": "Mulkdorlar va sotuvchilar",
+      "ownersText": "E'lonni bir necha daqiqada joylashtiring va qiziqqan odamlardan murojaatlar oling.",
+      "agentsTitle": "Agentlar va agentliklar",
+      "agentsText": "E'lonlarni yuriting, mijozlar toping va o'z biznesingizni Avino'da rivojlantiring."
+    },
+    "contact": {
+      "title": "Savol yoki taklifingiz bormi?",
+      "text": "Bizga yozing — fikr-mulohazalaringizdan doim mamnunmiz. Telefon keyinroq paydo bo'ladi, hozircha aloqa email va Telegram orqali.",
+      "emailLabel": "Email",
+      "telegramLabel": "Telegram",
+      "postCta": "E'lon joylashtirish",
+      "agentCta": "Agent bo'lish"
+    }
+  },
   "advertise": {
     "meta": {
       "title": "Avinoda reklama — biznes va brendlar uchun",

@@ -24,7 +24,7 @@ const COLS: {
   {
     headingKey: 'aboutCompany',
     links: [
-      { labelKey: 'aboutUs', href: '/help' },
+      { labelKey: 'aboutUs', href: '/about' },
       // Временно скрыто: careers, press
       // { labelKey: 'careers', href: '/help' },
       // { labelKey: 'press', href: '/help' },
