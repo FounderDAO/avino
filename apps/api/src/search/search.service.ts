@@ -1181,7 +1181,7 @@ export class SearchService {
    * + Zillow-фильтры Phase 1 (TASK-Zillow): `property_type` (IN-массив),
    *   `rooms_min`, `area_min/max`, `floor_min/max`, `not_first_floor`,
    *   `not_last_floor`, `total_floors_min/max`, `year_min/max`,
-   *   `listing_source` (OWNER/AGENCY), `tours_enabled`.
+   *   `listing_source` (OWNER/AGENCY — по роли владельца), `tours_enabled`.
    *
    * Параметры биндятся через `Prisma.sql` (защита от инъекций). Enum-колонки
    * сравниваются через `::text` (не зависит от имени PG-типа); ценовой диапазон
@@ -1341,13 +1341,24 @@ export class SearchService {
         Prisma.sql`year_built >= ${new Date().getFullYear() - NEW_CONSTRUCTION_MAX_AGE_YEARS + 1}`,
       );
 
-    // Zillow Phase 1: источник (собственник / агентство)
-    if (query.listing_source !== undefined && query.listing_source.length === 1)
+    // Zillow Phase 1: источник (собственник / агентство).
+    // Тип продавца определяем по РОЛИ владельца — так же, как contact-блок в
+    // ListingsService (AGENT/AGENCY → «агентство», иначе «собственник»). Раньше
+    // фильтр смотрел на `agency_id`, но это колонка-заглушка (агентства как
+    // сущность ещё не заведены) — она всегда NULL, из-за чего AGENCY не находил
+    // ничего, а OWNER возвращал всё. owner_id ссылается на внешнюю `listings`.
+    if (query.listing_source !== undefined && query.listing_source.length === 1) {
+      const ownerIsAgency = Prisma.sql`EXISTS (
+        SELECT 1 FROM user_roles ur
+        JOIN roles r ON r.id = ur.role_id
+        WHERE ur.user_id = listings.owner_id AND r.code IN ('AGENT', 'AGENCY')
+      )`;
       conds.push(
         query.listing_source[0] === 'OWNER'
-          ? Prisma.sql`agency_id IS NULL`
-          : Prisma.sql`agency_id IS NOT NULL`,
+          ? Prisma.sql`NOT ${ownerIsAgency}`
+          : ownerIsAgency,
       );
+    }
 
     // Zillow Phase 1: только с туром
     if (query.tours_enabled === true)
