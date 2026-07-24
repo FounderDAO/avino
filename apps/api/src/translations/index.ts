@@ -11,4 +11,5 @@ export {
   GenerateTranslationsResponse,
 } from './listing-auto-translator.service';
 export { UpdateModeratorTranslationDto } from './dto/update-moderator-translation.dto';
+export { UpdateOriginalListingDto } from './dto/update-original-listing.dto';
 export { GenerateTranslationsDto } from './dto/generate-translations.dto';
