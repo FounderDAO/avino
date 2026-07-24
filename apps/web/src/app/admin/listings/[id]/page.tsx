@@ -16,6 +16,7 @@ import { AdminButton } from '@/components/admin/ui/button';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
 import { TranslationRow } from '@/components/admin/TranslationRow';
+import { OriginalTranslationEditor } from '@/components/admin/OriginalTranslationEditor';
 import {
   useGetAdminListingQuery,
   useGetAdminListingOwnerQuery,
@@ -24,6 +25,7 @@ import {
   useGetListingTranslationsQuery,
   useGenerateTranslationsMutation,
   useUpdateTranslationMutation,
+  useUpdateOriginalTranslationMutation,
 } from '@/store/api/adminListingsApi';
 import {
   useListListingPromotionsQuery,
@@ -128,6 +130,7 @@ export default function ListingDetailPage() {
   const { data: tr } = useGetListingTranslationsQuery(id);
   const [generate, { isLoading: isGenerating }] = useGenerateTranslationsMutation();
   const [saveTr, { isLoading: isSavingTr }] = useUpdateTranslationMutation();
+  const [saveOriginal, { isLoading: isSavingOriginal }] = useUpdateOriginalTranslationMutation();
   const { data: promos } = useListListingPromotionsQuery(id);
   const [activate, { isLoading: isActivating }] = useActivatePromotionMutation();
   const [cancelPromo, { isLoading: isCancelling }] = useCancelPromotionMutation();
@@ -302,18 +305,33 @@ export default function ListingDetailPage() {
                 </button>
               </div>
             </div>
-            {(tr?.translations ?? []).map((t) => (
-              <TranslationRow
-                key={t.language}
-                item={t}
-                saving={isSavingTr}
-                original={t.language === tr?.original_language}
-                onSave={async (body) => {
-                  try { await saveTr({ id, language: t.language, body }).unwrap(); toast('Перевод сохранён'); }
-                  catch { toast('Не удалось сохранить'); }
-                }}
-              />
-            ))}
+            {(tr?.translations ?? []).map((t) =>
+              t.language === tr?.original_language ? (
+                <OriginalTranslationEditor
+                  key={t.language}
+                  item={t}
+                  originalLanguage={tr.original_language}
+                  saving={isSavingOriginal}
+                  onSave={async (body) => {
+                    try {
+                      await saveOriginal({ id, body }).unwrap();
+                      toast('Оригинал обновлён — сгенерируйте переводы заново');
+                    } catch { toast('Не удалось сохранить оригинал'); }
+                  }}
+                />
+              ) : (
+                <TranslationRow
+                  key={t.language}
+                  item={t}
+                  saving={isSavingTr}
+                  original={false}
+                  onSave={async (body) => {
+                    try { await saveTr({ id, language: t.language, body }).unwrap(); toast('Перевод сохранён'); }
+                    catch { toast('Не удалось сохранить'); }
+                  }}
+                />
+              ),
+            )}
             {!tr?.translations?.length && (
               <p className="muted" style={{ fontSize: 13.5 }}>
                 Переводов пока нет — нажмите «Сгенерировать переводы».
