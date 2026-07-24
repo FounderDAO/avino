@@ -276,4 +276,68 @@ export class TranslationsService {
       update: updateFields,
     });
   }
+
+  /**
+   * `PATCH /api/v1/admin/listings/:id/original` (ADR-0156). Правка авторского
+   * оригинала модератором: текст + язык, на котором он реально написан.
+   * Auth: MODERATOR / ADMIN (гейтируется контроллером).
+   *
+   * Единственный путь исправить листинг, у которого автор выбрал неверный язык
+   * оригинала (написал по-русски, пометил как EN): смена `newLanguage` переносит
+   * авторский текст в правильный языковой слот. В этом случае ВСЕ производные
+   * переводы (сделанные из неверного источника) удаляются — остаётся единственная
+   * строка `source=USER` на новом языке, из которой «Сгенерировать переводы»
+   * заполнит пустые языки. При совпадении языка — просто обновляется текст
+   * оригинала (типовая правка опечаток перед генерацией).
+   *
+   * Строка оригинала перезаписывается ПОЛНОСТЬЮ (не partial, в отличие от
+   * {@link updateModeratorTranslation}): это авторский текст целиком, UI шлёт весь
+   * набор полей (правленые + сквозные `address_note`/`features_text`).
+   *
+   * Ошибки: `404` — листинг отсутствует или DELETED.
+   */
+  async updateOriginalTranslation(
+    listingId: string,
+    newLanguage: Language,
+    input: ListingTranslationInput,
+  ): Promise<void> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { originalLanguage: true, status: true },
+    });
+    if (!listing || listing.status === ListingStatus.DELETED) {
+      throw new NotFoundException({
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Listing not found',
+      });
+    }
+
+    const authorRow = {
+      source: TranslationSource.USER,
+      isAutoTranslated: false,
+      title: input.title,
+      description: input.description ?? null,
+      addressNote: input.address_note ?? null,
+      featuresText: input.features_text ?? null,
+    };
+
+    await this.prisma.$transaction(async (tx) => {
+      if (newLanguage !== listing.originalLanguage) {
+        // Смена языка оригинала: производные переводы были сделаны из неверного
+        // источника → удаляем все строки, кроме будущего нового оригинала.
+        await tx.listingTranslation.deleteMany({
+          where: { listingId, language: { not: newLanguage } },
+        });
+        await tx.listing.update({
+          where: { id: listingId },
+          data: { originalLanguage: newLanguage },
+        });
+      }
+      await tx.listingTranslation.upsert({
+        where: { listingId_language: { listingId, language: newLanguage } },
+        create: { listingId, language: newLanguage, ...authorRow },
+        update: authorRow,
+      });
+    });
+  }
 }

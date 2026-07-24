@@ -34,6 +34,7 @@ import {
   ListingTranslationsResponse,
   TranslationsService,
   UpdateModeratorTranslationDto,
+  UpdateOriginalListingDto,
 } from '../translations';
 
 /**
@@ -121,6 +122,27 @@ export class AdminListingsController {
     // result), а listByListing бросит 404 — единый путь not-found.
     const translations = await this.translations.listByListing(listingId, viewer);
     return { ...translations, ...result };
+  }
+
+  /**
+   * `PATCH /api/v1/admin/listings/:id/original` — правка авторского оригинала:
+   * текст + язык, на котором он написан (ADR-0156). Смена языка переносит текст в
+   * правильный слот и очищает производные переводы; UI затем жмёт «Сгенерировать
+   * переводы», и пустые языки заполняются из исправленного оригинала.
+   */
+  @Patch(':id/original')
+  async updateOriginal(
+    @Param('id', ParseUUIDPipe) listingId: string,
+    @Body() dto: UpdateOriginalListingDto,
+    @CurrentUser() viewer: AuthenticatedUser,
+  ): Promise<ListingTranslationsResponse> {
+    const { original_language, ...text } = dto;
+    await this.translations.updateOriginalTranslation(
+      listingId,
+      original_language,
+      text,
+    );
+    return this.translations.listByListing(listingId, viewer);
   }
 
   /** `PATCH /api/v1/admin/listings/:id/translations/:language` — ручная правка (ADR-0091). */

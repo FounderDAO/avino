@@ -26,8 +26,10 @@ describe('TranslationsService', () => {
 
   beforeEach(() => {
     prisma = {
-      listing: { findUnique: jest.fn() },
-      listingTranslation: { upsert: jest.fn() },
+      listing: { findUnique: jest.fn(), update: jest.fn() },
+      listingTranslation: { upsert: jest.fn(), deleteMany: jest.fn() },
+      // Интерактивная транзакция: колбэк исполняется на том же мок-клиенте.
+      $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(prisma)),
     };
     service = new TranslationsService(prisma);
   });
@@ -259,6 +261,82 @@ describe('TranslationsService', () => {
       await service.updateModeratorTranslation(LISTING_ID, Language.EN, { title: 'x', address_note: null });
       const arg = prisma.listingTranslation.upsert.mock.calls[0][0];
       expect(arg.update).toMatchObject({ title: 'x', isAutoTranslated: false, addressNote: null });
+    });
+  });
+
+  describe('updateOriginalTranslation', () => {
+    it('404 when listing missing or DELETED', async () => {
+      prisma.listing.findUnique.mockResolvedValue(null);
+      await expect(
+        service.updateOriginalTranslation(LISTING_ID, Language.RU, { title: 'x' }),
+      ).rejects.toMatchObject({ status: 404 });
+
+      prisma.listing.findUnique.mockResolvedValue({ originalLanguage: Language.EN, status: ListingStatus.DELETED });
+      await expect(
+        service.updateOriginalTranslation(LISTING_ID, Language.RU, { title: 'x' }),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('same language: updates the author row fully, does NOT touch other translations or original_language', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ originalLanguage: Language.RU, status: ListingStatus.NEW });
+
+      await service.updateOriginalTranslation(LISTING_ID, Language.RU, {
+        title: 'Исправленный заголовок',
+        description: 'Исправленное описание',
+      });
+
+      expect(prisma.listingTranslation.deleteMany).not.toHaveBeenCalled();
+      expect(prisma.listing.update).not.toHaveBeenCalled();
+
+      const arg = prisma.listingTranslation.upsert.mock.calls[0][0];
+      expect(arg.where.listingId_language).toEqual({ listingId: LISTING_ID, language: Language.RU });
+      // Полная перезапись (не partial): все поля присутствуют, source=USER.
+      expect(arg.update).toEqual({
+        source: TranslationSource.USER,
+        isAutoTranslated: false,
+        title: 'Исправленный заголовок',
+        description: 'Исправленное описание',
+        addressNote: null,
+        featuresText: null,
+      });
+    });
+
+    it('language move (EN→RU): wipes derived translations, flips original_language, writes new author row', async () => {
+      // Автор написал по-русски, пометил как EN — модератор меняет язык на RU.
+      prisma.listing.findUnique.mockResolvedValue({ originalLanguage: Language.EN, status: ListingStatus.NEW });
+
+      await service.updateOriginalTranslation(LISTING_ID, Language.RU, {
+        title: 'Русский заголовок',
+        description: 'Русское описание',
+        address_note: 'у метро',
+      });
+
+      // Удаляются все строки, кроме будущего нового оригинала (RU).
+      expect(prisma.listingTranslation.deleteMany).toHaveBeenCalledWith({
+        where: { listingId: LISTING_ID, language: { not: Language.RU } },
+      });
+      // original_language переставлен на RU.
+      expect(prisma.listing.update).toHaveBeenCalledWith({
+        where: { id: LISTING_ID },
+        data: { originalLanguage: Language.RU },
+      });
+      // Новая строка оригинала на RU (source=USER).
+      const arg = prisma.listingTranslation.upsert.mock.calls[0][0];
+      expect(arg.where.listingId_language).toEqual({ listingId: LISTING_ID, language: Language.RU });
+      expect(arg.create).toMatchObject({
+        listingId: LISTING_ID,
+        language: Language.RU,
+        source: TranslationSource.USER,
+        isAutoTranslated: false,
+        title: 'Русский заголовок',
+        addressNote: 'у метро',
+      });
+    });
+
+    it('runs mutations inside a transaction', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ originalLanguage: Language.EN, status: ListingStatus.NEW });
+      await service.updateOriginalTranslation(LISTING_ID, Language.RU, { title: 'x' });
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     });
   });
 });
