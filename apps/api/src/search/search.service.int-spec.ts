@@ -1025,27 +1025,28 @@ describe('GET /search — Zillow filters (Phase 1)', () => {
   const CITY_ID_ZILLOW = '44444444-5555-4444-8777-000000000901';
 
   // Фиксированные UUIDs — суффикс -0901 исключает коллизию с другими наборами.
+  // Тип продавца (listing_source) определяется РОЛЬЮ владельца: apt/house
+  // принадлежат частному собственнику (без агентских ролей), land/comm —
+  // владельцу с ролью AGENT (→ «агентство»).
   const ID = {
-    apt:    'aaaaaaaa-0004-4000-8000-000000000901', // APARTMENT, rooms=2, area=75, floor=5/9, year=2010, agencyId=null, tours=false
-    house:  'bbbbbbbb-0004-4000-8000-000000000901', // HOUSE,     rooms=5, area=120,floor=1/1, year=1990, agencyId=null, tours=false
-    land:   'cccccccc-0004-4000-8000-000000000901', // LAND,      rooms=1, area=40, floor=9/9, year=2024, agencyId=<uuid>, tours=false
-    comm:   'dddddddd-0004-4000-8000-000000000901', // COMMERCIAL,rooms=3, area=40, floor=3/9, year=2010, agencyId=<uuid>, tours=true
+    apt:    'aaaaaaaa-0004-4000-8000-000000000901', // APARTMENT, rooms=2, area=75, floor=5/9, year=2010, owner=частный,   tours=false
+    house:  'bbbbbbbb-0004-4000-8000-000000000901', // HOUSE,     rooms=5, area=120,floor=1/1, year=1990, owner=частный,   tours=false
+    land:   'cccccccc-0004-4000-8000-000000000901', // LAND,      rooms=1, area=40, floor=9/9, year=2024, owner=агент,     tours=false
+    comm:   'dddddddd-0004-4000-8000-000000000901', // COMMERCIAL,rooms=3, area=40, floor=3/9, year=2010, owner=агент,     tours=true
   };
 
-  // UUID агентства (не существует в agencies-таблице — просто ненулевой FK)
-  const AGENCY_UUID = 'a0000000-0000-4000-8000-000000000901';
-
-  let ownerId: string;
+  let ownerId: string;       // частный собственник (без агентских ролей)
+  let agencyOwnerId: string; // владелец с ролью AGENT → «агентство»
 
   interface ZCreateParams {
     id: string;
+    ownerId: string;
     propertyType: PropertyType;
     rooms: number;
     area: string;
     floor: number;
     totalFloors: number;
     yearBuilt: number;
-    agencyId: string | null;
     toursEnabled: boolean;
   }
 
@@ -1053,7 +1054,7 @@ describe('GET /search — Zillow filters (Phase 1)', () => {
     await prisma.listing.create({
       data: {
         id: params.id,
-        ownerId,
+        ownerId: params.ownerId,
         transactionType: TransactionType.SALE,
         propertyType: params.propertyType,
         status: ListingStatus.ACTIVE,
@@ -1068,7 +1069,6 @@ describe('GET /search — Zillow filters (Phase 1)', () => {
         floor: params.floor,
         totalFloors: params.totalFloors,
         yearBuilt: params.yearBuilt,
-        agencyId: params.agencyId,
         toursEnabled: params.toursEnabled,
         translations: {
           create: [
@@ -1090,14 +1090,31 @@ describe('GET /search — Zillow filters (Phase 1)', () => {
     const owner = await prisma.user.create({ data: { phone: '+998900000901' } });
     ownerId = owner.id;
 
-    await createZListing({ id: ID.apt,  propertyType: PropertyType.APARTMENT,  rooms: 2, area: '75.00',  floor: 5, totalFloors: 9, yearBuilt: 2010, agencyId: null,        toursEnabled: false });
-    await createZListing({ id: ID.house,propertyType: PropertyType.HOUSE,       rooms: 5, area: '120.00', floor: 1, totalFloors: 1, yearBuilt: 1990, agencyId: null,        toursEnabled: false });
-    await createZListing({ id: ID.land, propertyType: PropertyType.LAND,        rooms: 1, area: '40.00',  floor: 9, totalFloors: 9, yearBuilt: 2024, agencyId: AGENCY_UUID, toursEnabled: false });
-    await createZListing({ id: ID.comm, propertyType: PropertyType.COMMERCIAL,  rooms: 3, area: '40.00',  floor: 3, totalFloors: 9, yearBuilt: 2010, agencyId: AGENCY_UUID, toursEnabled: true  });
+    // Владелец-агент: пользователь с ролью AGENT → в фильтре трактуется как
+    // «агентство» (роль AGENT/AGENCY, как в contact-блоке ListingsService).
+    const agencyOwner = await prisma.user.create({ data: { phone: '+998900000902' } });
+    agencyOwnerId = agencyOwner.id;
+    const agentRole = await prisma.role.upsert({
+      where: { code: 'AGENT' },
+      update: {},
+      create: { code: 'AGENT' },
+    });
+    await prisma.userRole.create({
+      data: { userId: agencyOwnerId, roleId: agentRole.id },
+    });
+
+    await createZListing({ id: ID.apt,  ownerId,        propertyType: PropertyType.APARTMENT,  rooms: 2, area: '75.00',  floor: 5, totalFloors: 9, yearBuilt: 2010, toursEnabled: false });
+    await createZListing({ id: ID.house,ownerId,        propertyType: PropertyType.HOUSE,       rooms: 5, area: '120.00', floor: 1, totalFloors: 1, yearBuilt: 1990, toursEnabled: false });
+    await createZListing({ id: ID.land, ownerId: agencyOwnerId, propertyType: PropertyType.LAND,       rooms: 1, area: '40.00',  floor: 9, totalFloors: 9, yearBuilt: 2024, toursEnabled: false });
+    await createZListing({ id: ID.comm, ownerId: agencyOwnerId, propertyType: PropertyType.COMMERCIAL, rooms: 3, area: '40.00',  floor: 3, totalFloors: 9, yearBuilt: 2010, toursEnabled: true  });
   });
 
   afterAll(async () => {
     await prisma.listing.deleteMany({ where: { cityId: CITY_ID_ZILLOW } });
+    // user_roles уходит каскадом при удалении пользователя (onDelete: Cascade).
+    if (agencyOwnerId) {
+      await prisma.user.delete({ where: { id: agencyOwnerId } });
+    }
     if (ownerId) {
       await prisma.user.delete({ where: { id: ownerId } });
     }
@@ -1202,8 +1219,8 @@ describe('GET /search — Zillow filters (Phase 1)', () => {
     expect(ids.size).toBe(2);
   });
 
-  it('listing_source OWNER → agency_id IS NULL', async () => {
-    // agencyId: apt=null, house=null, land=AGENCY, comm=AGENCY
+  it('listing_source OWNER → владелец без агентской роли', async () => {
+    // owner: apt/house=частный, land/comm=агент → OWNER даёт apt+house
     const result = await service.search({
       city_id: CITY_ID_ZILLOW,
       listing_source: ['OWNER'],
@@ -1218,7 +1235,7 @@ describe('GET /search — Zillow filters (Phase 1)', () => {
     expect(ids.size).toBe(2);
   });
 
-  it('listing_source AGENCY → agency_id IS NOT NULL', async () => {
+  it('listing_source AGENCY → владелец с ролью AGENT/AGENCY', async () => {
     const result = await service.search({
       city_id: CITY_ID_ZILLOW,
       listing_source: ['AGENCY'],
