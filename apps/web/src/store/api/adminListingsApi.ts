@@ -12,6 +12,7 @@ import type {
   ListingTranslations,
   GenerateTranslationsResult,
   TranslationEditRequest,
+  UpdateOriginalRequest,
 } from './adminTypes';
 
 /**
@@ -114,6 +115,24 @@ export const adminListingsApi = adminApi.injectEndpoints({
       }),
       invalidatesTags: ['Admin'],
     }),
+
+    /**
+     * `PATCH /admin/listings/:id/original` — правка авторского оригинала: текст +
+     * язык (ADR-0156). Смена языка переносит текст в правильный слот и очищает
+     * производные переводы; далее модератор жмёт «Сгенерировать переводы».
+     * Возвращает обновлённый набор переводов.
+     */
+    updateOriginalTranslation: build.mutation<
+      ListingTranslations,
+      { id: string; body: UpdateOriginalRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/admin/listings/${id}/original`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Admin'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -127,4 +146,5 @@ export const {
   useGetListingTranslationsQuery,
   useGenerateTranslationsMutation,
   useUpdateTranslationMutation,
+  useUpdateOriginalTranslationMutation,
 } = adminListingsApi;

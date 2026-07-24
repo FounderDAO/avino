@@ -21,6 +21,7 @@ import { StatusPill } from '@/components/admin/ui/pill';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
 import { TranslationRow } from '@/components/admin/TranslationRow';
+import { OriginalTranslationEditor } from '@/components/admin/OriginalTranslationEditor';
 import {
   useGetAdminListingQuery,
   useListAdminListingsQuery,
@@ -28,6 +29,7 @@ import {
   useGetListingTranslationsQuery,
   useGenerateTranslationsMutation,
   useUpdateTranslationMutation,
+  useUpdateOriginalTranslationMutation,
 } from '@/store/api/adminListingsApi';
 import { totalPages } from '@/store/api/adminApi';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
@@ -202,6 +204,7 @@ export default function ModerationPage() {
   const { data: tr } = useGetListingTranslationsQuery(selId ?? '', { skip: !selId });
   const [generate, { isLoading: isGenerating }] = useGenerateTranslationsMutation();
   const [saveTr, { isLoading: isSavingTr }] = useUpdateTranslationMutation();
+  const [saveOriginal, { isLoading: isSavingOriginal }] = useUpdateOriginalTranslationMutation();
   const presentLangs = new Set((tr?.translations ?? []).map((t) => t.language));
   // APPROVE гейтится предупреждением пока нет всех языков (дублирует серверный гейт 422).
   const translationsComplete = REQUIRED_LANGS.every((l) => presentLangs.has(l));
@@ -338,18 +341,33 @@ export default function ModerationPage() {
                       </button>
                     </div>
                   </div>
-                  {(tr?.translations ?? []).map((t) => (
-                    <TranslationRow
-                      key={t.language}
-                      item={t}
-                      saving={isSavingTr}
-                      original={t.language === tr?.original_language}
-                      onSave={async (body) => {
-                        try { await saveTr({ id: sel.id, language: t.language, body }).unwrap(); toast('Перевод сохранён'); }
-                        catch { toast('Не удалось сохранить'); }
-                      }}
-                    />
-                  ))}
+                  {(tr?.translations ?? []).map((t) =>
+                    t.language === tr?.original_language ? (
+                      <OriginalTranslationEditor
+                        key={t.language}
+                        item={t}
+                        originalLanguage={tr.original_language}
+                        saving={isSavingOriginal}
+                        onSave={async (body) => {
+                          try {
+                            await saveOriginal({ id: sel.id, body }).unwrap();
+                            toast('Оригинал обновлён — сгенерируйте переводы заново');
+                          } catch { toast('Не удалось сохранить оригинал'); }
+                        }}
+                      />
+                    ) : (
+                      <TranslationRow
+                        key={t.language}
+                        item={t}
+                        saving={isSavingTr}
+                        original={false}
+                        onSave={async (body) => {
+                          try { await saveTr({ id: sel.id, language: t.language, body }).unwrap(); toast('Перевод сохранён'); }
+                          catch { toast('Не удалось сохранить'); }
+                        }}
+                      />
+                    ),
+                  )}
                   {!tr?.translations?.length && (
                     <p className="muted" style={{ fontSize: 13.5 }}>
                       Переводов пока нет — нажмите «Сгенерировать переводы».

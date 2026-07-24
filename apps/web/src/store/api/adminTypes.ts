@@ -685,6 +685,21 @@ export interface TranslationEditRequest {
 }
 
 /**
+ * Тело `PATCH /admin/listings/:id/original` (ADR-0156). Правка авторского
+ * оригинала: текст + язык, на котором он написан. Смена `original_language`
+ * переносит текст в правильный слот и очищает производные переводы. Строка
+ * оригинала перезаписывается полностью — шлём и сквозные `address_note`/
+ * `features_text`, иначе они занулятся.
+ */
+export interface UpdateOriginalRequest {
+  original_language: TranslationLanguage;
+  title: string;
+  description?: string | null;
+  address_note?: string | null;
+  features_text?: string | null;
+}
+
+/**
  * Ответ `POST /admin/listings/:id/translations/generate` (§7, ADR-0091).
  * Расширяет {@link ListingTranslations} итогом генерации: `regenerated` —
  * целевые языки, реально (пере)сгенерированные; `skipped` — пропущенные как
