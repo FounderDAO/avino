@@ -9,7 +9,7 @@
 # только standalone-бандл Next (output: 'standalone', next.config.mjs) под
 # USER node; рантайм = `node server.js`, без pnpm и node_modules workspace'а.
 
-FROM node:20-slim AS build
+FROM node:26-slim AS build
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=1 NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable
 WORKDIR /repo
@@ -40,7 +40,7 @@ RUN pnpm --filter @avino/shared build \
  && pnpm --filter @avino/web build
 
 # ── Runtime: standalone-бандл, non-root ──────────────────────────────────────
-FROM node:20-slim AS runtime
+FROM node:26-slim AS runtime
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 WORKDIR /app
 # standalone-бандл сохраняет структуру монорепо: server.js лежит в apps/web/.
