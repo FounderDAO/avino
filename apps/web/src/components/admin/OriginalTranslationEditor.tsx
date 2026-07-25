@@ -6,11 +6,13 @@
  *  - сменить «Язык оригинала» (селект) — типовой кейс «автор написал по-русски,
  *    а пометил EN»: смена EN→RU переносит текст в правильный слот и на бэке
  *    очищает производные переводы;
- *  - отредактировать заголовок и описание оригинала (частая правка опечаток).
+ *  - отредактировать описание оригинала (частая правка опечаток).
  *
- * `address_note`/`features_text` не редактируются в UI, но передаются сквозняком
- * из `item` — бэкенд перезаписывает строку оригинала целиком (ADR-0156), иначе
- * они занулятся. После сохранения модератор жмёт «Сгенерировать переводы».
+ * Заголовок в UI НЕ редактируется: `title` — авто-строка («тип, площадь, адрес»),
+ * скрытая и в apps/client. Его прокидываем сквозняком из `item` без изменений,
+ * иначе бэкенд (перезаписывает строку оригинала целиком, ADR-0156) занулит его.
+ * Так же передаются `address_note`/`features_text`. После сохранения модератор
+ * жмёт «Сгенерировать переводы».
  *
  * Стили совпадают с остальной admin-страницей и `TranslationRow`.
  */
@@ -42,12 +44,10 @@ export function OriginalTranslationEditor({
   saving,
 }: OriginalTranslationEditorProps) {
   const [language, setLanguage] = useState<TranslationLanguage>(originalLanguage);
-  const [title, setTitle] = useState(item.title);
   const [description, setDescription] = useState(item.description ?? '');
 
   const languageChanged = language !== originalLanguage;
-  const isDirty =
-    languageChanged || title !== item.title || description !== (item.description ?? '');
+  const isDirty = languageChanged || description !== (item.description ?? '');
 
   const submit = () => {
     if (
@@ -60,9 +60,10 @@ export function OriginalTranslationEditor({
     }
     onSave({
       original_language: language,
-      title,
+      // Заголовок не редактируется — прокидываем исходную авто-строку без изменений
+      // (иначе бэкенд занулит его при полной перезаписи строки оригинала, ADR-0156).
+      title: item.title,
       description: description || null,
-      // Сквозняком — бэкенд перезаписывает строку оригинала целиком (ADR-0156).
       address_note: item.address_note,
       features_text: item.features_text,
     });
@@ -117,22 +118,6 @@ export function OriginalTranslationEditor({
             className="muted"
             style={{ fontSize: 11.5, fontWeight: 700, display: 'block', marginBottom: 4 }}
           >
-            Заголовок
-          </label>
-          <input
-            className="a-field"
-            style={{ width: '100%' }}
-            value={title}
-            maxLength={255}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label
-            className="muted"
-            style={{ fontSize: 11.5, fontWeight: 700, display: 'block', marginBottom: 4 }}
-          >
             Описание
           </label>
           <textarea
@@ -147,7 +132,7 @@ export function OriginalTranslationEditor({
       <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
         <button
           className="abtn abtn-outline abtn-sm"
-          disabled={saving || !isDirty || !title.trim()}
+          disabled={saving || !isDirty}
           onClick={submit}
         >
           {saving ? 'Сохранение…' : 'Сохранить оригинал'}
