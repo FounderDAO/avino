@@ -502,6 +502,11 @@ model Listing {
   originalLanguage   Language                               @map("original_language")
   price              Decimal                                @db.Decimal(14, 2)
   currency           Currency
+  /// «Цена снижена»: последнее изменение цены — снижение в той же валюте.
+  /// Пишется ТОЛЬКО рядом с listing_price_history в ListingsService.update()
+  /// (одна транзакция — рассинхрон исключён). Повышение или смена валюты
+  /// (цены несравнимы) сбрасывают в false. Фильтр ?price_reduced=true.
+  priceReduced       Boolean                                @default(false) @map("price_reduced")
   area               Decimal?                               @db.Decimal(10, 2)
   lotArea            Decimal?                               @map("lot_area") @db.Decimal(10, 2)
   livingArea         Decimal?                               @map("living_area") @db.Decimal(10, 2)
