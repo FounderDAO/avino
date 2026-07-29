@@ -684,6 +684,62 @@ describe('ListingsService', () => {
       });
     });
 
+    it('sets price_reduced=true when the price drops in the same currency', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+      await service.update(OWNER_ID, LISTING_ID, { price: '4200000.00' } as any);
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.priceReduced).toBe(true);
+    });
+
+    it('resets price_reduced=false when the price goes up', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+      await service.update(OWNER_ID, LISTING_ID, { price: '4800000.00' } as any);
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.priceReduced).toBe(false);
+    });
+
+    it('resets price_reduced=false when the currency changes', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+      await service.update(OWNER_ID, LISTING_ID, { currency: Currency.USD } as any);
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.priceReduced).toBe(false);
+    });
+
+    it('does not touch price_reduced when price/currency are unchanged', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+      await service.update(OWNER_ID, LISTING_ID, { rooms: 3 } as any);
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.priceReduced).toBeUndefined();
+    });
+
     it('does not append history when the submitted price equals the current one', async () => {
       prisma.listing.findFirst.mockResolvedValue({
         id: LISTING_ID,

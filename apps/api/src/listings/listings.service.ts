@@ -774,6 +774,15 @@ export class ListingsService {
       (!existing.price.equals(new Prisma.Decimal(nextPrice)) ||
         nextCurrency !== existing.currency);
 
+    // «Цена снижена» (?price_reduced=): считаем только последнее направление.
+    // Снижение в той же валюте → true; повышение или смена валюты (цены
+    // несравнимы) → false. No-op-правка флаг не трогает.
+    if (priceChanged) {
+      data.priceReduced =
+        nextCurrency === existing.currency &&
+        new Prisma.Decimal(nextPrice).lessThan(existing.price);
+    }
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.listing.update({
         where: { id: listingId },
