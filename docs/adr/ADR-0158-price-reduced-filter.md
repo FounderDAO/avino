@@ -29,7 +29,7 @@ Accepted
   индекс `WHERE price_reduced = true`; `false`/отсутствие — без фильтра
   (паттерн фильтров-флажков);
 - фильтр работает во всех поисковых эндпоинтах (`/search`, `/search/bounds`,
-  `/search/radius`, `/search/polygon`, `/search/clusters`, price-distribution).
+  `/search/radius`, `/search/polygon`, `/search/clusters`).
 
 ## Consequences
 
@@ -48,6 +48,6 @@ Accepted
 ## Related
 
 - ADR-0121 (история цен, `listing_price_history`)
-- docs/superpowers/price-reduced-filter.md (локальная спека)
-- prisma/migrations/20260729120000_price_reduced_flag (миграция)
+- docs/superpowers/specs/2026-07-29-price-reduced-filter-design.md (локальная спека)
+- apps/api/prisma/migrations/20260729120000_price_reduced_flag/migration.sql (миграция)
 - apps/api/src/listings/listings.service.ts (точка записи flags и истории)
