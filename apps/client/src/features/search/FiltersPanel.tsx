@@ -33,6 +33,7 @@ export interface FiltersPanelValues {
   floorMax?: string;
   notFirstFloor?: boolean;
   notLastFloor?: boolean;
+  priceReduced?: boolean;
   totalFloorsMin?: string;
   totalFloorsMax?: string;
   listingSource?: ('OWNER' | 'AGENCY')[];
@@ -229,6 +230,15 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
         <AmenitiesMultiSelect
           value={draft.amenities ?? []}
           onChange={(next) => patch({ amenities: next.length ? next : undefined })}
+        />
+      </Section>
+
+      {/* Цена снижена */}
+      <Section title="">
+        <CheckboxRow
+          label={t('priceReduced')}
+          checked={draft.priceReduced ?? false}
+          onChange={(checked) => patch({ priceReduced: checked || undefined })}
         />
       </Section>
 

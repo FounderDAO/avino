@@ -428,6 +428,7 @@ describe('buildSearchParams — Zillow-фильтры (Task 4)', () => {
         yearMin: 2010,
         listingSource: ['OWNER', 'AGENCY'],
         toursEnabled: true,
+        priceReduced: true,
       },
       24,
     );
@@ -437,6 +438,7 @@ describe('buildSearchParams — Zillow-фильтры (Task 4)', () => {
     expect(p.get('floor_min')).toBe('2');
     expect(p.get('not_first_floor')).toBe('true');
     expect(p.get('year_min')).toBe('2010');
+    expect(p.get('price_reduced')).toBe('true');
     expect(p.getAll('listing_source')).toEqual(['OWNER', 'AGENCY']);
     expect(p.get('tours_enabled')).toBe('true');
   });
