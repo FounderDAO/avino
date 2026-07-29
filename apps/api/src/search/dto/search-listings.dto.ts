@@ -239,6 +239,9 @@ export class SearchListingsQueryDto {
   /** Только цокольный этаж (мобилка #4): true → is_basement = true; false/нет — без фильтра. */
   @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() is_basement?: boolean;
 
+  /** «Цена снижена»: true → последнее изменение цены было снижением; false/нет — без фильтра. */
+  @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() price_reduced?: boolean;
+
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) total_floors_min?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) total_floors_max?: number;
   @IsOptional() @Type(() => Number) @IsInt() year_min?: number;

@@ -1185,6 +1185,22 @@ describe('GET /search — Zillow filters (Phase 1)', () => {
     expect(ids.size).toBe(3);
   });
 
+  it('price_reduced=true возвращает только снижённые', async () => {
+    // Флаг проставляем raw-апдейтом: маршрут записи (ListingsService.update)
+    // покрыт юнитами, здесь проверяем ТОЛЬКО фильтр.
+    await prisma.$executeRaw`UPDATE listings SET price_reduced = true WHERE id = ${ID.apt}::uuid`;
+
+    const result = await service.search({
+      city_id: CITY_ID_ZILLOW,
+      price_reduced: true,
+      limit: 100,
+    });
+
+    const ids = new Set(result.data.map((d) => d.id));
+    expect(ids).toContain(ID.apt);
+    expect(ids.size).toBe(1);
+  });
+
   it('not_last_floor исключает последний этаж (floor < total_floors)', async () => {
     // (floor,total): apt=(5,9), house=(1,1), land=(9,9), comm=(3,9)
     // not_last_floor: apt(5<9✓) + comm(3<9✓) = 2; house(1=1✗) + land(9=9✗)

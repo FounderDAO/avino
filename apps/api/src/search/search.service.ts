@@ -1181,7 +1181,8 @@ export class SearchService {
    * + Zillow-фильтры Phase 1 (TASK-Zillow): `property_type` (IN-массив),
    *   `rooms_min`, `area_min/max`, `floor_min/max`, `not_first_floor`,
    *   `not_last_floor`, `total_floors_min/max`, `year_min/max`,
-   *   `listing_source` (OWNER/AGENCY — по роли владельца), `tours_enabled`.
+   *   `listing_source` (OWNER/AGENCY — по роли владельца), `tours_enabled`,
+   *   `price_reduced`.
    *
    * Параметры биндятся через `Prisma.sql` (защита от инъекций). Enum-колонки
    * сравниваются через `::text` (не зависит от имени PG-типа); ценовой диапазон
@@ -1340,6 +1341,11 @@ export class SearchService {
       conds.push(
         Prisma.sql`year_built >= ${new Date().getFullYear() - NEW_CONSTRUCTION_MAX_AGE_YEARS + 1}`,
       );
+
+    // «Цена снижена»: только явный true применяет фильтр (паттерн флажков —
+    // см. new_construction/is_basement). Флаг ведёт ListingsService.update().
+    if (query.price_reduced === true)
+      conds.push(Prisma.sql`price_reduced = true`);
 
     // Zillow Phase 1: источник (собственник / агентство).
     // Тип продавца определяем по РОЛИ владельца — так же, как contact-блок в

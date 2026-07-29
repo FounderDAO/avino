@@ -48,6 +48,12 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(dto({ is_basement: 'false' }).inst.is_basement).toBe(false);
   });
 
+  it('парсит price_reduced из query-строки', () => {
+    expect(dto({ price_reduced: 'true' }).inst.price_reduced).toBe(true);
+    expect(dto({ price_reduced: 'false' }).inst.price_reduced).toBe(false);
+    expect(dto({ price_reduced: 'junk' }).errors.length).toBeGreaterThan(0);
+  });
+
   it('парсит new_construction из query-строки', () => {
     expect(dto({ new_construction: 'true' }).inst.new_construction).toBe(true);
     expect(dto({ new_construction: 'false' }).inst.new_construction).toBe(false);
