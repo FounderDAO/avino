@@ -63,4 +63,11 @@ describe('filtersToSearchHref — точное восстановление', ()
     expect(qs.getAll('type')).toEqual([]);
     expect(qs.get('new_construction')).toBe('true');
   });
+
+  it('восстанавливает price_reduced=true (и описывает чипом)', () => {
+    const href = filtersToSearchHref({ price_reduced: true });
+    const qs = new URLSearchParams(href.split('?')[1]);
+    expect(qs.get('price_reduced')).toBe('true');
+    expect(describeFilters({ price_reduced: true }, t)).toContain('search.filters.priceReduced');
+  });
 });
