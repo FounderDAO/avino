@@ -118,7 +118,7 @@ describe('FiltersPanel', () => {
 
     // Находим чекбокс по aria-label его label или по позиции среди checkboxes
     const checkboxes = screen.getAllByRole('checkbox');
-    // порядок: newConstruction (0), notFirstFloor (1), notLastFloor (2), sourceOwner (3), sourceAgency (4), toursEnabled (5)
+    // порядок: newConstruction (0), notFirstFloor (1), notLastFloor (2), sourceOwner (3), sourceAgency (4), priceReduced (5), toursEnabled (6), isBasement (7)
     const notFirstFloor = checkboxes[1];
     expect(notFirstFloor).not.toBeChecked();
 
