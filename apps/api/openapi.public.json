@@ -1190,6 +1190,14 @@
             }
           },
           {
+            "name": "price_reduced",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "total_floors_min",
             "required": false,
             "in": "query",
@@ -1499,6 +1507,14 @@
           },
           {
             "name": "is_basement",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "price_reduced",
             "required": false,
             "in": "query",
             "schema": {
@@ -1845,6 +1861,14 @@
           },
           {
             "name": "is_basement",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "price_reduced",
             "required": false,
             "in": "query",
             "schema": {
@@ -2259,6 +2283,14 @@
             }
           },
           {
+            "name": "price_reduced",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "total_floors_min",
             "required": false,
             "in": "query",
@@ -2559,6 +2591,14 @@
           },
           {
             "name": "is_basement",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "price_reduced",
             "required": false,
             "in": "query",
             "schema": {
@@ -2938,6 +2978,14 @@
           },
           {
             "name": "is_basement",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "price_reduced",
             "required": false,
             "in": "query",
             "schema": {
