@@ -462,6 +462,7 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   if (filter.floorMax != null) params.set('floor_max', String(filter.floorMax));
   if (filter.notFirstFloor) params.set('not_first_floor', 'true');
   if (filter.notLastFloor) params.set('not_last_floor', 'true');
+  if (filter.priceReduced) params.set('price_reduced', 'true');
   if (filter.totalFloorsMin != null) params.set('total_floors_min', String(filter.totalFloorsMin));
   if (filter.totalFloorsMax != null) params.set('total_floors_max', String(filter.totalFloorsMax));
   if (filter.yearMin != null) params.set('year_min', String(filter.yearMin));

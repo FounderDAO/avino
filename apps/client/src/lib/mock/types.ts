@@ -249,6 +249,8 @@ export interface ListingFilter {
   floorMax?: number;
   notFirstFloor?: boolean;
   notLastFloor?: boolean;
+  /** «Цена снижена» (`?price_reduced=true`) — последнее изменение цены было снижением. */
+  priceReduced?: boolean;
   totalFloorsMin?: number;
   totalFloorsMax?: number;
   yearMin?: number;

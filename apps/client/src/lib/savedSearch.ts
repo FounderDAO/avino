@@ -90,6 +90,7 @@ export function describeFilters(filters: SavedSearchFilters, t: T): string {
 
   if (filters.not_first_floor) parts.push(t('search.filters.notFirstFloor'));
   if (filters.not_last_floor) parts.push(t('search.filters.notLastFloor'));
+  if (filters.price_reduced) parts.push(t('search.filters.priceReduced'));
 
   const totalFloorsMin = asString(filters.total_floors_min);
   const totalFloorsMax = asString(filters.total_floors_max);
@@ -180,6 +181,7 @@ export function filtersToSearchHref(filters: SavedSearchFilters): string {
   set('year_max', asString(filters.year_max));
   if (filters.not_first_floor) params.set('not_first_floor', 'true');
   if (filters.not_last_floor) params.set('not_last_floor', 'true');
+  if (filters.price_reduced) params.set('price_reduced', 'true');
   // listing_source — повторяющийся параметр; старые записи могли хранить строку.
   const sources = Array.isArray(filters.listing_source)
     ? (filters.listing_source as string[])

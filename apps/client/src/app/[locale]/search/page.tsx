@@ -228,6 +228,7 @@ export default async function SearchPage({
   const notLastFloor = first(sp.not_last_floor) === 'true' ? true : undefined;
   const toursEnabled = first(sp.tours_enabled) === 'true' ? true : undefined;
   const isBasement = first(sp.is_basement) === 'true' ? true : undefined;
+  const priceReduced = first(sp.price_reduced) === 'true' ? true : undefined;
 
   // Источник объявления (мультивыбор: повторяющийся ?listing_source=).
   const rawSource = Array.isArray(sp.listing_source)
@@ -310,6 +311,7 @@ export default async function SearchPage({
     parkingTypes: parkingTypes.length > 0 ? parkingTypes : undefined,
     amenities: amenities.length > 0 ? amenities : undefined,
     isBasement,
+    priceReduced,
   };
 
   let page = await (initialBounds
@@ -373,6 +375,7 @@ export default async function SearchPage({
     parkingTypes: parkingTypes.length > 0 ? parkingTypes : undefined,
     amenities: amenities.length > 0 ? amenities : undefined,
     isBasement,
+    priceReduced,
   };
 
   // Заголовок выдачи: «Покупка/Аренда жилья · <район|регион|запрос|Ташкент>».

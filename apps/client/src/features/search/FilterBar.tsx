@@ -92,6 +92,8 @@ export interface FilterValues {
   totalFloorsMax?: string;
   notFirstFloor?: boolean;
   notLastFloor?: boolean;
+  /** «Цена снижена» (`?price_reduced=true`). */
+  priceReduced?: boolean;
   toursEnabled?: boolean;
   listingSource?: ('OWNER' | 'AGENCY')[];
   parkingTypes?: ParkingType[];
@@ -270,7 +272,7 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
     values.yearMin || values.yearMax || values.newConstruction ||
     values.floorMin || values.floorMax ||
     values.totalFloorsMin || values.totalFloorsMax ||
-    values.notFirstFloor || values.notLastFloor ||
+    values.notFirstFloor || values.notLastFloor || values.priceReduced ||
     values.toursEnabled || (values.listingSource?.length ?? 0) > 0 ||
     // bathroomsMin не подсвечивает «Фильтры»: секция в панели скрыта,
     // санузлы сигналит чип «Комнаты» (см. SHOW_ROOMS_AND_BATHROOMS).
@@ -295,6 +297,7 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
     floorMax: values.floorMax,
     notFirstFloor: values.notFirstFloor,
     notLastFloor: values.notLastFloor,
+    priceReduced: values.priceReduced,
     totalFloorsMin: values.totalFloorsMin,
     totalFloorsMax: values.totalFloorsMax,
     listingSource: values.listingSource,
@@ -329,6 +332,7 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
       setOne('total_floors_max', next.totalFloorsMax);
       setOne('not_first_floor', next.notFirstFloor ? 'true' : undefined);
       setOne('not_last_floor', next.notLastFloor ? 'true' : undefined);
+      setOne('price_reduced', next.priceReduced ? 'true' : undefined);
       params.delete('listing_source');
       for (const s of next.listingSource ?? []) params.append('listing_source', s);
       setOne('tours_enabled', next.toursEnabled ? 'true' : undefined);
@@ -361,6 +365,7 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
       total_floors_max: undefined,
       not_first_floor: undefined,
       not_last_floor: undefined,
+      price_reduced: undefined,
       listing_source: undefined,
       tours_enabled: undefined,
       is_basement: undefined,
@@ -407,6 +412,7 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
     if (values.newConstruction) filters.new_construction = true;
     if (values.notFirstFloor) filters.not_first_floor = true;
     if (values.notLastFloor) filters.not_last_floor = true;
+    if (values.priceReduced) filters.price_reduced = true;
     if (values.listingSource && values.listingSource.length > 0) filters.listing_source = values.listingSource;
     if (values.toursEnabled) filters.tours_enabled = true;
     if (values.isBasement) filters.is_basement = true;
