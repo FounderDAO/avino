@@ -8,7 +8,7 @@
 #             (target: build): ему нужны prisma CLI, ts-node и prisma/seed*.
 #   runtime — только прод-зависимости (pnpm deploy --prod) + dist, под USER node.
 
-FROM node:20-slim AS build
+FROM node:25-slim AS build
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=1
 # openssl + ca-certificates — Prisma engines need them on debian-slim.
 RUN apt-get update \
@@ -46,7 +46,7 @@ EXPOSE 4000
 CMD ["node", "dist/main.js"]
 
 # ── Runtime: dist + prod-deps, non-root ──────────────────────────────────────
-FROM node:20-slim AS runtime
+FROM node:25-slim AS runtime
 ENV NODE_ENV=production
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
