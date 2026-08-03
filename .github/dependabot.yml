@@ -26,15 +26,30 @@ updates:
   # ── Docker базовые образы (FROM в Dockerfile'ах) ───────────────────────────
   # Dependabot docker-экосистема сканирует Dockerfile, но НЕ image: в compose —
   # версии образов compose (postgis/redis/caddy) пинуются и обновляются вручную.
+  # Мажоры node игнорируем: dependabot не различает LTS и current, а бамп на
+  # current ломает прод-сборку (node:25 без corepack → PR #481). Переезд на
+  # новый LTS-мажор — осознанное ручное решение, не авто-PR.
   - package-ecosystem: docker
     directory: "/apps/api"
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: node
+        update-types:
+          - "version-update:semver-major"
   - package-ecosystem: docker
     directory: "/apps/web"
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: node
+        update-types:
+          - "version-update:semver-major"
   - package-ecosystem: docker
     directory: "/apps/client"
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: node
+        update-types:
+          - "version-update:semver-major"
