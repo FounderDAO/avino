@@ -20,6 +20,11 @@
     "photoNext": "Keyingi rasm",
     "goToPhoto": "{n}-rasm"
   },
+  "notFound": {
+    "title": "Sahifa topilmadi",
+    "text": "Ehtimol, u o'chirilgan yoki manzil noto'g'ri kiritilgan.",
+    "cta": "Bosh sahifaga"
+  },
   "nav": {
     "buy": "Sotib olish",
     "rent": "Ijara",
