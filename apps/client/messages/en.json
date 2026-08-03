@@ -20,6 +20,11 @@
     "photoNext": "Next photo",
     "goToPhoto": "Photo {n}"
   },
+  "notFound": {
+    "title": "Page not found",
+    "text": "It may have been removed, or the address was mistyped.",
+    "cta": "Go to homepage"
+  },
   "nav": {
     "buy": "Buy",
     "rent": "Rent",

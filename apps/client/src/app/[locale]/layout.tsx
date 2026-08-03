@@ -8,6 +8,7 @@ import { Inter } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { preconnect } from 'react-dom';
 import { routing } from '@/i18n/routing';
 import { StoreProvider } from '@/store/StoreProvider';
 import { Header } from '@/components/layout/Header';
@@ -21,6 +22,10 @@ const inter = Inter({
   variable: '--font-inter',
   display: 'swap',
 });
+
+// Тот же origin, что baseQuery.ts (без /api/v1 — preconnect держит TCP+TLS
+// к домену, путь ему не нужен).
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -56,6 +61,14 @@ export default async function RootLayout({ children, modal, params }: LayoutProp
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
+
+  // Первый fetch к API (auth/refresh, settings/public) иначе платит холодный
+  // DNS+TCP+TLS в момент запроса (~1.7с на проде при ~70мс ответа сервера).
+  // crossOrigin: 'use-credentials' — запросы к API идут с credentials: 'include'
+  // (httpOnly cookie avino_rt, ADR-0153), соединение должно быть credentialed,
+  // иначе браузер откроет отдельный сокет под кредентиалный запрос и preconnect
+  // не переиспользуется.
+  preconnect(API_ORIGIN, { crossOrigin: 'use-credentials' });
 
   const organizationLd = {
     '@context': 'https://schema.org',
