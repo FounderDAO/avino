@@ -30,7 +30,7 @@
     "@nestjs/platform-socket.io": "^10.4.22",
     "@nestjs/swagger": "^7.4.0",
     "@nestjs/throttler": "^6.0.0",
-    "@nestjs/websockets": "^10",
+    "@nestjs/websockets": "^11",
     "@prisma/client": "^5.18.0",
     "@sentry/nestjs": "^10.69.0",
     "@socket.io/redis-adapter": "^8.3.0",
