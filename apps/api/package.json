@@ -61,7 +61,7 @@
     "@typescript-eslint/parser": "^8.65.0",
     "eslint": "^8.57.1",
     "jest": "^30.4.2",
-    "prisma": "^5.18.0",
+    "prisma": "^7.9.1",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
