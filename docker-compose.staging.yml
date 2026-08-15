@@ -23,6 +23,15 @@
 # больше не нужен: разворачивайте чистый прод (без `-f docker-compose.staging.yml`).
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Предел на json-логи контейнеров. Значения те же, что в docker-compose.prod.yml,
+# чтобы dev не расходился с боем. У драйвера json-file предела нет по умолчанию:
+# файл растёт до удаления контейнера, рестарт его не обнуляет.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   # seed-admin.cjs создаёт локального ADMIN, но имеет guard `NODE_ENV===production`
   # → пропускается. На тест-стенде ADMIN нужен (вход в админку/модерацию), поэтому
@@ -30,10 +39,12 @@ services:
   # реально создаст admin@avino.uz с ролью ADMIN. (db seed-справочники гонятся при
   # любом env; demo-контент — отдельно, вручную: см. deploy/README.md.)
   migrate:
+    logging: *default-logging
     environment:
       NODE_ENV: development
 
   api:
+    logging: *default-logging
     environment:
       # Только для тест-стенда: вернуть dev-режим, чтобы EMAIL-OTP попадал в лог
       # (вход без SMTP). Фронты (web/client) остаются прод-сборкой из prod-overlay.
