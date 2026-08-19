@@ -1425,6 +1425,10 @@ export class SearchService {
    * глобальная гистограмма без остальных скалярных фильтров). `viewerId`
    * не задан (гость) → `null` (условие не добавляется). Индекс
    * `user_blocks(blocker_id)` покрывает подзапрос.
+   *
+   * Два call site: {@link buildWhereSql} пушит результат элементом в
+   * `conds` (join `' AND '` делает склейку сам); {@link priceDistribution}
+   * склеивает вручную — `Prisma.sql\`${baseWhere} AND ${blockedCond}\``.
    */
   private blockedAuthorsCondSql(viewerId: string | undefined): Prisma.Sql | null {
     if (viewerId === undefined) {

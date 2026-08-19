@@ -598,6 +598,53 @@ describe('SearchService', () => {
       ).buildWhereSql(baseQuery(), undefined, undefined);
       expect(sql.strings.join('?')).not.toContain('user_blocks');
     });
+
+    // priceDistribution НЕ вызывает buildWhereSql (глобальная гистограмма,
+    // ручная склейка baseWhere + blockedAuthorsCondSql через AND) — регрессия
+    // в этой склейке не была бы поймана тестами выше, поэтому проверяем
+    // именно итоговый SQL, уходящий в $queryRaw (обе строки — stats и buckets).
+    describe('priceDistribution', () => {
+      function mockDistributionQuery() {
+        prisma.$queryRaw
+          .mockResolvedValueOnce([{ ceiling: 95000, total: 10 }])
+          .mockResolvedValueOnce([{ b: 1, c: 3 }]);
+      }
+
+      it('с viewerId: AND-склейка baseWhere + подзапрос user_blocks, viewerId в values', async () => {
+        mockDistributionQuery();
+
+        await service.priceDistribution(
+          { currency: Currency.USD, transaction_type: TransactionType.SALE },
+          VIEWER_ID,
+        );
+
+        const statsSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+        const bucketSql = prisma.$queryRaw.mock.calls[1][0] as Prisma.Sql;
+        for (const sql of [statsSql, bucketSql]) {
+          const text = sqlText(sql);
+          expect(text).toContain("status = 'ACTIVE'");
+          // Реальная AND-склейка (не просто наличие фрагмента где-то в строке).
+          expect(text).toContain(
+            "AND owner_id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id =",
+          );
+          expect(sql.values).toContain(VIEWER_ID);
+        }
+      });
+
+      it('без viewerId: подзапроса user_blocks нет ни в stats, ни в bucket SQL', async () => {
+        mockDistributionQuery();
+
+        await service.priceDistribution({
+          currency: Currency.USD,
+          transaction_type: TransactionType.SALE,
+        });
+
+        const statsSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+        const bucketSql = prisma.$queryRaw.mock.calls[1][0] as Prisma.Sql;
+        expect(sqlText(statsSql)).not.toContain('user_blocks');
+        expect(sqlText(bucketSql)).not.toContain('user_blocks');
+      });
+    });
   });
 });
 
