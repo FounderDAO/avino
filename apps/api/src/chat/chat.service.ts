@@ -213,7 +213,6 @@ export class ChatService {
         message: 'Cannot start a chat thread with yourself',
       });
     }
-
     const key = {
       listingId,
       initiatorId: user.id,
@@ -227,6 +226,12 @@ export class ChatService {
     if (existing) {
       return { thread: this.toThreadResponse(existing), created: false };
     }
+
+    // Блокировки (Apple 1.2): нельзя начать НОВУЮ переписку, если между
+    // сторонами есть блок в любую сторону. Идемпотентный повтор на уже
+    // существующий тред (ветка выше) блоком не затрагивается — тред остаётся
+    // доступен заблокированному наравне с обычным просмотром (спека §2).
+    await this.assertNotBlocked(user.id, listing.ownerId);
 
     try {
       const created = await this.prisma.chatThread.create({
@@ -271,8 +276,26 @@ export class ChatService {
     const limit = Math.min(limitParam ?? DEFAULT_LIMIT, MAX_LIMIT);
     const cursor = this.decodeCursor(rawCursor);
 
+    // Блокировки (Apple 1.2): треды с заблокированными скрываются только у
+    // блокирующего; заблокированный свой тред видит (спека §2).
+    const blockedRows = await this.prisma.userBlock.findMany({
+      where: { blockerId: user.id },
+      select: { blockedId: true },
+    });
+    const blockedIds = blockedRows.map((row) => row.blockedId);
+
     const baseWhere: Prisma.ChatThreadWhereInput = {
       OR: [{ initiatorId: user.id }, { ownerId: user.id }],
+      ...(blockedIds.length > 0
+        ? {
+            NOT: {
+              OR: [
+                { initiatorId: { in: blockedIds } },
+                { ownerId: { in: blockedIds } },
+              ],
+            },
+          }
+        : {}),
     };
     const pageWhere: Prisma.ChatThreadWhereInput = cursor
       ? { AND: [baseWhere, this.cursorFilter(cursor)] }
@@ -444,9 +467,12 @@ export class ChatService {
       });
     }
 
-    // Получатель уведомления — второй участник треда (не отправитель).
+    // Получатель — второй участник треда (не отправитель).
     const recipientId =
       thread.initiatorId === user.id ? thread.ownerId : thread.initiatorId;
+    // Блокировки (Apple 1.2): отправка запрещена в обе стороны, если есть
+    // блок между участниками — проверяем до создания сообщения.
+    await this.assertNotBlocked(user.id, recipientId);
 
     const message = await this.prisma.$transaction(async (tx) => {
       const created = await tx.chatMessage.create({
@@ -541,6 +567,26 @@ export class ChatService {
       code: ApiErrorCode.FORBIDDEN,
       message: 'Not a participant of this chat thread',
     });
+  }
+
+  /**
+   * 403, если между двумя пользователями есть блок в любую сторону
+   * (Apple Guideline 1.2, спека 2026-08-19). Вызывается перед созданием
+   * сообщения/треда; сам тред остаётся видимым заблокированному.
+   */
+  private async assertNotBlocked(a: string, b: string): Promise<void> {
+    const block = await this.prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: a, blockedId: b },
+          { blockerId: b, blockedId: a },
+        ],
+      },
+      select: { id: true },
+    });
+    if (block) {
+      throw this.forbidden();
+    }
   }
 
   /** Колонки сообщения под {@link MessageResponse}. */

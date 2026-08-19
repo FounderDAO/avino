@@ -51,6 +51,10 @@ describe('ChatService', () => {
         updateMany: jest.fn(),
       },
       user: { findMany: jest.fn().mockResolvedValue([]) },
+      userBlock: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
       // $transaction исполняет callback с самим prisma как tx (мок).
       $transaction: jest.fn(async (cb: any) => cb(prisma)),
     };
@@ -192,6 +196,27 @@ describe('ChatService', () => {
       const res = await service.createThread(user, L1);
       expect(res.created).toBe(false);
       expect(res.thread.id).toBe('t-raced');
+    });
+
+    it('403, если владелец листинга заблокировал инициатора (или наоборот)', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ownerId: OWNER_ID,
+        status: ListingStatus.ACTIVE,
+      });
+      prisma.chatThread.findUnique.mockResolvedValue(null);
+      prisma.userBlock.findFirst.mockResolvedValue({ id: 'block-1' });
+
+      await expectError(service.createThread(user, L1), ApiErrorCode.FORBIDDEN);
+      expect(prisma.userBlock.findFirst).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { blockerId: USER_ID, blockedId: OWNER_ID },
+            { blockerId: OWNER_ID, blockedId: USER_ID },
+          ],
+        },
+        select: { id: true },
+      });
+      expect(prisma.chatThread.create).not.toHaveBeenCalled();
     });
   });
 
@@ -464,6 +489,85 @@ describe('ChatService', () => {
       listing: { status },
     };
   }
+
+  describe('блокировки (Apple 1.2)', () => {
+    it('listThreads исключает треды с заблокированными собеседниками', async () => {
+      prisma.userBlock.findMany.mockResolvedValue([{ blockedId: OWNER_ID }]);
+      prisma.chatThread.findMany.mockResolvedValue([]);
+      prisma.chatThread.count.mockResolvedValue(0);
+      await service.listThreads(user, undefined, undefined);
+      expect(prisma.chatThread.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            NOT: {
+              OR: [
+                { initiatorId: { in: [OWNER_ID] } },
+                { ownerId: { in: [OWNER_ID] } },
+              ],
+            },
+          }),
+        }),
+      );
+    });
+
+    it('listThreads считает total по тому же where со скрытием блокировок', async () => {
+      prisma.userBlock.findMany.mockResolvedValue([{ blockedId: OWNER_ID }]);
+      prisma.chatThread.findMany.mockResolvedValue([]);
+      prisma.chatThread.count.mockResolvedValue(0);
+      await service.listThreads(user, undefined, undefined);
+      expect(prisma.chatThread.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          NOT: {
+            OR: [
+              { initiatorId: { in: [OWNER_ID] } },
+              { ownerId: { in: [OWNER_ID] } },
+            ],
+          },
+        }),
+      });
+    });
+
+    it('listThreads не добавляет NOT в where, если блок-лист пуст', async () => {
+      prisma.chatThread.findMany.mockResolvedValue([]);
+      prisma.chatThread.count.mockResolvedValue(0);
+      await service.listThreads(user, undefined, undefined);
+      const where = prisma.chatThread.findMany.mock.calls[0][0].where;
+      expect(where).toEqual({
+        OR: [{ initiatorId: USER_ID }, { ownerId: USER_ID }],
+      });
+      expect(where.NOT).toBeUndefined();
+    });
+
+    it('createMessage → 403 FORBIDDEN, если получатель заблокировал отправителя', async () => {
+      prisma.chatThread.findUnique.mockResolvedValue(threadRow()); // валидный тред, user — участник
+      prisma.userBlock.findFirst.mockResolvedValue({ id: 'block-1' });
+      await expectError(
+        service.createMessage(user, T1, 'привет'),
+        ApiErrorCode.FORBIDDEN,
+      );
+      expect(prisma.chatMessage.create).not.toHaveBeenCalled();
+    });
+
+    it('createMessage → 403, если отправитель заблокировал получателя', async () => {
+      // findFirst ищет блок в ОБЕ стороны одним OR — этот кейс покрывает where
+      prisma.chatThread.findUnique.mockResolvedValue(threadRow());
+      prisma.userBlock.findFirst.mockResolvedValue({ id: 'block-2' });
+      await expectError(
+        service.createMessage(user, T1, 'привет'),
+        ApiErrorCode.FORBIDDEN,
+      );
+      expect(prisma.userBlock.findFirst).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { blockerId: USER_ID, blockedId: OWNER_ID },
+            { blockerId: OWNER_ID, blockedId: USER_ID },
+          ],
+        },
+        select: { id: true },
+      });
+      expect(prisma.chatMessage.create).not.toHaveBeenCalled();
+    });
+  });
 
   describe('listMessages', () => {
     it('маппит сообщения (DESC), next_cursor при hasMore', async () => {
