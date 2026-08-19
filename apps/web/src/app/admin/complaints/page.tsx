@@ -81,7 +81,13 @@ function ComplaintViewModal({
           </div>
           <div>
             <div className="muted" style={{ fontSize: 12, marginBottom: 2 }}>Заявитель</div>
-            <div className="mono">{row.reporter}</div>
+            {row.reporterId ? (
+              <Link href={`/admin/users/${row.reporterId}`} className="mono" style={{ color: 'var(--teal)', fontWeight: 600 }}>
+                {row.reporter} →
+              </Link>
+            ) : (
+              <div className="mono">{row.reporter}</div>
+            )}
           </div>
           <div>
             <div className="muted" style={{ fontSize: 12, marginBottom: 2 }}>Создана</div>
@@ -210,7 +216,15 @@ export default function ComplaintsPage() {
                           {r.listingShort} →
                         </Link>
                       </td>
-                      <td className="muted mono" style={{ whiteSpace: 'nowrap' }}>{r.reporter}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {r.reporterId ? (
+                          <Link href={`/admin/users/${r.reporterId}`} className="mono" style={{ color: 'var(--teal)', fontWeight: 600 }}>
+                            {r.reporter} →
+                          </Link>
+                        ) : (
+                          <span className="muted mono">{r.reporter}</span>
+                        )}
+                      </td>
                       <td><Pill bg={bg} color={color}>{label}</Pill></td>
                       <td className="muted" style={{ whiteSpace: 'nowrap' }}>{r.created}</td>
                       <td className="muted" style={{ whiteSpace: 'nowrap' }}>
