@@ -22,14 +22,10 @@ import {
 } from 'lucide-react';
 import { Gallery } from '@/components/ui/gallery';
 import { PromoBadge } from '@/components/ui/promo-badge';
-import { SectionTitle } from '@/components/ui/section-title';
-import { Button } from '@/components/ui/button';
 import { FavButton } from '@/components/ui/fav-button';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { specs, txLabel, propertyTypeLabel } from '@/lib/format';
-import { getSimilarListings } from '@/lib/api/listings';
 import type { Listing } from '@/lib/mock/types';
-import { PropertyCard } from '@/features/search/PropertyCard';
 import { Facts } from './Facts';
 import { PriceHistory } from './PriceHistory';
 import { ContactCard } from './ContactCard';
@@ -42,6 +38,7 @@ import { ReportButton } from './ReportButton';
 import { ViewTracker } from './ViewTracker';
 import { AmenityChips } from './AmenityChips';
 import { getAmenities } from '@/lib/api/amenities';
+import { SimilarListings } from './SimilarListings';
 
 /** Пропы хлебной крошки — передаются из page.tsx (уже имеет переводы). */
 export interface DetailBreadcrumb {
@@ -67,7 +64,6 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
   // Справочник удобств — только когда есть что рендерить (Task 5); кэш 1 час.
   const amenityOptions = listing.amenities?.length ? await getAmenities() : [];
   const parts = specs(listing, tUnits);
-  const similar = await getSimilarListings(listing, 4, locale);
   // Ссылка «Назад к поиску» сохраняет тип сделки текущего объекта.
   const backHref = `/search?tx=${listing.tx}`;
 
@@ -289,24 +285,8 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
         </div>
       </div>
 
-      {/* Похожие объявления */}
-      {similar.length > 0 && (
-        <div className="mt-12">
-          <SectionTitle
-            title={t('sections.similar')}
-            action={
-              <Button variant="ghost" asChild className="text-[15px]">
-                <Link href={backHref}>{t('similar.viewAll')}</Link>
-              </Button>
-            }
-          />
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {similar.map((s) => (
-              <PropertyCard key={s.id} listing={s} />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Похожие объявления — клиентский блок (Bearer/блок-лист, см. SimilarListings.tsx) */}
+      <SimilarListings listing={listing} backHref={backHref} />
     </div>
   );
 }

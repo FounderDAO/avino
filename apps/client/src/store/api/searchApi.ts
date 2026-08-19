@@ -17,13 +17,20 @@
 import { baseApi } from './baseApi';
 import {
   mapListing,
+  prioritizePhotos,
   boundsSearchPath,
   polygonSearchPath,
   searchPagePath,
+  similarSearchPath,
   type SearchEnvelope,
   type SearchListingsPage,
 } from '@/lib/api/listings';
-import type { Listing, ListingFilter } from '@/lib/mock/types';
+import type {
+  Listing,
+  ListingFilter,
+  PropertyType,
+  TransactionType,
+} from '@/lib/mock/types';
 import type { LatLngBounds } from '@/lib/geo';
 
 /** Аргументы поиска по области: углы bbox + опциональные фильтры §9. */
@@ -48,6 +55,14 @@ export interface SearchPageArgs {
   cursor: string;
   filter?: ListingFilter;
   /** Размер страницы — должен совпадать с SSR (24), чтобы keyset был непрерывным. */
+  limit?: number;
+}
+
+/** Аргументы «Похожих» на карточке объекта: тот же tx/type, исключая текущий id. */
+export interface SimilarListingsArgs {
+  tx: TransactionType;
+  type: PropertyType;
+  excludeId: string;
   limit?: number;
 }
 
@@ -85,6 +100,26 @@ export const searchApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Search'],
     }),
+
+    /**
+     * «Похожие» на карточке объекта (Detail): тот же transaction_type/property_type,
+     * исключая текущий листинг. КЛИЕНТСКИЙ query (а не серверный fetch из Detail),
+     * потому что баз-квери подставляет Bearer зрителя автоматически (baseQuery.ts) —
+     * серверный компонент этого сделать дёшево не может (access-токен только в
+     * Redux-памяти клиента, ADR-0142/0153). Это даёт server-side блок-лист
+     * (спека §2) на «Похожих» бесплатно + инвалидацию тегом 'Search' при
+     * блокировке/разблокировке пользователя.
+     */
+    similarListings: build.query<Listing[], SimilarListingsArgs>({
+      query: ({ tx, type, limit = 4 }) => similarSearchPath(tx, type, limit),
+      transformResponse: (env: SearchEnvelope, _meta, arg: SimilarListingsArgs) => {
+        const mapped = env.data
+          .map(mapListing)
+          .filter((l) => l.id !== arg.excludeId);
+        return prioritizePhotos(mapped).slice(0, arg.limit ?? 4);
+      },
+      providesTags: ['Search'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -95,4 +130,5 @@ export const {
   useSearchByPolygonQuery,
   useLazySearchByPolygonQuery,
   useLazySearchPageQuery,
+  useSimilarListingsQuery,
 } = searchApi;
