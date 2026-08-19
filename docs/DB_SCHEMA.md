@@ -378,6 +378,29 @@ Indexes:
 - (status), (listing_id)
 ```
 
+`complaints.reason` — свободная строка (≤120 символов), сервер не
+валидирует по enum; контракт кодов для клиента: `SPAM | FRAUD | WRONG_INFO |
+OFFENSIVE | ALREADY_SOLD | OTHER` (спека 2026-08-19).
+
+Блокировка пользователей (Apple Guideline 1.2, спека 2026-08-19). Направленная
+(`blocker_id -> blocked_id`), не взаимная: видит и разблокирует только
+инициатор. Эффект блока — серверная фильтрация в `SearchService` (исключение
+объявлений заблокированного из `/search*`, см. API.md §16 «Moderation &
+admin» → Blocks) и в `ChatService` (скрытие треда, запрет отправки сообщений
+в обе стороны).
+
+```text
+user_blocks
+- id                  uuid PK
+- blocker_id          uuid FK -> users(id) ON DELETE CASCADE
+- blocked_id          uuid FK -> users(id) ON DELETE CASCADE
+- created_at          timestamptz NOT NULL
+Constraints:
+- UNIQUE (blocker_id, blocked_id)
+Indexes:
+- (blocker_id)
+```
+
 ## 8. Promotion schema
 
 Binding rules — ADR-006 / ARCHITECTURE §10.

@@ -4,8 +4,9 @@
  * Эти функции вызываются ТОЛЬКО из server components (page.tsx) и приводят
  * snake_case-ответы `/api/v1` к существующей UI-модели {@link Listing}. Сигнатуры
  * совпадают с мок-селекторами (`getFeaturedListings`, `getListingById`,
- * `getSimilarListings`, плюс `searchListings` вместо `getListings`), поэтому
- * фич-компоненты не меняются.
+ * плюс `searchListings` вместо `getListings`), поэтому фич-компоненты не меняются.
+ * Исключение — «Похожие»: `similarSearchPath` используется КЛИЕНТСКИ (searchApi),
+ * не server component'ом, см. комментарий у функции.
  *
  * Эндпоинты (API.md §7, §9):
  *  - GET /api/v1/search          — публичная выдача (envelope `{ data, meta }`)
@@ -608,22 +609,25 @@ export async function getListingById(
 }
 
 /**
- * Похожие листинги: тот же тип сделки и недвижимости, исключая текущий.
- * GET /search?transaction_type&property_type&limit.
+ * Путь GET /search для «Похожих»: тот же тип сделки и недвижимости.
+ *
+ * НЕ вызывается server-side (Detail — server component без доступа к
+ * access-токену зрителя: он живёт только в Redux-памяти клиента, ADR-0142/0153,
+ * см. authSlice.ts). Серверный fetch без Authorization обходил бы блок-лист
+ * (спека §2) — поэтому «Похожие» рендерятся клиентским RTK-хуком
+ * (searchApi.useSimilarListingsQuery, SimilarListings.tsx), который подставляет
+ * Bearer автоматически через baseQueryWithReauth.
  */
-export async function getSimilarListings(
-  listing: Listing,
-  limit = 4,
-  lang = 'ru',
-): Promise<Listing[]> {
+export function similarSearchPath(
+  tx: TransactionType,
+  type: PropertyType,
+  limit: number,
+): string {
   const params = new URLSearchParams({
-    transaction_type: listing.tx,
-    property_type: listing.type,
+    transaction_type: tx,
+    property_type: type,
     // Над-выборка: запас под исключение текущего id и фото-приоритет (TASK-197).
     limit: String(Math.min(limit * 4 + 1, 100)),
   });
-  const similar = await safeSearch(`/search?${params.toString()}`, lang);
-  return prioritizePhotos(
-    similar.filter((item) => item.id !== listing.id),
-  ).slice(0, limit);
+  return `/search?${params.toString()}`;
 }

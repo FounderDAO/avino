@@ -27,6 +27,7 @@ export const baseApi = createApi({
     'AgentApplication',
     'Agent',
     'Session',
+    'Block',
   ],
   endpoints: () => ({}),
 });

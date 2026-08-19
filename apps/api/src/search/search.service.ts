@@ -330,10 +330,11 @@ export class SearchService {
     query: SearchListingsQueryDto,
     langParam?: string,
     acceptLanguage?: string,
+    viewerId?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const cursor = this.decodeCursor(query.cursor);
-    const filterSql = Prisma.sql`${this.buildWhereSql(query, await this.fxRateForFilter(query))} ${this.pointsFilterSql(query.points)}`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, await this.fxRateForFilter(query), viewerId)} ${this.pointsFilterSql(query.points)}`;
 
     // Явная сортировка → гибрид (закреплённое промо + строгий ключ + FX).
     if (query.sort !== undefined) {
@@ -552,6 +553,7 @@ export class SearchService {
     query: RadiusSearchQueryDto,
     langParam?: string,
     acceptLanguage?: string,
+    viewerId?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const cfg = SORTS['date_desc'];
@@ -559,7 +561,7 @@ export class SearchService {
     const point = this.pointSql(query.lng, query.lat);
     const fxRate = await this.fxRateForFilter(query);
     // ST_DWithin по GIST-индексу; NULL-location отсекается (NULL не проходит WHERE).
-    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND ST_DWithin(location, ${point}, ${query.radius_m})`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate, viewerId)} AND location IS NOT NULL AND ST_DWithin(location, ${point}, ${query.radius_m})`;
     const pageWhere = cursor
       ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
@@ -607,6 +609,7 @@ export class SearchService {
     query: BoundsSearchQueryDto,
     langParam?: string,
     acceptLanguage?: string,
+    viewerId?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const cfg = SORTS['date_desc'];
@@ -614,7 +617,7 @@ export class SearchService {
     const envelope = this.envelopeSql(query);
     const fxRate = await this.fxRateForFilter(query);
     // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
-    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND ${this.boundsPrefilterSql(query)} AND ST_Within(location::geometry, ${envelope}) ${this.pointsFilterSql(query.points)}`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate, viewerId)} AND location IS NOT NULL AND ${this.boundsPrefilterSql(query)} AND ST_Within(location::geometry, ${envelope}) ${this.pointsFilterSql(query.points)}`;
     const pageWhere = cursor
       ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
@@ -663,6 +666,7 @@ export class SearchService {
    */
   async searchClusters(
     query: ClustersSearchQueryDto,
+    viewerId?: string,
   ): Promise<ClustersResponseDto> {
     const cell = clusterCellSizeDeg(query.zoom);
     const envelope = this.envelopeSql(query);
@@ -678,7 +682,7 @@ export class SearchService {
       query.currency !== undefined
         ? rate
         : null;
-    const filterSql = Prisma.sql`${this.buildWhereSql(query, filterRate)} AND location IS NOT NULL AND ${this.boundsPrefilterSql(query)} AND ST_Within(location::geometry, ${envelope})`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, filterRate, viewerId)} AND location IS NOT NULL AND ${this.boundsPrefilterSql(query)} AND ST_Within(location::geometry, ${envelope})`;
 
     const rows = await this.prisma.$queryRaw<
       {
@@ -736,6 +740,7 @@ export class SearchService {
     query: PolygonSearchQueryDto,
     langParam?: string,
     acceptLanguage?: string,
+    viewerId?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const cfg = SORTS['date_desc'];
@@ -744,7 +749,7 @@ export class SearchService {
     const polygon = this.polygonSql(vertices);
     const fxRate = await this.fxRateForFilter(query);
     // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
-    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL AND location && ${polygon}::geography AND ST_Within(location::geometry, ${polygon})`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate, viewerId)} AND location IS NOT NULL AND location && ${polygon}::geography AND ST_Within(location::geometry, ${polygon})`;
     const pageWhere = cursor
       ? Prisma.sql`${filterSql} AND ${this.cursorConditionSql(cursor, cfg)}`
       : filterSql;
@@ -786,6 +791,7 @@ export class SearchService {
    */
   async priceDistribution(
     query: PriceDistributionQueryDto,
+    viewerId?: string,
   ): Promise<PriceDistributionResponseDto> {
     const N = 30;
     const rate = await this.fxRate();
@@ -794,9 +800,17 @@ export class SearchService {
       ? this.priceInCurrencySql(query.currency, rate)
       : Prisma.sql`price`;
     // Есть курс → все валюты (конвертируем); нет курса → только валюта запроса.
-    const where = rate
+    const baseWhere = rate
       ? Prisma.sql`status = 'ACTIVE' AND transaction_type::text = ${query.transaction_type}`
       : Prisma.sql`status = 'ACTIVE' AND transaction_type::text = ${query.transaction_type} AND currency::text = ${query.currency}`;
+    // Блокировки (Apple Guideline 1.2): гистограмма зрителя не должна
+    // учитывать листинги заблокированных им авторов — иначе слайдер строится
+    // по объявлениям, которых он в выдаче не увидит.
+    const blockedCond = this.blockedAuthorsCondSql(viewerId);
+    const where =
+      blockedCond !== null
+        ? Prisma.sql`${baseWhere} AND ${blockedCond}`
+        : baseWhere;
 
     const statsRows = await this.prisma.$queryRaw<
       { ceiling: number | null; total: number }[]
@@ -862,11 +876,12 @@ export class SearchService {
     query: NearMeSearchQueryDto,
     langParam?: string,
     acceptLanguage?: string,
+    viewerId?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const point = this.pointSql(query.lng, query.lat);
     const fxRate = await this.fxRateForFilter(query);
-    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate)} AND location IS NOT NULL`;
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, fxRate, viewerId)} AND location IS NOT NULL`;
 
     const [rows, countRows] = await Promise.all([
       this.prisma.$queryRaw<RankedRow[]>(Prisma.sql`
@@ -1204,10 +1219,15 @@ export class SearchService {
    * Пользовательский ввод LIKE-экранируется (`\`, `%`, `_`), чтобы литеральный `%`
    * не работал как wildcard. GIN-индексы (migration 20260613120000_*) ускоряют
    * запросы с term ≥ 3 символов; более короткие термы работают через seq scan.
+   *
+   * `viewerId` (Apple Guideline 1.2, спека 2026-08-19): id авторизованного
+   * зрителя — если задан, исключаются листинги авторов из его блок-листа
+   * (`user_blocks`, {@link BlocksService}). Гость (`undefined`) видит всё.
    */
   private buildWhereSql(
     query: SearchListingsQueryDto,
     rate: string | null = null,
+    viewerId?: string,
   ): Prisma.Sql {
     const conds: Prisma.Sql[] = [Prisma.sql`status = 'ACTIVE'`];
 
@@ -1385,7 +1405,36 @@ export class SearchService {
       )`);
     }
 
+    // Блокировки (Apple Guideline 1.2, спека 2026-08-19): авторизованный
+    // пользователь не видит в выдаче/карте объявления заблокированных им
+    // авторов. Гость (viewerId undefined) видит всё. Индекс
+    // user_blocks(blocker_id) покрывает подзапрос.
+    const blockedCond = this.blockedAuthorsCondSql(viewerId);
+    if (blockedCond !== null) {
+      conds.push(blockedCond);
+    }
+
     return Prisma.join(conds, ' AND ');
+  }
+
+  /**
+   * Общий SQL-фрагмент «автор не в блок-листе viewerId» (Apple Guideline 1.2,
+   * спека 2026-08-19), БЕЗ ведущего `AND` — вызывающий сам решает, как
+   * склеить (conds-массив в {@link buildWhereSql} vs готовая строка WHERE в
+   * {@link priceDistribution}, которая не проходит через `buildWhereSql` —
+   * глобальная гистограмма без остальных скалярных фильтров). `viewerId`
+   * не задан (гость) → `null` (условие не добавляется). Индекс
+   * `user_blocks(blocker_id)` покрывает подзапрос.
+   *
+   * Два call site: {@link buildWhereSql} пушит результат элементом в
+   * `conds` (join `' AND '` делает склейку сам); {@link priceDistribution}
+   * склеивает вручную — `Prisma.sql\`${baseWhere} AND ${blockedCond}\``.
+   */
+  private blockedAuthorsCondSql(viewerId: string | undefined): Prisma.Sql | null {
+    if (viewerId === undefined) {
+      return null;
+    }
+    return Prisma.sql`owner_id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id = ${viewerId}::uuid)`;
   }
 
   /**

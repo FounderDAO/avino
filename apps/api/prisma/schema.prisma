@@ -310,6 +310,10 @@ model User {
   // Вовлечённость (TASK-038).
   favorites            Favorite[]
   savedSearches        SavedSearch[]
+  // Блокировки (Apple Guideline 1.2): кого заблокировал этот пользователь и
+  // кто заблокировал его.
+  blocksInitiated UserBlock[] @relation("BlockBlocker")
+  blocksReceived  UserBlock[] @relation("BlockBlocked")
   // Чат-треды: как инициатор (написал создателю) и как владелец объявления.
   chatThreadsInitiated ChatThread[]         @relation("ChatInitiator")
   chatThreadsOwned     ChatThread[]         @relation("ChatOwner")
@@ -857,6 +861,25 @@ model Favorite {
   @@index([userId])
   @@index([listingId])
   @@map("favorites")
+}
+
+/// Блокировка пользователя пользователем (Apple Guideline 1.2, спека
+/// 2026-08-19). blocker скрывает объявления blocked из выдачи/карты
+/// (SearchService.buildWhereSql) и его тред из списка чатов; отправка
+/// сообщений запрещена в обе стороны (ChatService). Оба FK ON DELETE CASCADE —
+/// блок не переживает удаление любой из сторон.
+model UserBlock {
+  id        String   @id @default(uuid()) @db.Uuid
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  blocker User @relation("BlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@map("user_blocks")
 }
 
 /// Сохранённый поиск (DB_SCHEMA.md §9, ADR-0009). filters_json ВЕРСИОНИРОВАН:

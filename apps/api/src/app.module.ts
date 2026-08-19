@@ -10,6 +10,7 @@ import { BroadcastsModule } from './broadcasts';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { BlocksModule } from './blocks';
 import { ChatModule } from './chat';
 import { ComplaintsModule } from './complaints';
 import { AppConfigModule } from './config';
@@ -68,6 +69,7 @@ import { UsersModule } from './users/users.module';
     SettingsModule,
     GeoModule,
     FavoritesModule,
+    BlocksModule,
     SavedSearchesModule,
     PromotionsModule,
     ExchangeRateModule,

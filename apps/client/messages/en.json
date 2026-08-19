@@ -1063,6 +1063,37 @@
       "close": "Close"
     }
   },
+  "complaint": {
+    "button": "Report",
+    "modalTitle": "Report this listing",
+    "modalDescription": "Choose a reason and, if needed, describe the problem — we'll review the listing.",
+    "reasonLabel": "Reason",
+    "reasons": {
+      "SPAM": "Spam",
+      "FRAUD": "Fraud or scam",
+      "WRONG_INFO": "Incorrect information",
+      "OFFENSIVE": "Offensive content",
+      "ALREADY_SOLD": "Already sold or rented",
+      "OTHER": "Other"
+    },
+    "detailsLabel": "Comment",
+    "detailsRequired": "Please describe the problem",
+    "submit": "Submit",
+    "sending": "Sending…",
+    "success": "Thank you! Your report has been sent to moderators.",
+    "error": "Failed to send the report. Please try again.",
+    "close": "Close",
+    "loginContext": "Sign in to report this listing"
+  },
+  "block": {
+    "action": "Block user",
+    "confirmTitle": "Block this user?",
+    "confirmText": "Their listings will disappear from your search results and the conversation will become unavailable. Manage blocks in settings.",
+    "confirm": "Block",
+    "cancel": "Cancel",
+    "success": "User blocked",
+    "error": "Failed to block. Please try again."
+  },
   "listingEdit": {
     "meta": {
       "title": "Edit listing — Avino",
@@ -1107,7 +1138,8 @@
       "profile": "Profile",
       "settings": "Settings",
       "devices": "Devices",
-      "tours": "My tours"
+      "tours": "My tours",
+      "blocked": "Blocked users"
     },
     "userCard": {
       "guest": "Guest"
@@ -1380,6 +1412,18 @@
         "DECLINED": "Declined",
         "CANCELLED": "Cancelled"
       }
+    },
+    "blocked": {
+      "title": "Blocked users",
+      "subtitle": "These users are hidden from your search results and chats",
+      "authTitle": "Sign in to see blocked users",
+      "authText": "Your list of blocked users will appear here after signing in.",
+      "goHome": "Go to homepage",
+      "empty": "You haven't blocked anyone",
+      "unblock": "Unblock",
+      "unblocked": "User unblocked",
+      "error": "Couldn't unblock. Please try again.",
+      "anonymous": "User"
     },
     "contactChange": {
       "titlePhone": "Change sign-in phone",
