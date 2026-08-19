@@ -1063,6 +1063,36 @@
       "close": "Yopish"
     }
   },
+  "complaint": {
+    "button": "Shikoyat qilish",
+    "modalTitle": "E'lon ustidan shikoyat",
+    "reasonLabel": "Sabab",
+    "reasons": {
+      "SPAM": "Spam",
+      "FRAUD": "Firibgarlik",
+      "WRONG_INFO": "Noto'g'ri ma'lumot",
+      "OFFENSIVE": "Haqoratli kontent",
+      "ALREADY_SOLD": "Allaqachon sotilgan yoki ijaraga berilgan",
+      "OTHER": "Boshqa"
+    },
+    "detailsLabel": "Izoh",
+    "detailsRequired": "Muammoni tasvirlab bering",
+    "submit": "Yuborish",
+    "sending": "Yuborilmoqda…",
+    "success": "Rahmat! Shikoyat moderatorlarga yuborildi.",
+    "error": "Shikoyat yuborilmadi. Qayta urinib ko'ring.",
+    "close": "Yopish",
+    "loginContext": "Shikoyat qilish uchun tizimga kiring"
+  },
+  "block": {
+    "action": "Foydalanuvchini bloklash",
+    "confirmTitle": "Foydalanuvchi bloklansinmi?",
+    "confirmText": "Uning e'lonlari qidiruv natijalaridan yo'qoladi, yozishmalar esa yopiladi. Bloklarni sozlamalarda boshqarish mumkin.",
+    "confirm": "Bloklash",
+    "cancel": "Bekor qilish",
+    "success": "Foydalanuvchi bloklandi",
+    "error": "Bloklab bo'lmadi. Qayta urinib ko'ring."
+  },
   "listingEdit": {
     "meta": {
       "title": "E'lonni tahrirlash — Avino",
@@ -1107,7 +1137,8 @@
       "profile": "Profil",
       "settings": "Sozlamalar",
       "devices": "Qurilmalar",
-      "tours": "Mening turlarim"
+      "tours": "Mening turlarim",
+      "blocked": "Bloklanganlar"
     },
     "userCard": {
       "guest": "Mehmon"
@@ -1380,6 +1411,14 @@
         "DECLINED": "Rad etilgan",
         "CANCELLED": "Bekor qilingan"
       }
+    },
+    "blocked": {
+      "title": "Bloklanganlar",
+      "subtitle": "Bu foydalanuvchilar sizning qidiruv va chatlaringizda ko'rinmaydi",
+      "empty": "Siz hech kimni bloklamagansiz",
+      "unblock": "Blokdan chiqarish",
+      "unblocked": "Foydalanuvchi blokdan chiqarildi",
+      "anonymous": "Foydalanuvchi"
     },
     "contactChange": {
       "titlePhone": "Kirish uchun telefonni o'zgartirish",
