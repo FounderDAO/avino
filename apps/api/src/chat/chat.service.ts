@@ -15,6 +15,7 @@ import { RealtimeEmitter } from '../realtime';
 import { SearchService } from '../search';
 import { UploadsService } from '../uploads';
 import { resolveAvatarUrl } from '../users/avatar-url.util';
+import { profileName } from '../users/profile-name.util';
 
 /** Дефолт/максимум размера страницы (API.md §4: default 20, max 100). */
 const DEFAULT_LIMIT = 20;
@@ -726,7 +727,7 @@ export class ChatService {
               u.id,
               {
                 id: u.id,
-                name: this.profileName(u.profile),
+                name: profileName(u.profile),
                 // Загруженный аватар (avatarStorageKey) → свежая подписанная
                 // R2-ссылка; иначе фото OAuth-провайдера или null (TASK-248).
                 avatar_url: await resolveAvatarUrl(
@@ -739,28 +740,6 @@ export class ChatService {
         ),
       ),
     );
-  }
-
-  /** Отображаемое имя из профиля: `displayName` → «first last» → `null`. */
-  private profileName(
-    profile: {
-      displayName: string | null;
-      firstName: string | null;
-      lastName: string | null;
-    } | null,
-  ): string | null {
-    if (!profile) {
-      return null;
-    }
-    const display = profile.displayName?.trim();
-    if (display) {
-      return display;
-    }
-    const full = [profile.firstName, profile.lastName]
-      .map((p) => p?.trim())
-      .filter((p): p is string => Boolean(p))
-      .join(' ');
-    return full || null;
   }
 
   /**
