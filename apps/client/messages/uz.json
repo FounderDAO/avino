@@ -1066,6 +1066,7 @@
   "complaint": {
     "button": "Shikoyat qilish",
     "modalTitle": "E'lon ustidan shikoyat",
+    "modalDescription": "Sababni tanlang va, kerak bo'lsa, muammoni tasvirlab bering — biz e'lonni tekshiramiz.",
     "reasonLabel": "Sabab",
     "reasons": {
       "SPAM": "Spam",
@@ -1421,6 +1422,7 @@
       "empty": "Siz hech kimni bloklamagansiz",
       "unblock": "Blokdan chiqarish",
       "unblocked": "Foydalanuvchi blokdan chiqarildi",
+      "error": "Blokdan chiqarib bo'lmadi. Qayta urinib ko'ring.",
       "anonymous": "Foydalanuvchi"
     },
     "contactChange": {

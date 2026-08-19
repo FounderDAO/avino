@@ -1066,6 +1066,7 @@
   "complaint": {
     "button": "Report",
     "modalTitle": "Report this listing",
+    "modalDescription": "Choose a reason and, if needed, describe the problem — we'll review the listing.",
     "reasonLabel": "Reason",
     "reasons": {
       "SPAM": "Spam",
@@ -1421,6 +1422,7 @@
       "empty": "You haven't blocked anyone",
       "unblock": "Unblock",
       "unblocked": "User unblocked",
+      "error": "Couldn't unblock. Please try again.",
       "anonymous": "User"
     },
     "contactChange": {

@@ -39,7 +39,7 @@ export function BlockedUsers() {
       await deleteBlock(userId).unwrap();
       toast.success(t('unblocked'));
     } catch {
-      toast.error(t('unblock'));
+      toast.error(t('error'));
     } finally {
       setUnblockingId(null);
     }

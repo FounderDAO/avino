@@ -74,6 +74,9 @@ export function ComplaintModal({ listingId, open, onOpenChange }: ComplaintModal
         <Dialog.Overlay className="fixed inset-0 z-[80] bg-ink/50 backdrop-blur-[3px]" />
         <Dialog.Content className="fade-up fixed left-1/2 top-1/2 z-[81] w-[calc(100%-40px)] max-w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] bg-surface p-7 shadow-raised">
           <Dialog.Title className="text-xl font-extrabold">{t('modalTitle')}</Dialog.Title>
+          <Dialog.Description className="mt-2 text-[14px] text-muted-foreground">
+            {t('modalDescription')}
+          </Dialog.Description>
 
           <fieldset className="mt-4 flex flex-col gap-1.5 text-[13px] font-semibold">
             <legend>{t('reasonLabel')}</legend>
