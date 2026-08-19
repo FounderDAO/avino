@@ -1415,6 +1415,9 @@
     "blocked": {
       "title": "Blocked users",
       "subtitle": "These users are hidden from your search results and chats",
+      "authTitle": "Sign in to see blocked users",
+      "authText": "Your list of blocked users will appear here after signing in.",
+      "goHome": "Go to homepage",
       "empty": "You haven't blocked anyone",
       "unblock": "Unblock",
       "unblocked": "User unblocked",

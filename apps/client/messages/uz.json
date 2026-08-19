@@ -1415,6 +1415,9 @@
     "blocked": {
       "title": "Bloklanganlar",
       "subtitle": "Bu foydalanuvchilar sizning qidiruv va chatlaringizda ko'rinmaydi",
+      "authTitle": "Bloklanganlarni ko'rish uchun tizimga kiring",
+      "authText": "Bloklangan foydalanuvchilar ro'yxati tizimga kirgandan so'ng shu yerda paydo bo'ladi.",
+      "goHome": "Bosh sahifaga",
       "empty": "Siz hech kimni bloklamagansiz",
       "unblock": "Blokdan chiqarish",
       "unblocked": "Foydalanuvchi blokdan chiqarildi",
