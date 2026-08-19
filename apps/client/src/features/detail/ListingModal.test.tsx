@@ -1,7 +1,7 @@
 /**
  * Тесты ListingModal — оболочка модалки деталки.
  * Мокаем @/i18n/navigation (useRouter.back, Link→<a>), next-intl (ключи из
- * ru.json) и FavButton/ShareButton (redux/стор в тест не тащим).
+ * ru.json) и FavButton/ShareButton/ReportButton (redux/стор в тест не тащим).
  */
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -38,6 +38,14 @@ vi.mock('./ShareButton', () => ({
   ShareButton: () => (
     <button type="button" data-testid="share">
       share
+    </button>
+  ),
+}));
+
+vi.mock('./ReportButton', () => ({
+  ReportButton: () => (
+    <button type="button" data-testid="report">
+      report
     </button>
   ),
 }));
@@ -86,7 +94,7 @@ describe('ListingModal', () => {
     expect(mockBack).toHaveBeenCalledTimes(1);
   });
 
-  it('с listing рендерит избранное и шеринг в тулбаре; без listing — нет', () => {
+  it('с listing рендерит избранное, шеринг и «Пожаловаться» в тулбаре; без listing — нет', () => {
     const { rerender } = render(
       <ListingModal listingId="L1">
         <p>x</p>
@@ -94,6 +102,7 @@ describe('ListingModal', () => {
     );
     expect(screen.queryByTestId('fav')).toBeNull();
     expect(screen.queryByTestId('share')).toBeNull();
+    expect(screen.queryByTestId('report')).toBeNull();
 
     rerender(
       <ListingModal listingId="L1" listing={listing}>
@@ -102,6 +111,7 @@ describe('ListingModal', () => {
     );
     expect(screen.getByTestId('fav')).toBeInTheDocument();
     expect(screen.getByTestId('share')).toBeInTheDocument();
+    expect(screen.getByTestId('report')).toBeInTheDocument();
   });
 
   it('клик по «Закрыть» вызывает router.back', () => {
