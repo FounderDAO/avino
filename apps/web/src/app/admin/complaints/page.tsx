@@ -21,7 +21,8 @@ import {
   useUpdateAdminComplaintStatusMutation,
 } from '@/store/api/adminComplaintsApi';
 import type { ComplaintStatus } from '@/store/api/adminTypes';
-import { COMPLAINT_STATUS_MAP, complaintToRow } from '@/lib/adapters/complaints';
+import { COMPLAINT_STATUS_MAP, complaintReasonLabel, complaintToRow } from '@/lib/adapters/complaints';
+import type { ComplaintRow } from '@/lib/adapters/complaints';
 
 type StatusFilter = 'ALL' | ComplaintStatus;
 
@@ -40,12 +41,88 @@ const SUCCESS_TOAST: Record<ComplaintStatus, string> = {
   REJECTED: 'Жалоба отклонена',
 };
 
+/**
+ * Модалка чтения жалобы: полный текст (в таблице он обрезан), метаданные
+ * (причина/объявление/заявитель/даты) и те же действия, что в строке.
+ */
+function ComplaintViewModal({
+  row,
+  busy,
+  onSetStatus,
+  onClose,
+}: {
+  row: ComplaintRow;
+  busy: boolean;
+  onSetStatus: (id: string, status: ComplaintStatus) => void;
+  onClose: () => void;
+}) {
+  const [label, color, bg] = COMPLAINT_STATUS_MAP[row.status];
+  const open = row.status === 'NEW' || row.status === 'IN_REVIEW';
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(26,26,26,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} className="fade-up a-card" style={{ width: '100%', maxWidth: 560, padding: 26, borderRadius: 16 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 12 }}>
+          <div className="row gap-8" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <h2 style={{ fontSize: 22 }}>Жалоба</h2>
+            <Pill bg={bg} color={color}>{label}</Pill>
+          </div>
+          <button className="aicon-btn" style={{ width: 32, height: 32, border: 'none' }} onClick={onClose}><IC.X size={18} /></button>
+        </div>
+        <div className="row" style={{ gap: 24, flexWrap: 'wrap', marginBottom: 16, fontSize: 13.5 }}>
+          <div>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 2 }}>Причина</div>
+            <div style={{ fontWeight: 600 }}>{complaintReasonLabel(row.reason)}</div>
+          </div>
+          <div>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 2 }}>Объявление</div>
+            <Link href={`/admin/listings/${row.listingId}`} className="mono" style={{ color: 'var(--teal)', fontWeight: 600 }}>
+              {row.listingShort} →
+            </Link>
+          </div>
+          <div>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 2 }}>Заявитель</div>
+            <div className="mono">{row.reporter}</div>
+          </div>
+          <div>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 2 }}>Создана</div>
+            <div>{row.created}</div>
+          </div>
+          {row.handled !== '—' && (
+            <div>
+              <div className="muted" style={{ fontSize: 12, marginBottom: 2 }}>Обработана</div>
+              <div>{row.handled} <span className="mono muted">{row.handledBy}</span></div>
+            </div>
+          )}
+        </div>
+        {row.details && (
+          <>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Текст жалобы</div>
+            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '45vh', overflowY: 'auto', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 12, padding: 14, fontSize: 14.5, lineHeight: 1.5 }}>
+              {row.details}
+            </div>
+          </>
+        )}
+        {open && (
+          <div className="row gap-10" style={{ marginTop: 18 }}>
+            {row.status === 'NEW' && (
+              <button className="abtn abtn-outline" style={{ flex: 1 }} disabled={busy} onClick={() => onSetStatus(row.id, 'IN_REVIEW')}>В работу</button>
+            )}
+            <button className="abtn abtn-ok" style={{ flex: 1 }} disabled={busy} onClick={() => onSetStatus(row.id, 'RESOLVED')}>Решена</button>
+            <button className="abtn abtn-danger" style={{ flex: 1 }} disabled={busy} onClick={() => onSetStatus(row.id, 'REJECTED')}>Отклонить</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ComplaintsPage() {
   const toast = useToast();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [listingId, setListingId] = useState('');
   const [debouncedListingId, setDebouncedListingId] = useState('');
   const [page, setPage] = useState(1);
+  const [viewing, setViewing] = useState<ComplaintRow | null>(null);
 
   // Дебаунс фильтра listing_id (400мс), чтобы не дёргать API на каждый символ.
   useEffect(() => {
@@ -75,6 +152,7 @@ export default function ComplaintsPage() {
     try {
       await updateStatus({ id, status }).unwrap();
       toast(SUCCESS_TOAST[status]);
+      setViewing(null);
     } catch {
       toast('Не удалось обновить жалобу');
     }
@@ -115,10 +193,17 @@ export default function ComplaintsPage() {
                   return (
                     <tr key={r.id}>
                       <td style={{ maxWidth: 340 }}>
-                        <b>{r.reason}</b>
-                        {r.details && (
-                          <div className="muted" style={{ fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.details}>{r.details}</div>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => setViewing(r)}
+                          title="Открыть жалобу"
+                          style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--ink)', font: 'inherit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        >
+                          <b>{complaintReasonLabel(r.reason)}</b>
+                          {r.details && (
+                            <div className="muted" style={{ fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.details}>{r.details}</div>
+                          )}
+                        </button>
                       </td>
                       <td>
                         <Link href={`/admin/listings/${r.listingId}`} className="mono" style={{ color: 'var(--teal)', fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -165,6 +250,14 @@ export default function ComplaintsPage() {
           <button className="aicon-btn" style={{ width: 32, height: 32 }} disabled={pages > 0 && page >= pages} onClick={() => setPage((p) => p + 1)}><IC.ChevronRight size={16} /></button>
         </div>
       </div>
+      {viewing && (
+        <ComplaintViewModal
+          row={viewing}
+          busy={isUpdating}
+          onSetStatus={onSetStatus}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
   );
 }
