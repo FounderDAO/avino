@@ -55,6 +55,21 @@ export interface ComplaintRow {
   handled: string;
 }
 
+/** Русские подписи reason-кодов жалоб (контракт API — docs/MOBILE_API_CHANGES.md §4.4).
+ *  Легаси-жалобы со свободным reason показываются как есть. */
+export const COMPLAINT_REASON_LABELS: Record<string, string> = {
+  SPAM: 'Спам',
+  FRAUD: 'Мошенничество',
+  WRONG_INFO: 'Неверная информация',
+  OFFENSIVE: 'Оскорбительный контент',
+  ALREADY_SOLD: 'Уже продано или сдано',
+  OTHER: 'Другое',
+};
+
+export function complaintReasonLabel(raw: string): string {
+  return COMPLAINT_REASON_LABELS[raw] ?? raw;
+}
+
 export function complaintToRow(c: Complaint): ComplaintRow {
   return {
     id: c.id,
