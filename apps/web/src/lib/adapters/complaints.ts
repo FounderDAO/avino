@@ -49,6 +49,8 @@ export interface ComplaintRow {
   /** Полный UUID листинга — для ссылки на /admin/listings/{id}. */
   listingId: string;
   listingShort: string;
+  /** Полный UUID заявителя — для ссылки на /admin/users/{id} (null у легаси-жалоб). */
+  reporterId: string | null;
   reporter: string;
   handledBy: string;
   created: string;
@@ -78,6 +80,7 @@ export function complaintToRow(c: Complaint): ComplaintRow {
     status: c.status,
     listingId: c.listing_id,
     listingShort: shortId(c.listing_id),
+    reporterId: c.user_id,
     reporter: shortId(c.user_id),
     handledBy: shortId(c.handled_by),
     created: fmtDate(c.created_at),
