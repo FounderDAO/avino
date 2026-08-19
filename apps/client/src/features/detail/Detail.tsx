@@ -38,6 +38,7 @@ import { DetailPrice } from './DetailPrice';
 import { MortgageEstBar } from './MortgageEstBar';
 import { MortgagePaymentCard } from './MortgagePaymentCard';
 import { ShareButton } from './ShareButton';
+import { ReportButton } from './ReportButton';
 import { ViewTracker } from './ViewTracker';
 import { AmenityChips } from './AmenityChips';
 import { getAmenities } from '@/lib/api/amenities';
@@ -113,6 +114,7 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
               className="border border-border bg-surface shadow-sm hover:bg-surface-2"
             />
             <ShareButton listing={listing} />
+            <ReportButton listing={listing} />
           </div>
         </div>
       )}

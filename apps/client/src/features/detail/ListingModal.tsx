@@ -14,6 +14,7 @@ import { ChevronLeft, ExternalLink } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { FavButton } from '@/components/ui/fav-button';
 import { ShareButton } from './ShareButton';
+import { ReportButton } from './ReportButton';
 import type { Listing } from '@/lib/mock/types';
 
 export interface ListingModalProps {
@@ -83,6 +84,7 @@ export function ListingModal({ listingId, listing, children }: ListingModalProps
                     className="border border-border bg-surface shadow-sm hover:bg-surface-2"
                   />
                   <ShareButton listing={listing} />
+                  <ReportButton listing={listing} />
                 </>
               )}
               <Link
