@@ -21,14 +21,23 @@ import {
   ChevronLeft,
   Clock,
   MessageCircle,
+  MoreVertical,
   Send,
 } from 'lucide-react';
+import { Dialog } from 'radix-ui';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fieldClass } from '@/components/ui/field';
 import { PhotoImg } from '@/components/ui/photo-img';
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownContent,
+  DropdownItem,
+} from '@/components/ui/dropdown';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { formatMoney, type T } from '@/lib/format';
 import { useAppSelector } from '@/store/hooks';
@@ -44,6 +53,7 @@ import {
   useMarkThreadReadMutation,
   type ApiThread,
 } from '@/store/api/chatApi';
+import { useCreateBlockMutation } from '@/store/api/blocksApi';
 import {
   buildMessageRows,
   lastMessagePreview,
@@ -133,6 +143,7 @@ export function Inbox() {
   const now = useNow({ updateInterval: 60_000 });
   const tUnits = useTranslations('units');
   const tAccount = useTranslations('account');
+  const tBlock = useTranslations('block');
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const currentUser = useAppSelector(selectCurrentUser);
   const currentUserId = currentUser?.id ?? null;
@@ -179,6 +190,30 @@ export function Inbox() {
   }, [isDesktop, threads, selectedId]);
 
   const selectedThread = threads?.find((t) => t.id === selectedId) ?? null;
+
+  // Собеседник: counterparty от API (Task 5), фолбэк — вторая сторона треда.
+  const counterpartyUserId =
+    selectedThread?.counterparty?.id ??
+    (selectedThread
+      ? selectedThread.initiator_id === currentUserId
+        ? selectedThread.owner_id
+        : selectedThread.initiator_id
+      : null);
+
+  const [blockConfirmOpen, setBlockConfirmOpen] = React.useState(false);
+  const [createBlock, { isLoading: isBlocking }] = useCreateBlockMutation();
+
+  const handleBlock = async () => {
+    if (!counterpartyUserId) return;
+    try {
+      await createBlock({ user_id: counterpartyUserId }).unwrap();
+      toast.success(tBlock('success'));
+      setBlockConfirmOpen(false);
+      setSelectedId(null); // тред уходит из списка после инвалидации Chat
+    } catch {
+      toast.error(tBlock('error'));
+    }
+  };
 
   const { data: messagesData, isLoading: messagesLoading } =
     useGetThreadMessagesQuery(
@@ -460,6 +495,24 @@ export function Inbox() {
                     </Link>
                   )}
                 </div>
+                {counterpartyUserId && (
+                  <Dropdown>
+                    <DropdownTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={tBlock('action')}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink hover:bg-surface-2"
+                      >
+                        <MoreVertical size={18} />
+                      </button>
+                    </DropdownTrigger>
+                    <DropdownContent align="end">
+                      <DropdownItem onSelect={() => setBlockConfirmOpen(true)}>
+                        {tBlock('action')}
+                      </DropdownItem>
+                    </DropdownContent>
+                  </Dropdown>
+                )}
               </div>
 
               {/* Лента сообщений */}
@@ -607,6 +660,43 @@ export function Inbox() {
           )}
         </div>
       </div>
+
+      <Dialog.Root open={blockConfirmOpen} onOpenChange={setBlockConfirmOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[80] bg-ink/50 backdrop-blur-[3px]" />
+          <Dialog.Content className="fade-up fixed left-1/2 top-1/2 z-[81] w-[calc(100%-40px)] max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-[20px] bg-surface p-7 shadow-raised">
+            <Dialog.Title className="text-xl font-extrabold">
+              {tBlock('confirmTitle')}
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-[14px] text-muted-foreground">
+              {tBlock('confirmText')}
+            </Dialog.Description>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isBlocking}
+                onClick={() => setBlockConfirmOpen(false)}
+              >
+                {tBlock('cancel')}
+              </Button>
+              <Button
+                type="button"
+                disabled={isBlocking}
+                onClick={() => void handleBlock()}
+              >
+                {tBlock('confirm')}
+              </Button>
+            </div>
+            <Dialog.Close
+              aria-label={tBlock('cancel')}
+              className="absolute right-4 top-4 text-muted-foreground hover:text-ink"
+            >
+              ✕
+            </Dialog.Close>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }
