@@ -12,6 +12,7 @@ import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { DistrictsService } from '../geo';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
+import type { SearchListingsQueryDto } from './dto/search-listings.dto';
 import { clusterCellSizeDeg, SearchService } from './search.service';
 
 /**
@@ -569,6 +570,33 @@ describe('SearchService', () => {
       expect(pageSql.values).toContain(5);
       expect(pageSql.values).not.toContain(6);
       expect(sqlText(pageSql)).not.toContain('ST_DWithin');
+    });
+  });
+
+  describe('фильтр блокировок (Apple 1.2)', () => {
+    const VIEWER_ID = '66666666-6666-6666-6666-666666666666';
+    const baseQuery = (): SearchListingsQueryDto =>
+      ({}) as SearchListingsQueryDto;
+
+    it('с viewerId в WHERE добавляется подзапрос user_blocks', () => {
+      const sql = (
+        service as unknown as {
+          buildWhereSql: (...args: unknown[]) => Prisma.Sql;
+        }
+      ).buildWhereSql(baseQuery(), undefined, VIEWER_ID);
+      expect(sql.strings.join('?')).toContain(
+        'owner_id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id =',
+      );
+      expect(sql.values).toContain(VIEWER_ID);
+    });
+
+    it('без viewerId подзапроса нет (гость)', () => {
+      const sql = (
+        service as unknown as {
+          buildWhereSql: (...args: unknown[]) => Prisma.Sql;
+        }
+      ).buildWhereSql(baseQuery(), undefined, undefined);
+      expect(sql.strings.join('?')).not.toContain('user_blocks');
     });
   });
 });

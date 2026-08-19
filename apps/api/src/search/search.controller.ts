@@ -1,5 +1,8 @@
-import { Controller, Get, Headers, Query } from '@nestjs/common';
+import { Controller, Get, Headers, Query, UseGuards } from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
+import { CurrentUser } from '../common/decorators';
+import type { AuthenticatedUser } from '../common/guards';
+import { OptionalJwtAuthGuard } from '../common/guards';
 import {
   BoundsSearchQueryDto,
   NearMeSearchQueryDto,
@@ -24,11 +27,16 @@ import {
 /**
  * SearchController — публичный поиск объявлений (TASK-080, API.md §9).
  *
- * Auth: public (гайды не подключаются). Версионирование URI обязательно
+ * Auth: опциональный Bearer (`OptionalJwtAuthGuard`) — гость проходит без
+ * токена, авторизованный зритель передаётся в сервис ради фильтра
+ * блокировок (Apple Guideline 1.2, спека 2026-08-19): объявления авторов из
+ * блок-листа зрителя исключаются из выдачи/карты ({@link
+ * SearchService.buildWhereSql}). Версионирование URI обязательно
  * (CLAUDE.md §14); префикс `api` ставит main.ts → `GET /api/v1/search`. Язык
  * результатов выбирается по `?lang`/`Accept-Language` с фолбэком на оригинал.
  */
 @Controller({ path: 'search', version: '1' })
+@UseGuards(OptionalJwtAuthGuard)
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
@@ -38,8 +46,9 @@ export class SearchController {
     @Query() query: SearchListingsQueryDto,
     @Query('lang') lang?: string,
     @Headers('accept-language') acceptLanguage?: string,
+    @CurrentUser() viewer?: AuthenticatedUser,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
-    return this.searchService.search(query, lang, acceptLanguage);
+    return this.searchService.search(query, lang, acceptLanguage, viewer?.id);
   }
 
   /**
@@ -52,8 +61,14 @@ export class SearchController {
     @Query() query: RadiusSearchQueryDto,
     @Query('lang') lang?: string,
     @Headers('accept-language') acceptLanguage?: string,
+    @CurrentUser() viewer?: AuthenticatedUser,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
-    return this.searchService.searchRadius(query, lang, acceptLanguage);
+    return this.searchService.searchRadius(
+      query,
+      lang,
+      acceptLanguage,
+      viewer?.id,
+    );
   }
 
   /**
@@ -66,21 +81,28 @@ export class SearchController {
     @Query() query: BoundsSearchQueryDto,
     @Query('lang') lang?: string,
     @Headers('accept-language') acceptLanguage?: string,
+    @CurrentUser() viewer?: AuthenticatedUser,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
-    return this.searchService.searchBounds(query, lang, acceptLanguage);
+    return this.searchService.searchBounds(
+      query,
+      lang,
+      acceptLanguage,
+      viewer?.id,
+    );
   }
 
   /**
    * `GET /api/v1/search/clusters` — агрегаты кластерной сетки для широких зумов
    * карты (TASK-225, ADR-0126): ячейки с count/min_price/avg_price вместо
-   * страницы листингов. bbox + zoom + все фильтры §9. Auth: public.
+   * страницы листингов. bbox + zoom + все фильтры §9. Auth: опциональный Bearer.
    */
   @Get('clusters')
   @ApiOkResponse({ type: ClustersResponseDto })
   searchClusters(
     @Query() query: ClustersSearchQueryDto,
+    @CurrentUser() viewer?: AuthenticatedUser,
   ): Promise<ClustersResponseDto> {
-    return this.searchService.searchClusters(query);
+    return this.searchService.searchClusters(query, viewer?.id);
   }
 
   /**
@@ -93,21 +115,28 @@ export class SearchController {
     @Query() query: NearMeSearchQueryDto,
     @Query('lang') lang?: string,
     @Headers('accept-language') acceptLanguage?: string,
+    @CurrentUser() viewer?: AuthenticatedUser,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
-    return this.searchService.searchNearMe(query, lang, acceptLanguage);
+    return this.searchService.searchNearMe(
+      query,
+      lang,
+      acceptLanguage,
+      viewer?.id,
+    );
   }
 
   /**
    * `GET /api/v1/search/price-distribution` — гистограмма распределения цены
    * для слайдера фильтра (Zillow-вид). Глобально по (currency, transaction_type),
-   * только видимые ACTIVE-объявления. Auth: public.
+   * только видимые ACTIVE-объявления. Auth: опциональный Bearer.
    */
   @Get('price-distribution')
   @ApiOkResponse({ type: PriceDistributionResponseDto })
   priceDistribution(
     @Query() query: PriceDistributionQueryDto,
+    @CurrentUser() viewer?: AuthenticatedUser,
   ): Promise<PriceDistributionResponseDto> {
-    return this.searchService.priceDistribution(query);
+    return this.searchService.priceDistribution(query, viewer?.id);
   }
 
   /**
@@ -115,14 +144,20 @@ export class SearchController {
    * (`ST_MakePolygon`/`ST_Within`). Полигон задаётся параметром `points` в виде
    * строки `lat,lng` пар через `;`. Promotion-приоритетный порядок (keyset), как у
    * `/search/bounds`; `distance_m` нет. Используется для draw-territory (ласо
-   * на карте, TASK-152/TASK-193). Auth: **public**. API.md §10.
+   * на карте, TASK-152/TASK-193). Auth: опциональный Bearer. API.md §10.
    */
   @Get('polygon')
   searchPolygon(
     @Query() query: PolygonSearchQueryDto,
     @Query('lang') lang?: string,
     @Headers('accept-language') acceptLanguage?: string,
+    @CurrentUser() viewer?: AuthenticatedUser,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
-    return this.searchService.searchPolygon(query, lang, acceptLanguage);
+    return this.searchService.searchPolygon(
+      query,
+      lang,
+      acceptLanguage,
+      viewer?.id,
+    );
   }
 }
