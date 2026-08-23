@@ -13,7 +13,7 @@
   "dependencies": {
     "@avino/shared": "workspace:*",
     "@reduxjs/toolkit": "^2.5.0",
-    "@sentry/nextjs": "^10.69.0",
+    "@sentry/nextjs": "^10.70.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0",
@@ -31,7 +31,7 @@
     "@types/react-dom": "^19.2.4",
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.1.0",
-    "postcss": "^8.5.25",
+    "postcss": "^8.5.26",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.5.4",
     "vite-tsconfig-paths": "^5",
