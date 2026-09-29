@@ -37,6 +37,82 @@ Related ADR:
 
 ---
 
+## 2026-07-23
+
+### Ad-hoc — Иконки районов в секции «Популярные места» (client)
+
+Status: DONE
+Branch: feat/home-district-icons
+PR: #460
+
+Files changed:
+- apps/client/src/features/home/districtIcons.tsx (new)
+- apps/client/src/features/home/Districts.tsx
+- apps/client/src/features/home/Districts.test.tsx
+
+Summary:
+- Секция «Популярные места Ташкента» на главной показывала районы плитками с размытым
+  нерелевантным стоковым фото (Unsplash) + название в стеклянном чипе. Заменено на смысловые
+  лайн-иконки районов из редакционного SVG-набора.
+- Из каждого SVG вынута ТОЛЬКО векторная иконка (сетка 0–32) в districtIcons.tsx, ключ = seed-UUID
+  района; убраны карточка, бейдж и захардкоженный английский текст. Обводка → currentColor →
+  иконки красятся темой (text-primary), работают в тёмном режиме. Название рендерит компонент
+  (i18n uz/ru/en), а не SVG.
+- Плитка стала горизонтальным чипом: иконка в бейдже (bg-primary/10) + название. Убраны
+  PhotoImg/Unsplash/blur. Ссылки /search?district_id= и состав 6 районов — без изменений.
+- Иконки Sergeli и Yashnobod добавлены в карту про запас (по seed-UUID …006/…010): не рендерятся
+  (районов нет в подборке), сработают автоматически при добавлении района в TASHKENT_DISTRICTS.
+- Проверки: Vitest 5 passed, ESLint чисто, next build ✓ (после чистки stale .next от dev :3001).
+
+Commit messages:
+- feat(client): district line icons in "popular places" section
+- feat(client): keep Sergeli & Yashnobod district icons in reserve
+
+Related ADR:
+- нет (визуальная замена в рамках существующей секции, без архитектурного решения)
+
+### Ad-hoc — Админ-блокировка и удаление аккаунта: паритет с self-service
+
+Status: DONE
+Branch: feat/admin-user-block-delete
+PR: #458
+
+Files changed:
+- apps/api/src/admin/admin-users.service.ts
+- apps/api/src/admin/admin-users.service.spec.ts
+- apps/api/src/auth/auth.service.ts
+- apps/api/src/auth/auth.service.spec.ts
+- apps/web/src/components/admin/UserStatusReasonModal.tsx (new)
+- apps/web/src/app/admin/users/[id]/page.tsx
+- docs/adr/ADR-0154-admin-block-delete-listing-session-parity.md (new)
+
+Summary:
+- Кнопки «Заблокировать»/«Удалить аккаунт» в админ-карточке (/admin/users/[id]) были подключены
+  к PATCH /admin/users/:id, но серверный updateStatus лишь менял users.status → объявления
+  заблокированного/удалённого оставались в публичной выдаче. Довели до паритета с self-service
+  удалением (DELETE /users/me, #457).
+- updateStatus переписан с ветвлением в одной $transaction (applyBlock/applyUnblock/applyDelete):
+  BLOCKED — объявления ACTIVE→ARCHIVED (id в audit.metadata.archived_listing_ids для
+  обратимости) + отзыв всех активных refreshToken; ACTIVE (разблок) — возврат в ACTIVE только
+  тех id, что прятали и что всё ещё ARCHIVED (владельцем заархивированные не воскрешаем), id из
+  последней BLOCKED-записи аудита; DELETED — паритет с UsersService.deleteMe (объявления →
+  DELETED, токены отозваны).
+- Уточнение: дыры «заблокированный бесконечно рефрешит» НЕТ — TokenService.rotateSession уже
+  отклоняет любой не-ACTIVE аккаунт с revokeFamily. Отдельно закрыт меньший зазор: GET /auth/me
+  теперь notIn: [DELETED, BLOCKED] → BLOCKED с живым access-токеном разлогинивается.
+- Client: window.prompt заменён на UserStatusReasonModal (block/delete, обязательная причина, без
+  типизированного слова); разблокировка — прямое действие. Принятое ограничение: access-токен
+  живёт до TTL (~15 мин) после блока (JwtAuthGuard не сверяет БД), как у self-delete.
+- API: tsc ✓, 76 JEST-тестов ✓ (block/unblock-точный-возврат/delete/refresh-BLOCKED). Web:
+  next build ✓, ESLint ✓.
+
+Commit messages:
+- feat(admin): block/delete account with listing + session parity
+- docs(adr): ADR-0154 admin block/delete listing + session parity
+
+Related ADR:
+- docs/adr/ADR-0154-admin-block-delete-listing-session-parity.md
+
 ## 2026-07-22
 
 ### Ad-hoc — Сброс RTK Query-кэша при смене аккаунта (client)

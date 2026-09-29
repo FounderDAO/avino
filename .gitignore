@@ -13,6 +13,8 @@ out/
 .env
 .env.local
 .env.*.local
+.env.prod
+.env.prod.*
 
 # Secrets (Google OAuth client files и т.п.) — никогда не коммитить
 client_secret*.json

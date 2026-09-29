@@ -79,8 +79,11 @@ NEW). При попытке опубликовать объявление све
    структурированные issues валидации тела/query (`{ field, issue }`), не под
    произвольную бизнес-полезную нагрузку — смешение назначений усложнило бы
    контракт для остальных `422`. Число активных объявлений клиент при
-   необходимости получает отдельным запросом (`GET /listings/mine`), лимит —
-   через уже существующий публичный `GET /settings/public → activeListingLimit`.
+   необходимости получает отдельным запросом, лимит — через уже существующий
+   публичный `GET /settings/public → activeListingLimit`. (Обновление PR #424,
+   см. п.10: `GET /listings/mine` для этого оказался непригоден — отдаёт все
+   статусы вперемешку с пагинацией, — поэтому добавлен целевой
+   `GET /listings/quota → { used, limit, blocked }` как каноничный источник.)
 8. **Уведомление `AGENT_APPLICATION_RESOLVED` — канал только `IN_APP`**
    (routing-конфиг `notification-routing.ts`, не email/push): решение по
    заявке не настолько срочно, чтобы прерывать пользователя пуш-уведомлением;
@@ -90,6 +93,24 @@ NEW). При попытке опубликовать объявление све
    хелпер `resolveAvatarUrl` (ADR-0134): storageKey (загружен пользователем)
    → sign-on-read; иначе внешний `avatarUrl` (Google/Apple OAuth) как есть —
    без прогона через `resolveMediaUrl`, которое сломало бы внешнюю ссылку.
+10. **Проактивный agent-gate при достижении лимита (PR #424)** — расширение п.7
+   и п.1 «заметного пути вместо тихого 422». Модалка «Стать агентом» теперь
+   показывается СРАЗУ при входе в визард `/sell/new`, а не только реактивно на
+   последнем шаге после сабмита. Для этого:
+   - каноничная логика квоты вынесена в чистый read-метод
+     `ListingsService.getActiveListingQuota() → { limit, used, blocked }`
+     (единственное определение «занятого слота» = ACTIVE+NEW; pro-роль и
+     `limit=0` → `blocked:false`); `ensureActiveListingQuota` стал его обёрткой,
+     реактивный `422 ACTIVE_LISTING_LIMIT_REACHED` сохранён как страховка;
+   - новый Bearer-эндпоинт `GET /api/v1/listings/quota` отдаёт этот объект —
+     клиент не может надёжно посчитать слоты сам (`GET /listings/mine`
+     пагинирован и мешает статусы, см. уточнение п.7);
+   - клиент (`listingsQuotaApi`, `providesTags:['Listing']` → рефетч после
+     публикации/архивации) на маунте `/sell/new` при `blocked:true` открывает
+     ту же модалку тем же паттерном, что гость-гейт `loginOpen` (форма позади
+     оверлея); fail-open (`blocked === true` строго), закрытие → `/account/my-listings`.
+   Non-breaking: добавлен только новый endpoint и клиентское поведение, контракт
+   `422` и `activeListingLimit` не менялись → остаётся в API v1.
 
 ## Consequences
 
@@ -141,6 +162,11 @@ Negative / trade-offs:
 - apps/web/src/lib/adapters/agent-applications.test.ts (unit-тесты адаптера)
 - docs/API.md §7, §9, §14, §17, §21
 - docs/DB_SCHEMA.md §18
+- (п.10, PR #424) apps/api/src/listings/listings.service.ts (`getActiveListingQuota`),
+  apps/api/src/listings/listings.controller.ts (`GET /listings/quota`),
+  apps/api/src/listings/dto/listing-quota.dto.ts,
+  apps/client/src/store/api/listingsQuotaApi.ts,
+  apps/client/src/features/listing-new/ListingNew.tsx
 
 ## Дополнение (2026-07-22): повторная подача после отзыва роли
 
@@ -163,4 +189,7 @@ Negative / trade-offs:
 
 - Спека: docs/superpowers/specs/2026-07-12-agent-registration-design.md
 - PR1 (api): миграция + заявки + публичные агенты + `agent_id`-фильтр + openapi/API.md + ADR
+- PR #424 (api+client): проактивный agent-gate — `GET /listings/quota` + показ
+  модалки на входе в `/sell/new` (п.10); план
+  docs/superpowers/plans/2026-07-21-proactive-agent-gate.md
 - Fix: повторная подача после отзыва роли (ветка fix/agent-reapply-after-role-revoke)

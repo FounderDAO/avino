@@ -16,6 +16,20 @@ gh auth setup-git   # чтобы git брал креды у gh по HTTPS
 
 - `origin` использует HTTPS (`https://github.com/FounderDAO/avino.git`); креды отдаёт gh.
 
+## Доступ к prod-серверу (SSH)
+
+Прод — Hetzner AX42, `api.avino.uz` → `157.180.96.205`. Вход по ключу
+`~/.ssh/avino_prod.pem` (парольный вход отключён hardening'ом).
+
+```bash
+ssh -i ~/.ssh/avino_prod.pem root@157.180.96.205
+# логи API (OTP/SMS):
+ssh -i ~/.ssh/avino_prod.pem root@157.180.96.205 \
+  'cd /opt/avino && docker compose logs api | grep -iE "eskiz|otp|sms" | tail'
+```
+
+`.env` прода лежит на сервере как `/opt/avino/.env`.
+
 ## Прочее
 
 - Источник правды дизайна — `apps/claudeDesign/`; редизайн на моках: `apps/client`
