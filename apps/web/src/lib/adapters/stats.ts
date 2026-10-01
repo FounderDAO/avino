@@ -11,7 +11,7 @@ import type { Kpi } from '@/lib/mock';
 
 const numberFmt = new Intl.NumberFormat('en-US');
 
-/** Сводные счётчики `AdminStats` → 10 KPI-карточек UI (2 ряда по 5). */
+/** Сводные счётчики `AdminStats` → 10 KPI-карточек UI. */
 export function statsToKpis(s: AdminStats): Kpi[] {
   return [
     { label: 'На проверке', value: numberFmt.format(s.listings_new), delta: '', accent: 'warn' },

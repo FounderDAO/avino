@@ -57,7 +57,7 @@ export function apiToUiStatus(s: ListingStatus): AdminListingStatus {
     case 'DELETED':
       return 'ARCHIVED';
     default:
-      return 'ACTIVE';
+      return 'ARCHIVED';
   }
 }
 
