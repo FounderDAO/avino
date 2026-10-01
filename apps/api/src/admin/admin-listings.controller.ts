@@ -19,6 +19,7 @@ import { AuthenticatedUser, JwtAuthGuard, RolesGuard } from '../common/guards';
 import { ListAdminListingsQueryDto } from '../moderation/dto/list-admin-listings.dto';
 import { ModerateListingDto } from '../moderation/dto/moderate-listing.dto';
 import {
+  AdminListingDuplicate,
   AdminListingListItem,
   AdminListingOwner,
   ModerationLogResponse,
@@ -91,6 +92,18 @@ export class AdminListingsController {
     @Param('id', ParseUUIDPipe) listingId: string,
   ): Promise<AdminListingOwner> {
     return this.moderationService.getListingOwner(listingId);
+  }
+
+  /**
+   * `GET /api/v1/admin/listings/:id/duplicates` — возможные дубликаты для
+   * карточки модерации: та же цена + площадь + этажность + адрес (без учёта
+   * регистра/лишних пробелов) среди NEW/ACTIVE. Пустой массив — совпадений нет.
+   */
+  @Get(':id/duplicates')
+  findDuplicates(
+    @Param('id', ParseUUIDPipe) listingId: string,
+  ): Promise<AdminListingDuplicate[]> {
+    return this.moderationService.findDuplicates(listingId);
   }
 
   /**

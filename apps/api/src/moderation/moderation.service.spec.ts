@@ -88,6 +88,8 @@ describe('ModerationService', () => {
       listingTranslation: { findMany: jest.fn() },
       // Интерактивная транзакция: коллбэк получает тот же мок (tx === prisma).
       $transaction: jest.fn(async (cb: any) => cb(prisma)),
+      // Raw-поиск кандидатов-дубликатов (нормализация адреса в SQL).
+      $queryRaw: jest.fn(),
     };
     // UploadsService: sign-on-read обложки. Возвращаем стабильный URL, чтобы
     // отличать «есть фото» от null без обращения к S3.
@@ -491,6 +493,126 @@ describe('ModerationService', () => {
           action: ModerationAction.APPROVE,
         }),
         ApiErrorCode.INVALID_STATUS_TRANSITION,
+      );
+    });
+  });
+
+  describe('findDuplicates', () => {
+    const sourceListing = {
+      id: LISTING_ID,
+      status: ListingStatus.NEW,
+      price: new Prisma.Decimal('4500000.00'),
+      area: new Prisma.Decimal('65.50'),
+      totalFloors: 9,
+      address: 'Ташкент, ул. Шота Руставели, 12',
+    };
+
+    const DUP_ID = '22222222-2222-2222-2222-222222222222';
+
+    const dbDuplicate = {
+      id: DUP_ID,
+      reference: 100123,
+      status: ListingStatus.ACTIVE,
+      transactionType: TransactionType.RENT,
+      price: new Prisma.Decimal('4500000.00'),
+      currency: Currency.UZS,
+      area: new Prisma.Decimal('65.50'),
+      totalFloors: 9,
+      address: 'Ташкент, ул. Шота Руставели, 12',
+      originalLanguage: Language.RU,
+      createdAt: new Date('2026-05-01T09:00:00.000Z'),
+      translations: [{ language: Language.RU, title: '2-комн квартира' }],
+      media: [
+        {
+          url: 'https://r2/listings/d/orig.jpg',
+          storageKey: 'listings/d/orig.jpg',
+          thumbnailUrl: null,
+        },
+      ],
+    };
+
+    it('returns duplicate cards in snake_case for matching listings', async () => {
+      prisma.listing.findUnique.mockResolvedValue(sourceListing);
+      prisma.$queryRaw.mockResolvedValue([{ id: DUP_ID }]);
+      prisma.listing.findMany.mockResolvedValue([dbDuplicate]);
+
+      const result = await service.findDuplicates(LISTING_ID);
+
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(prisma.listing.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: [DUP_ID] } } }),
+      );
+      expect(result).toEqual([
+        {
+          id: DUP_ID,
+          reference: 100123,
+          status: ListingStatus.ACTIVE,
+          transaction_type: TransactionType.RENT,
+          price: '4500000.00',
+          currency: Currency.UZS,
+          area: '65.50',
+          total_floors: 9,
+          address: 'Ташкент, ул. Шота Руставели, 12',
+          title: '2-комн квартира',
+          photo_url: 'https://signed.example/cover.jpg',
+          created_at: '2026-05-01T09:00:00.000Z',
+        },
+      ]);
+    });
+
+    it('preserves the candidate order returned by the raw query', async () => {
+      const DUP_ID_2 = '33333333-3333-3333-3333-333333333333';
+      prisma.listing.findUnique.mockResolvedValue(sourceListing);
+      prisma.$queryRaw.mockResolvedValue([{ id: DUP_ID_2 }, { id: DUP_ID }]);
+      // findMany отдаёт строки в «своём» порядке — сервис обязан пересортировать.
+      prisma.listing.findMany.mockResolvedValue([
+        dbDuplicate,
+        { ...dbDuplicate, id: DUP_ID_2, reference: 100456 },
+      ]);
+
+      const result = await service.findDuplicates(LISTING_ID);
+
+      expect(result.map((d) => d.id)).toEqual([DUP_ID_2, DUP_ID]);
+    });
+
+    it('returns [] without querying when the source listing has no address', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...sourceListing,
+        address: null,
+      });
+
+      const result = await service.findDuplicates(LISTING_ID);
+
+      expect(result).toEqual([]);
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('returns [] when no candidates match (no card query)', async () => {
+      prisma.listing.findUnique.mockResolvedValue(sourceListing);
+      prisma.$queryRaw.mockResolvedValue([]);
+
+      const result = await service.findDuplicates(LISTING_ID);
+
+      expect(result).toEqual([]);
+      expect(prisma.listing.findMany).not.toHaveBeenCalled();
+    });
+
+    it('throws 404 when the listing does not exist', async () => {
+      prisma.listing.findUnique.mockResolvedValue(null);
+      await expectCode(
+        service.findDuplicates(LISTING_ID),
+        ApiErrorCode.NOT_FOUND,
+      );
+    });
+
+    it('throws 404 when the listing is DELETED', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...sourceListing,
+        status: ListingStatus.DELETED,
+      });
+      await expectCode(
+        service.findDuplicates(LISTING_ID),
+        ApiErrorCode.NOT_FOUND,
       );
     });
   });
