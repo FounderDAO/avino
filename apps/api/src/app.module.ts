@@ -20,6 +20,7 @@ import { FavoritesModule } from './favorites';
 import { GeoModule } from './geo';
 import { HealthModule } from './health/health.module';
 import { LegalDocumentsModule } from './legal-documents';
+import { ListingImportsModule } from './listing-imports';
 import { ListingMediaModule } from './listing-media';
 import { ListingsModule } from './listings/listings.module';
 import { MediaCleanupModule } from './media-cleanup/media-cleanup.module';
@@ -65,6 +66,7 @@ import { UsersModule } from './users/users.module';
     TranslationsModule,
     ListingsModule,
     ListingMediaModule,
+    ListingImportsModule,
     SearchModule,
     SettingsModule,
     GeoModule,

@@ -1332,6 +1332,82 @@ Errors: `400 VALIDATION_ERROR` (self-block), `404 NOT_FOUND` (нет польз�
 - избранное (`/favorites`) и превью объявления в списке чатов **не
   фильтруются**.
 
+### Импорт объявлений
+
+Массовый импорт объявлений из `.xlsx`/`.csv` (спека 2026-10-02, ADR-0162). Auth:
+**ADMIN** (только; MODERATOR → `403`). Владелец задаётся телефоном: найден — берётся
+существующий, нет — создаётся пользователь с неподтверждённым телефоном.
+
+| Метод | Путь | Назначение |
+|---|---|---|
+| `POST` | `/api/v1/admin/listing-imports` | `multipart/form-data`, поле `file`; query `dry_run` (boolean, default `false`) |
+| `GET` | `/api/v1/admin/listing-imports/template` | шаблон `.xlsx` |
+| `GET` | `/api/v1/admin/listing-imports/:id` | сохранённый отчёт |
+
+`POST` отвечает `200` (не `201`). `dry_run=true` — предпросмотр: файл
+разбирается и проверяется, в БД ничего не пишется. Файл не хранится — для
+реального запуска его отправляют повторно. Лимиты: 2 МБ, 500 строк; один импорт
+одновременно.
+
+Итоги строки (`outcome`):
+
+| `outcome` | Когда | Данные |
+|---|---|---|
+| `TO_CREATE` | только `dry_run` | `owner_is_new` |
+| `CREATED` | только реальный запуск | `listing_id`, `listing_reference`, `owner_is_new` |
+| `SKIPPED_EXISTS` | совпал ключ «уже существует» (владелец + тип сделки + тип недвижимости + нормализованный адрес + площадь + площадь участка + этаж; статус не `DELETED`) | `listing_id`, `listing_reference` найденного |
+| `SKIPPED_DUPLICATE_IN_FILE` | повтор в файле | `duplicate_of_row` |
+| `ERROR` | строка не прошла проверку | `errors[]` |
+
+Элемент `errors[]`: `{ column, code, message }`. `column` — ключ колонки (или
+`null` для ошибки всей строки), `message` — английский текст для логов, русский
+текст админка строит по `code` + `column`. Коды: `REQUIRED`, `INVALID_VALUE`,
+`TOO_LONG`, `INVALID_PHONE`, `OWNER_BLOCKED`, `OWNER_NAME_REQUIRED`,
+`UNKNOWN_AMENITY`, `INTERNAL`. Ошибка строки не останавливает остальные.
+
+Ответ `POST` и `GET :id`:
+```json
+{
+  "id": "uuid | null",
+  "dry_run": true,
+  "file_name": "listings.xlsx",
+  "summary": {
+    "total": 120, "created": 0, "to_create": 97,
+    "skipped_exists": 15, "skipped_duplicate_in_file": 3, "errors": 5
+  },
+  "unknown_columns": ["Коментарий"],
+  "rows": [
+    { "row": 2, "outcome": "TO_CREATE", "phone": "+998901234567",
+      "title": "…", "owner_is_new": true },
+    { "row": 3, "outcome": "SKIPPED_EXISTS",
+      "listing_id": "uuid", "listing_reference": 10432 },
+    { "row": 4, "outcome": "ERROR",
+      "errors": [{ "column": "price", "code": "INVALID_VALUE", "message": "…" }] }
+  ]
+}
+```
+`id` равен `null` при `dry_run`. В `GET :id` поля `phone` и `title` строки берутся
+из `raw`, а `listing_reference` — запросом к `listings` по `listing_id` (`null`,
+если объявление физически удалено).
+
+Ошибки файла — весь запрос отклоняется, ничего не пишется:
+
+| HTTP | `code` | Когда |
+|---|---|---|
+| 400 | `IMPORT_FILE_REQUIRED` | файла нет |
+| 400 | `IMPORT_FILE_UNSUPPORTED` | не `.xlsx`/`.csv` или файл не читается |
+| 413 | `IMPORT_FILE_TOO_LARGE` | > 2 МБ |
+| 422 | `IMPORT_FILE_EMPTY` | нет строк данных |
+| 422 | `IMPORT_TOO_MANY_ROWS` | > 500 строк |
+| 422 | `IMPORT_MISSING_COLUMNS` | нет обязательной колонки; `details.columns` |
+| 409 | `IMPORT_IN_PROGRESS` | другой импорт уже выполняется |
+
+`GET :id` с неизвестным id → `404 NOT_FOUND`.
+
+Шаблон генерируется из того же реестра колонок, что использует парсер: лист 1 —
+только заголовки, лист «Справка» — описание колонок, допустимые значения и
+пример строки.
+
 ### Admin logs
 
 Read-only журналы для админ-панели (TASK-131, ADR-0042). Все — **ADMIN**-only
