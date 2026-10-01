@@ -403,7 +403,8 @@
       "roomsExact": "Exactly {count} rooms",
       "lotAreaTitle": "Lot size",
       "amenitiesTitle": "Amenities",
-      "isBasement": "Basement"
+      "isBasement": "Basement",
+      "includeClosed": "Show sold/rented"
     },
     "results": {
       "count": "{count, plural, one {# listing} other {# listings}}",

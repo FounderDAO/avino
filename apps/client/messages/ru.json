@@ -403,7 +403,8 @@
       "roomsExact": "Комнат ровно: {count}",
       "lotAreaTitle": "Площадь участка",
       "amenitiesTitle": "Удобства",
-      "isBasement": "Цокольный этаж"
+      "isBasement": "Цокольный этаж",
+      "includeClosed": "Показать проданные/сданные"
     },
     "results": {
       "count": "{count, plural, one {# объявление} few {# объявления} many {# объявлений} other {# объявления}}",

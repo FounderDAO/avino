@@ -447,4 +447,9 @@ describe('buildSearchParams — Zillow-фильтры (Task 4)', () => {
     expect(buildSearchParams({ newConstruction: true }, 24).get('new_construction')).toBe('true');
     expect(buildSearchParams({}, 24).has('new_construction')).toBe(false);
   });
+
+  it('включает include_closed=true и опускает его по умолчанию (спека 2026-10-01)', () => {
+    expect(buildSearchParams({ includeClosed: true }, 10).get('include_closed')).toBe('true');
+    expect(buildSearchParams({}, 10).has('include_closed')).toBe(false);
+  });
 });

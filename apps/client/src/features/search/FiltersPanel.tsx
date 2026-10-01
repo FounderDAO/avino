@@ -42,6 +42,8 @@ export interface FiltersPanelValues {
   amenities?: Amenity[];
   /** Только цокольные этажи (`?is_basement=true`, LAST_CHANGED_API.md §1). */
   isBasement?: boolean;
+  /** Показать также закрытые (`?include_closed=true`, SOLD/RENTED), спека 2026-10-01. */
+  includeClosed?: boolean;
 }
 
 export interface FiltersPanelProps {
@@ -257,6 +259,15 @@ export function FiltersPanel({ values, onApply, onReset }: FiltersPanelProps) {
           label={t('isBasement')}
           checked={draft.isBasement ?? false}
           onChange={(checked) => patch({ isBasement: checked || undefined })}
+        />
+      </Section>
+
+      {/* 9. Показать проданные/сданные (спека 2026-10-01) */}
+      <Section title="">
+        <CheckboxRow
+          label={t('includeClosed')}
+          checked={draft.includeClosed ?? false}
+          onChange={(checked) => patch({ includeClosed: checked || undefined })}
         />
       </Section>
 

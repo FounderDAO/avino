@@ -57,7 +57,7 @@ export async function generateMetadata({
     sp.year_min || sp.year_max ||
     sp.lot_area_min || sp.lot_area_max ||
     sp.listing_source || sp.tours_enabled || sp.is_basement || sp.parking_type || sp.amenities ||
-    sp.agent_id,
+    sp.agent_id || sp.include_closed,
   );
 
   // Canonical: оставляем только семантические параметры (strip sort/view/cursor/price/rooms).
@@ -229,6 +229,8 @@ export default async function SearchPage({
   const toursEnabled = first(sp.tours_enabled) === 'true' ? true : undefined;
   const isBasement = first(sp.is_basement) === 'true' ? true : undefined;
   const priceReduced = first(sp.price_reduced) === 'true' ? true : undefined;
+  // Показать также закрытые (SOLD/RENTED) — опция просмотра, не критерий подписки (спека 2026-10-01).
+  const includeClosed = first(sp.include_closed) === 'true' ? true : undefined;
 
   // Источник объявления (мультивыбор: повторяющийся ?listing_source=).
   const rawSource = Array.isArray(sp.listing_source)
@@ -312,6 +314,7 @@ export default async function SearchPage({
     amenities: amenities.length > 0 ? amenities : undefined,
     isBasement,
     priceReduced,
+    includeClosed,
   };
 
   let page = await (initialBounds
@@ -376,6 +379,7 @@ export default async function SearchPage({
     amenities: amenities.length > 0 ? amenities : undefined,
     isBasement,
     priceReduced,
+    includeClosed,
   };
 
   // Заголовок выдачи: «Покупка/Аренда жилья · <район|регион|запрос|Ташкент>».

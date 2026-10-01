@@ -262,6 +262,8 @@ export interface ListingFilter {
   toursEnabled?: boolean;
   /** Только цокольные этажи (`?is_basement=true`, LAST_CHANGED_API.md §1). */
   isBasement?: boolean;
+  /** Показать также закрытые (`?include_closed=true`, SOLD/RENTED), спека 2026-10-01. */
+  includeClosed?: boolean;
 }
 
 /**

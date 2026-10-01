@@ -208,4 +208,28 @@ describe('FiltersPanel', () => {
     const areaMinInput = screen.getAllByRole('textbox')[0] as HTMLInputElement;
     expect(areaMinInput.value).toBe('50');
   });
+
+  it('чекбокс «Показать проданные/сданные» эмитит includeClosed=true (спека 2026-10-01)', async () => {
+    const user = userEvent.setup();
+    const onApply = vi.fn();
+    const onReset = vi.fn();
+
+    render(
+      <FiltersPanel values={emptyValues} onApply={onApply} onReset={onReset} />,
+    );
+
+    // Последний чекбокс в DOM-порядке — includeClosed, секция добавлена строго
+    // в конец панели (после isBasement). Берём по length-1, а не по фиксированному
+    // индексу: ParkingMultiSelect рендерит собственные role=checkbox для каждого
+    // типа парковки, сдвигая абсолютные индексы более ранних секций.
+    const allCbs = screen.getAllByRole('checkbox');
+    const includeClosed = allCbs[allCbs.length - 1];
+    expect(includeClosed).not.toBeChecked();
+
+    await user.click(includeClosed);
+    expect(includeClosed).toBeChecked();
+
+    await user.click(screen.getByTestId('filters-apply'));
+    expect((onApply.mock.calls[0][0] as FiltersPanelValues).includeClosed).toBe(true);
+  });
 });

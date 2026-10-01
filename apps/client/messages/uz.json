@@ -403,7 +403,8 @@
       "roomsExact": "Xonalar soni: {count}",
       "lotAreaTitle": "Yer uchastkasi",
       "amenitiesTitle": "Qulayliklar",
-      "isBasement": "Yerto'la qavat"
+      "isBasement": "Yerto'la qavat",
+      "includeClosed": "Sotilgan/ijaraga berilganlarni ko'rsatish"
     },
     "results": {
       "count": "{count, plural, other {# ta e'lon}}",
