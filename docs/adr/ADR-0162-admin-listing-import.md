@@ -34,6 +34,11 @@ Accepted
   объявления у любых владельцев для модератора.
 - Объявления создаются в `NEW` без геокодинга и без фото; переводы генерирует
   модератор (ADR-0091).
+- Заголовок `listing_imports` и запись `audit_logs` (`action = LISTING_IMPORT`,
+  `entity_type = listing_import`, `entity_id` = id импорта, metadata
+  `{ file_name, total_rows }`) пишутся одной транзакцией ДО обработки строк;
+  счётчики обновляются в конце. Поэтому прерванный запуск всё равно попадает в
+  аудит, а его сохранённый отчёт помечается `incomplete`.
 - `ListingsService.create` разделён на `buildCreateData` и
   `createInTransaction`; обычное создание и импорт пишут объявление одним кодом.
 

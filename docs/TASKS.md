@@ -2924,20 +2924,71 @@ PR-2 нельзя мёржить раньше, чем PR-1 задеплоен
 
 ### TASK-258 — Массовый импорт объявлений: API
 
-Status: IN_PROGRESS
-Branch: feat/listing-import
-Spec: docs/superpowers/specs/2026-10-02-listing-import-design.md
+Status:
+
+```text
+IN_PROGRESS
+```
+
+Branch:
+
+```text
+feat/listing-import
+```
+
+Scope:
+
+```text
+apps/api: модуль listing-imports — POST /admin/listing-imports (dry_run),
+GET /admin/listing-imports/template, GET /admin/listing-imports/:id; только ADMIN.
+Спека: docs/superpowers/specs/2026-10-02-listing-import-design.md, ADR-0162.
+```
+
+---
 
 ### TASK-259 — Массовый импорт объявлений: админка
 
-Status: TODO
-Branch: feat/listing-import-web
-Depends on: TASK-258
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+feat/listing-import-web
+```
+
+Scope:
+
+```text
+apps/web: страница импорта объявлений (загрузка файла, предпросмотр dry_run,
+запуск, отчёт, скачивание шаблона).
+```
+
+Dependencies:
+
+```text
+TASK-258
+```
+
+---
 
 ### TASK-260 — Импорт фото при массовом импорте (фаза 2)
 
-Status: TODO
-Нужна отдельная спека: ссылки + фоновая очередь / ZIP / загрузка админом / загрузка владельцем.
+Status:
+
+```text
+TODO
+```
+
+Scope:
+
+```text
+Нужна отдельная спека: ссылки + фоновая очередь / ZIP / загрузка админом /
+загрузка владельцем.
+```
 
 ---
 

@@ -1370,6 +1370,7 @@ Errors: `400 VALIDATION_ERROR` (self-block), `404 NOT_FOUND` (нет польз�
 {
   "id": "uuid | null",
   "dry_run": true,
+  "incomplete": false,
   "file_name": "listings.xlsx",
   "summary": {
     "total": 120, "created": 0, "to_create": 97,
@@ -1386,7 +1387,9 @@ Errors: `400 VALIDATION_ERROR` (self-block), `404 NOT_FOUND` (нет польз�
   ]
 }
 ```
-`id` равен `null` при `dry_run`. В `GET :id` поля `phone` и `title` строки берутся
+`id` равен `null` при `dry_run`. `incomplete` — `false` в ответе запуска (и
+предпросмотра, и реального); в `GET :id` равен `true`, если сохранено меньше строк,
+чем было в файле, — запуск прервался, отчёт частичный. В `GET :id` поля `phone` и `title` строки берутся
 из `raw`, а `listing_reference` — запросом к `listings` по `listing_id` (`null`,
 если объявление физически удалено).
 
