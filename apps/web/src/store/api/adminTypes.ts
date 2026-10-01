@@ -748,6 +748,10 @@ export interface AdminStats {
   listings_sale: number;
   /** Активная витрина в аренду (`ACTIVE` + `RENT`). */
   listings_rent: number;
+  /** Продано (`ListingStatus.SOLD`), спека 2026-10-01. */
+  listings_sold: number;
+  /** Сдано (`ListingStatus.RENTED`), спека 2026-10-01. */
+  listings_rented: number;
   /** Заявки «Стать агентом» в очереди на решение (`PENDING`). */
   agent_applications_new: number;
   /** Новые обращения в поддержку в очереди (`SupportRequestStatus.NEW`). */
