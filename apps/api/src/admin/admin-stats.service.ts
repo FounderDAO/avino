@@ -24,6 +24,8 @@ import { PrismaService } from '../prisma';
  * - `listings_rent`     — активная витрина в аренду (`ACTIVE` + `RENT`).
  *   `listings_sale + listings_rent === listings_active` (у каждого объявления
  *   ровно один тип сделки).
+ * - `listings_sold`     — продано (`ListingStatus.SOLD`).
+ * - `listings_rented`   — сдано (`ListingStatus.RENTED`).
  * - `agent_applications_new` — заявки «Стать агентом» в очереди на решение
  *                         (`AgentApplicationStatus.PENDING`).
  * - `support_requests_new` — новые обращения в поддержку в очереди
@@ -38,6 +40,8 @@ export interface AdminStatsResponse {
   listings_archived: number;
   listings_sale: number;
   listings_rent: number;
+  listings_sold: number;
+  listings_rented: number;
   agent_applications_new: number;
   support_requests_new: number;
 }
@@ -67,6 +71,8 @@ export class AdminStatsService {
       listingsArchived,
       listingsSale,
       listingsRent,
+      listingsSold,
+      listingsRented,
       agentApplicationsNew,
       supportRequestsNew,
     ] = await Promise.all([
@@ -94,6 +100,8 @@ export class AdminStatsService {
           transactionType: TransactionType.RENT,
         },
       }),
+      this.prisma.listing.count({ where: { status: ListingStatus.SOLD } }),
+      this.prisma.listing.count({ where: { status: ListingStatus.RENTED } }),
       this.prisma.agentApplication.count({
         where: { status: AgentApplicationStatus.PENDING },
       }),
@@ -111,6 +119,8 @@ export class AdminStatsService {
       listings_archived: listingsArchived,
       listings_sale: listingsSale,
       listings_rent: listingsRent,
+      listings_sold: listingsSold,
+      listings_rented: listingsRented,
       agent_applications_new: agentApplicationsNew,
       support_requests_new: supportRequestsNew,
     };
