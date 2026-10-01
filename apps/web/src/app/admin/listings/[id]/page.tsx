@@ -50,6 +50,8 @@ const STATUS_LABEL: Record<AdminListingStatus, string> = {
   PENDING: 'На проверке',
   REJECTED: 'Отклонено',
   DRAFT: 'Черновик',
+  SOLD: 'Продано',
+  RENTED: 'Сдано',
   ARCHIVED: 'В архиве',
 };
 
