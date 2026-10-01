@@ -127,6 +127,18 @@ const LISTING_SELECT = {
   createdAt: true,
 } as const;
 
+/**
+ * Статусы, видимые в публичном read-path без авторизации (спека 2026-10-01):
+ * ACTIVE — витрина, SOLD/RENTED — закрытые объявления с бейджем «Продано/Сдано»
+ * (попадают в выдачу только по include_closed=true). Отступление от ADR-0088/
+ * ADR-0019 зафиксировано отдельным ADR (публичная видимость закрытых листингов).
+ */
+const PUBLIC_VIEW_STATUSES: ListingStatus[] = [
+  ListingStatus.ACTIVE,
+  ListingStatus.SOLD,
+  ListingStatus.RENTED,
+];
+
 /** Статусы-источники, из которых владелец может СКРЫТЬ листинг (→ ARCHIVED). */
 const HIDE_FROM: readonly ListingStatus[] = [
   ListingStatus.ACTIVE,
@@ -920,10 +932,11 @@ export class ListingsService {
   /**
    * `GET /api/v1/listings/:id` — публичная карточка листинга (API.md §7).
    *
-   * Видимость: `ACTIVE` доступен всем; непубличные статусы видят только владелец
-   * и роли {@link PRIVILEGED_VIEW_ROLES} (MODERATOR/ADMIN). `DELETED` исключён из
-   * всех read-path (API.md §7) — всегда `404`. Чтобы не раскрывать существование
-   * скрытого листинга, недоступный для зрителя ресурс тоже отдаёт `404`.
+   * Видимость: {@link PUBLIC_VIEW_STATUSES} (ACTIVE/SOLD/RENTED) доступны всем;
+   * остальные статусы видят только владелец и роли {@link PRIVILEGED_VIEW_ROLES}
+   * (MODERATOR/ADMIN). `DELETED` исключён из всех read-path (API.md §7) — всегда
+   * `404`. Чтобы не раскрывать существование скрытого листинга, недоступный для
+   * зрителя ресурс тоже отдаёт `404`.
    *
    * Перевод выбирается по `?lang`/`Accept-Language` с фолбэком на
    * `original_language` (ADR-012); медиа отдаются по `sort_order`.
@@ -980,7 +993,7 @@ export class ListingsService {
       throw notFound;
     }
     if (
-      listing.status !== ListingStatus.ACTIVE &&
+      !PUBLIC_VIEW_STATUSES.includes(listing.status) &&
       !this.canViewNonActive(listing.ownerId, viewer)
     ) {
       throw notFound;

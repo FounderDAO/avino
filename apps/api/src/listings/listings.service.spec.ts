@@ -1133,6 +1133,42 @@ describe('ListingsService', () => {
       );
     });
 
+    // Спека 2026-10-01: закрытые (SOLD/RENTED) публично видимы — карточка с
+    // бейджем «Продано/Сдано» должна открываться из выдачи include_closed.
+    it('shows a SOLD listing to a guest', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        status: ListingStatus.SOLD,
+      });
+
+      const result = await service.findOne(LISTING_ID, undefined);
+
+      expect(result.status).toBe(ListingStatus.SOLD);
+    });
+
+    it('shows a RENTED listing to a guest', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        status: ListingStatus.RENTED,
+      });
+
+      const result = await service.findOne(LISTING_ID, undefined);
+
+      expect(result.status).toBe(ListingStatus.RENTED);
+    });
+
+    it('still hides an ARCHIVED listing from a guest (404)', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        status: ListingStatus.ARCHIVED,
+      });
+
+      await expectCode(
+        service.findOne(LISTING_ID, undefined),
+        ApiErrorCode.NOT_FOUND,
+      );
+    });
+
     it('hides a non-ACTIVE listing from another user (404)', async () => {
       prisma.listing.findUnique.mockResolvedValue({
         ...detailRow,
