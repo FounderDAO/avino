@@ -70,4 +70,14 @@ describe('PropertyCard (compact)', () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText('Тест-Агентство')).not.toBeInTheDocument();
   });
+
+  it('показывает бейдж «Продано» для закрытого объявления (status: SOLD)', () => {
+    render(<PropertyCard listing={{ ...listing, status: 'SOLD' } as Listing} />);
+    expect(screen.getByText(/listingStatus\.SOLD/)).toBeInTheDocument();
+  });
+
+  it('не показывает бейдж «Продано» для активного объявления', () => {
+    render(<PropertyCard listing={{ ...listing, status: 'ACTIVE' } as Listing} />);
+    expect(screen.queryByText(/listingStatus\.SOLD/)).not.toBeInTheDocument();
+  });
 });

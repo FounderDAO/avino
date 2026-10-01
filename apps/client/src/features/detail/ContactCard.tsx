@@ -56,6 +56,9 @@ export function ContactCard({ listing, className }: ContactCardProps) {
     listing.toursEnabled === true &&
     (listing.status ?? 'ACTIVE') === 'ACTIVE' &&
     (listing.tourWindows?.length ?? 0) > 0;
+  // Закрытое объявление (спека 2026-10-01): сделка состоялась — новые
+  // обращения не нужны; существующие чат-треды живут в инбоксе (ADR-0040).
+  const isClosed = listing.status === 'SOLD' || listing.status === 'RENTED';
 
   // Создаёт (идемпотентно) диалог по объявлению и переходит в инбокс.
   const createThreadAndGo = React.useCallback(async () => {
@@ -166,8 +169,10 @@ export function ContactCard({ listing, className }: ContactCardProps) {
       {/* Кнопки связи */}
       <div className="mt-5 flex flex-col gap-2.5">
         {/* «Показать телефон» показываем только когда телефон реально есть —
-            иначе кнопка была бы «мёртвой» (owner без contact_phone). */}
-        {agent.phone &&
+            иначе кнопка была бы «мёртвой» (owner без contact_phone); на закрытой
+            сделке (isClosed) звонить незачем — прячем целиком. */}
+        {!isClosed &&
+          agent.phone &&
           (phoneShown ? (
             <a
               href={`tel:${agent.phone.replace(/\s/g, '')}`}
@@ -194,15 +199,17 @@ export function ContactCard({ listing, className }: ContactCardProps) {
           </Button>
         )}
 
-        <Button
-          variant="outline"
-          size="lg"
-          className="w-full"
-          disabled={isCreatingThread}
-          onClick={handleMessage}
-        >
-          <MessageSquare size={18} /> {t('contact.message')}
-        </Button>
+        {!isClosed && (
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full"
+            disabled={isCreatingThread}
+            onClick={handleMessage}
+          >
+            <MessageSquare size={18} /> {t('contact.message')}
+          </Button>
+        )}
         {chatError && <div className="text-[12.5px] text-red">{chatError}</div>}
       </div>
 

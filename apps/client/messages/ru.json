@@ -1498,6 +1498,10 @@
       "LAND": "Участок",
       "COMMERCIAL": "Коммерция"
     },
+    "listingStatus": {
+      "SOLD": "Продано",
+      "RENTED": "Сдано"
+    },
     "parking": {
       "YARD": "Двор",
       "COVERED": "Крытая",

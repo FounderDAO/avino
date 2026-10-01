@@ -1498,6 +1498,10 @@
       "LAND": "Land",
       "COMMERCIAL": "Commercial"
     },
+    "listingStatus": {
+      "SOLD": "Sold",
+      "RENTED": "Rented"
+    },
     "parking": {
       "YARD": "Yard",
       "COVERED": "Covered",

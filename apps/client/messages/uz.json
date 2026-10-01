@@ -1498,6 +1498,10 @@
       "LAND": "Yer uchastkasi",
       "COMMERCIAL": "Tijorat"
     },
+    "listingStatus": {
+      "SOLD": "Sotilgan",
+      "RENTED": "Ijaraga berilgan"
+    },
     "parking": {
       "YARD": "Hovli",
       "COVERED": "Yopiq",

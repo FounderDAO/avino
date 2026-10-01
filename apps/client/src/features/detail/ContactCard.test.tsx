@@ -239,6 +239,21 @@ describe('ContactCard', () => {
     expect(screen.getByText('Агентство')).toBeInTheDocument();
   });
 
+  it('не показывает «Написать» и «Показать телефон» для закрытого объявления (SOLD)', () => {
+    const listing = makeListing('+998 90 123-45-67');
+    listing.status = 'SOLD';
+    render(<ContactCard listing={listing} />);
+    expect(screen.queryByText('Написать')).not.toBeInTheDocument();
+    expect(screen.queryByText('Показать телефон')).not.toBeInTheDocument();
+  });
+
+  it('показывает «Написать» для активного объявления (ACTIVE)', () => {
+    const listing = makeListing('+998 90 123-45-67');
+    listing.status = 'ACTIVE';
+    render(<ContactCard listing={listing} />);
+    expect(screen.getByText('Написать')).toBeInTheDocument();
+  });
+
   it('клик по раскрытой tel:-ссылке засчитывает звонок', async () => {
     const user = userEvent.setup();
     render(<ContactCard listing={makeListing('+998 90 123-45-67')} />);
