@@ -3,6 +3,7 @@ import { toQueryParams } from './pagination';
 import type { Paginated } from './pagination';
 import type {
   AdminListingRow,
+  AdminListingDuplicate,
   AdminListingFilters,
   AdminListingOwner,
   ListingDetail,
@@ -56,6 +57,16 @@ export const adminListingsApi = adminApi.injectEndpoints({
      */
     getAdminListingOwner: build.query<AdminListingOwner, string>({
       query: (id) => ({ url: `/admin/listings/${id}/owner` }),
+      providesTags: ['Admin'],
+    }),
+
+    /**
+     * `GET /admin/listings/:id/duplicates` → возможные дубликаты (§16): та же
+     * цена + площадь + этажность + адрес среди NEW/ACTIVE. Пустой массив —
+     * совпадений нет, блок в UI не рендерится.
+     */
+    getListingDuplicates: build.query<AdminListingDuplicate[], string>({
+      query: (id) => ({ url: `/admin/listings/${id}/duplicates` }),
       providesTags: ['Admin'],
     }),
 
@@ -141,6 +152,7 @@ export const {
   useListAdminListingsQuery,
   useGetAdminListingQuery,
   useGetAdminListingOwnerQuery,
+  useGetListingDuplicatesQuery,
   useListingModerationLogsQuery,
   useModerateListingMutation,
   useGetListingTranslationsQuery,

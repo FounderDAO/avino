@@ -33,6 +33,7 @@ import {
   useCancelPromotionMutation,
 } from '@/store/api/adminPromotionsApi';
 import { PromoteListingModal } from '@/components/admin/PromoteListingModal';
+import { ListingDuplicates } from '@/components/admin/ListingDuplicates';
 import { detailToAdminListing, ownerName, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
 import { translationResultToast } from '@/lib/translations';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
@@ -269,6 +270,7 @@ export default function ListingDetailPage() {
                 </div>
               </div>
             )}
+            <ListingDuplicates listingId={id} />
           </div>
           <div className="a-card" style={{ padding: 22 }}>
             <h3 style={{ fontSize: 16, marginBottom: 12 }}>Параметры</h3>
