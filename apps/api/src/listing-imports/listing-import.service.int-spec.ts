@@ -189,9 +189,11 @@ describe('ListingImportService (integration)', () => {
       listingId: listing.id,
       ownerIsNew: true,
     });
-    expect(
-      await prisma.auditLog.count({ where: { action: 'LISTING_IMPORT', entityId: report.id as string } }),
-    ).toBe(1);
+    const audits = await prisma.auditLog.findMany({
+      where: { action: 'LISTING_IMPORT', entityId: report.id as string },
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0].metadata).toMatchObject({ total_rows: 1 });
   });
 
   it('повторный запуск того же файла: 0 создано, строка — «уже существует»', async () => {
@@ -306,10 +308,21 @@ describe('ListingImportService (integration)', () => {
       false,
     );
     const report = await service.getReport(run.id as string);
-    expect(report).toEqual({ ...run, dry_run: false });
+    expect(report).toEqual({ ...run, dry_run: false, incomplete: false });
     await expect(service.getReport('00000000-0000-4000-8000-000000000000')).rejects.toMatchObject({
       status: 404,
     });
+  });
+
+  it('getReport помечает отчёт прерванного импорта как incomplete', async () => {
+    const run = await service.run(
+      await file([row(PHONE_EXISTING, { Адрес: 'Ташкент, Прерванная, 1' })]),
+      adminId,
+      false,
+    );
+    expect(run.incomplete).toBe(false);
+    await prisma.listingImportRow.deleteMany({ where: { importId: run.id as string } });
+    expect((await service.getReport(run.id as string)).incomplete).toBe(true);
   });
 
   it('второй импорт во время первого → 409 IMPORT_IN_PROGRESS', async () => {

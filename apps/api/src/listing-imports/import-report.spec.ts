@@ -1,4 +1,4 @@
-import { findInFileDuplicates, ImportRowReport, summarize } from './import-report';
+import { decodeUploadedFileName, findInFileDuplicates, ImportRowReport, summarize } from './import-report';
 
 describe('findInFileDuplicates', () => {
   it('первая строка ключа — оригинал, остальные ссылаются на неё', () => {
@@ -40,5 +40,24 @@ describe('summarize', () => {
       skipped_duplicate_in_file: 1,
       errors: 1,
     });
+  });
+});
+
+describe('decodeUploadedFileName', () => {
+  it('ASCII-имя не меняется', () => {
+    expect(decodeUploadedFileName('import.xlsx')).toBe('import.xlsx');
+  });
+
+  it('восстанавливает кириллицу, испорченную latin1', () => {
+    const mangled = Buffer.from('объявления.xlsx', 'utf8').toString('latin1');
+    expect(decodeUploadedFileName(mangled)).toBe('объявления.xlsx');
+  });
+
+  it('уже корректное UTF-8-имя не меняется', () => {
+    expect(decodeUploadedFileName('объявления.xlsx')).toBe('объявления.xlsx');
+  });
+
+  it('настоящее latin1-имя с невалидным для UTF-8 байтом не меняется', () => {
+    expect(decodeUploadedFileName('café.xlsx')).toBe('café.xlsx');
   });
 });

@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ListingImportOutcome, Prisma } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
@@ -12,6 +13,7 @@ import {
   OwnerUnavailableError,
 } from './import-owner.resolver';
 import {
+  decodeUploadedFileName,
   findInFileDuplicates,
   ImportRowReport,
   ListingImportReport,
@@ -69,14 +71,11 @@ export class ListingImportService {
     dryRun: boolean,
   ): Promise<ListingImportReport> {
     const parsed = await parseImportFile(file);
-    // multer отдаёт имя файла в latin1 — кириллица иначе сохранилась бы мусором.
-    const fileName = Buffer.from((file as ImportUploadedFile).originalname, 'latin1')
-      .toString('utf8')
-      .slice(0, 255);
+    const fileName = decodeUploadedFileName((file as ImportUploadedFile).originalname).slice(0, 255);
 
     if (dryRun) {
       const { reports, unknownColumns } = await this.classify(parsed.rows, parsed.unknownColumns);
-      return this.toReport(null, true, fileName, unknownColumns, reports);
+      return this.toReport(null, true, fileName, unknownColumns, reports, false);
     }
 
     const token = await this.lock.acquire();
@@ -92,7 +91,12 @@ export class ListingImportService {
       const classified = await this.classify(parsed.rows, parsed.unknownColumns);
       return await this.execute(classified, actorId, fileName);
     } finally {
-      await this.lock.release(token);
+      // Сбой Redis не должен превращать записанный импорт в 500 или маскировать исходную ошибку.
+      try {
+        await this.lock.release(token);
+      } catch (error) {
+        this.logger.warn(`Не удалось снять блокировку импорта: ${(error as Error).message}`);
+      }
     }
   }
 
@@ -134,7 +138,7 @@ export class ListingImportService {
         listing_reference: references.get(row.listingId as string) ?? null,
       };
     });
-    return this.toReport(saved.id, false, saved.fileName, saved.unknownColumns, rows);
+    return this.toReport(saved.id, false, saved.fileName, saved.unknownColumns, rows, saved.rows.length !== saved.totalRows);
   }
 
   /** Только чтение: итог каждой строки, как если бы импорт был запущен сейчас. */
@@ -177,8 +181,10 @@ export class ListingImportService {
       try {
         data = await this.listings.buildCreateData(input.dto, { geocode: false });
       } catch (error) {
-        // Без геокодинга buildCreateData бросает только на неизвестных удобствах.
-        const message = error instanceof Error ? error.message : 'Unknown amenity codes';
+        // Без геокодинга buildCreateData бросает HttpException только на неизвестных
+        // удобствах; всё остальное (например, сбой БД) — не ошибка строки.
+        if (!(error instanceof HttpException)) throw error;
+        const message = error.message;
         reports.push({
           ...base,
           outcome: 'ERROR',
@@ -218,10 +224,23 @@ export class ListingImportService {
     fileName: string,
   ): Promise<ListingImportReport> {
     const { reports, pending, rawByRow, unknownColumns } = classified;
-    const header = await this.prisma.listingImport.create({
-      data: { createdById: actorId, fileName, totalRows: reports.length, unknownColumns },
-      select: { id: true },
-    });
+    // Заголовок и аудит — одной транзакцией до записи строк: если процесс упадёт
+    // посреди импорта, созданные объявления не останутся без записи в аудите.
+    const importId = randomUUID();
+    await this.prisma.$transaction([
+      this.prisma.listingImport.create({
+        data: { id: importId, createdById: actorId, fileName, totalRows: reports.length, unknownColumns },
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          actorId,
+          action: 'LISTING_IMPORT',
+          entityType: 'listing_import',
+          entityId: importId,
+          metadata: { file_name: fileName, total_rows: reports.length },
+        },
+      }),
+    ]);
     const rawOf = (report: ImportRowReport): Prisma.InputJsonValue => ({
       ...rawByRow.get(report.row),
       ...(report.phone ? { normalized_phone: report.phone } : {}),
@@ -230,7 +249,7 @@ export class ListingImportService {
     for (const row of pending) {
       const { report } = row;
       try {
-        const result = await this.createRowWithRetry(header.id, row, rawOf(report));
+        const result = await this.createRowWithRetry(importId, row, rawOf(report));
         Object.assign(report, result);
       } catch (error) {
         delete report.owner_is_new;
@@ -238,7 +257,7 @@ export class ListingImportService {
         if (error instanceof OwnerUnavailableError) {
           report.errors = [error.rowError];
         } else {
-          this.logger.error(`Import ${header.id} row ${report.row} failed`, error as Error);
+          this.logger.error(`Import ${importId} row ${report.row} failed`, error as Error);
           report.errors = [INTERNAL];
         }
       }
@@ -249,7 +268,7 @@ export class ListingImportService {
     if (rest.length > 0) {
       await this.prisma.listingImportRow.createMany({
         data: rest.map((report) => ({
-          importId: header.id,
+          importId: importId,
           rowNumber: report.row,
           outcome: report.outcome as ListingImportOutcome,
           listingId: report.listing_id ?? null,
@@ -261,27 +280,16 @@ export class ListingImportService {
     }
 
     const summary = summarize(reports);
-    await this.prisma.$transaction([
-      this.prisma.listingImport.update({
-        where: { id: header.id },
-        data: {
-          createdCount: summary.created,
-          skippedExistsCount: summary.skipped_exists,
-          skippedInFileCount: summary.skipped_duplicate_in_file,
-          errorCount: summary.errors,
-        },
-      }),
-      this.prisma.auditLog.create({
-        data: {
-          actorId,
-          action: 'LISTING_IMPORT',
-          entityType: 'listing_import',
-          entityId: header.id,
-          metadata: { file_name: fileName, ...summary },
-        },
-      }),
-    ]);
-    return this.toReport(header.id, false, fileName, unknownColumns, reports);
+    await this.prisma.listingImport.update({
+      where: { id: importId },
+      data: {
+        createdCount: summary.created,
+        skippedExistsCount: summary.skipped_exists,
+        skippedInFileCount: summary.skipped_duplicate_in_file,
+        errorCount: summary.errors,
+      },
+    });
+    return this.toReport(importId, false, fileName, unknownColumns, reports, false);
   }
 
   /**
@@ -351,10 +359,12 @@ export class ListingImportService {
     fileName: string,
     unknownColumns: string[],
     rows: ImportRowReport[],
+    incomplete: boolean,
   ): ListingImportReport {
     return {
       id,
       dry_run: dryRun,
+      incomplete,
       file_name: fileName,
       summary: summarize(rows),
       unknown_columns: unknownColumns,
