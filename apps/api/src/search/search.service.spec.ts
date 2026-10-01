@@ -588,6 +588,24 @@ describe('SearchService', () => {
       expect(text).toContain(`status IN ('ACTIVE', 'SOLD', 'RENTED')`);
       expect(text).not.toContain(`status = 'ACTIVE'`);
     });
+
+    it('matchNewlyActiveListings игнорирует include_closed=true в saved filters', async () => {
+      // Сохранённые поиски всегда матчатся только по ACTIVE, даже если фильтры
+      // содержат include_closed: true (спека 2026-10-01). Иначе алерты пришлют
+      // по проданным объявлениям, нарушив критерий saved-search-alert.service.ts:35-38.
+      prisma.$queryRaw.mockResolvedValueOnce([]);
+
+      const filters = { include_closed: true, transaction_type: TransactionType.SALE };
+      const publishedAfter = new Date('2026-06-01T00:00:00Z');
+      const publishedUntil = new Date('2026-06-02T00:00:00Z');
+
+      await service.matchNewlyActiveListings(filters, publishedAfter, publishedUntil, 10);
+
+      const calledSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+      const text = sqlText(calledSql);
+      expect(text).toContain(`status = 'ACTIVE'`);
+      expect(text).not.toContain('SOLD');
+    });
   });
 
   describe('фильтр блокировок (Apple 1.2)', () => {
