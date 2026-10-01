@@ -93,6 +93,8 @@ export const STATUS_MAP: StatusMap = {
   PENDING: ['На проверке', 'var(--warn)', 'var(--warn-bg)'],
   REJECTED: ['Отклонено', 'var(--red)', 'var(--red-bg)'],
   DRAFT: ['Черновик', 'var(--teal)', 'var(--mint)'],
+  SOLD: ['Продано', '#1a73e8', '#e8f0fe'],
+  RENTED: ['Сдано', '#7b1fa2', '#f3e5f5'],
   ARCHIVED: ['В архиве', 'var(--muted)', 'var(--archive-bg)'],
 };
 

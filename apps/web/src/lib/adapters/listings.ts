@@ -38,7 +38,7 @@ export const REJECT_REASON_OPTIONS: string[] = [
   'Недостоверная информация',
 ];
 
-/** API-статус листинга → статус UI-pill (5 значений мок-модели). */
+/** API-статус листинга → статус UI-pill (7 значений мок-модели). */
 export function apiToUiStatus(s: ListingStatus): AdminListingStatus {
   switch (s) {
     case 'ACTIVE':
@@ -49,10 +49,12 @@ export function apiToUiStatus(s: ListingStatus): AdminListingStatus {
       return 'DRAFT';
     case 'REJECTED':
       return 'REJECTED';
+    case 'SOLD':
+      return 'SOLD';
+    case 'RENTED':
+      return 'RENTED';
     case 'ARCHIVED':
     case 'DELETED':
-    case 'SOLD':
-    case 'RENTED':
       return 'ARCHIVED';
     default:
       return 'ACTIVE';
@@ -66,6 +68,8 @@ export const UI_FILTER_TO_API_STATUS: Record<string, ListingStatus | undefined> 
   PENDING: 'NEW',
   REJECTED: 'REJECTED',
   DRAFT: 'DRAFT',
+  SOLD: 'SOLD',
+  RENTED: 'RENTED',
   ARCHIVED: 'ARCHIVED',
 };
 

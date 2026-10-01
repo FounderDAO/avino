@@ -1,7 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { duplicateToView } from './listings';
+import { apiToUiStatus, UI_FILTER_TO_API_STATUS, duplicateToView } from './listings';
 import { FALLBACK_PHOTO } from '@/lib/mock';
 import type { AdminListingDuplicate } from '@/store/api/adminTypes';
+
+/** Спека 2026-10-01: SOLD/RENTED — собственные UI-статусы, не «В архиве». */
+describe('apiToUiStatus', () => {
+  it.each([
+    ['ACTIVE', 'ACTIVE'],
+    ['NEW', 'PENDING'],
+    ['SOLD', 'SOLD'],
+    ['RENTED', 'RENTED'],
+    ['ARCHIVED', 'ARCHIVED'],
+    ['DELETED', 'ARCHIVED'],
+  ] as const)('%s → %s', (api, ui) => {
+    expect(apiToUiStatus(api)).toBe(ui);
+  });
+});
+
+describe('UI_FILTER_TO_API_STATUS', () => {
+  it('фильтры «Продано»/«Сдано» транслируются в API-статусы', () => {
+    expect(UI_FILTER_TO_API_STATUS.SOLD).toBe('SOLD');
+    expect(UI_FILTER_TO_API_STATUS.RENTED).toBe('RENTED');
+  });
+});
 
 /**
  * `duplicateToView` — карточка возможного дубликата

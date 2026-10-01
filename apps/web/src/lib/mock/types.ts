@@ -14,13 +14,15 @@ export type PropertyType =
 
 export type PromotionType = 'NORMAL' | 'TOP' | 'VIP';
 
-/** Статус объявления в админке (модерация). */
+/** Статус объявления в админке (модерация). SOLD/RENTED — закрытые сделки, спека 2026-10-01. */
 export type AdminListingStatus =
   | 'ACTIVE'
   | 'PENDING'
   | 'REJECTED'
   | 'DRAFT'
-  | 'ARCHIVED';
+  | 'ARCHIVED'
+  | 'SOLD'
+  | 'RENTED';
 
 /** Роли пользователей. */
 export type Role =
