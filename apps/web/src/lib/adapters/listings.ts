@@ -9,6 +9,7 @@
  * LAST_CHANGED_API.md §1); имени района в деталях нет — «—».
  */
 import type {
+  AdminListingDuplicate,
   AdminListingOwner,
   AdminListingRow,
   ListingDetail,
@@ -101,6 +102,45 @@ function splitFeatures(text: string | null): string[] {
     .split(/[\n;•]+/)
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/** View-модель карточки дубликата для блока/модалки в админке. */
+export interface DuplicateCardView {
+  id: string;
+  /** Публичный номер с префиксом: «№100123». */
+  reference: string;
+  title: string;
+  address: string;
+  price: string;
+  /** «65.5 м²» или «—». */
+  area: string;
+  /** «9 эт.» или «—». */
+  floors: string;
+  status: AdminListingStatus;
+  photo: string;
+  created: string;
+}
+
+/**
+ * Карточка дубликата `GET /admin/listings/:id/duplicates` → view-модель блока
+ * «Возможный дубликат» и модалки предпросмотра (очередь модерации и админ-деталь).
+ */
+export function duplicateToView(d: AdminListingDuplicate): DuplicateCardView {
+  return {
+    id: d.id,
+    reference: `№${d.reference}`,
+    title: d.title,
+    address: d.address ?? DASH,
+    price: formatPrice(
+      { price: d.price, currency: d.currency, tx: d.transaction_type },
+      { suffix: false },
+    ),
+    area: d.area !== null ? `${Number(d.area)} м²` : DASH,
+    floors: d.total_floors !== null ? `${d.total_floors} эт.` : DASH,
+    status: apiToUiStatus(d.status),
+    photo: d.photo_url ?? FALLBACK_PHOTO,
+    created: fmtDate(d.created_at),
+  };
 }
 
 /**

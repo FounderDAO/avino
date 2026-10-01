@@ -21,6 +21,7 @@ import { StatusPill } from '@/components/admin/ui/pill';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
 import { TranslationRow } from '@/components/admin/TranslationRow';
+import { ListingDuplicates } from '@/components/admin/ListingDuplicates';
 import { OriginalTranslationEditor } from '@/components/admin/OriginalTranslationEditor';
 import {
   useGetAdminListingQuery,
@@ -292,6 +293,8 @@ export default function ModerationPage() {
                     {full.features.map((f) => <span key={f} className="a-pill" style={{ background: 'var(--surface-2)', color: 'var(--ink)', border: '1px solid var(--border)' }}>{f}</span>)}
                   </div>
                 )}
+
+                <ListingDuplicates listingId={sel.id} />
 
                 {selRow?.owner && <CreatorCard owner={selRow.owner} />}
 

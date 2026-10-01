@@ -266,6 +266,27 @@ export interface ListingModerationLogEntry {
   created_at: string;
 }
 
+/**
+ * Карточка возможного дубликата (`GET /admin/listings/:id/duplicates`, §16).
+ * Зеркало `AdminListingDuplicate` (`apps/api/src/moderation`): совпадение по
+ * цене + площади + этажности + адресу (без учёта регистра/лишних пробелов)
+ * среди NEW/ACTIVE-объявлений. `title` — на языке оригинала дубликата.
+ */
+export interface AdminListingDuplicate {
+  id: string;
+  reference: number;
+  status: ListingStatus;
+  transaction_type: TransactionType;
+  price: string;
+  currency: Currency;
+  area: string | null;
+  total_floors: number | null;
+  address: string | null;
+  title: string;
+  photo_url: string | null;
+  created_at: string;
+}
+
 // ─── DTO: пользователи (API.md §6) ──────────────────────────────────────────
 
 /**
