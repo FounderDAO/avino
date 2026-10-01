@@ -48,7 +48,9 @@ function DuplicateListingModal({
             ['Этажность', dup.floors],
             ['Создано', dup.created],
           ] as [string, string][]).map(([k, v]) => (
-            <div key={k} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 13px' }}>
+            // minWidth: 0 — иначе nowrap-адрес распирает 1fr-колонку и ячейки
+            // второй колонки вылезают за край модалки.
+            <div key={k} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 13px', minWidth: 0 }}>
               <div className="muted" style={{ fontSize: 12 }}>{k}</div>
               <div style={{ fontWeight: 600, fontSize: 13.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v}</div>
             </div>
