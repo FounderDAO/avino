@@ -403,7 +403,8 @@
       "roomsExact": "Exactly {count} rooms",
       "lotAreaTitle": "Lot size",
       "amenitiesTitle": "Amenities",
-      "isBasement": "Basement"
+      "isBasement": "Basement",
+      "includeClosed": "Show sold/rented"
     },
     "results": {
       "count": "{count, plural, one {# listing} other {# listings}}",
@@ -1496,6 +1497,10 @@
       "HOUSE": "House",
       "LAND": "Land",
       "COMMERCIAL": "Commercial"
+    },
+    "listingStatus": {
+      "SOLD": "Sold",
+      "RENTED": "Rented"
     },
     "parking": {
       "YARD": "Yard",

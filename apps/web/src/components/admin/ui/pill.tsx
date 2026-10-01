@@ -20,9 +20,9 @@ export function Pill({ bg, color, className, style, children, ...props }: PillPr
   );
 }
 
-/** Статус объявления (Опубликовано / На проверке / Отклонено / Черновик / В архиве). */
+/** Статус объявления (Опубликовано / На проверке / Отклонено / Черновик / Продано / Сдано / В архиве). */
 export function StatusPill({ status }: { status: AdminListingStatus }) {
-  const [label, color, bg] = ADMIN.STATUS_MAP[status] ?? ADMIN.STATUS_MAP.ACTIVE;
+  const [label, color, bg] = ADMIN.STATUS_MAP[status] ?? ADMIN.STATUS_MAP.ARCHIVED;
   return <Pill bg={bg} color={color}>{label}</Pill>;
 }
 

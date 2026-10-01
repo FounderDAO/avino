@@ -264,6 +264,12 @@ export class SearchListingsQueryDto {
 
   @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() tours_enabled?: boolean;
 
+  /**
+   * Показать также закрытые объявления (SOLD/RENTED) вместе с ACTIVE
+   * (спека 2026-10-01). Default false — дефолтная выдача не меняется.
+   */
+  @IsOptional() @Type(() => String) @Transform(toBool) @IsBoolean() include_closed?: boolean;
+
   /** Нижняя граница площади (м²). */
   @IsOptional()
   @Type(() => Number)

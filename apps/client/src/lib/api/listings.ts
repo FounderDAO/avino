@@ -474,6 +474,7 @@ export function buildSearchParams(filter: ListingFilter, limit: number): URLSear
   }
   if (filter.toursEnabled) params.set('tours_enabled', 'true');
   if (filter.isBasement) params.set('is_basement', 'true');
+  if (filter.includeClosed) params.set('include_closed', 'true');
   if (filter.parkingTypes && filter.parkingTypes.length > 0) {
     for (const pt of filter.parkingTypes) params.append('parking_type', pt);
   }

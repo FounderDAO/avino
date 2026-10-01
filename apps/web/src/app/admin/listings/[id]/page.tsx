@@ -35,6 +35,7 @@ import {
 import { PromoteListingModal } from '@/components/admin/PromoteListingModal';
 import { ListingDuplicates } from '@/components/admin/ListingDuplicates';
 import { detailToAdminListing, ownerName, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
+import { LISTING_STATUS_LABEL } from '@/lib/adapters/logs';
 import { translationResultToast } from '@/lib/translations';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import type { AdminListingStatus } from '@/lib/mock';
@@ -50,6 +51,8 @@ const STATUS_LABEL: Record<AdminListingStatus, string> = {
   PENDING: 'На проверке',
   REJECTED: 'Отклонено',
   DRAFT: 'Черновик',
+  SOLD: 'Продано',
+  RENTED: 'Сдано',
   ARCHIVED: 'В архиве',
 };
 
@@ -142,6 +145,9 @@ export default function ListingDetailPage() {
 
   const listing = data ? detailToAdminListing(data) : undefined;
   const status: AdminListingStatus = listing?.status ?? 'ACTIVE';
+  // API разрешает модерацию только из NEW/ACTIVE/DRAFT/REJECTED
+  // (MODERATABLE_STATUSES) — на закрытых/архивных кнопки отвечали бы 422.
+  const canModerate = !(['SOLD', 'RENTED', 'ARCHIVED'] as AdminListingStatus[]).includes(status);
 
   if (isLoading) {
     return <div className="a-card" style={{ padding: 40 }}>Загрузка…</div>;
@@ -356,7 +362,9 @@ export default function ListingDetailPage() {
                     {logs.map((log) => (
                       <tr key={log.id}>
                         <td style={{ fontWeight: 600 }}>{ACTION_LABEL[log.action] ?? log.action}</td>
-                        <td className="muted">{log.old_status ?? '—'} → {log.new_status ?? '—'}</td>
+                        <td className="muted">
+                          {log.old_status ? LISTING_STATUS_LABEL[log.old_status] : '—'} → {log.new_status ? LISTING_STATUS_LABEL[log.new_status] : '—'}
+                        </td>
                         <td className="muted">{log.reason || '—'}</td>
                         <td className="muted" style={{ whiteSpace: 'nowrap' }}>{Number.isNaN(new Date(log.created_at).getTime()) ? '—' : logDateFmt.format(new Date(log.created_at))}</td>
                       </tr>
@@ -379,12 +387,16 @@ export default function ListingDetailPage() {
           <div className="a-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 15, marginBottom: 14 }}>Действия модератора</h3>
             <div className="col gap-10">
-              <label style={{ fontSize: 13, fontWeight: 700 }}>Причина отклонения</label>
-              <select className="a-field" style={{ width: '100%' }} value={reason} onChange={(e) => setReason(e.target.value)}>
-                <option value="">— выберите причину —</option>
-                {REJECT_REASON_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
-              {status !== 'ACTIVE' && (
+              {canModerate && (
+                <>
+                  <label style={{ fontSize: 13, fontWeight: 700 }}>Причина отклонения</label>
+                  <select className="a-field" style={{ width: '100%' }} value={reason} onChange={(e) => setReason(e.target.value)}>
+                    <option value="">— выберите причину —</option>
+                    {REJECT_REASON_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </>
+              )}
+              {status !== 'ACTIVE' && canModerate && (
                 <>
                   {!translationsComplete && (
                     <div className="row gap-8" style={{ background: 'var(--warn-bg)', color: 'var(--warn)', borderRadius: 10, padding: '10px 13px', fontSize: 13, fontWeight: 600, alignItems: 'center' }}>
@@ -401,8 +413,8 @@ export default function ListingDetailPage() {
                   </button>
                 </>
               )}
-              {status !== 'REJECTED' && <button className="abtn abtn-danger" style={{ width: '100%' }} disabled={isActing} onClick={() => act('REJECT')}><IC.X size={17} /> Отклонить</button>}
-              {status !== 'DRAFT' && <button className="abtn abtn-outline" style={{ width: '100%' }} disabled={isActing} onClick={() => act('SEND_TO_DRAFT')}>В черновики</button>}
+              {status !== 'REJECTED' && canModerate && <button className="abtn abtn-danger" style={{ width: '100%' }} disabled={isActing} onClick={() => act('REJECT')}><IC.X size={17} /> Отклонить</button>}
+              {status !== 'DRAFT' && canModerate && <button className="abtn abtn-outline" style={{ width: '100%' }} disabled={isActing} onClick={() => act('SEND_TO_DRAFT')}>В черновики</button>}
               <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
               <button className="abtn abtn-outline" style={{ width: '100%' }} onClick={() => toast('Редактирование объявления')}>Редактировать</button>
               <button
@@ -417,7 +429,7 @@ export default function ListingDetailPage() {
                     ? 'Снятие…'
                     : 'Снять продвижение'}
               </button>
-              <button className="abtn abtn-danger" style={{ width: '100%' }} disabled={isActing} onClick={() => act('DELETE')}>Удалить</button>
+              {canModerate && <button className="abtn abtn-danger" style={{ width: '100%' }} disabled={isActing} onClick={() => act('DELETE')}>Удалить</button>}
             </div>
           </div>
         </div>

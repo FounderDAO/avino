@@ -621,8 +621,9 @@ EXIF-strip + thumbnail). Auth: **владелец**.
 
 ## 9. Search (filters + promotion-priority sorting)
 
-Публичный поиск. Auth: **public**. **Возвращает ТОЛЬКО `status = ACTIVE`**
-(`DELETED` и прочие непубличные статусы всегда исключены — `DB_SCHEMA` §15).
+Публичный поиск. Auth: **public**. **Возвращает ТОЛЬКО `status = ACTIVE`**,
+а при `include_closed=true` — также `SOLD`/`RENTED` (см. таблицу ниже;
+`DELETED` и прочие непубличные статусы всегда исключены — `DB_SCHEMA` §15).
 
 ### GET /api/v1/search
 
@@ -646,6 +647,7 @@ Query-фильтры (`ARCHITECTURE` §12):
 | `agent_id` | uuid | только объявления этого владельца (страница агента, ADR-0140, §21): применяется к `owner_id` без проверки роли — `owner_id` и так публичен в detail-ответе (§7). Наследован во всех гео-эндпоинтах `/search/*` (их DTO расширяют этот) — отдельного `/agents/:id/listings` нет |
 | `promotion_type` | `NORMAL \| TOP \| VIP` | фильтр по тиру (опц.) |
 | `sort` | `date_desc \| price_asc \| price_desc \| area_desc` | ключ сортировки; **умолчание** `date_desc`; невалидное значение → 400. При явном выборе — гибрид (см. ниже): закреплённое промо + строгий ключ; `price_*` нормализуется по курсу (ADR-0117) |
+| `include_closed` | boolean | **умолчание `false`**: расширяет гейт статусов с `ACTIVE` до `ACTIVE \| SOLD \| RENTED` (спека 2026-10-01). Сохранённые поиски этот параметр **всегда игнорируют** — алерты матчатся только по `ACTIVE` |
 | `cursor`, `limit` | | keyset-пагинация |
 
 **Сортировка** (TASK-207, ADR-0004, ADR-0117):
@@ -1369,11 +1371,13 @@ Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
 Без query-параметров.
 200 → `{ listings_new, complaints_new, users_total, promotions_active,
 listings_active, listings_archived, listings_sale, listings_rent,
-agent_applications_new, support_requests_new }`:
+listings_sold, listings_rented, agent_applications_new, support_requests_new }`:
 - `listings_new` — листинги в очереди модерации (`ListingStatus.NEW`);
 - `complaints_new` — необработанные жалобы (`ComplaintStatus.NEW`);
 - `users_total` — все пользователи (как `meta.total` в `/admin/users` без фильтра);
 - `promotions_active` — активные промо VIP/TOP (`PromotionStatus.ACTIVE`);
+- `listings_sold` — продано (`ListingStatus.SOLD`);
+- `listings_rented` — сдано (`ListingStatus.RENTED`);
 - `agent_applications_new` — заявки «Стать агентом» в очереди (`PENDING`);
 - `support_requests_new` — новые обращения в поддержку (`SupportRequestStatus.NEW`).
 

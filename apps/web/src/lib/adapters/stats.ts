@@ -11,12 +11,14 @@ import type { Kpi } from '@/lib/mock';
 
 const numberFmt = new Intl.NumberFormat('en-US');
 
-/** Сводные счётчики `AdminStats` → 8 KPI-карточек UI (2 ряда по 4). */
+/** Сводные счётчики `AdminStats` → 10 KPI-карточек UI. */
 export function statsToKpis(s: AdminStats): Kpi[] {
   return [
     { label: 'На проверке', value: numberFmt.format(s.listings_new), delta: '', accent: 'warn' },
     { label: 'Активные', value: numberFmt.format(s.listings_active), delta: '' },
     { label: 'В архиве', value: numberFmt.format(s.listings_archived), delta: '' },
+    { label: 'Продано', value: numberFmt.format(s.listings_sold), delta: '' },
+    { label: 'Сдано', value: numberFmt.format(s.listings_rented), delta: '' },
     { label: 'Пользователи', value: numberFmt.format(s.users_total), delta: '' },
     { label: 'Продажа', value: numberFmt.format(s.listings_sale), delta: '' },
     { label: 'Аренда', value: numberFmt.format(s.listings_rent), delta: '' },
@@ -31,6 +33,8 @@ export function placeholderKpis(value: string): Kpi[] {
     { label: 'На проверке', value, delta: '', accent: 'warn' },
     { label: 'Активные', value, delta: '' },
     { label: 'В архиве', value, delta: '' },
+    { label: 'Продано', value, delta: '' },
+    { label: 'Сдано', value, delta: '' },
     { label: 'Пользователи', value, delta: '' },
     { label: 'Продажа', value, delta: '' },
     { label: 'Аренда', value, delta: '' },

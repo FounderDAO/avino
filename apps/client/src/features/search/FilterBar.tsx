@@ -100,6 +100,8 @@ export interface FilterValues {
   amenities?: Amenity[];
   /** Только цокольные этажи (`?is_basement=true`, LAST_CHANGED_API.md §1). */
   isBasement?: boolean;
+  /** Показать также закрытые (`?include_closed=true`, SOLD/RENTED), спека 2026-10-01. */
+  includeClosed?: boolean;
 }
 
 export interface FilterBarProps {
@@ -278,7 +280,8 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
     // санузлы сигналит чип «Комнаты» (см. SHOW_ROOMS_AND_BATHROOMS).
     values.isBasement ||
     (values.parkingTypes?.length ?? 0) > 0 ||
-    (values.amenities?.length ?? 0) > 0,
+    (values.amenities?.length ?? 0) > 0 ||
+    values.includeClosed,
   );
 
   // ── FiltersPanel values ───────────────────────────────────────────────────────
@@ -305,6 +308,7 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
     parkingTypes: values.parkingTypes,
     amenities: values.amenities,
     isBasement: values.isBasement,
+    includeClosed: values.includeClosed,
   };
 
   const handlePanelApply = React.useCallback(
@@ -337,6 +341,7 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
       for (const s of next.listingSource ?? []) params.append('listing_source', s);
       setOne('tours_enabled', next.toursEnabled ? 'true' : undefined);
       setOne('is_basement', next.isBasement ? 'true' : undefined);
+      setOne('include_closed', next.includeClosed ? 'true' : undefined);
       params.delete('parking_type');
       for (const pt of next.parkingTypes ?? []) params.append('parking_type', pt);
       params.delete('amenities');
@@ -371,6 +376,7 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
       is_basement: undefined,
       parking_type: undefined,
       amenities: undefined,
+      include_closed: undefined,
     });
   }, [setParams]);
 

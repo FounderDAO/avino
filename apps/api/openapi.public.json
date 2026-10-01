@@ -1260,6 +1260,14 @@
             }
           },
           {
+            "name": "include_closed",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "area_min",
             "required": false,
             "in": "query",
@@ -1577,6 +1585,14 @@
           },
           {
             "name": "tours_enabled",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "include_closed",
             "required": false,
             "in": "query",
             "schema": {
@@ -1931,6 +1947,14 @@
           },
           {
             "name": "tours_enabled",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "include_closed",
             "required": false,
             "in": "query",
             "schema": {
@@ -2353,6 +2377,14 @@
             }
           },
           {
+            "name": "include_closed",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "area_min",
             "required": false,
             "in": "query",
@@ -2661,6 +2693,14 @@
           },
           {
             "name": "tours_enabled",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "include_closed",
             "required": false,
             "in": "query",
             "schema": {
@@ -3048,6 +3088,14 @@
           },
           {
             "name": "tours_enabled",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "include_closed",
             "required": false,
             "in": "query",
             "schema": {

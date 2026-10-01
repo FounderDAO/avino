@@ -150,6 +150,19 @@ describe('ListingMediaService', () => {
       await expectCode(service.list(LISTING_ID, undefined), ApiErrorCode.NOT_FOUND);
     });
 
+    // Спека 2026-10-01: закрытые (SOLD/RENTED) листинги публично видимы — их
+    // медиа тоже должно открываться гостю без авторизации (зеркало listings.service).
+    it('shows media of a SOLD listing to a guest', async () => {
+      mockListing({ status: ListingStatus.SOLD });
+      prisma.listingMedia.findMany.mockResolvedValue([]);
+      await expect(service.list(LISTING_ID, undefined)).resolves.toEqual([]);
+    });
+
+    it('still hides media of an ARCHIVED listing from a guest (404)', async () => {
+      mockListing({ status: ListingStatus.ARCHIVED });
+      await expectCode(service.list(LISTING_ID, undefined), ApiErrorCode.NOT_FOUND);
+    });
+
     it('lets the owner view media of a non-ACTIVE listing', async () => {
       mockListing({ status: ListingStatus.DRAFT });
       prisma.listingMedia.findMany.mockResolvedValue([]);

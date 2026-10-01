@@ -40,6 +40,8 @@ const filters: [string, string][] = [
   ['PENDING', 'На проверке'],
   ['REJECTED', 'Отклонено'],
   ['DRAFT', 'Черновики'],
+  ['SOLD', 'Продано'],
+  ['RENTED', 'Сдано'],
   ['ARCHIVED', 'Архив'],
 ];
 

@@ -84,6 +84,16 @@ const PRIVILEGED_VIEW_ROLES: readonly UserRole[] = [
 ];
 
 /**
+ * Статусы, в которых медиа листинга доступны без авторизации (зеркало
+ * listings.service, спека 2026-10-01).
+ */
+const PUBLIC_VIEW_STATUSES: ListingStatus[] = [
+  ListingStatus.ACTIVE,
+  ListingStatus.SOLD,
+  ListingStatus.RENTED,
+];
+
+/**
  * ListingMediaService — управление галереей объявления (TASK-061, API.md §8).
  *
  * Эндпоинты: proxy-загрузка (multipart), список, удаление, переупорядочивание.
@@ -347,16 +357,17 @@ export class ListingMediaService {
   }
 
   /**
-   * Гейт просмотра: ACTIVE — всем; непубличные статусы — владельцу и
-   * {@link PRIVILEGED_VIEW_ROLES}. Чтобы не раскрывать существование скрытого
-   * листинга, недоступный для зрителя ресурс тоже отдаёт `404`.
+   * Гейт просмотра: {@link PUBLIC_VIEW_STATUSES} (ACTIVE/SOLD/RENTED) — всем;
+   * остальные статусы — владельцу и {@link PRIVILEGED_VIEW_ROLES}. Чтобы не
+   * раскрывать существование скрытого листинга, недоступный для зрителя ресурс
+   * тоже отдаёт `404`.
    */
   private async assertCanView(
     listingId: string,
     viewer: AuthenticatedUser | undefined,
   ): Promise<void> {
     const listing = await this.findActiveListing(listingId);
-    if (listing.status === ListingStatus.ACTIVE) {
+    if (PUBLIC_VIEW_STATUSES.includes(listing.status)) {
       return;
     }
     if (viewer && viewer.id === listing.ownerId) {

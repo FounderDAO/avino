@@ -1155,8 +1155,11 @@ export class SearchService {
     limit: number,
   ): Promise<SavedSearchMatch[]> {
     const query = filters as unknown as SearchListingsQueryDto;
+    // Сохранённые поиски матчатся только по ACTIVE, независимо от флага include_closed
+    // в фильтрах. include_closed — опция просмотра выдачи, не критерий подписки на алерты
+    // (saved-search-alert.service.ts:35-38 — only ACTIVE listings trigger alerts).
     const filterSql = this.buildWhereSql(
-      query,
+      { ...query, include_closed: undefined } as SearchListingsQueryDto,
       await this.fxRateForFilter(query),
     );
 
@@ -1191,7 +1194,9 @@ export class SearchService {
   }
 
   /**
-   * `WHERE`-фрагмент: обязательный `status = ACTIVE` + базовые фильтры (TASK-080)
+   * `WHERE`-фрагмент: гейт по умолчанию `status = ACTIVE`; `include_closed=true`
+   * расширяет до `ACTIVE/SOLD/RENTED` (спека 2026-10-01) — кроме пути сохранённых
+   * поисков, где include_closed всегда игнорируется. + базовые фильтры (TASK-080)
    * + `rooms` (TASK-207) + свободный текст `q` (TASK-208, ADR-0067)
    * + Zillow-фильтры Phase 1 (TASK-Zillow): `property_type` (IN-массив),
    *   `rooms_min`, `area_min/max`, `floor_min/max`, `not_first_floor`,
@@ -1229,7 +1234,14 @@ export class SearchService {
     rate: string | null = null,
     viewerId?: string,
   ): Prisma.Sql {
-    const conds: Prisma.Sql[] = [Prisma.sql`status = 'ACTIVE'`];
+    // Гейт статусов: по умолчанию только ACTIVE; include_closed=true добавляет
+    // закрытые (SOLD/RENTED) — opt-in, спека 2026-10-01. Остальные статусы
+    // (NEW/DRAFT/REJECTED/ARCHIVED/DELETED) в выдачу не попадают никогда.
+    const conds: Prisma.Sql[] = [
+      query.include_closed === true
+        ? Prisma.sql`status IN ('ACTIVE', 'SOLD', 'RENTED')`
+        : Prisma.sql`status = 'ACTIVE'`,
+    ];
 
     if (query.transaction_type !== undefined)
       conds.push(

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Gallery } from '@/components/ui/gallery';
 import { PromoBadge } from '@/components/ui/promo-badge';
+import { Badge } from '@/components/ui/badge';
 import { FavButton } from '@/components/ui/fav-button';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { specs, txLabel, propertyTypeLabel } from '@/lib/format';
@@ -127,6 +128,11 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
 
           {/* Бейджи: промо + тип + сделка */}
           <div className="flex flex-wrap items-center gap-2.5">
+            {/* Закрытое объявление (спека 2026-10-01): «Продано»/«Сдано» — перед
+                промо-бейджем, чтобы статус сделки был виден сразу. */}
+            {(listing.status === 'SOLD' || listing.status === 'RENTED') && (
+              <Badge variant="neutral">{tEnums(`listingStatus.${listing.status}`)}</Badge>
+            )}
             <PromoBadge promo={listing.promo} />
             <span className="rounded-badge border border-border bg-surface-2 px-2.5 py-1 text-[12.5px] font-bold text-teal">
               {propertyTypeLabel(listing.type, tEnums)}

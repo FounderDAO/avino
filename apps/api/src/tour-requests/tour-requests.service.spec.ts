@@ -110,6 +110,11 @@ describe('TourRequestsService', () => {
     await expect(service.create('U2', validDto() as any)).rejects.toMatchObject({ status: 409 });
   });
 
+  it('отказ для SOLD-объявления (регрессия, спека 2026-10-01)', async () => {
+    prisma.listing.findFirst.mockResolvedValue({ ...ACTIVE_LISTING, status: 'SOLD' });
+    await expect(service.create('U2', validDto() as any)).rejects.toMatchObject({ status: 409 });
+  });
+
   it('422 если окно не предложено', async () => {
     prisma.listing.findFirst.mockResolvedValue(ACTIVE_LISTING);
     await expect(service.create('U2', { ...validDto(), window_start: '12:00', window_end: '15:00' } as any))

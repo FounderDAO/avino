@@ -48,6 +48,8 @@ describe('AdminStatsService', () => {
       listings_archived: 12,
       listings_sale: 12,
       listings_rent: 12,
+      listings_sold: 12,
+      listings_rented: 12,
       agent_applications_new: 7,
       support_requests_new: 4,
     });
@@ -72,6 +74,12 @@ describe('AdminStatsService', () => {
         status: ListingStatus.ACTIVE,
         transactionType: TransactionType.RENT,
       },
+    });
+    expect(prisma.listing.count).toHaveBeenCalledWith({
+      where: { status: ListingStatus.SOLD },
+    });
+    expect(prisma.listing.count).toHaveBeenCalledWith({
+      where: { status: ListingStatus.RENTED },
     });
     expect(prisma.complaint.count).toHaveBeenCalledWith({
       where: { status: ComplaintStatus.NEW },
@@ -106,6 +114,8 @@ describe('AdminStatsService', () => {
       listings_archived: 0,
       listings_sale: 0,
       listings_rent: 0,
+      listings_sold: 0,
+      listings_rented: 0,
       agent_applications_new: 0,
       support_requests_new: 0,
     });

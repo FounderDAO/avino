@@ -13,6 +13,7 @@ import { Link } from '@/i18n/navigation';
 import { MapPin } from 'lucide-react';
 import { CardPhotoCarousel } from '@/components/ui/card-photo-carousel';
 import { PromoBadge, DaysBadge } from '@/components/ui/promo-badge';
+import { Badge } from '@/components/ui/badge';
 import { FavButton } from '@/components/ui/fav-button';
 import { specs, propertyTypeLabel } from '@/lib/format';
 import type { Listing } from '@/lib/mock/types';
@@ -46,6 +47,11 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
         />
         <div className="absolute left-3 top-3 z-10 flex gap-1.5">
+          {/* Закрытое объявление (спека 2026-10-01): «Продано»/«Сдано» — первым
+              в стеке бейджей, чтобы сразу было видно, что сделка состоялась. */}
+          {(listing.status === 'SOLD' || listing.status === 'RENTED') && (
+            <Badge variant="neutral">{tEnums(`listingStatus.${listing.status}`)}</Badge>
+          )}
           <PromoBadge promo={listing.promo} />
           <DaysBadge createdAt={listing.createdAt} />
         </div>
