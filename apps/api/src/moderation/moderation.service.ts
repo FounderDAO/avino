@@ -17,6 +17,7 @@ import {
   UserStatus,
 } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
+import { normalizedAddressSql } from '../listings/address-sql';
 import { PrismaService } from '../prisma';
 import { UploadsService } from '../uploads';
 import { ListAdminListingsQueryDto } from './dto/list-admin-listings.dto';
@@ -586,8 +587,8 @@ export class ModerationService {
         AND area IS NOT DISTINCT FROM ${source.area?.toFixed(2) ?? null}::numeric
         AND total_floors IS NOT DISTINCT FROM ${source.totalFloors}::int
         AND address IS NOT NULL
-        AND lower(regexp_replace(btrim(address), '[[:space:]]+', ' ', 'g')) =
-            lower(regexp_replace(btrim(${source.address}), '[[:space:]]+', ' ', 'g'))
+        AND ${normalizedAddressSql(Prisma.raw('address'))} =
+            ${normalizedAddressSql(Prisma.sql`${source.address}`)}
       ORDER BY created_at DESC, id DESC
       LIMIT ${DUPLICATES_LIMIT}
     `;
