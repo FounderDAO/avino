@@ -1229,7 +1229,14 @@ export class SearchService {
     rate: string | null = null,
     viewerId?: string,
   ): Prisma.Sql {
-    const conds: Prisma.Sql[] = [Prisma.sql`status = 'ACTIVE'`];
+    // Гейт статусов: по умолчанию только ACTIVE; include_closed=true добавляет
+    // закрытые (SOLD/RENTED) — opt-in, спека 2026-10-01. Остальные статусы
+    // (NEW/DRAFT/REJECTED/ARCHIVED/DELETED) в выдачу не попадают никогда.
+    const conds: Prisma.Sql[] = [
+      query.include_closed === true
+        ? Prisma.sql`status IN ('ACTIVE', 'SOLD', 'RENTED')`
+        : Prisma.sql`status = 'ACTIVE'`,
+    ];
 
     if (query.transaction_type !== undefined)
       conds.push(

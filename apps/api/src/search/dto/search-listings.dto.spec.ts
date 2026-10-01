@@ -64,6 +64,16 @@ describe('SearchListingsQueryDto — Zillow filters', () => {
     expect(dto({ new_construction: 'yes' }).errors.length).toBeGreaterThan(0);
   });
 
+  it('парсит include_closed из query-строки (спека 2026-10-01)', () => {
+    expect(dto({ include_closed: 'true' }).inst.include_closed).toBe(true);
+    expect(dto({ include_closed: 'false' }).inst.include_closed).toBe(false);
+    expect(dto({ include_closed: 'true' }).errors).toHaveLength(0);
+  });
+
+  it('отклоняет мусорное значение include_closed', () => {
+    expect(dto({ include_closed: 'yes' }).errors.length).toBeGreaterThan(0);
+  });
+
   it('нормализует listing_source в массив и валидирует значения', () => {
     expect(dto({ listing_source: 'OWNER' }).inst.listing_source).toEqual(['OWNER']);
     expect(dto({ listing_source: ['OWNER', 'AGENCY'] }).errors).toHaveLength(0);

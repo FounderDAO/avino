@@ -573,6 +573,23 @@ describe('SearchService', () => {
     });
   });
 
+  describe('include_closed (спека 2026-10-01)', () => {
+    const build = (q: Partial<SearchListingsQueryDto>) =>
+      (service as unknown as { buildWhereSql: (...args: unknown[]) => Prisma.Sql })
+        .buildWhereSql(q as SearchListingsQueryDto, undefined, undefined);
+
+    it('без флага гейт прежний: status = ACTIVE', () => {
+      expect(sqlText(build({}))).toContain(`status = 'ACTIVE'`);
+      expect(sqlText(build({}))).not.toContain('SOLD');
+    });
+
+    it('с include_closed=true гейт расширяется до ACTIVE/SOLD/RENTED', () => {
+      const text = sqlText(build({ include_closed: true }));
+      expect(text).toContain(`status IN ('ACTIVE', 'SOLD', 'RENTED')`);
+      expect(text).not.toContain(`status = 'ACTIVE'`);
+    });
+  });
+
   describe('фильтр блокировок (Apple 1.2)', () => {
     const VIEWER_ID = '66666666-6666-6666-6666-666666666666';
     const baseQuery = (): SearchListingsQueryDto =>
