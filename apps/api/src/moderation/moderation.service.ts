@@ -88,6 +88,27 @@ export interface AdminListingListItem {
   created_at: string;
 }
 
+/**
+ * Карточка возможного дубликата (`GET /admin/listings/:id/duplicates`).
+ * Совпадение ищется по цене + площади + этажности + адресу (регистр и лишние
+ * пробелы адреса не учитываются) среди NEW/ACTIVE-объявлений. Decimal/даты —
+ * строками (контрактный формат), `title` — на языке оригинала дубликата.
+ */
+export interface AdminListingDuplicate {
+  id: string;
+  reference: number;
+  status: ListingStatus;
+  transaction_type: TransactionType;
+  price: string;
+  currency: Currency;
+  area: string | null;
+  total_floors: number | null;
+  address: string | null;
+  title: string;
+  photo_url: string | null;
+  created_at: string;
+}
+
 /** Ответ `PATCH /api/v1/admin/listings/:id/status` (API.md §16). */
 export interface ModerationResultResponse {
   id: string;
@@ -144,6 +165,19 @@ const MODERATABLE_STATUSES: readonly ListingStatus[] = [
   ListingStatus.DRAFT,
   ListingStatus.REJECTED,
 ];
+
+/**
+ * Статусы, среди которых ищутся дубликаты: живые объявления (ACTIVE) и уже
+ * ждущие модерации (NEW). REJECTED/DRAFT/DELETED и владельческие терминальные
+ * не считаются — их повторная публикация легитимна.
+ */
+const DUPLICATE_STATUSES: readonly ListingStatus[] = [
+  ListingStatus.NEW,
+  ListingStatus.ACTIVE,
+];
+
+/** Максимум карточек-дубликатов в ответе (админу хватает первых совпадений). */
+const DUPLICATES_LIMIT = 10;
 
 /** Все языки, для которых обязателен перевод перед публикацией (ADR-0091). */
 const REQUIRED_LANGUAGES: readonly Language[] = Object.values(Language);
@@ -203,6 +237,33 @@ const LISTING_LIST_SELECT = {
 
 type AdminListingRow = Prisma.ListingGetPayload<{
   select: typeof LISTING_LIST_SELECT;
+}>;
+
+/** Поля карточки дубликата (см. {@link AdminListingDuplicate}). */
+const DUPLICATE_CARD_SELECT = {
+  id: true,
+  reference: true,
+  status: true,
+  transactionType: true,
+  price: true,
+  currency: true,
+  area: true,
+  totalFloors: true,
+  address: true,
+  originalLanguage: true,
+  createdAt: true,
+  translations: {
+    select: { language: true, title: true },
+  },
+  media: {
+    select: { url: true, storageKey: true, thumbnailUrl: true },
+    orderBy: { sortOrder: Prisma.SortOrder.asc },
+    take: 1,
+  },
+} as const;
+
+type DuplicateCardRow = Prisma.ListingGetPayload<{
+  select: typeof DUPLICATE_CARD_SELECT;
 }>;
 
 /**
@@ -482,6 +543,98 @@ export class ModerationService {
       });
     }
     return this.toOwner(listing.owner);
+  }
+
+  /**
+   * `GET /api/v1/admin/listings/:id/duplicates` — возможные дубликаты для
+   * карточки модерации. Совпадение: та же цена + площадь + этажность + адрес
+   * (адрес сравнивается без учёта регистра и лишних пробелов — нормализация
+   * в SQL через `lower(regexp_replace(btrim(...)))`). Кандидаты — только
+   * NEW/ACTIVE, само объявление исключено. Без адреса надёжная детекция
+   * невозможна → пустой список. Отсутствующий/DELETED листинг → `404`.
+   * Порядок — свежие первыми (как в raw-запросе), максимум {@link DUPLICATES_LIMIT}.
+   */
+  async findDuplicates(listingId: string): Promise<AdminListingDuplicate[]> {
+    const source = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        status: true,
+        price: true,
+        area: true,
+        totalFloors: true,
+        address: true,
+      },
+    });
+    if (!source || source.status === ListingStatus.DELETED) {
+      throw new NotFoundException({
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Listing not found',
+      });
+    }
+    if (!source.address) return [];
+
+    // Поиск кандидатов raw-SQL: Prisma-фильтры не умеют нормализовать адрес
+    // (регистр + схлопывание пробелов), а точные равенства по Decimal/Int
+    // null-безопасно выражаются через IS NOT DISTINCT FROM.
+    const candidates = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT id
+      FROM listings
+      WHERE id <> ${listingId}::uuid
+        AND status::text IN (${Prisma.join([...DUPLICATE_STATUSES])})
+        AND price = ${source.price.toFixed(2)}::numeric
+        AND area IS NOT DISTINCT FROM ${source.area?.toFixed(2) ?? null}::numeric
+        AND total_floors IS NOT DISTINCT FROM ${source.totalFloors}::int
+        AND address IS NOT NULL
+        AND lower(regexp_replace(btrim(address), '[[:space:]]+', ' ', 'g')) =
+            lower(regexp_replace(btrim(${source.address}), '[[:space:]]+', ' ', 'g'))
+      ORDER BY created_at DESC, id DESC
+      LIMIT ${DUPLICATES_LIMIT}
+    `;
+    if (candidates.length === 0) return [];
+
+    const cards = await this.prisma.listing.findMany({
+      where: { id: { in: candidates.map((c) => c.id) } },
+      select: DUPLICATE_CARD_SELECT,
+    });
+    // findMany порядок не гарантирует — восстанавливаем порядок raw-запроса.
+    const byId = new Map(cards.map((card) => [card.id, card]));
+    return Promise.all(
+      candidates
+        .map((c) => byId.get(c.id))
+        .filter((card): card is DuplicateCardRow => card !== undefined)
+        .map((card) => this.toDuplicate(card)),
+    );
+  }
+
+  /** Карточка дубликата в snake_case (см. {@link AdminListingDuplicate}). */
+  private async toDuplicate(
+    listing: DuplicateCardRow,
+  ): Promise<AdminListingDuplicate> {
+    const translation =
+      listing.translations.find(
+        (t) => t.language === listing.originalLanguage,
+      ) ?? listing.translations[0];
+    const cover = listing.media[0];
+    const photoUrl = cover
+      ? cover.thumbnailUrl
+        ? await this.uploads.resolveMediaUrl(null, cover.thumbnailUrl)
+        : await this.uploads.resolveMediaUrl(cover.storageKey, cover.url)
+      : null;
+    return {
+      id: listing.id,
+      reference: listing.reference,
+      status: listing.status,
+      transaction_type: listing.transactionType,
+      price: listing.price.toFixed(2),
+      currency: listing.currency,
+      area: listing.area?.toFixed(2) ?? null,
+      total_floors: listing.totalFloors,
+      address: listing.address,
+      title: translation?.title ?? '',
+      photo_url: photoUrl,
+      created_at: listing.createdAt.toISOString(),
+    };
   }
 
   /** Компактная карточка листинга в snake_case для админ-списка. */

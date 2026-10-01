@@ -1251,6 +1251,27 @@ Errors: `403 FORBIDDEN`, `404 NOT_FOUND`,
 200 → список `moderation_logs` (`action`, `old_status`, `new_status`,
 `moderator_id`, `reason`, `created_at`).
 
+### GET /api/v1/admin/listings/:id/duplicates
+Возможные дубликаты для карточки модерации (ADR-0160). Auth: **MODERATOR /
+ADMIN**. Совпадение: та же `price` + `area` + `total_floors` + `address`
+(адрес сравнивается без учёта регистра и лишних пробелов, нормализация в SQL)
+среди объявлений в статусах `NEW`/`ACTIVE`; само объявление исключено. У
+источника нет `address` → всегда `[]` (надёжная детекция невозможна). Свежие
+первыми, максимум 10.
+200 → массив карточек:
+```json
+[
+  {
+    "id": "l77", "reference": 100123, "status": "ACTIVE",
+    "transaction_type": "SALE", "price": "120000.00", "currency": "USD",
+    "area": "65.50", "total_floors": 9,
+    "address": "Ташкент, ул. Навои, 10", "title": "2-комн квартира",
+    "photo_url": "https://...", "created_at": "2026-05-01T09:00:00.000Z"
+  }
+]
+```
+Errors: `404 NOT_FOUND` (нет листинга или он `DELETED`).
+
 ### Complaints
 
 #### POST /api/v1/complaints
