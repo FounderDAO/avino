@@ -94,6 +94,8 @@ device_platform        ANDROID | IOS | WEB
 otp_channel            SMS | EMAIL
 otp_purpose            LOGIN
 complaint_status       NEW | IN_REVIEW | RESOLVED | REJECTED
+ListingImportOutcome   CREATED | SKIPPED_EXISTS | SKIPPED_DUPLICATE_IN_FILE | ERROR
+                       (Prisma enum, ADR-0162; TO_CREATE существует только в ответе dry_run)
 ```
 
 ```text
@@ -846,6 +848,8 @@ Behavioural rules enforced by the data layer
 [x] districts
 [x] features
 [x] agent_applications      ("Become an agent" request + moderation, ADR-0140, §18)
+[x] listing_imports         (запуск массового импорта объявлений, ADR-0162, §19)
+[x] listing_import_rows     (итог строки импорта, ADR-0162, §19)
 ```
 
 ## 17. Out of scope for MVP
@@ -905,4 +909,50 @@ Rules:
 
 ```text
 agent_application_status   PENDING | APPROVED | REJECTED
+```
+
+## 19. Listing imports schema
+
+Binding — ADR-0162 / `API.md` §16 («Импорт объявлений»). Журнал запусков
+массового импорта объявлений админом. Пишется только при реальном запуске
+(`dry_run` ничего не сохраняет).
+
+```text
+listing_imports
+- id                    uuid PK
+- created_by_id         uuid FK -> users(id) ON DELETE RESTRICT NOT NULL
+- file_name             varchar(255) NOT NULL
+- total_rows            int NOT NULL
+- created_count         int NOT NULL default 0
+- skipped_exists_count  int NOT NULL default 0
+- skipped_in_file_count int NOT NULL default 0
+- error_count           int NOT NULL default 0
+- unknown_columns       text[] default '{}', nullable в SQL (Prisma не генерирует NOT NULL для скалярных списков)   (нераспознанные заголовки файла)
+- created_at            timestamptz NOT NULL default now()
+Indexes:
+- (created_by_id)
+
+listing_import_rows
+- id                uuid PK
+- import_id         uuid FK -> listing_imports(id) ON DELETE CASCADE NOT NULL
+- row_number        int NOT NULL
+- outcome           ListingImportOutcome NOT NULL
+- listing_id        uuid NULL     (созданное или найденное объявление; БЕЗ FK)
+- owner_is_new      boolean NOT NULL default false
+- duplicate_of_row  int NULL
+- errors            jsonb NULL    ([{ column, code, message }])
+- raw               jsonb NOT NULL (исходные значения строки)
+Constraints:
+- UNIQUE (import_id, row_number)
+Indexes:
+- (listing_id)
+Rules:
+- Заголовок listing_imports создаётся ДО строк (вместе с audit_logs, одной
+  транзакцией), счётчики обновляются в конце. Для прерванного запуска строк в
+  listing_import_rows может быть меньше, чем total_rows, а счётчики остаются 0.
+- listing_id без FK: физическое удаление объявления не должно ломать отчёт.
+- raw хранит телефон и имя владельца — персональные данные того же класса, что
+  уже лежат в users.
+- Поиск ключа «уже существует» идёт по существующему listings(owner_id);
+  отдельный индекс не нужен.
 ```

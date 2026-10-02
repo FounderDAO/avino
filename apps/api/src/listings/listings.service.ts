@@ -32,6 +32,9 @@ import { UpdateListingDto } from './dto/update-listing.dto';
 import { OwnerListingAction } from './dto/owner-status.dto';
 import { validateToursInput, TourWindow } from './tour-window';
 
+/** Данные создания объявления без владельца — см. `buildCreateData`. */
+export type ListingCreateData = Omit<Prisma.ListingUncheckedCreateInput, 'ownerId'>;
+
 /**
  * Краткий ответ операций create/update (API.md §7, ответ 201/200). Полная
  * карточка с переводами/медиа — `GET /api/v1/listings/:id` (TASK-051). `price`/
@@ -482,13 +485,31 @@ export class ListingsService {
     await this.ensureProfileComplete(ownerId);
     await this.ensureActiveListingQuota(ownerId);
     validateToursInput(dto.tours_enabled ?? false, (dto.tour_windows as TourWindow[]) ?? []);
+    const data = await this.buildCreateData(dto, { geocode: true });
+    // Авто-апгрейд автора до OWNER при первом объявлении и сама запись — в одной
+    // транзакции (ADR-0083): атомарность исключает рассинхрон «листинг создан,
+    // а роли нет».
+    const listing = await this.prisma.$transaction((tx) =>
+      this.createInTransaction(tx, ownerId, data, dto),
+    );
+    return this.toResponse(listing);
+  }
+
+  /**
+   * Prisma-данные нового объявления без владельца. Общая часть обычного
+   * создания и админского импорта (спека 2026-10-02 §6): проверка удобств,
+   * scalar-поля, авторский перевод, адрес. `geocode: false` — без похода в
+   * Yandex: адрес только чистится строковым нормализатором.
+   */
+  async buildCreateData(
+    dto: CreateListingDto,
+    options: { geocode: boolean },
+  ): Promise<ListingCreateData> {
     await this.assertAmenityCodes(dto.amenities ?? []);
     // Optional-поля даёт toScalarData; required (после спреда) выставляются явно,
-    // чтобы их типы оставались non-undefined. ownerId + nested translations.create
-    // резолвят data в UncheckedCreateInput (scalar FK + дочерняя relation).
-    const data: Prisma.ListingUncheckedCreateInput = {
+    // чтобы их типы оставались non-undefined.
+    const data: ListingCreateData = {
       ...this.toScalarData(dto),
-      ownerId,
       status: ListingStatus.NEW,
       transactionType: dto.transaction_type,
       propertyType: dto.property_type,
@@ -502,22 +523,35 @@ export class ListingsService {
         ),
       },
     };
-    await this.applyAddress(data, dto);
+    if (options.geocode) {
+      await this.applyAddress(data, dto);
+    } else if (dto.address !== undefined) {
+      data.address = normalizeAddress(dto.address);
+    }
+    return data;
+  }
 
-    // Авто-апгрейд автора до OWNER при первом объявлении и сама запись — в одной
-    // транзакции (ADR-0083). Это позволяет свежему USER публиковать сразу, не
-    // дожидаясь ручного назначения роли; атомарность исключает рассинхрон
-    // «листинг создан, а роли нет».
-    const listing = await this.prisma.$transaction(async (tx) => {
-      await this.ensureSellerRole(tx, ownerId);
-      const created = await tx.listing.create({ data, select: LISTING_SELECT });
-      // Первая строка истории цены — цена создания (ADR-0121).
-      await tx.listingPriceHistory.create({
-        data: { listingId: created.id, price: dto.price, currency: dto.currency },
-      });
-      return created;
+  /**
+   * Запись объявления внутри чужой транзакции: авто-апгрейд автора до OWNER
+   * (ADR-0083), само объявление и первая строка истории цены (ADR-0121) —
+   * атомарно. Гейты профиля/квоты здесь НЕ проверяются: это дело вызывающего.
+   */
+  async createInTransaction(
+    tx: Prisma.TransactionClient,
+    ownerId: string,
+    data: ListingCreateData,
+    dto: CreateListingDto,
+  ) {
+    await this.ensureSellerRole(tx, ownerId);
+    // ownerId + nested translations.create резолвят data в UncheckedCreateInput.
+    const created = await tx.listing.create({
+      data: { ...data, ownerId },
+      select: LISTING_SELECT,
     });
-    return this.toResponse(listing);
+    await tx.listingPriceHistory.create({
+      data: { listingId: created.id, price: dto.price, currency: dto.currency },
+    });
+    return created;
   }
 
   /**
