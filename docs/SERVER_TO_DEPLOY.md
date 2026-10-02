@@ -27,7 +27,7 @@
 |-----------|-----------|------|------|
 | `postgres` | PostgreSQL 16 + **PostGIS 3.4** | 5432 (внутр.) | Основная БД + гео-запросы (районы, polygon-поиск, trigram) |
 | `redis` | Redis 7 | 6379 (внутр.) | Кеш + очереди **BullMQ** (promotions, translations, email, saved-search) |
-| `api` | **NestJS 10** (Node 20) | 4000 (внутр.) | REST API + BullMQ-воркеры в том же процессе |
+| `api` | **NestJS 10** (Node 22) | 4000 (внутр.) | REST API + BullMQ-воркеры в том же процессе |
 | `web` | **Next.js** (SSR) | 3000 (внутр.) | Админка |
 | `client` | **Next.js** (SSR) | 3001 (внутр.) | Публичный портал (основной пользовательский трафик) |
 | `caddy` | Caddy 2 | **80/443 (+443/udp HTTP/3)** | Reverse-proxy, авто-TLS (Let's Encrypt), gzip/zstd |
