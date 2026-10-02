@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { importFileErrorText, importRowToView } from './listingImports';
+import {
+  importButtonLabel,
+  importFileErrorText,
+  importRowToView,
+  isImportFileErrorCode,
+} from './listingImports';
 import type { ListingImportRow } from '@/store/api/adminTypes';
 
 const row = (patch: Partial<ListingImportRow>): ListingImportRow => ({
@@ -65,5 +70,43 @@ describe('importFileErrorText', () => {
       'Сейчас выполняется другой импорт. Повторите через минуту.',
     );
     expect(importFileErrorText(null)).toBe('Не удалось обработать файл. Попробуйте ещё раз.');
+  });
+});
+
+describe('фолбэки строк без деталей', () => {
+  it('повтор без номера строки', () => {
+    expect(importRowToView(row({ outcome: 'SKIPPED_DUPLICATE_IN_FILE' })).reason).toBe('Повтор строки из файла');
+  });
+  it('ошибка без errors', () => {
+    expect(importRowToView(row({ outcome: 'ERROR' })).reason).toBe('Причина не указана');
+    expect(importRowToView(row({ outcome: 'ERROR', errors: [] })).reason).toBe('Причина не указана');
+  });
+});
+
+describe('isImportFileErrorCode', () => {
+  it('известный код файла — true, прочее — false', () => {
+    expect(isImportFileErrorCode('IMPORT_IN_PROGRESS')).toBe(true);
+    expect(isImportFileErrorCode('IMPORT_FILE_EMPTY')).toBe(true);
+    expect(isImportFileErrorCode(null)).toBe(false);
+    expect(isImportFileErrorCode('VALIDATION_ERROR')).toBe(false);
+  });
+});
+
+describe('importButtonLabel', () => {
+  it.each([
+    [null, 'Импортировать'],
+    [0, 'Импортировать 0 объявлений'],
+    [1, 'Импортировать 1 объявление'],
+    [2, 'Импортировать 2 объявления'],
+    [5, 'Импортировать 5 объявлений'],
+    [11, 'Импортировать 11 объявлений'],
+    [14, 'Импортировать 14 объявлений'],
+    [21, 'Импортировать 21 объявление'],
+    [22, 'Импортировать 22 объявления'],
+    [25, 'Импортировать 25 объявлений'],
+    [101, 'Импортировать 101 объявление'],
+    [111, 'Импортировать 111 объявлений'],
+  ])('%s', (n, text) => {
+    expect(importButtonLabel(n)).toBe(text);
   });
 });

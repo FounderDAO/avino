@@ -15,9 +15,17 @@ import {
   usePreviewListingImportMutation,
   useRunListingImportMutation,
 } from '@/store/api/adminListingImportsApi';
+import type { SerializedError } from '@reduxjs/toolkit';
+import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import type { ListingImportReport } from '@/store/api/adminTypes';
 import { getApiErrorCode } from '@/store/api/apiError';
-import { importFileErrorText, importRowToView } from '@/lib/adapters/listingImports';
+import {
+  IMPORT_RUN_UNKNOWN_TEXT,
+  importButtonLabel,
+  importFileErrorText,
+  importRowToView,
+  isImportFileErrorCode,
+} from '@/lib/adapters/listingImports';
 
 interface ListingImportModalProps {
   onClose: () => void;
@@ -46,6 +54,10 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
   const [run, { isLoading: running }] = useRunListingImportMutation();
   const [downloadTemplate, { isLoading: downloading }] = useDownloadListingImportTemplateMutation();
   const busy = previewing || running;
+  // Закрыть нельзя только во время реального запуска; предпросмотр ничего не пишет.
+  const closeLocked = running;
+  // Недоступная кнопка выглядит неактивной (как в AmenityFormModal).
+  const dim = (off: boolean) => (off ? { opacity: 0.5 } : {});
 
   const done = report !== null && !report.dry_run;
   const rows = useMemo(() => {
@@ -53,16 +65,27 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
     return onlyProblems ? views.filter((v) => v.tone !== 'ok') : views;
   }, [report, onlyProblems]);
 
+  /**
+   * Предпросмотр файла (dry_run). `keepMessage` — текст, который нужно оставить
+   * на экране после обновления отчёта (иначе ошибка сбрасывается).
+   */
+  async function loadPreview(target: File, keepMessage: string | null) {
+    setReport(null);
+    setErr(keepMessage);
+    try {
+      setReport(await preview(target).unwrap());
+    } catch (e) {
+      // Предпросмотр не удался: отчёта нет, показываем причину этого сбоя.
+      setErr(importFileErrorText(getApiErrorCode(e as FetchBaseQueryError | SerializedError)));
+    }
+  }
+
   async function onPick(picked: File | null) {
     setFile(picked);
     setReport(null);
     setErr(null);
     if (!picked) return;
-    try {
-      setReport(await preview(picked).unwrap());
-    } catch (e) {
-      setErr(importFileErrorText(getApiErrorCode(e as never)));
-    }
+    await loadPreview(picked, null);
   }
 
   async function onRun() {
@@ -73,7 +96,14 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
       setReport(result);
       showToast(`Импорт завершён: создано ${result.summary.created}`);
     } catch (e) {
-      setErr(importFileErrorText(getApiErrorCode(e as never)));
+      const code = getApiErrorCode(e as FetchBaseQueryError | SerializedError);
+      if (isImportFileErrorCode(code)) {
+        // Отказ по файлу/блокировке: превью остаётся, можно повторить.
+        setErr(importFileErrorText(code));
+      } else {
+        // Ответ не получен: импорт мог выполниться — перепроверяем файл заново.
+        await loadPreview(file, IMPORT_RUN_UNKNOWN_TEXT);
+      }
     }
   }
 
@@ -95,17 +125,17 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
 
   return (
     <div
-      onClick={busy ? undefined : onClose}
+      onClick={closeLocked ? undefined : onClose}
       style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(26,26,26,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="fade-up a-card"
-        style={{ width: '100%', maxWidth: 920, maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: 26, borderRadius: 16 }}
+        style={{ width: '100%', maxWidth: 920, maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: 26, borderRadius: 16 }}
       >
         <div className="row" style={{ justifyContent: 'space-between', marginBottom: 16 }}>
           <h2 style={{ fontSize: 22 }}>{done ? 'Импорт завершён' : 'Импорт объявлений'}</h2>
-          <button className="aicon-btn" style={{ width: 32, height: 32, border: 'none' }} onClick={onClose} disabled={busy} aria-label="Закрыть">
+          <button className="aicon-btn" style={{ width: 32, height: 32, border: 'none', ...dim(closeLocked) }} onClick={onClose} disabled={closeLocked} aria-label="Закрыть">
             <IC.X size={18} />
           </button>
         </div>
@@ -122,13 +152,13 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
                 e.target.value = '';
               }}
             />
-            <button className="abtn abtn-outline" onClick={() => inputRef.current?.click()} disabled={busy}>
+            <button className="abtn abtn-outline" style={dim(busy)} onClick={() => inputRef.current?.click()} disabled={busy}>
               {file ? 'Выбрать другой файл' : 'Выбрать файл'}
             </button>
-            <button className="abtn abtn-ghost" onClick={() => void onTemplate()} disabled={downloading}>
+            <button className="abtn abtn-ghost" style={dim(downloading)} onClick={() => void onTemplate()} disabled={downloading}>
               Скачать шаблон
             </button>
-            <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+            <span style={{ fontSize: 13, color: 'var(--muted)', minWidth: 0, overflowWrap: 'anywhere' }}>
               {file ? file.name : '.xlsx или .csv, до 500 строк. Одна строка — одно объявление.'}
             </span>
           </div>
@@ -146,7 +176,7 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
               <Counter label="Ошибки" value={summary.errors} />
             </div>
             {report.unknown_columns.length > 0 && (
-              <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>
+              <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 10, overflowWrap: 'anywhere' }}>
                 Колонки не распознаны и пропущены: {report.unknown_columns.join(', ')}
               </p>
             )}
@@ -170,11 +200,13 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
                     <tr key={v.row}>
                       <td>{v.row}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>{v.phone}</td>
-                      <td style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</td>
+                      <td>
+                        <div title={v.title} style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</div>
+                      </td>
                       <td style={{ color: TONE_COLOR[v.tone], fontWeight: 700, whiteSpace: 'nowrap' }}>{v.label}</td>
                       <td style={{ fontSize: 13, overflowWrap: 'anywhere' }}>
                         {v.listingId ? (
-                          <Link href={`/admin/listings/${v.listingId}`} target="_blank">
+                          <Link href={`/admin/listings/${v.listingId}`} target="_blank" prefetch={false}>
                             {v.reference ? `Объявление № ${v.reference}` : 'Открыть объявление'}
                           </Link>
                         ) : (
@@ -196,16 +228,17 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
         )}
 
         <div className="row gap-8" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
-          <button className="abtn abtn-outline" onClick={onClose} disabled={busy}>
+          <button className="abtn abtn-outline" style={dim(closeLocked)} onClick={onClose} disabled={closeLocked}>
             {done ? 'Закрыть' : 'Отмена'}
           </button>
           {!done && (
             <button
               className="abtn abtn-primary"
+              style={dim(busy || !summary || summary.to_create === 0)}
               onClick={() => void onRun()}
               disabled={busy || !summary || summary.to_create === 0}
             >
-              {running ? 'Импортируем…' : `Импортировать ${summary?.to_create ?? 0} объявлений`}
+              {running ? 'Импортируем…' : importButtonLabel(summary?.to_create ?? null)}
             </button>
           )}
         </div>

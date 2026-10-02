@@ -80,10 +80,10 @@ export function importRowToView(row: ListingImportRow): ImportRowView {
         ...base,
         label: 'Повтор в файле',
         tone: 'skip',
-        reason: `Совпадает со строкой ${row.duplicate_of_row}`,
+        reason: row.duplicate_of_row ? `Совпадает со строкой ${row.duplicate_of_row}` : 'Повтор строки из файла',
       };
     default:
-      return { ...base, label: 'Ошибка', tone: 'error', reason: (row.errors ?? []).map(errorText).join('; ') };
+      return { ...base, label: 'Ошибка', tone: 'error', reason: (row.errors ?? []).map(errorText).join('; ') || 'Причина не указана' };
   }
 }
 
@@ -100,4 +100,26 @@ const FILE_ERROR_TEXT: Record<string, string> = {
 /** Текст ошибки файла по стабильному коду API. */
 export function importFileErrorText(code: string | null): string {
   return (code && FILE_ERROR_TEXT[code]) || 'Не удалось обработать файл. Попробуйте ещё раз.';
+}
+
+/** Известный код ошибки файла/запуска импорта (`IMPORT_*`). */
+export function isImportFileErrorCode(code: string | null): boolean {
+  return code !== null && Object.prototype.hasOwnProperty.call(FILE_ERROR_TEXT, code);
+}
+
+/** Текст, когда ответ реального запуска не получен (сеть/таймаут/500). */
+export const IMPORT_RUN_UNKNOWN_TEXT =
+  'Не удалось получить ответ сервера. Импорт мог выполниться — файл проверен заново, сверьте результат ниже.';
+
+/** Подпись кнопки запуска с русским склонением; `null` — предпросмотра ещё нет. */
+export function importButtonLabel(count: number | null): string {
+  if (count === null) return 'Импортировать';
+  const mod100 = count % 100;
+  const mod10 = count % 10;
+  let word = 'объявлений';
+  if (mod100 < 11 || mod100 > 14) {
+    if (mod10 === 1) word = 'объявление';
+    else if (mod10 >= 2 && mod10 <= 4) word = 'объявления';
+  }
+  return `Импортировать ${count} ${word}`;
 }
