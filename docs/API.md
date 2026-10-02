@@ -1207,9 +1207,13 @@ optional response field (non-breaking, §14). `photo_url` — свежий URL �
 Выгрузка админ-списка в `.xlsx`. Auth: **ADMIN** (только; MODERATOR → `403`) —
 файл разом отдаёт телефоны и email авторов. Query — те же фильтры, что у
 списка: `status`, `property_type`, `transaction_type`, `reference`, `q`;
-`page`/`limit` игнорируются.
+`page`/`limit` игнорируются. Необязательный `ids` — UUID объявлений через
+запятую (или повторяющийся параметр), не больше 100: в файл попадают только
+они. `ids` комбинируется с остальными фильтрами по AND; невалидный UUID или
+больше 100 → `400 VALIDATION_ERROR`.
 ```text
 GET /api/v1/admin/listings/export?status=ACTIVE&transaction_type=RENT
+GET /api/v1/admin/listings/export?ids=3f2b8c1e-4a5d-4e6f-8a9b-0c1d2e3f4a5b,7c9e6679-7425-40de-944b-e07fc1f90ae7
 ```
 200 → файл (`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`,
 `Content-Disposition: attachment; filename="avino-listings.xlsx"`), одна строка —

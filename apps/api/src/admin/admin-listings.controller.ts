@@ -18,6 +18,7 @@ import { UserRole } from '@avino/shared';
 import { CurrentUser, Roles } from '../common/decorators';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser, JwtAuthGuard, RolesGuard } from '../common/guards';
+import { ExportAdminListingsQueryDto } from '../moderation/dto/export-admin-listings.dto';
 import { ListAdminListingsQueryDto } from '../moderation/dto/list-admin-listings.dto';
 import { ModerateListingDto } from '../moderation/dto/moderate-listing.dto';
 import {
@@ -68,15 +69,16 @@ export class AdminListingsController {
 
   /**
    * `GET /api/v1/admin/listings/export` — выгрузка списка в `.xlsx` по тем же
-   * фильтрам, что и список (`page`/`limit` игнорируются). Только ADMIN: файл
-   * разом отдаёт телефоны и email авторов — как и импорт (ADR-0162).
+   * фильтрам, что и список (`page`/`limit` игнорируются), либо только отмеченных
+   * объявлений (`ids`). Только ADMIN: файл разом отдаёт телефоны и email
+   * авторов — как и импорт (ADR-0162).
    */
   @Get('export')
   @Roles(UserRole.ADMIN)
   @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
   @Header('Content-Disposition', 'attachment; filename="avino-listings.xlsx"')
   async export(
-    @Query() query: ListAdminListingsQueryDto,
+    @Query() query: ExportAdminListingsQueryDto,
   ): Promise<StreamableFile> {
     return new StreamableFile(await this.moderationService.exportListings(query));
   }

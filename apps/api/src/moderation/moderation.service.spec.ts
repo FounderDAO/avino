@@ -226,6 +226,30 @@ describe('ModerationService', () => {
       expect(prisma.listing.count).not.toHaveBeenCalled();
     });
 
+    it('narrows the export to the selected ids', async () => {
+      prisma.listing.findMany.mockResolvedValue([]);
+
+      await service.exportListings({ ids: [LISTING_ID] });
+
+      expect(prisma.listing.findMany.mock.calls[0][0].where).toEqual({
+        id: { in: [LISTING_ID] },
+      });
+    });
+
+    it('combines ids with the list filters', async () => {
+      prisma.listing.findMany.mockResolvedValue([]);
+
+      await service.exportListings({
+        status: ListingStatus.ACTIVE,
+        ids: [LISTING_ID],
+      });
+
+      expect(prisma.listing.findMany.mock.calls[0][0].where).toEqual({
+        status: ListingStatus.ACTIVE,
+        id: { in: [LISTING_ID] },
+      });
+    });
+
     it('writes one row per listing: original-language title, district and owner', async () => {
       prisma.listing.findMany.mockResolvedValue([dbExportItem]);
       prisma.district.findMany.mockResolvedValue([
