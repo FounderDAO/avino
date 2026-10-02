@@ -31,7 +31,7 @@
     "@nestjs/swagger": "^7.4.0",
     "@nestjs/throttler": "^6.0.0",
     "@nestjs/websockets": "^10",
-    "@prisma/client": "^5.18.0",
+    "@prisma/client": "^7.9.1",
     "@sentry/nestjs": "^10.69.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "apple-signin-auth": "^2.1.0",
