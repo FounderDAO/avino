@@ -3,12 +3,14 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   ParseEnumPipe,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { Language } from '@prisma/client';
@@ -62,6 +64,21 @@ export class AdminListingsController {
     @Query() query: ListAdminListingsQueryDto,
   ): Promise<PaginatedResponse<AdminListingListItem>> {
     return this.moderationService.listListings(query);
+  }
+
+  /**
+   * `GET /api/v1/admin/listings/export` — выгрузка списка в `.xlsx` по тем же
+   * фильтрам, что и список (`page`/`limit` игнорируются). Только ADMIN: файл
+   * разом отдаёт телефоны и email авторов — как и импорт (ADR-0162).
+   */
+  @Get('export')
+  @Roles(UserRole.ADMIN)
+  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  @Header('Content-Disposition', 'attachment; filename="avino-listings.xlsx"')
+  async export(
+    @Query() query: ListAdminListingsQueryDto,
+  ): Promise<StreamableFile> {
+    return new StreamableFile(await this.moderationService.exportListings(query));
   }
 
   /** `PATCH /api/v1/admin/listings/:id/status` — сменить статус (модерация). */

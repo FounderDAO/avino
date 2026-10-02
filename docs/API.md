@@ -1203,6 +1203,24 @@ optional response field (non-breaking, §14). `photo_url` — свежий URL �
 фотографии по `sort_order` (sign-on-read, ADR-0086) или `null`, если фото нет;
 тоже optional response field (non-breaking, §14, ADR-0101).
 
+### GET /api/v1/admin/listings/export
+Выгрузка админ-списка в `.xlsx`. Auth: **ADMIN** (только; MODERATOR → `403`) —
+файл разом отдаёт телефоны и email авторов. Query — те же фильтры, что у
+списка: `status`, `property_type`, `transaction_type`, `reference`, `q`;
+`page`/`limit` игнорируются.
+```text
+GET /api/v1/admin/listings/export?status=ACTIVE&transaction_type=RENT
+```
+200 → файл (`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`,
+`Content-Disposition: attachment; filename="avino-listings.xlsx"`), одна строка —
+одно объявление, сортировка как в списке (`created_at DESC`). Колонки: №,
+Заголовок (на языке оригинала), Адрес, Тип сделки, Тип недвижимости, Цена,
+Валюта, Комнат, Площадь (у участка — площадь участка), Район, Автор, Телефон
+(аккаунта, иначе подтверждённый контактный), Email, Статус, Просмотры,
+Создано, Опубликовано (даты — по времени Ташкента). Лимит — 5000 самых свежих
+объявлений; если под фильтр попадает больше, остальные в файл не входят.
+Пустая выборка → файл с одной строкой заголовков.
+
 ### PATCH /api/v1/admin/listings/:id/status
 Сменить статус (модерация). Auth: **MODERATOR / ADMIN**. Действие — одно из
 `moderation_action`: `APPROVE | SEND_TO_DRAFT | REJECT | DELETE | ARCHIVE`. Маппинг на

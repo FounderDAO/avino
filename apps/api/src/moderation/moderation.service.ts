@@ -22,6 +22,11 @@ import { PrismaService } from '../prisma';
 import { UploadsService } from '../uploads';
 import { ListAdminListingsQueryDto } from './dto/list-admin-listings.dto';
 import { ModerateListingDto } from './dto/moderate-listing.dto';
+import {
+  buildListingExport,
+  EXPORT_MAX_ROWS,
+  ListingExportRow,
+} from './listing-export.builder';
 
 /**
  * Инлайн-карточка автора объявления в админ-очереди (API.md §16). Модератору
@@ -243,6 +248,46 @@ type AdminListingRow = Prisma.ListingGetPayload<{
   select: typeof LISTING_LIST_SELECT;
 }>;
 
+/**
+ * Поля строки выгрузки (см. {@link ListingExportRow}). Без media: обложка в
+ * файле не нужна, а sign-on-read на тысячи строк — это тысячи подписей URL.
+ */
+const LISTING_EXPORT_SELECT = {
+  reference: true,
+  status: true,
+  transactionType: true,
+  propertyType: true,
+  originalLanguage: true,
+  price: true,
+  currency: true,
+  districtId: true,
+  address: true,
+  rooms: true,
+  area: true,
+  lotArea: true,
+  viewsCount: true,
+  publishedAt: true,
+  createdAt: true,
+  translations: {
+    select: { language: true, title: true },
+  },
+  owner: {
+    select: {
+      email: true,
+      phone: true,
+      profile: {
+        select: {
+          firstName: true,
+          lastName: true,
+          displayName: true,
+          contactPhone: true,
+          contactPhoneVerified: true,
+        },
+      },
+    },
+  },
+} as const;
+
 /** Поля карточки дубликата (см. {@link AdminListingDuplicate}). */
 const DUPLICATE_CARD_SELECT = {
   id: true,
@@ -300,18 +345,7 @@ export class ModerationService {
   ): Promise<PaginatedResponse<AdminListingListItem>> {
     const page = query.page ?? DEFAULT_PAGE;
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
-
-    const where: Prisma.ListingWhereInput = {};
-    if (query.status) where.status = query.status;
-    if (query.property_type) where.propertyType = query.property_type;
-    if (query.transaction_type) where.transactionType = query.transaction_type;
-    // Точный поиск по короткому номеру объявления (ADR-0137) — «найти быстро по id».
-    if (query.reference !== undefined) where.reference = query.reference;
-    if (query.q) {
-      where.translations = {
-        some: { title: { contains: query.q, mode: 'insensitive' } },
-      };
-    }
+    const where = this.buildListWhere(query);
 
     const [rows, total] = await Promise.all([
       this.prisma.listing.findMany({
@@ -324,8 +358,98 @@ export class ModerationService {
       this.prisma.listing.count({ where }),
     ]);
 
-    // Имена районов одним запросом по districtId строк страницы: relation
-    // Listing→District в схеме нет (districtId — просто скалярный указатель).
+    const districtNames = await this.loadDistrictNames(rows);
+
+    return {
+      data: await Promise.all(
+        rows.map((row) => this.toListItem(row, districtNames)),
+      ),
+      meta: { page, limit, total },
+    };
+  }
+
+  /**
+   * `GET /api/v1/admin/listings/export` — выгрузка админ-списка в `.xlsx`.
+   *
+   * Фильтры и сортировка — те же, что у {@link listListings}: в файле то, что
+   * админ видит в таблице, но без пагинации. `page`/`limit` игнорируются;
+   * потолок — {@link EXPORT_MAX_ROWS} самых свежих объявлений.
+   */
+  async exportListings(query: ListAdminListingsQueryDto): Promise<Buffer> {
+    const rows = await this.prisma.listing.findMany({
+      where: this.buildListWhere(query),
+      select: LISTING_EXPORT_SELECT,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: EXPORT_MAX_ROWS,
+    });
+    const districtNames = await this.loadDistrictNames(rows);
+
+    return buildListingExport(
+      rows.map((row): ListingExportRow => {
+        const translation =
+          row.translations.find((t) => t.language === row.originalLanguage) ??
+          row.translations[0];
+        const profile = row.owner.profile;
+        return {
+          reference: row.reference,
+          title: translation?.title ?? '',
+          address: row.address,
+          transactionType: row.transactionType,
+          propertyType: row.propertyType,
+          price: row.price.toNumber(),
+          currency: row.currency,
+          rooms: row.rooms,
+          // У участка жилой площади нет — показываем площадь участка.
+          area: (row.area ?? row.lotArea)?.toNumber() ?? null,
+          districtName:
+            (row.districtId && districtNames.get(row.districtId)) || null,
+          ownerName:
+            profile?.displayName?.trim() ||
+            [profile?.firstName, profile?.lastName]
+              .map((part) => part?.trim())
+              .filter(Boolean)
+              .join(' ') ||
+            null,
+          // Вход через Google/Apple — телефона аккаунта нет; тогда контактный,
+          // но только подтверждённый (ADR-0151).
+          ownerPhone:
+            row.owner.phone ??
+            (profile?.contactPhoneVerified ? profile.contactPhone : null),
+          ownerEmail: row.owner.email,
+          status: row.status,
+          viewsCount: row.viewsCount,
+          createdAt: row.createdAt,
+          publishedAt: row.publishedAt,
+        };
+      }),
+    );
+  }
+
+  /** Условие выборки админ-списка — общее для таблицы и выгрузки. */
+  private buildListWhere(
+    query: ListAdminListingsQueryDto,
+  ): Prisma.ListingWhereInput {
+    const where: Prisma.ListingWhereInput = {};
+    if (query.status) where.status = query.status;
+    if (query.property_type) where.propertyType = query.property_type;
+    if (query.transaction_type) where.transactionType = query.transaction_type;
+    // Точный поиск по короткому номеру объявления (ADR-0137) — «найти быстро по id».
+    if (query.reference !== undefined) where.reference = query.reference;
+    if (query.q) {
+      where.translations = {
+        some: { title: { contains: query.q, mode: 'insensitive' } },
+      };
+    }
+    return where;
+  }
+
+  /**
+   * Имена районов одним запросом по districtId переданных строк: relation
+   * Listing→District в схеме нет (districtId — просто скалярный указатель).
+   */
+  private async loadDistrictNames(
+    rows: ReadonlyArray<{ districtId: string | null }>,
+  ): Promise<Map<string, string>> {
     const districtIds = [
       ...new Set(
         rows
@@ -339,14 +463,7 @@ export class ModerationService {
           select: { id: true, nameRu: true },
         })
       : [];
-    const districtNames = new Map(districts.map((d) => [d.id, d.nameRu]));
-
-    return {
-      data: await Promise.all(
-        rows.map((row) => this.toListItem(row, districtNames)),
-      ),
-      meta: { page, limit, total },
-    };
+    return new Map(districts.map((d) => [d.id, d.nameRu]));
   }
 
   /**
