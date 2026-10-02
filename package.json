@@ -4,7 +4,7 @@
   "private": true,
   "description": "Avino — портал недвижимости для Узбекистана (monorepo)",
   "engines": {
-    "node": ">=20",
+    "node": ">=22",
     "pnpm": ">=9"
   },
   "packageManager": "pnpm@9.0.0",

@@ -7,10 +7,12 @@
  */
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
+import { ConfirmModal } from '@/components/admin/ConfirmModal';
 import {
   StatusBadge,
   ChannelIcons,
@@ -37,6 +39,7 @@ export default function BroadcastDetailPage() {
 
   const { data, isLoading, isError } = useGetBroadcastQuery(id);
   const [cancel, { isLoading: isCanceling }] = useCancelBroadcastMutation();
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
   // ── Состояние загрузки ──────────────────────────────────────────────────────
   if (isLoading) {
@@ -61,12 +64,13 @@ export default function BroadcastDetailPage() {
 
   // ── Обработчик отмены рассылки ──────────────────────────────────────────────
   const handleCancel = async () => {
-    if (!window.confirm('Отменить рассылку? Это действие необратимо.')) return;
     try {
       await cancel(id).unwrap();
       toast('Рассылка отменена');
     } catch {
       toast('Не удалось отменить рассылку');
+    } finally {
+      setCancelConfirmOpen(false);
     }
   };
 
@@ -268,7 +272,7 @@ export default function BroadcastDetailPage() {
                   className="abtn abtn-danger"
                   style={{ width: '100%' }}
                   disabled={isCanceling}
-                  onClick={handleCancel}
+                  onClick={() => setCancelConfirmOpen(true)}
                 >
                   {isCanceling ? 'Отмена…' : 'Отменить рассылку'}
                 </button>
@@ -282,6 +286,18 @@ export default function BroadcastDetailPage() {
           </div>
         </div>
       </div>
+      {cancelConfirmOpen && (
+        <ConfirmModal
+          title="Отменить рассылку"
+          message="Рассылка не будет отправлена. Это действие необратимо."
+          confirmLabel="Отменить рассылку"
+          cancelLabel="Не отменять"
+          tone="danger"
+          isSubmitting={isCanceling}
+          onConfirm={() => void handleCancel()}
+          onClose={() => setCancelConfirmOpen(false)}
+        />
+      )}
     </div>
   );
 }

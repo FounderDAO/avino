@@ -35,6 +35,7 @@ import { usePriceFormatter } from '@/lib/usePriceFormatter';
 import { PhotoImg } from '@/components/ui/photo-img';
 import { PromoBadge } from '@/components/ui/promo-badge';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dropdown,
   DropdownTrigger,
@@ -94,23 +95,26 @@ function StatusPill({ s }: { s: ListingStatus | undefined }) {
 function ListingRow({ l, promotionsEnabled }: { l: Listing; promotionsEnabled: boolean }) {
   const t = useTranslations('account');
   const tToasts = useTranslations('toasts');
+  const tCommon = useTranslations('common');
   const fmt = usePriceFormatter();
   const [setStatus, { isLoading }] = useSetMyListingStatusMutation();
   const actions = ownerActionsFor(l.status, l.tx);
 
-  const run = (a: OwnerActionDescriptor) => {
-    if (a.confirm) {
-      const key =
-        a.action === 'MARK_SOLD'
-          ? 'myListings.actions.confirm.markSold'
-          : 'myListings.actions.confirm.markRented';
-      if (!window.confirm(t(key))) return;
-    }
+  // Действие, ожидающее подтверждения (открыт ConfirmDialog).
+  const [pending, setPending] = React.useState<OwnerActionDescriptor | null>(null);
+  const confirmKey = pending?.action === 'MARK_RENTED' ? 'markRented' : 'markSold';
+
+  const apply = (a: OwnerActionDescriptor) => {
     // Ошибку тостит apiErrorToastMiddleware (endpoint не в suppress-list).
     void setStatus({ id: l.id, action: a.action })
       .unwrap()
       .then(() => toast.success(tToasts('statusUpdated')))
       .catch(() => {});
+  };
+
+  const run = (a: OwnerActionDescriptor) => {
+    if (a.confirm) setPending(a);
+    else apply(a);
   };
 
   return (
@@ -225,6 +229,17 @@ function ListingRow({ l, promotionsEnabled }: { l: Listing; promotionsEnabled: b
           </Dropdown>
         )}
       </div>
+      <ConfirmDialog
+        open={pending !== null}
+        title={t(`myListings.actions.confirm.${confirmKey}Title`)}
+        description={t(`myListings.actions.confirm.${confirmKey}`)}
+        confirmLabel={tCommon('confirm')}
+        onConfirm={() => {
+          if (pending) apply(pending);
+          setPending(null);
+        }}
+        onClose={() => setPending(null)}
+      />
     </div>
   );
 }

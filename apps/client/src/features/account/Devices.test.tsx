@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ru from '../../../messages/ru.json';
 
@@ -58,8 +58,15 @@ describe('Devices', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     revokeState.result = () => Promise.resolve({});
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
+
+  /** «Завершить» в строке сессии → подтверждение в ConfirmDialog. */
+  const revokeAndConfirm = () => {
+    fireEvent.click(screen.getByText(ru.account.devices.revoke));
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByText(ru.account.devices.revoke),
+    );
+  };
 
   it('рендерит обе сессии: устройства из UA, IP, бейдж только у текущей', () => {
     render(<Devices />);
@@ -82,7 +89,11 @@ describe('Devices', () => {
   it('confirm → DELETE → success-toast', async () => {
     render(<Devices />);
     fireEvent.click(screen.getByText(ru.account.devices.revoke));
-    expect(window.confirm).toHaveBeenCalledWith(ru.account.devices.confirmRevoke);
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(ru.account.devices.confirmRevokeTitle)).toBeInTheDocument();
+    expect(within(dialog).getByText(ru.account.devices.confirmRevoke)).toBeInTheDocument();
+    expect(revokeSpy).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByText(ru.account.devices.revoke));
     expect(revokeSpy).toHaveBeenCalledWith('fid-other');
     await waitFor(() =>
       expect(toastSpies.success).toHaveBeenCalledWith(ru.account.devices.revoked),
@@ -90,16 +101,17 @@ describe('Devices', () => {
   });
 
   it('отмена confirm — мутация не вызывается', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<Devices />);
     fireEvent.click(screen.getByText(ru.account.devices.revoke));
+    fireEvent.click(within(screen.getByRole('dialog')).getByText(ru.common.cancel));
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(revokeSpy).not.toHaveBeenCalled();
   });
 
   it('404 — «уже завершена» + refetch, не error-toast', async () => {
     revokeState.result = () => Promise.reject({ status: 404 });
     render(<Devices />);
-    fireEvent.click(screen.getByText(ru.account.devices.revoke));
+    revokeAndConfirm();
     await waitFor(() =>
       expect(toastSpies.info).toHaveBeenCalledWith(
         ru.account.devices.alreadyRevoked,
@@ -116,7 +128,7 @@ describe('Devices', () => {
         data: { error: { code: 'INTERNAL', message: 'Внутренняя ошибка' } },
       });
     render(<Devices />);
-    fireEvent.click(screen.getByText(ru.account.devices.revoke));
+    revokeAndConfirm();
     await waitFor(() =>
       expect(toastSpies.error).toHaveBeenCalledWith('Внутренняя ошибка'),
     );

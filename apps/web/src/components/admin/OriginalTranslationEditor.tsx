@@ -19,6 +19,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ConfirmModal } from '@/components/admin/ConfirmModal';
 import type { TranslationItem, TranslationLanguage, UpdateOriginalRequest } from '@/store/api/adminTypes';
 
 const LANG_LABEL: Record<TranslationLanguage, string> = {
@@ -49,15 +50,9 @@ export function OriginalTranslationEditor({
   const languageChanged = language !== originalLanguage;
   const isDirty = languageChanged || description !== (item.description ?? '');
 
-  const submit = () => {
-    if (
-      languageChanged &&
-      !window.confirm(
-        `Сменить язык оригинала на «${LANG_LABEL[language]}»? Текущие переводы на другие языки будут удалены — их нужно будет сгенерировать заново.`,
-      )
-    ) {
-      return;
-    }
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const save = () => {
     onSave({
       original_language: language,
       // Заголовок не редактируется — прокидываем исходную авто-строку без изменений
@@ -67,6 +62,12 @@ export function OriginalTranslationEditor({
       address_note: item.address_note,
       features_text: item.features_text,
     });
+  };
+
+  // Смена языка оригинала удаляет производные переводы — сначала подтверждение.
+  const submit = () => {
+    if (languageChanged) setConfirmOpen(true);
+    else save();
   };
 
   return (
@@ -138,6 +139,19 @@ export function OriginalTranslationEditor({
           {saving ? 'Сохранение…' : 'Сохранить оригинал'}
         </button>
       </div>
+      {confirmOpen && (
+        <ConfirmModal
+          title="Сменить язык оригинала"
+          message={`Язык оригинала станет «${LANG_LABEL[language]}». Текущие переводы на другие языки будут удалены — их нужно будет сгенерировать заново.`}
+          confirmLabel="Сменить язык"
+          tone="danger"
+          onConfirm={() => {
+            setConfirmOpen(false);
+            save();
+          }}
+          onClose={() => setConfirmOpen(false)}
+        />
+      )}
     </div>
   );
 }

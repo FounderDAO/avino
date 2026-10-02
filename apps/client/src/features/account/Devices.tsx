@@ -6,7 +6,7 @@
  * - Карточка: устройство из user_agent (sessionDevice), IP, вход (created_at),
  *   активность (last_rotated_at), бейдж «Текущая сессия» (is_current).
  * - «Завершить» — только у не-текущих (завершение текущей = logout, он в шапке).
- *   confirm → DELETE → toast; 404 = «уже завершена» (идемпотентный контракт),
+ *   ConfirmDialog → DELETE → toast; 404 = «уже завершена» (идемпотентный контракт),
  *   не ошибка — тостим и рефетчим (invalidatesTags на ошибке не срабатывает).
  */
 'use client';
@@ -18,6 +18,7 @@ import { Monitor, MonitorSmartphone, Smartphone } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppSelector } from '@/store/hooks';
@@ -58,8 +59,11 @@ export function Devices() {
   const [revokeSession] = useRevokeSessionMutation();
   const [revokingId, setRevokingId] = React.useState<string | null>(null);
 
+  // Сессия, ожидающая подтверждения завершения (открыт ConfirmDialog).
+  const [confirmId, setConfirmId] = React.useState<string | null>(null);
+
   const onRevoke = async (id: string) => {
-    if (!window.confirm(t('devices.confirmRevoke'))) return;
+    setConfirmId(null);
     setRevokingId(id);
     try {
       await revokeSession(id).unwrap();
@@ -176,7 +180,7 @@ export function Devices() {
                   size="sm"
                   className="shrink-0 text-red hover:text-red-press"
                   disabled={revokingId === s.id}
-                  onClick={() => void onRevoke(s.id)}
+                  onClick={() => setConfirmId(s.id)}
                 >
                   {t('devices.revoke')}
                 </Button>
@@ -185,6 +189,14 @@ export function Devices() {
           );
         })}
       </div>
+      <ConfirmDialog
+        open={confirmId !== null}
+        title={t('devices.confirmRevokeTitle')}
+        description={t('devices.confirmRevoke')}
+        confirmLabel={t('devices.revoke')}
+        onConfirm={() => confirmId && void onRevoke(confirmId)}
+        onClose={() => setConfirmId(null)}
+      />
     </div>
   );
 }
