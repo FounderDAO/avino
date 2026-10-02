@@ -39,6 +39,86 @@ Related ADR:
 
 ## 2026-10-03
 
+### Ad-hoc — Модалки подтверждения вместо window.confirm (web/админка + client)
+
+Status: DONE
+Branch: feat/confirm-modals-node22
+PR: #518
+
+Files changed:
+- apps/web/src/components/admin/ConfirmModal.tsx (new)
+- apps/web/src/app/admin/listings/page.tsx
+- apps/web/src/app/admin/listings/[id]/page.tsx
+- apps/web/src/app/admin/moderation/page.tsx
+- apps/web/src/app/admin/broadcasts/[id]/page.tsx
+- apps/web/src/components/admin/OriginalTranslationEditor.tsx
+- apps/web/src/components/admin/legal/LegalDraftEditor.tsx
+- apps/client/src/components/ui/confirm-dialog.tsx (new)
+- apps/client/src/components/ui/confirm-dialog.test.tsx (new)
+- apps/client/src/features/account/Devices.tsx
+- apps/client/src/features/account/Devices.test.tsx
+- apps/client/src/features/account/MyListings.tsx
+- apps/client/messages/ru.json, en.json, uz.json
+
+Summary:
+- Заказчик при проверке массовой архивации получил нативный JS-диалог браузера вместо модалки
+  в стиле продукта. Заменены все window.confirm в обоих приложениях (6 мест в админке, 2 в
+  клиенте) — нативных подтверждений не осталось.
+- Админка: общий ConfirmModal (заголовок, текст, тон danger/primary, Esc и клик по оверлею;
+  во время отправки не закрывается) — массовая архивация, отмена рассылки, «Перевести заново»
+  (карточка объявления и модерация), смена языка оригинала, удаление юридического черновика.
+- Клиент: отдельный ConfirmDialog на radix Dialog (другой UI-стек, админский компонент не
+  переиспользуется) — завершение сессии в «Устройствах», «Продано»/«Сдано» в «Моих объявлениях».
+- Важно: тексты подтверждений разбиты на заголовок и описание. В ru/en/uz добавлены
+  common.cancel, common.confirm и *Title-ключи; старые ключи confirmRevoke, confirm.markSold,
+  confirm.markRented теперь содержат только описание. Компонентных тестов на админский
+  ConfirmModal и на поток подтверждения в «Моих объявлениях» нет; модалки в браузере до мержа
+  не проверялись — проверены vitest, tsc, линт, сборка, CI.
+
+Commit messages:
+- feat(admin,client): модалки подтверждения вместо window.confirm
+
+Related ADR:
+- нет (решение не архитектурное)
+
+### Ad-hoc — Переход на Node 22 LTS (infra)
+
+Status: DONE
+Branch: feat/confirm-modals-node22
+PR: #518
+
+Files changed:
+- apps/api/Dockerfile
+- apps/web/Dockerfile
+- apps/client/Dockerfile
+- .github/workflows/ci.yml
+- package.json
+- .nvmrc (new)
+- apps/api/package.json
+- apps/web/package.json
+- apps/client/package.json
+- pnpm-lock.yaml
+- docs/SERVER_TO_DEPLOY.md
+
+Summary:
+- На локальном Node 20.0.0 весь прогон vitest в apps/client падал с ERR_REQUIRE_ESM (jsdom 29
+  делает require() ESM-модуля — работает только с Node 20.19+/22.12+), хотя в CI тесты
+  проходили. Версия Node нигде не была закреплена для локальной разработки.
+- Единая версия Node 22 LTS: node:22-slim в Dockerfile'ах api/web/client, node-version 22 в CI,
+  engines.node >=22, .nvmrc (22), @types/node ^22 (в lockfile изменился только этот пакет).
+- Проверено до мержа: локально на Node 22 — сборка api, jest (1211), vitest client (825) и
+  web (58), линт и next build; docker compose build — все образы на v22.23.3, стек поднят,
+  миграции и сид прошли, api/web/client healthy; CI на Node 22 зелёный.
+- Важно: прод-образы переезжают на новый мажор Node — при первой выкатке посмотреть на api
+  после рестарта. Разработчикам с Node 20 нужно обновиться (nvm install 22 && nvm use).
+  Часть TASK-245 (.nvmrc) закрыта этим PR.
+
+Commit messages:
+- chore: перейти на Node 22 LTS
+
+Related ADR:
+- docs/adr/ADR-0165-node-22-lts.md
+
 ### Ad-hoc — Экспорт списка объявлений в xlsx (api + web/админка)
 
 Status: DONE
