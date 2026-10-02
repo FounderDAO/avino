@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { EXPORT_MAX_ROWS, listingExportFileName, listingExportToast } from './listingExport';
+import { EXPORT_MAX_ROWS, listingExportFileName, listingExportParams, listingExportToast } from './listingExport';
+
+describe('listingExportParams', () => {
+  const filters = { status: 'ACTIVE', q: 'квартира' };
+
+  it('без отмеченных строк — фильтры списка', () => {
+    expect(listingExportParams(filters, [])).toEqual(filters);
+  });
+
+  it('с отмеченными — только их ids, фильтры не уходят', () => {
+    expect(listingExportParams(filters, ['a', 'b'])).toEqual({ ids: ['a', 'b'] });
+  });
+});
 
 describe('listingExportFileName', () => {
   it('подставляет локальную дату с ведущими нулями', () => {

@@ -26,7 +26,7 @@ import type {
  *
  * - `GET /admin/listings?status&property_type&transaction_type&q&page&limit`
  *   → page-based `Paginated<AdminListingRow>` (ADMIN-08).
- * - `GET /admin/listings/export?status&property_type&transaction_type&q`
+ * - `GET /admin/listings/export?status&property_type&transaction_type&q&ids`
  *   → файл `.xlsx` (object URL).
  * - `GET /listings/:id` → `ListingDetail`. Карточка для модерации: бэкенд отдаёт
  *   непубличные статусы MODERATOR/ADMIN через тот же публичный роут
@@ -49,16 +49,17 @@ export const adminListingsApi = adminApi.injectEndpoints({
 
     /**
      * `GET /admin/listings/export` → `.xlsx` по тем же фильтрам, что и список
-     * (без пагинации, ADMIN). Ответ превращается в object URL прямо в
+     * (без пагинации, ADMIN), либо только объявления из `ids` (уходят в query
+     * через запятую). Ответ превращается в object URL прямо в
      * `responseHandler`: Blob в redux-store класть нельзя, строку — можно.
      */
     exportAdminListings: build.mutation<
       string,
-      Omit<AdminListingFilters, 'page' | 'limit'>
+      Omit<AdminListingFilters, 'page' | 'limit'> & { ids?: string[] }
     >({
-      query: (filters) => ({
+      query: ({ ids, ...filters }) => ({
         url: '/admin/listings/export',
-        params: toQueryParams({ ...filters }),
+        params: toQueryParams({ ...filters, ids: ids?.join(',') }),
         // Не-2xx: возвращённый JSON попадёт в `error.data` (validateStatus уже false).
         responseHandler: async (response) =>
           response.ok ? URL.createObjectURL(await response.blob()) : response.json(),

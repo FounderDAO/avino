@@ -4,7 +4,8 @@
  * /admin/listings/{id}. Вёрстка 1:1 с прототипом; данные — GET /admin/listings.
  * Массовые действия («Одобрить» / «В архив») — PATCH /admin/listings/:id/status
  * по каждой выбранной строке, итог — счётчики применённых и пропущенных.
- * «Экспорт» — GET /admin/listings/export: .xlsx по текущим фильтрам, все страницы.
+ * «Экспорт» — GET /admin/listings/export: .xlsx отмеченных строк, а без выбора —
+ * по текущим фильтрам, все страницы.
  */
 'use client';
 
@@ -20,7 +21,7 @@ import { useExportAdminListingsMutation, useListAdminListingsQuery, useModerateL
 import { totalPages, type TransactionType } from '@/store/api/adminApi';
 import { rowToAdminListing, UI_FILTER_TO_API_STATUS } from '@/lib/adapters/listings';
 import { bulkModerationToast, runBulkModeration, type BulkModerationAction } from '@/lib/adapters/bulkModeration';
-import { listingExportFileName, listingExportToast } from '@/lib/adapters/listingExport';
+import { EXPORT_MAX_IDS, listingExportFileName, listingExportParams, listingExportToast } from '@/lib/adapters/listingExport';
 
 const LIMIT = 20;
 
@@ -134,18 +135,23 @@ export default function ListingsPage() {
   };
 
   // Пустой или ещё не загруженный список выгружать незачем.
-  const exportDisabled = exporting || isLoading || isError || total === 0;
+  const exportDisabled = exporting || isLoading || isError || (total === 0 && sel.size === 0);
 
   const onExport = async () => {
+    const ids = [...sel];
+    if (ids.length > EXPORT_MAX_IDS) {
+      toast(`Для экспорта отметьте не больше ${EXPORT_MAX_IDS} объявлений`);
+      return;
+    }
     try {
-      const url = await exportListings(listFilters).unwrap();
+      const url = await exportListings(listingExportParams(listFilters, ids)).unwrap();
       const link = document.createElement('a');
       link.href = url;
       link.download = listingExportFileName(new Date());
       link.click();
       // Сразу отзывать нельзя: часть браузеров обрывает скачивание.
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast(listingExportToast(total));
+      toast(listingExportToast(ids.length || total));
     } catch {
       toast('Не удалось выгрузить объявления');
     }
@@ -158,7 +164,7 @@ export default function ListingsPage() {
         <div className="row gap-8">
           <button className="abtn abtn-outline" onClick={() => setImportOpen(true)}>Импорт</button>
           <button className="abtn abtn-outline" style={exportDisabled ? { opacity: 0.5 } : undefined} disabled={exportDisabled} onClick={() => void onExport()}>
-            {exporting ? 'Экспорт…' : 'Экспорт'}
+            {exporting ? 'Экспорт…' : sel.size > 0 ? `Экспорт (${sel.size})` : 'Экспорт'}
           </button>
         </div>
       </div>
