@@ -23,6 +23,7 @@ import { useToast } from '@/components/admin/toast';
 import { TranslationRow } from '@/components/admin/TranslationRow';
 import { ListingDuplicates } from '@/components/admin/ListingDuplicates';
 import { OriginalTranslationEditor } from '@/components/admin/OriginalTranslationEditor';
+import { ConfirmModal } from '@/components/admin/ConfirmModal';
 import {
   useGetAdminListingQuery,
   useListAdminListingsQuery,
@@ -166,6 +167,7 @@ export default function ModerationPage() {
   const [page, setPage] = useState<number>(1);
   const [selId, setSelId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [retranslateOpen, setRetranslateOpen] = useState(false);
 
   const { data, isLoading, isFetching, isError, refetch } =
     useListAdminListingsQuery({ status: 'NEW', page, limit: LIMIT });
@@ -334,11 +336,7 @@ export default function ModerationPage() {
                       <button
                         className="abtn abtn-outline abtn-sm"
                         disabled={isGenerating}
-                        onClick={async () => {
-                          if (!window.confirm('Перевести заново все языки? Правки, внесённые вручную, будут перезаписаны машинным переводом.')) return;
-                          try { toast(translationResultToast(await generate({ id: sel.id, force: true }).unwrap(), { forced: true })); }
-                          catch { toast('Не удалось сгенерировать переводы'); }
-                        }}
+                        onClick={() => setRetranslateOpen(true)}
                       >
                         Перевести заново
                       </button>
@@ -412,6 +410,21 @@ export default function ModerationPage() {
             </div>
           )}
         </>
+      )}
+      {retranslateOpen && sel && (
+        <ConfirmModal
+          title="Перевести заново все языки"
+          message="Правки, внесённые вручную, будут перезаписаны машинным переводом."
+          confirmLabel="Перевести заново"
+          tone="danger"
+          isSubmitting={isGenerating}
+          onConfirm={async () => {
+            try { toast(translationResultToast(await generate({ id: sel.id, force: true }).unwrap(), { forced: true })); }
+            catch { toast('Не удалось сгенерировать переводы'); }
+            finally { setRetranslateOpen(false); }
+          }}
+          onClose={() => setRetranslateOpen(false)}
+        />
       )}
     </div>
   );

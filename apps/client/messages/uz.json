@@ -11,6 +11,8 @@
     "removeFromFavorites": "Saralanganlardan olib tashlash",
     "loginToFavorite": "Saralanganlarga qo'shish uchun tizimga kiring",
     "close": "Yopish",
+    "cancel": "Bekor qilish",
+    "confirm": "Tasdiqlash",
     "previous": "Orqaga",
     "next": "Oldinga",
     "badgeVip": "VIP",
@@ -1213,8 +1215,10 @@
         "markSold": "Sotilgan",
         "markRented": "Ijaraga berilgan",
         "confirm": {
-          "markSold": "E'lon sotilgan deb belgilansinmi? U qidiruvdan yashiriladi (keyin qaytarish mumkin).",
-          "markRented": "E'lon ijaraga berilgan deb belgilansinmi? U qidiruvdan yashiriladi (keyin qaytarish mumkin)."
+          "markSoldTitle": "E'lon sotilgan deb belgilansinmi?",
+          "markSold": "U qidiruvdan yashiriladi (keyin qaytarish mumkin).",
+          "markRentedTitle": "E'lon ijaraga berilgan deb belgilansinmi?",
+          "markRented": "U qidiruvdan yashiriladi (keyin qaytarish mumkin)."
         }
       },
       "stats": {
@@ -1389,7 +1393,8 @@
       "signedIn": "Kirish",
       "lastActive": "Faollik",
       "revoke": "Yakunlash",
-      "confirmRevoke": "Bu sessiya yakunlansinmi? Qurilma hisobdan chiqariladi.",
+      "confirmRevokeTitle": "Bu sessiya yakunlansinmi?",
+      "confirmRevoke": "Qurilma hisobdan chiqariladi.",
       "revoked": "Sessiya yakunlandi",
       "alreadyRevoked": "Sessiya allaqachon yakunlangan",
       "revokeError": "Sessiyani yakunlab bo'lmadi"

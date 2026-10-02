@@ -15,6 +15,7 @@ import { StatusPill } from '@/components/admin/ui/pill';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
 import { ListingImportModal } from '@/components/admin/ListingImportModal';
+import { ConfirmModal } from '@/components/admin/ConfirmModal';
 import { useExportAdminListingsMutation, useListAdminListingsQuery, useModerateListingMutation } from '@/store/api/adminListingsApi';
 import { totalPages, type TransactionType } from '@/store/api/adminApi';
 import { rowToAdminListing, UI_FILTER_TO_API_STATUS } from '@/lib/adapters/listings';
@@ -70,6 +71,7 @@ export default function ListingsPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [moderate] = useModerateListingMutation();
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [exportListings, { isLoading: exporting }] = useExportAdminListingsMutation();
 
   // Дебаунс поиска (400мс), чтобы не дёргать API на каждый символ.
@@ -120,12 +122,6 @@ export default function ListingsPage() {
 
   const bulk = async (action: BulkModerationAction) => {
     const ids = [...sel];
-    if (
-      action === 'ARCHIVE' &&
-      !window.confirm(`Перенести в архив выбранные объявления (${ids.length})? Они будут сняты с публикации, владельцы получат уведомление.`)
-    ) {
-      return;
-    }
     setBulkBusy(true);
     try {
       const result = await runBulkModeration(ids, (id) => moderate({ id, body: { action } }).unwrap());
@@ -133,6 +129,7 @@ export default function ListingsPage() {
       setSel(new Set());
     } finally {
       setBulkBusy(false);
+      setArchiveConfirmOpen(false);
     }
   };
 
@@ -182,7 +179,7 @@ export default function ListingsPage() {
         <div className="row gap-12" style={{ background: 'var(--ink)', color: '#fff', borderRadius: 10, padding: '10px 16px', marginBottom: 12 }}>
           <span style={{ fontWeight: 700, fontSize: 14 }}>Выбрано: {sel.size}</span>
           <button className="abtn abtn-sm" style={{ background: 'rgba(255,255,255,.15)', color: '#fff' }} disabled={bulkBusy} onClick={() => bulk('APPROVE')}>Одобрить</button>
-          <button className="abtn abtn-sm" style={{ background: 'rgba(255,255,255,.15)', color: '#fff' }} disabled={bulkBusy} onClick={() => bulk('ARCHIVE')}>В архив</button>
+          <button className="abtn abtn-sm" style={{ background: 'rgba(255,255,255,.15)', color: '#fff' }} disabled={bulkBusy} onClick={() => setArchiveConfirmOpen(true)}>В архив</button>
           <button className="abtn abtn-ghost abtn-sm" style={{ color: 'rgba(255,255,255,.7)', marginLeft: 'auto' }} disabled={bulkBusy} onClick={() => setSel(new Set())}>Снять выбор</button>
         </div>
       )}
@@ -271,6 +268,17 @@ export default function ListingsPage() {
         </div>
       </div>
       {importOpen && <ListingImportModal onClose={() => setImportOpen(false)} />}
+      {archiveConfirmOpen && (
+        <ConfirmModal
+          title="Перенести в архив"
+          message={<>Выбрано объявлений: <strong style={{ color: 'var(--ink)' }}>{sel.size}</strong>. Они будут сняты с публикации, владельцы получат уведомление.</>}
+          confirmLabel="В архив"
+          tone="danger"
+          isSubmitting={bulkBusy}
+          onConfirm={() => void bulk('ARCHIVE')}
+          onClose={() => setArchiveConfirmOpen(false)}
+        />
+      )}
     </div>
   );
 }

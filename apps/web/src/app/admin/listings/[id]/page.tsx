@@ -33,6 +33,7 @@ import {
   useCancelPromotionMutation,
 } from '@/store/api/adminPromotionsApi';
 import { PromoteListingModal } from '@/components/admin/PromoteListingModal';
+import { ConfirmModal } from '@/components/admin/ConfirmModal';
 import { ListingDuplicates } from '@/components/admin/ListingDuplicates';
 import { detailToAdminListing, ownerName, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
 import { LISTING_STATUS_LABEL } from '@/lib/adapters/logs';
@@ -141,6 +142,7 @@ export default function ListingDetailPage() {
   const [activate, { isLoading: isActivating }] = useActivatePromotionMutation();
   const [cancelPromo, { isLoading: isCancelling }] = useCancelPromotionMutation();
   const [promoteOpen, setPromoteOpen] = useState(false);
+  const [retranslateOpen, setRetranslateOpen] = useState(false);
 
   const presentLangs = new Set((tr?.translations ?? []).map((t) => t.language));
   const translationsComplete = REQUIRED_LANGS.every((l) => presentLangs.has(l));
@@ -306,11 +308,7 @@ export default function ListingDetailPage() {
                 <button
                   className="abtn abtn-outline abtn-sm"
                   disabled={isGenerating}
-                  onClick={async () => {
-                    if (!window.confirm('Перевести заново все языки? Правки, внесённые вручную, будут перезаписаны машинным переводом.')) return;
-                    try { toast(translationResultToast(await generate({ id, force: true }).unwrap(), { forced: true })); }
-                    catch { toast('Не удалось сгенерировать переводы'); }
-                  }}
+                  onClick={() => setRetranslateOpen(true)}
                 >
                   Перевести заново
                 </button>
@@ -442,6 +440,21 @@ export default function ListingDetailPage() {
           onClose={() => setPromoteOpen(false)}
           onSubmit={doActivate}
           isSubmitting={isActivating}
+        />
+      )}
+      {retranslateOpen && (
+        <ConfirmModal
+          title="Перевести заново все языки"
+          message="Правки, внесённые вручную, будут перезаписаны машинным переводом."
+          confirmLabel="Перевести заново"
+          tone="danger"
+          isSubmitting={isGenerating}
+          onConfirm={async () => {
+            try { toast(translationResultToast(await generate({ id: id, force: true }).unwrap(), { forced: true })); }
+            catch { toast('Не удалось сгенерировать переводы'); }
+            finally { setRetranslateOpen(false); }
+          }}
+          onClose={() => setRetranslateOpen(false)}
         />
       )}
     </div>

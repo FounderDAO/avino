@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import { parseLegalMarkdown, legalAnchorWarnings } from '@avino/shared';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
+import { ConfirmModal } from '@/components/admin/ConfirmModal';
 import {
   useGetLegalDocumentQuery,
   useUpdateLegalDraftMutation,
@@ -55,6 +56,7 @@ export function LegalDraftEditor({ id, onClose }: LegalDraftEditorProps) {
   const [publishOpen, setPublishOpen] = useState(false);
   const [requiresConsent, setRequiresConsent] = useState(false);
   const [publishErr, setPublishErr] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (doc && !initialized) {
@@ -113,13 +115,13 @@ export function LegalDraftEditor({ id, onClose }: LegalDraftEditorProps) {
   }
 
   async function onDelete() {
-    if (!window.confirm('Удалить черновик безвозвратно?')) return;
     try {
       await deleteDraft(id).unwrap();
       showToast('Черновик удалён');
       onClose();
     } catch (e) {
       showToast(getApiError(e as never)?.message ?? 'Не удалось удалить черновик');
+      setDeleteOpen(false);
     }
   }
 
@@ -172,7 +174,7 @@ export function LegalDraftEditor({ id, onClose }: LegalDraftEditorProps) {
         </div>
         {!readOnly && (
           <div className="row gap-10">
-            <button className="abtn abtn-outline" style={{ opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={onDelete}>
+            <button className="abtn abtn-outline" style={{ opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => setDeleteOpen(true)}>
               Удалить черновик
             </button>
             <button className="abtn abtn-outline" style={{ opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={onSave}>
@@ -332,6 +334,17 @@ export function LegalDraftEditor({ id, onClose }: LegalDraftEditorProps) {
             </div>
           </div>
         </div>
+      )}
+      {deleteOpen && (
+        <ConfirmModal
+          title="Удалить черновик"
+          message="Черновик будет удалён безвозвратно."
+          confirmLabel="Удалить черновик"
+          tone="danger"
+          isSubmitting={deleting}
+          onConfirm={() => void onDelete()}
+          onClose={() => setDeleteOpen(false)}
+        />
       )}
     </div>
   );

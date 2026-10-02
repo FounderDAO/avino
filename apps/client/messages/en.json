@@ -11,6 +11,8 @@
     "removeFromFavorites": "Remove from favorites",
     "loginToFavorite": "Sign in to save to favorites",
     "close": "Close",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
     "previous": "Previous",
     "next": "Next",
     "badgeVip": "VIP",
@@ -1213,8 +1215,10 @@
         "markSold": "Sold",
         "markRented": "Rented",
         "confirm": {
-          "markSold": "Mark this listing as sold? It will be hidden from search (you can reactivate it later).",
-          "markRented": "Mark this listing as rented? It will be hidden from search (you can reactivate it later)."
+          "markSoldTitle": "Mark this listing as sold?",
+          "markSold": "It will be hidden from search (you can reactivate it later).",
+          "markRentedTitle": "Mark this listing as rented?",
+          "markRented": "It will be hidden from search (you can reactivate it later)."
         }
       },
       "stats": {
@@ -1389,7 +1393,8 @@
       "signedIn": "Signed in",
       "lastActive": "Last active",
       "revoke": "Sign out",
-      "confirmRevoke": "End this session? The device will be signed out.",
+      "confirmRevokeTitle": "End this session?",
+      "confirmRevoke": "The device will be signed out.",
       "revoked": "Session ended",
       "alreadyRevoked": "Session already ended",
       "revokeError": "Couldn't end the session"
