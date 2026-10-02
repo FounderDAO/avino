@@ -11,7 +11,9 @@ import {
   TransactionType,
   UserStatus,
 } from '@prisma/client';
+import { Workbook } from 'exceljs';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
+import { EXPORT_MAX_ROWS } from './listing-export.builder';
 import { ModerationService } from './moderation.service';
 
 /**
@@ -156,6 +158,129 @@ describe('ModerationService', () => {
       const owner = await service.getListingOwner(LISTING_ID);
 
       expect(owner.contact_phone).toBeNull();
+    });
+  });
+
+  describe('exportListings', () => {
+    const dbExportItem = {
+      reference: 100042,
+      status: ListingStatus.NEW,
+      transactionType: TransactionType.RENT,
+      propertyType: PropertyType.APARTMENT,
+      originalLanguage: Language.RU,
+      price: new Prisma.Decimal('4500000.00'),
+      currency: Currency.UZS,
+      districtId: 'district-1',
+      address: 'Ташкент, ул. Навои, 12',
+      rooms: 2,
+      area: new Prisma.Decimal('55.50'),
+      lotArea: null,
+      viewsCount: 7,
+      publishedAt: null,
+      createdAt: new Date('2026-06-02T08:00:00.000Z'),
+      translations: [
+        { language: Language.UZ, title: '2 xonali kvartira' },
+        { language: Language.RU, title: '2-комн квартира' },
+      ],
+      owner: {
+        email: 'seller@example.com',
+        phone: '+998901234567',
+        profile: {
+          firstName: 'Алишер',
+          lastName: 'Усманов',
+          displayName: null,
+          contactPhone: '+998907654321',
+          contactPhoneVerified: true,
+        },
+      },
+    };
+
+    async function sheetOf(buffer: Buffer) {
+      const workbook = new Workbook();
+      await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+      return workbook.worksheets[0];
+    }
+
+    it('applies the list filters without pagination, capped at EXPORT_MAX_ROWS', async () => {
+      prisma.listing.findMany.mockResolvedValue([]);
+
+      await service.exportListings({
+        status: ListingStatus.ACTIVE,
+        transaction_type: TransactionType.SALE,
+        q: 'квартира',
+        page: 3,
+        limit: 10,
+      });
+
+      const args = prisma.listing.findMany.mock.calls[0][0];
+      expect(args.where).toEqual({
+        status: ListingStatus.ACTIVE,
+        transactionType: TransactionType.SALE,
+        translations: {
+          some: { title: { contains: 'квартира', mode: 'insensitive' } },
+        },
+      });
+      expect(args.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
+      expect(args.take).toBe(EXPORT_MAX_ROWS);
+      expect(args.skip).toBeUndefined();
+      expect(prisma.listing.count).not.toHaveBeenCalled();
+    });
+
+    it('writes one row per listing: original-language title, district and owner', async () => {
+      prisma.listing.findMany.mockResolvedValue([dbExportItem]);
+      prisma.district.findMany.mockResolvedValue([
+        { id: 'district-1', nameRu: 'Чиланзарский район' },
+      ]);
+
+      const sheet = await sheetOf(await service.exportListings({}));
+
+      expect(sheet.rowCount).toBe(2);
+      const row = sheet.getRow(2);
+      expect(row.getCell(1).value).toBe(100042);
+      expect(row.getCell(2).value).toBe('2-комн квартира');
+      expect(row.getCell(6).value).toBe(4500000);
+      expect(row.getCell(9).value).toBe(55.5);
+      expect(row.getCell(10).value).toBe('Чиланзарский район');
+      // display_name пуст → имя + фамилия.
+      expect(row.getCell(11).value).toBe('Алишер Усманов');
+      expect(row.getCell(12).value).toBe('+998901234567');
+    });
+
+    it('does not select media or sign cover URLs', async () => {
+      prisma.listing.findMany.mockResolvedValue([dbExportItem]);
+
+      await service.exportListings({});
+
+      expect(prisma.listing.findMany.mock.calls[0][0].select.media).toBeUndefined();
+      expect(uploads.resolveMediaUrl).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the verified contact phone and to the lot area', async () => {
+      const owner = { ...dbExportItem.owner, phone: null };
+      prisma.listing.findMany.mockResolvedValue([
+        { ...dbExportItem, owner, area: null, lotArea: new Prisma.Decimal('600.00') },
+        {
+          ...dbExportItem,
+          owner: { ...owner, profile: { ...owner.profile, contactPhoneVerified: false } },
+        },
+      ]);
+
+      const sheet = await sheetOf(await service.exportListings({}));
+
+      expect(sheet.getRow(2).getCell(9).value).toBe(600);
+      expect(sheet.getRow(2).getCell(12).value).toBe('+998907654321');
+      // Неподтверждённый контактный телефон в файл не попадает (ADR-0151).
+      expect(sheet.getRow(3).getCell(12).value).toBeNull();
+    });
+
+    it('leaves the author empty when the owner has no profile', async () => {
+      prisma.listing.findMany.mockResolvedValue([
+        { ...dbExportItem, owner: { ...dbExportItem.owner, profile: null } },
+      ]);
+
+      const sheet = await sheetOf(await service.exportListings({}));
+
+      expect(sheet.getRow(2).getCell(11).value).toBeNull();
     });
   });
 

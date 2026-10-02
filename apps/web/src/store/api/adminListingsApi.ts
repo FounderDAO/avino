@@ -26,6 +26,8 @@ import type {
  *
  * - `GET /admin/listings?status&property_type&transaction_type&q&page&limit`
  *   → page-based `Paginated<AdminListingRow>` (ADMIN-08).
+ * - `GET /admin/listings/export?status&property_type&transaction_type&q`
+ *   → файл `.xlsx` (object URL).
  * - `GET /listings/:id` → `ListingDetail`. Карточка для модерации: бэкенд отдаёт
  *   непубличные статусы MODERATOR/ADMIN через тот же публичный роут
  *   (`OptionalJwtAuthGuard`); Bearer ставит `baseQuery`. `DELETED` → `404`.
@@ -43,6 +45,24 @@ export const adminListingsApi = adminApi.injectEndpoints({
         params: toQueryParams({ ...filters }),
       }),
       providesTags: ['Admin'],
+    }),
+
+    /**
+     * `GET /admin/listings/export` → `.xlsx` по тем же фильтрам, что и список
+     * (без пагинации, ADMIN). Ответ превращается в object URL прямо в
+     * `responseHandler`: Blob в redux-store класть нельзя, строку — можно.
+     */
+    exportAdminListings: build.mutation<
+      string,
+      Omit<AdminListingFilters, 'page' | 'limit'>
+    >({
+      query: (filters) => ({
+        url: '/admin/listings/export',
+        params: toQueryParams({ ...filters }),
+        // Не-2xx: возвращённый JSON попадёт в `error.data` (validateStatus уже false).
+        responseHandler: async (response) =>
+          response.ok ? URL.createObjectURL(await response.blob()) : response.json(),
+      }),
     }),
 
     getAdminListing: build.query<ListingDetail, string>({
@@ -150,6 +170,7 @@ export const adminListingsApi = adminApi.injectEndpoints({
 
 export const {
   useListAdminListingsQuery,
+  useExportAdminListingsMutation,
   useGetAdminListingQuery,
   useGetAdminListingOwnerQuery,
   useGetListingDuplicatesQuery,

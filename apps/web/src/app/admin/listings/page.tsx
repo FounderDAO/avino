@@ -4,6 +4,7 @@
  * /admin/listings/{id}. Вёрстка 1:1 с прототипом; данные — GET /admin/listings.
  * Массовые действия («Одобрить» / «В архив») — PATCH /admin/listings/:id/status
  * по каждой выбранной строке, итог — счётчики применённых и пропущенных.
+ * «Экспорт» — GET /admin/listings/export: .xlsx по текущим фильтрам, все страницы.
  */
 'use client';
 
@@ -14,10 +15,11 @@ import { StatusPill } from '@/components/admin/ui/pill';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
 import { ListingImportModal } from '@/components/admin/ListingImportModal';
-import { useListAdminListingsQuery, useModerateListingMutation } from '@/store/api/adminListingsApi';
+import { useExportAdminListingsMutation, useListAdminListingsQuery, useModerateListingMutation } from '@/store/api/adminListingsApi';
 import { totalPages, type TransactionType } from '@/store/api/adminApi';
 import { rowToAdminListing, UI_FILTER_TO_API_STATUS } from '@/lib/adapters/listings';
 import { bulkModerationToast, runBulkModeration, type BulkModerationAction } from '@/lib/adapters/bulkModeration';
+import { listingExportFileName, listingExportToast } from '@/lib/adapters/listingExport';
 
 const LIMIT = 20;
 
@@ -68,6 +70,7 @@ export default function ListingsPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [moderate] = useModerateListingMutation();
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [exportListings, { isLoading: exporting }] = useExportAdminListingsMutation();
 
   // Дебаунс поиска (400мс), чтобы не дёргать API на каждый символ.
   useEffect(() => {
@@ -85,11 +88,16 @@ export default function ListingsPage() {
   const trimmedQ = debouncedQ.trim();
   const refQuery = /^\d+$/.test(trimmedQ) ? Number(trimmedQ) : undefined;
 
-  const { data, isLoading, isFetching, isError, refetch } = useListAdminListingsQuery({
+  // Общие фильтры таблицы и выгрузки: в файл попадает то же, что в списке.
+  const listFilters = {
     status: UI_FILTER_TO_API_STATUS[filter],
     transaction_type: tx,
     reference: refQuery,
     q: refQuery === undefined ? trimmedQ || undefined : undefined,
+  };
+
+  const { data, isLoading, isFetching, isError, refetch } = useListAdminListingsQuery({
+    ...listFilters,
     page,
     limit: LIMIT,
   });
@@ -128,14 +136,33 @@ export default function ListingsPage() {
     }
   };
 
+  // Пустой или ещё не загруженный список выгружать незачем.
+  const exportDisabled = exporting || isLoading || isError || total === 0;
+
+  const onExport = async () => {
+    try {
+      const url = await exportListings(listFilters).unwrap();
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = listingExportFileName(new Date());
+      link.click();
+      // Сразу отзывать нельзя: часть браузеров обрывает скачивание.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast(listingExportToast(total));
+    } catch {
+      toast('Не удалось выгрузить объявления');
+    }
+  };
+
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
         <SectionTitle sub={`${total} объявлений всего`}>Объявления</SectionTitle>
         <div className="row gap-8">
           <button className="abtn abtn-outline" onClick={() => setImportOpen(true)}>Импорт</button>
-          <button className="abtn abtn-outline" onClick={() => toast('Экспорт в CSV')}>Экспорт</button>
-          <button className="abtn abtn-primary" onClick={() => toast('Форма создания объявления')}><IC.Plus size={17} /> Добавить</button>
+          <button className="abtn abtn-outline" style={exportDisabled ? { opacity: 0.5 } : undefined} disabled={exportDisabled} onClick={() => void onExport()}>
+            {exporting ? 'Экспорт…' : 'Экспорт'}
+          </button>
         </div>
       </div>
       <div className="row gap-8" style={{ marginBottom: 14, flexWrap: 'wrap' }}>
