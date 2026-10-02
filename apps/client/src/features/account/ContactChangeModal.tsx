@@ -144,7 +144,7 @@ export function ContactChangeModal({ channel, open, onClose, onSuccess }: Contac
               <div>
                 <label className="mb-[7px] block text-[13px] font-bold">{t('newValue')}</label>
                 {channel === 'SMS' ? (
-                  <PhoneField value={value} onChange={setValue} placeholder="+998 90 123 45 67" />
+                  <PhoneField value={value} onChange={setValue} placeholder="90 123 45 67" />
                 ) : (
                   <Field
                     type="email"

@@ -491,7 +491,9 @@ export function ListingEdit({
           </FormField>
         </Section>
 
-        {/* Адрес и точка на карте (Yandex suggest + карта) */}
+        {/* Адрес и точка на карте (Yandex suggest + карта). Автоадрес
+          «Регион, Район» и «карта → регион/район» из визарда сюда намеренно
+          НЕ подключены: сохранённые значения ничего не должно перезаписывать. */}
         <Section title={tNew('steps.address')}>
           <RegionDistrictSelect
             regions={regions}
@@ -502,6 +504,7 @@ export function ListingEdit({
               set('regionId', regionId ?? '');
               set('districtId', districtId ?? '');
             }}
+            required
           />
           <AddressStep
             address={f.address}
@@ -511,6 +514,7 @@ export function ListingEdit({
             regionName={regions.find((r) => r.id === f.regionId)?.name}
             districtName={districts.find((d) => d.id === f.districtId)?.name}
             locale={locale}
+            required
           />
         </Section>
 

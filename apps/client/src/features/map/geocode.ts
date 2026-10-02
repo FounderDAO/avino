@@ -12,6 +12,7 @@
  */
 import { loadYmaps } from '@/features/map/useYmaps';
 import type { LatLng } from '@/lib/geo';
+import type { AddressComponent } from './geoMatch';
 
 export interface GeocodePoint {
   /** Координаты [lat, lng] (Yandex latlong-порядок). */
@@ -36,15 +37,60 @@ export async function geocodeToPoint(value: string, locale?: string): Promise<Ge
   }
 }
 
-/** Обратное геокодирование: координаты → строка адреса (или null). */
-export async function reverseGeocode(coords: LatLng, locale?: string): Promise<string | null> {
+/** Результат обратного геокода: строка адреса + компоненты (регион/район/…). */
+export interface ReverseGeocodeResult {
+  address: string;
+  /** `GeocoderMetaData.Address.Components` — для сопоставления со справочником. */
+  components: AddressComponent[];
+}
+
+/** Достаёт компоненты адреса из гео-объекта Yandex; любая осечка → []. */
+function readComponents(obj: any): AddressComponent[] {
+  try {
+    const raw = obj?.properties?.get?.(
+      'metaDataProperty.GeocoderMetaData.Address.Components',
+    );
+    if (Array.isArray(raw)) {
+      const list = raw
+        .filter((c) => c && typeof c.kind === 'string' && typeof c.name === 'string')
+        .map((c) => ({ kind: c.kind as string, name: c.name as string }));
+      if (list.length) return list;
+    }
+    // Фолбэк на методы GeocodeResult (если метаданные недоступны).
+    const areas = (obj?.getAdministrativeAreas?.() ?? []) as string[];
+    const localities = (obj?.getLocalities?.() ?? []) as string[];
+    return [
+      ...areas.map((name) => ({ kind: 'province', name })),
+      ...localities.map((name) => ({ kind: 'locality', name })),
+    ];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Обратное геокодирование с компонентами адреса: координаты → строка адреса +
+ * `{kind, name}[]` (province / area / locality / district …). Нужна визарду,
+ * чтобы по точке на карте выставить ещё и регион/район (см. geoMatch.ts).
+ */
+export async function reverseGeocodeDetailed(
+  coords: LatLng,
+  locale?: string,
+): Promise<ReverseGeocodeResult | null> {
   try {
     const ymaps = await loadYmaps(locale);
     const res = await ymaps.geocode(coords, { results: 1 });
     const obj = res.geoObjects.get(0);
     const line = obj?.getAddressLine?.() as string | undefined;
-    return line || null;
+    if (!line) return null;
+    return { address: line, components: readComponents(obj) };
   } catch {
     return null;
   }
+}
+
+/** Обратное геокодирование: координаты → строка адреса (или null). */
+export async function reverseGeocode(coords: LatLng, locale?: string): Promise<string | null> {
+  const res = await reverseGeocodeDetailed(coords, locale);
+  return res?.address ?? null;
 }

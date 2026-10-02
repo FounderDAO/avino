@@ -32,6 +32,12 @@ export interface SearchAutocompleteProps {
   className?: string;
   /** Класс инпута (по умолчанию — компактный pill; Hero передаёт крупный размер). */
   inputClassName?: string;
+  /** Поле обязательно (aria-required) — визард «Разместить объявление». */
+  required?: boolean;
+  /** Поле не прошло валидацию: красная рамка + aria-invalid. */
+  invalid?: boolean;
+  /** id элемента с текстом ошибки/подсказки (aria-describedby). */
+  describedBy?: string;
 }
 
 export function SearchAutocomplete({
@@ -47,6 +53,9 @@ export function SearchAutocomplete({
   labels,
   className = 'min-w-[230px] flex-shrink-0',
   inputClassName = 'rounded-pill py-[9px] pl-[38px] pr-4',
+  required,
+  invalid,
+  describedBy,
 }: SearchAutocompleteProps) {
   const [focused, setFocused] = React.useState(false);
   const [active, setActive] = React.useState(-1);
@@ -140,8 +149,11 @@ export function SearchAutocomplete({
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className={inputClassName}
+        className={cn(inputClassName, invalid && 'border-red focus:border-red')}
         aria-label={ariaLabel}
+        aria-required={required || undefined}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
       />
 
       {open && mounted && coords &&

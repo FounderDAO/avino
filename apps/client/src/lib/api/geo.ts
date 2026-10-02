@@ -101,10 +101,16 @@ function pickRegionName(r: ApiRegion, lang: string): string {
 
 /**
  * snake_case регион API → UI-модель {@link Region}. Чистая функция (без сети) —
- * выделена для юнит-тестов выбора языка.
+ * выделена для юнит-тестов выбора языка/алиасов.
  */
 export function mapRegion(api: ApiRegion, lang = 'ru'): Region {
-  return { id: api.id, name: pickRegionName(api, lang), code: api.code };
+  const name = pickRegionName(api, lang);
+  // Имена на других языках — алиасы: Yandex-геокодер отвечает по-русски и на
+  // uz-интерфейсе, поэтому «карта → регион» матчится по ним (geoMatch.ts).
+  const aliases = [
+    ...new Set([api.name_uz, api.name_ru, api.name_en].filter((n) => n && n !== name)),
+  ];
+  return { id: api.id, name, code: api.code, aliases };
 }
 
 /**

@@ -65,4 +65,10 @@ describe('mapRegion', () => {
     expect(r.id).toBe('c11');
     expect(r.code).toBe('TASHKENT');
   });
+
+  it('остальные языки становятся aliases (матчинг «карта → регион»)', () => {
+    const r = mapRegion(SAMPLE_REGION, 'uz');
+    expect(r.aliases).toEqual(expect.arrayContaining(['Ташкент', 'Tashkent']));
+    expect(r.aliases).not.toContain('Toshkent');
+  });
 });

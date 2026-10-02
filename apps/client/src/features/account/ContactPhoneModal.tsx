@@ -121,7 +121,7 @@ export function ContactPhoneModal({ open, onClose, onSuccess }: ContactPhoneModa
             <div className="mt-4 flex flex-col gap-3">
               <div>
                 <label className="mb-[7px] block text-[13px] font-bold">{tc('newValue')}</label>
-                <PhoneField value={value} onChange={setValue} placeholder="+998 90 123 45 67" />
+                <PhoneField value={value} onChange={setValue} placeholder="90 123 45 67" />
               </div>
               {error && <p className="text-[13px] font-semibold text-red">{error}</p>}
               <Button type="button" className="self-start" onClick={() => void onSendCode()} disabled={pending}>

@@ -6,7 +6,9 @@
  * где `buildListingBody` тестируется изолированно). Моки нужны из-за того,
  * что импортирующий модуль ListingEdit.tsx тянет Next.js/RTK зависимости.
  */
-import { describe, it, expect, vi } from 'vitest';
+import * as React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Обязательные моки (то же, что в ListingNew.test.tsx) ──────────────────────
 
@@ -19,20 +21,49 @@ vi.mock('@/i18n/navigation', () => ({
   Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock('@/store/hooks', () => ({ useAppSelector: () => true }));
+vi.mock('@/store/api/amenitiesApi', () => ({
+  useListAmenitiesQuery: () => ({ data: [], isLoading: false }),
+}));
+/** Деталь объявления, отдаваемая мок-запросом (тесты рендера ставят свою). */
+let mockDetail: unknown = undefined;
+beforeEach(() => {
+  mockDetail = undefined;
+});
 vi.mock('@/store/api/listingEditApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/store/api/listingEditApi')>();
   return {
     ...actual,
-    useGetListingForEditQuery: () => ({ data: undefined, isLoading: false, isError: false }),
+    useGetListingForEditQuery: () => ({ data: mockDetail, isLoading: false, isError: false }),
     useUpdateListingMutation: () => [vi.fn(), {}],
     useAddListingMediaMutation: () => [vi.fn(), {}],
     useDeleteListingMediaMutation: () => [vi.fn(), {}],
     useReorderListingMediaMutation: () => [vi.fn(), {}],
   };
 });
+/**
+ * AddressStep — мок: рендерит полученные пропсы (адрес, обязательность, наличие
+ * проводки «карта → регион/район»), чтобы проверить, что редактирование ничего
+ * не перезаписывает автоматически.
+ */
 vi.mock('@/features/listing-new/AddressStep', () => ({
-  AddressStep: () => null,
+  AddressStep: (props: {
+    address: string;
+    required?: boolean;
+    onLocationFromMap?: unknown;
+    onAddressChange: (v: string) => void;
+  }) => {
+    addressChangeSpy = props.onAddressChange;
+    return (
+      <div>
+        <span data-testid="address-value">{props.address}</span>
+        <span data-testid="address-required">{String(Boolean(props.required))}</span>
+        <span data-testid="address-map-wired">{String(Boolean(props.onLocationFromMap))}</span>
+      </div>
+    );
+  },
 }));
+/** Последний onAddressChange, переданный в AddressStep. */
+let addressChangeSpy: ((v: string) => void) | null = null;
 vi.mock('@/features/listing-new/PhotoUploader', () => ({
   PhotoUploader: () => null,
 }));
@@ -41,11 +72,45 @@ vi.mock('@/features/listing-shared/ToursSection', () => ({
   ToursSection: () => null,
 }));
 vi.mock('@/features/listing-new/RegionDistrictSelect', () => ({
-  RegionDistrictSelect: () => null,
+  RegionDistrictSelect: ({
+    onChange,
+    regionId,
+    districtId,
+    required,
+  }: {
+    onChange: (v: { regionId?: string; districtId?: string }) => void;
+    regionId?: string;
+    districtId?: string;
+    required?: boolean;
+  }) => (
+    <div>
+      <span data-testid="select-value">{`${regionId ?? ''}|${districtId ?? ''}`}</span>
+      <span data-testid="select-required">{String(Boolean(required))}</span>
+      <button
+        type="button"
+        data-testid="pick-district-2"
+        onClick={() => onChange({ regionId: 'region-1', districtId: 'district-2' })}
+      >
+        pick
+      </button>
+      <button
+        type="button"
+        data-testid="clear-region"
+        onClick={() => onChange({ regionId: undefined, districtId: undefined })}
+      >
+        clear
+      </button>
+    </div>
+  ),
 }));
 
 // Импорт ПОСЛЕ моков
-import { detailToForm, buildEditPatch, missingRequiredFields } from './ListingEdit';
+import {
+  ListingEdit,
+  detailToForm,
+  buildEditPatch,
+  missingRequiredFields,
+} from './ListingEdit';
 import type { EditListingDetail } from '@/store/api/listingEditApi';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -255,5 +320,58 @@ describe('missingRequiredFields', () => {
   it('не требует год постройки для участка (LAND)', () => {
     const missing = missingRequiredFields({ ...FULL_FORM, type: 'LAND', rooms: '', year: '' }, 1);
     expect(missing).not.toContain('year');
+  });
+});
+
+// ── Рендер: блок «Адрес» на странице редактирования ──────────────────────────
+describe('ListingEdit — регион/район/адрес', () => {
+  const GEO = {
+    regions: [{ id: 'region-1', name: 'город Ташкент', code: 'toshkent-shahri' }],
+    districts: [
+      { id: 'district-1', name: 'Юнусабад', regionId: 'region-1' },
+      { id: 'district-2', name: 'Чиланзар', regionId: 'region-1' },
+    ],
+  };
+
+  const renderEdit = (overrides: Partial<EditListingDetail> = {}) => {
+    mockDetail = makeDetail({
+      city_id: 'region-1',
+      district_id: 'district-1',
+      address: 'ул. Сохранённая, 5',
+      ...overrides,
+    });
+    render(<ListingEdit id="listing-1" {...GEO} />);
+  };
+
+  it('открытие с сохранённым адресом ничего не перезаписывает', () => {
+    renderEdit();
+    expect(screen.getByTestId('address-value')).toHaveTextContent('ул. Сохранённая, 5');
+    expect(screen.getByTestId('select-value')).toHaveTextContent('region-1|district-1');
+  });
+
+  it('поля помечены обязательными; автоподстановки от карты на edit нет', () => {
+    renderEdit();
+    expect(screen.getByTestId('select-required')).toHaveTextContent('true');
+    expect(screen.getByTestId('address-required')).toHaveTextContent('true');
+    expect(screen.getByTestId('address-map-wired')).toHaveTextContent('false');
+  });
+
+  it('смена района и сброс региона не трогают сохранённый адрес', () => {
+    renderEdit();
+
+    fireEvent.click(screen.getByTestId('pick-district-2'));
+    expect(screen.getByTestId('select-value')).toHaveTextContent('region-1|district-2');
+    expect(screen.getByTestId('address-value')).toHaveTextContent('ул. Сохранённая, 5');
+
+    fireEvent.click(screen.getByTestId('clear-region'));
+    expect(screen.getByTestId('select-value')).toHaveTextContent('|');
+    expect(screen.getByTestId('address-value')).toHaveTextContent('ул. Сохранённая, 5');
+  });
+
+  it('адрес по-прежнему редактируется вручную', () => {
+    renderEdit();
+    expect(addressChangeSpy).not.toBeNull();
+    React.act(() => addressChangeSpy!('ул. Новая, 7'));
+    expect(screen.getByTestId('address-value')).toHaveTextContent('ул. Новая, 7');
   });
 });

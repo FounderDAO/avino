@@ -112,7 +112,7 @@ describe('LoginModal — выбор канала входа', () => {
     render(<LoginModal open onOpenChange={vi.fn()} />);
 
     await user.type(
-      screen.getByPlaceholderText('+998 90 123 45 67'),
+      screen.getByPlaceholderText('90 123 45 67'),
       '901234567',
     );
     await user.click(screen.getByRole('button', { name: 'Получить код' }));
@@ -129,13 +129,13 @@ describe('LoginModal — выбор канала входа', () => {
     const user = userEvent.setup();
     render(<LoginModal open onOpenChange={vi.fn()} />);
 
-    const input = screen.getByPlaceholderText('+998 90 123 45 67');
+    const input = screen.getByPlaceholderText('90 123 45 67');
     await user.type(input, '90123');
-    expect(input).toHaveValue('+998 90 123');
+    expect(input).toHaveValue('90 123');
     expect(screen.getByRole('button', { name: 'Получить код' })).toBeDisabled();
 
     await user.type(input, '4567');
-    expect(input).toHaveValue('+998 90 123 45 67');
+    expect(input).toHaveValue('90 123 45 67');
     expect(screen.getByRole('button', { name: 'Получить код' })).toBeEnabled();
   });
 

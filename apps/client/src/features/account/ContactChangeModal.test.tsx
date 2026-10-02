@@ -45,7 +45,7 @@ describe('ContactChangeModal', () => {
 
     expect(screen.getByText(ru.account.contactChange.titlePhone)).toBeInTheDocument();
 
-    const input = screen.getByPlaceholderText('+998 90 123 45 67');
+    const input = screen.getByPlaceholderText('90 123 45 67');
     fireEvent.change(input, { target: { value: '901234567' } });
 
     await act(async () => {
@@ -75,7 +75,7 @@ describe('ContactChangeModal', () => {
       Promise.reject({ data: { error: { code: 'CONTACT_TAKEN', message: 'taken' } } });
     render(<ContactChangeModal channel="SMS" open onClose={vi.fn()} onSuccess={vi.fn()} />);
 
-    const input = screen.getByPlaceholderText('+998 90 123 45 67');
+    const input = screen.getByPlaceholderText('90 123 45 67');
     fireEvent.change(input, { target: { value: '901234567' } });
     await act(async () => {
       fireEvent.click(screen.getByText(ru.account.contactChange.sendCode));
@@ -90,7 +90,7 @@ describe('ContactChangeModal', () => {
   it('шаг 2: OTP_INVALID/OTP_EXPIRED/OTP_ATTEMPTS_EXCEEDED — инлайн-ошибка', async () => {
     render(<ContactChangeModal channel="SMS" open onClose={vi.fn()} onSuccess={vi.fn()} />);
 
-    const input = screen.getByPlaceholderText('+998 90 123 45 67');
+    const input = screen.getByPlaceholderText('90 123 45 67');
     fireEvent.change(input, { target: { value: '901234567' } });
     await act(async () => {
       fireEvent.click(screen.getByText(ru.account.contactChange.sendCode));
@@ -155,7 +155,7 @@ describe('ContactChangeModal', () => {
   it('channel=EMAIL: заголовок и обычное текстовое поле (не PhoneField)', () => {
     render(<ContactChangeModal channel="EMAIL" open onClose={vi.fn()} onSuccess={vi.fn()} />);
     expect(screen.getByText(ru.account.contactChange.titleEmail)).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText('+998 90 123 45 67')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('90 123 45 67')).not.toBeInTheDocument();
   });
 
   it('open=false — ничего не рендерит', () => {
