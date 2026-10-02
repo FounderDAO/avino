@@ -2927,7 +2927,7 @@ PR-2 нельзя мёржить раньше, чем PR-1 задеплоен
 Status:
 
 ```text
-IN_PROGRESS
+REVIEW
 ```
 
 Branch:
