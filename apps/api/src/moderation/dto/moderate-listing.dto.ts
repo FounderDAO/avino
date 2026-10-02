@@ -7,12 +7,14 @@ const MODERATOR_ACTIONS = [
   ModerationAction.SEND_TO_DRAFT,
   ModerationAction.REJECT,
   ModerationAction.DELETE,
+  ModerationAction.ARCHIVE,
 ] as const;
 
 /**
  * Тело `PATCH /api/v1/admin/listings/:id/status` (TASK-053, API.md §16).
  *
- * `action` — решение модератора (`APPROVE | SEND_TO_DRAFT | REJECT | DELETE`);
+ * `action` — решение модератора (`APPROVE | SEND_TO_DRAFT | REJECT | DELETE |
+ * ARCHIVE`);
  * маппинг на listing_status делает сервис. Системное `OWNER_EDIT` через этот
  * эндпоинт недопустимо (оно пишется автоматически при правке владельцем).
  * `reason` — опциональная причина (например для REJECT: «недостаточно фото»),

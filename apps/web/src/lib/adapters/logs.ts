@@ -72,6 +72,7 @@ export const MODERATION_ACTION_LABEL: Record<ModerationAction, string> = {
   SEND_TO_DRAFT: 'В черновик',
   REJECT: 'Отклонить',
   DELETE: 'Удалить',
+  ARCHIVE: 'В архив',
   OWNER_EDIT: 'Правка владельца',
 };
 

@@ -2,6 +2,8 @@
  * Объявления — таблица всех объявлений на реальном API (RTK Query).
  * Фильтр по статусу, поиск (q, debounce), серверная пагинация. Клик по строке →
  * /admin/listings/{id}. Вёрстка 1:1 с прототипом; данные — GET /admin/listings.
+ * Массовые действия («Одобрить» / «В архив») — PATCH /admin/listings/:id/status
+ * по каждой выбранной строке, итог — счётчики применённых и пропущенных.
  */
 'use client';
 
@@ -12,9 +14,10 @@ import { StatusPill } from '@/components/admin/ui/pill';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
 import { ListingImportModal } from '@/components/admin/ListingImportModal';
-import { useListAdminListingsQuery } from '@/store/api/adminListingsApi';
+import { useListAdminListingsQuery, useModerateListingMutation } from '@/store/api/adminListingsApi';
 import { totalPages, type TransactionType } from '@/store/api/adminApi';
 import { rowToAdminListing, UI_FILTER_TO_API_STATUS } from '@/lib/adapters/listings';
+import { bulkModerationToast, runBulkModeration, type BulkModerationAction } from '@/lib/adapters/bulkModeration';
 
 const LIMIT = 20;
 
@@ -62,6 +65,8 @@ export default function ListingsPage() {
   const [page, setPage] = useState<number>(1);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
+  const [moderate] = useModerateListingMutation();
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   // Дебаунс поиска (400мс), чтобы не дёргать API на каждый символ.
   useEffect(() => {
@@ -102,6 +107,24 @@ export default function ListingsPage() {
       return n;
     });
 
+  const bulk = async (action: BulkModerationAction) => {
+    const ids = [...sel];
+    if (
+      action === 'ARCHIVE' &&
+      !window.confirm(`Перенести в архив выбранные объявления (${ids.length})? Они будут сняты с публикации, владельцы получат уведомление.`)
+    ) {
+      return;
+    }
+    setBulkBusy(true);
+    try {
+      const result = await runBulkModeration(ids, (id) => moderate({ id, body: { action } }).unwrap());
+      toast(bulkModerationToast(action, result));
+      setSel(new Set());
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
@@ -128,9 +151,9 @@ export default function ListingsPage() {
       {sel.size > 0 && (
         <div className="row gap-12" style={{ background: 'var(--ink)', color: '#fff', borderRadius: 10, padding: '10px 16px', marginBottom: 12 }}>
           <span style={{ fontWeight: 700, fontSize: 14 }}>Выбрано: {sel.size}</span>
-          <button className="abtn abtn-sm" style={{ background: 'rgba(255,255,255,.15)', color: '#fff' }} onClick={() => toast('Массово одобрено')}>Одобрить</button>
-          <button className="abtn abtn-sm" style={{ background: 'rgba(255,255,255,.15)', color: '#fff' }} onClick={() => toast('Перемещено в архив')}>В архив</button>
-          <button className="abtn abtn-ghost abtn-sm" style={{ color: 'rgba(255,255,255,.7)', marginLeft: 'auto' }} onClick={() => setSel(new Set())}>Снять выбор</button>
+          <button className="abtn abtn-sm" style={{ background: 'rgba(255,255,255,.15)', color: '#fff' }} disabled={bulkBusy} onClick={() => bulk('APPROVE')}>Одобрить</button>
+          <button className="abtn abtn-sm" style={{ background: 'rgba(255,255,255,.15)', color: '#fff' }} disabled={bulkBusy} onClick={() => bulk('ARCHIVE')}>В архив</button>
+          <button className="abtn abtn-ghost abtn-sm" style={{ color: 'rgba(255,255,255,.7)', marginLeft: 'auto' }} disabled={bulkBusy} onClick={() => setSel(new Set())}>Снять выбор</button>
         </div>
       )}
       {isError ? (

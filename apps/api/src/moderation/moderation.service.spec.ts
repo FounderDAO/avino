@@ -406,6 +406,89 @@ describe('ModerationService', () => {
       expect(result.published_at).toBeNull();
     });
 
+    it('ARCHIVE moves an ACTIVE listing to ARCHIVED, keeps published_at and logs it', async () => {
+      const firstPublished = new Date('2026-05-01T00:00:00.000Z');
+      prisma.listing.findUnique.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        status: ListingStatus.ACTIVE,
+        publishedAt: firstPublished,
+      });
+      prisma.listing.update.mockResolvedValue({
+        id: LISTING_ID,
+        status: ListingStatus.ARCHIVED,
+        publishedAt: firstPublished,
+      });
+
+      const result = await service.changeStatus(MODERATOR_ID, LISTING_ID, {
+        action: ModerationAction.ARCHIVE,
+      });
+
+      // Из ACTIVE: контент уже прошёл модерацию → владелец может вернуть сразу
+      // в ACTIVE (edited_since_hidden = false, как при владельческом HIDE).
+      expect(prisma.listing.update).toHaveBeenCalledWith({
+        where: { id: LISTING_ID },
+        data: {
+          status: ListingStatus.ARCHIVED,
+          publishedAt: firstPublished,
+          editedSinceHidden: false,
+        },
+        select: { id: true, status: true, publishedAt: true },
+      });
+      expect(prisma.moderationLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: ModerationAction.ARCHIVE,
+          oldStatus: ListingStatus.ACTIVE,
+          newStatus: ListingStatus.ARCHIVED,
+        }),
+      });
+      expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
+      expect(prisma.notification.create).toHaveBeenCalledTimes(1);
+      // Гейт переводов — только для APPROVE.
+      expect(prisma.listingTranslation.findMany).not.toHaveBeenCalled();
+      expect(result.status).toBe(ListingStatus.ARCHIVED);
+    });
+
+    it('ARCHIVE from a not-yet-approved status forces re-moderation on return', async () => {
+      // Листинг уже публиковался, но после правки владельца висит в NEW:
+      // возврат из архива не должен обойти очередь модерации.
+      const firstPublished = new Date('2026-05-01T00:00:00.000Z');
+      prisma.listing.findUnique.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        status: ListingStatus.NEW,
+        publishedAt: firstPublished,
+      });
+      prisma.listing.update.mockResolvedValue({
+        id: LISTING_ID,
+        status: ListingStatus.ARCHIVED,
+        publishedAt: firstPublished,
+      });
+
+      await service.changeStatus(MODERATOR_ID, LISTING_ID, {
+        action: ModerationAction.ARCHIVE,
+      });
+
+      const updateArg = prisma.listing.update.mock.calls[0][0];
+      expect(updateArg.data.editedSinceHidden).toBe(true);
+    });
+
+    it('throws 422 when archiving an already ARCHIVED listing', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        status: ListingStatus.ARCHIVED,
+        publishedAt: new Date(),
+      });
+      await expectCode(
+        service.changeStatus(MODERATOR_ID, LISTING_ID, {
+          action: ModerationAction.ARCHIVE,
+        }),
+        ApiErrorCode.INVALID_STATUS_TRANSITION,
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
     it('rejects APPROVE when a language translation is missing (422)', async () => {
       prisma.listing.findUnique.mockResolvedValue({
         id: LISTING_ID, ownerId: OWNER_ID, status: 'NEW', publishedAt: null,

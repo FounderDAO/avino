@@ -166,6 +166,11 @@ describe('notification-templates', () => {
   });
 
   describe('moderationStatusBody', () => {
+    it('ARCHIVED — текст про перенос в архив, а не общий фолбэк', () => {
+      const body = moderationStatusBody('ARCHIVED', undefined, Language.RU);
+      expect(body).toContain('архив');
+    });
+
     it('returns ACTIVE body in RU', () => {
       const body = moderationStatusBody('ACTIVE', undefined, Language.RU);
       expect(body).toContain('одобрено');

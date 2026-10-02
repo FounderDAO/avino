@@ -49,8 +49,13 @@ function moderationBody(
       ? t(`${MOD}.body_REJECTED_reason`, { reason })
       : t(`${MOD}.body_REJECTED`);
   }
-  // ACTIVE / DRAFT / DELETED — собственные ключи; иначе общий фолбэк.
-  if (status === 'ACTIVE' || status === 'DRAFT' || status === 'DELETED') {
+  // ACTIVE / DRAFT / DELETED / ARCHIVED — собственные ключи; иначе общий фолбэк.
+  if (
+    status === 'ACTIVE' ||
+    status === 'DRAFT' ||
+    status === 'DELETED' ||
+    status === 'ARCHIVED'
+  ) {
     return t(`${MOD}.body_${status}`);
   }
   return t(`${MOD}.body`);

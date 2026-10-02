@@ -65,6 +65,15 @@ describe('notificationContent', () => {
     expect(body).toBe(`${P}.LISTING_MODERATION_STATUS_CHANGED.body_ACTIVE`);
   });
 
+  it('модерация: статус ARCHIVED (модератор перенёс в архив) → ключ body_ARCHIVED', () => {
+    const { body } = notificationContent(
+      'LISTING_MODERATION_STATUS_CHANGED',
+      { new_status: 'ARCHIVED', moderation_action: 'ARCHIVE' },
+      t,
+    );
+    expect(body).toBe(`${P}.LISTING_MODERATION_STATUS_CHANGED.body_ARCHIVED`);
+  });
+
   it('модерация: REJECTED c причиной → ключ body_REJECTED_reason + прокинут reason', () => {
     const { body } = notificationContent(
       'LISTING_MODERATION_STATUS_CHANGED',
