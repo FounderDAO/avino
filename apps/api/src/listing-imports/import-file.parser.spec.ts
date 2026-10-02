@@ -71,6 +71,22 @@ describe('parseImportFile', () => {
     expect(parsed.rows[0].values.phone).toBe('+998901234567');
   });
 
+  it('одинаковый ключ в двух заголовках: берётся первая колонка, вторая — в unknownColumns', async () => {
+    const headers = [...HEADERS, 'phone'];
+    const parsed = await parseImportFile(await xlsx([headers, [...ROW, 998907777777]]));
+    expect(parsed.rows[0].values.phone).toBe('998901234567');
+    expect(parsed.unknownColumns).toContain('phone');
+  });
+
+  it('csv не в UTF-8 (cp1251) → IMPORT_FILE_UNSUPPORTED', async () => {
+    const buffer = Buffer.concat([
+      Buffer.from([0xd2, 0xe5, 0xeb, 0xe5, 0xf4, 0xee, 0xed]),
+      Buffer.from(',x\n1,2\n'),
+    ]);
+    const file = { buffer, originalname: 'a.csv', size: buffer.length };
+    expect(await codeOf(parseImportFile(file))).toBe('IMPORT_FILE_UNSUPPORTED');
+  });
+
   it('читает csv с точкой с запятой', async () => {
     const text = `${HEADERS.join(';')}\n998901234567;Продажа;Квартира;Квартира;85000,50;USD;Ташкент, Навои 12;55\n`;
     const parsed = await parseImportFile(csv(text));

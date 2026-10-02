@@ -40,20 +40,6 @@ export interface ListingImportReport {
   rows: ImportRowReport[];
 }
 
-/** Повторы внутри файла: номер строки-повтора → номер первой строки с тем же ключом. */
-export function findInFileDuplicates(
-  rows: { rowNumber: number; key: string }[],
-): Map<number, number> {
-  const firstByKey = new Map<string, number>();
-  const duplicates = new Map<number, number>();
-  for (const { rowNumber, key } of rows) {
-    const first = firstByKey.get(key);
-    if (first === undefined) firstByKey.set(key, rowNumber);
-    else duplicates.set(rowNumber, first);
-  }
-  return duplicates;
-}
-
 export function summarize(rows: ImportRowReport[]): ImportSummary {
   const count = (outcome: ImportOutcome): number =>
     rows.filter((row) => row.outcome === outcome).length;

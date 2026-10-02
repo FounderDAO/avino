@@ -42,8 +42,9 @@ const PHONE_NEW = '+998905550001';
 const PHONE_EXISTING = '+998905550002';
 const PHONE_BLOCKED = '+998905550003';
 const PHONE_NO_NAME = '+998905550004';
+const PHONE_ANCHOR = '+998905550005';
 const PHONE_ADMIN = '+998905550009';
-const PHONES = [PHONE_NEW, PHONE_EXISTING, PHONE_BLOCKED, PHONE_NO_NAME, PHONE_ADMIN];
+const PHONES = [PHONE_NEW, PHONE_EXISTING, PHONE_BLOCKED, PHONE_NO_NAME, PHONE_ANCHOR, PHONE_ADMIN];
 
 // Адрес намеренно такой, который normalizeAddress меняет («улица» → «ул.», срез страны).
 const ADDRESS = 'Узбекистан, Ташкент, улица Импортная, 7';
@@ -301,6 +302,28 @@ describe('ListingImportService (integration)', () => {
     expect(await prisma.user.count({ where: { phone: PHONE_NEW } })).toBe(1);
   });
 
+  it('повтор в файле не ссылается на строку, закончившуюся ошибкой', async () => {
+    // Ключ повтора не включает имя: первая строка (новый владелец без имени) — ERROR,
+    // вторая с именем создаётся, третья — повтор второй.
+    const address = { Адрес: 'Ташкент, Якорная, 1' };
+    const report = await service.run(
+      await file([
+        row(PHONE_ANCHOR, { ...address, Имя: '', Фамилия: '' }),
+        row(PHONE_ANCHOR, address),
+        row(PHONE_ANCHOR, address),
+      ]),
+      adminId,
+      false,
+    );
+    expect(report.rows.map((r) => r.outcome)).toEqual([
+      'ERROR',
+      'CREATED',
+      'SKIPPED_DUPLICATE_IN_FILE',
+    ]);
+    expect(report.rows[0].errors).toMatchObject([{ code: 'OWNER_NAME_REQUIRED' }]);
+    expect(report.rows[2].duplicate_of_row).toBe(report.rows[1].row);
+  });
+
   it('getReport возвращает сохранённый отчёт', async () => {
     const run = await service.run(
       await file([row(PHONE_EXISTING, { Адрес: 'Ташкент, Отчётная, 1' })]),
@@ -332,6 +355,9 @@ describe('ListingImportService (integration)', () => {
       throw new Error('expected rejection');
     } catch (error) {
       expect((error as HttpException).getStatus()).toBe(409);
+      expect(((error as HttpException).getResponse() as { code: string }).code).toBe(
+        'IMPORT_IN_PROGRESS',
+      );
     } finally {
       lock.held = false;
     }

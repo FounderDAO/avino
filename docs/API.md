@@ -1356,7 +1356,7 @@ Errors: `400 VALIDATION_ERROR` (self-block), `404 NOT_FOUND` (нет польз�
 | `TO_CREATE` | только `dry_run` | `owner_is_new` |
 | `CREATED` | только реальный запуск | `listing_id`, `listing_reference`, `owner_is_new` |
 | `SKIPPED_EXISTS` | совпал ключ «уже существует» (владелец + тип сделки + тип недвижимости + нормализованный адрес + площадь + площадь участка + этаж; статус не `DELETED`) | `listing_id`, `listing_reference` найденного |
-| `SKIPPED_DUPLICATE_IN_FILE` | повтор в файле | `duplicate_of_row` |
+| `SKIPPED_DUPLICATE_IN_FILE` | повтор в файле: тот же ключ, что у более ранней строки, не отклонённой с ошибкой (она — «якорь»; строка с `ERROR` повторов не порождает) | `duplicate_of_row` — номер якоря |
 | `ERROR` | строка не прошла проверку | `errors[]` |
 
 Элемент `errors[]`: `{ column, code, message }`. `column` — ключ колонки (или
@@ -1402,7 +1402,7 @@ Errors: `400 VALIDATION_ERROR` (self-block), `404 NOT_FOUND` (нет польз�
 | 413 | `IMPORT_FILE_TOO_LARGE` | > 2 МБ |
 | 422 | `IMPORT_FILE_EMPTY` | нет строк данных |
 | 422 | `IMPORT_TOO_MANY_ROWS` | > 500 строк |
-| 422 | `IMPORT_MISSING_COLUMNS` | нет обязательной колонки; `details.columns` |
+| 422 | `IMPORT_MISSING_COLUMNS` | нет обязательной колонки; `details[].field` — ключ колонки |
 | 409 | `IMPORT_IN_PROGRESS` | другой импорт уже выполняется |
 
 `GET :id` с неизвестным id → `404 NOT_FOUND`.
@@ -1516,6 +1516,13 @@ listings_sold, listings_rented, agent_applications_new, support_requests_new }`:
 | `LEGAL_DRAFT_EXISTS` | 422 | Черновик этого типа документа уже существует; удалите его или опубликуйте перед созданием нового |
 | `LEGAL_NOT_DRAFT` | 422 | Документ не в статусе DRAFT (операция доступна только для черновиков) |
 | `LEGAL_TRANSLATIONS_INCOMPLETE` | 422 | Не все 6 полей (title_ru/uz/en, body_md_ru/uz/en) заполнены для публикации |
+| `IMPORT_FILE_REQUIRED` | 400 | Импорт объявлений: файл не передан |
+| `IMPORT_FILE_UNSUPPORTED` | 400 | Импорт объявлений: не `.xlsx`/`.csv`, файл не читается или CSV не в UTF-8 |
+| `IMPORT_FILE_TOO_LARGE` | 413 | Импорт объявлений: файл больше 2 МБ |
+| `IMPORT_FILE_EMPTY` | 422 | Импорт объявлений: нет строк данных |
+| `IMPORT_TOO_MANY_ROWS` | 422 | Импорт объявлений: больше 500 строк |
+| `IMPORT_MISSING_COLUMNS` | 422 | Импорт объявлений: нет обязательной колонки (`details[].field`) |
+| `IMPORT_IN_PROGRESS` | 409 | Импорт объявлений: другой импорт уже выполняется |
 | `INTERNAL_ERROR` | 500 | Внутренняя ошибка |
 
 Примеры тел:

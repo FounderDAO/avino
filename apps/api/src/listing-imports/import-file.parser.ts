@@ -65,6 +65,8 @@ async function loadWorksheet(file: ImportUploadedFile): Promise<Worksheet> {
     } else if (name.endsWith('.csv')) {
       // exceljs не определяет разделитель и не срезает BOM — делаем это сами.
       const text = file.buffer.toString('utf8').replace(/^\uFEFF/, '');
+      // Excel на Windows сохраняет «CSV» в cp1251: кириллица декодируется в U+FFFD.
+      if (text.includes('\uFFFD')) throw new Error('csv is not utf-8');
       const firstLine = text.split(/\r?\n/, 1)[0] ?? '';
       const delimiter =
         (firstLine.match(/;/g) ?? []).length > (firstLine.match(/,/g) ?? []).length ? ';' : ',';
@@ -76,11 +78,13 @@ async function loadWorksheet(file: ImportUploadedFile): Promise<Worksheet> {
     } else {
       throw new Error('unsupported extension');
     }
-  } catch {
+  } catch (error) {
     throw fileError(
       HttpStatus.BAD_REQUEST,
       ApiErrorCode.IMPORT_FILE_UNSUPPORTED,
-      'File must be a readable .xlsx or .csv',
+      (error as Error).message === 'csv is not utf-8'
+        ? 'CSV must be UTF-8 encoded'
+        : 'File must be a readable .xlsx or .csv',
     );
   }
   const sheet = workbook.worksheets[0];
@@ -119,7 +123,8 @@ export async function parseImportFile(
     const header = cellToString(cell.value);
     if (!header) return;
     const key = resolveColumnKey(header);
-    if (key) columnByIndex.set(index, key);
+    // Повторный ключ («Телефон» и `phone`): остаётся первая колонка, остальные — в unknown.
+    if (key && ![...columnByIndex.values()].includes(key)) columnByIndex.set(index, key);
     else unknownColumns.push(header);
   });
 

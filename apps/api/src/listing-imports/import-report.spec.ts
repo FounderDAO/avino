@@ -1,19 +1,4 @@
-import { decodeUploadedFileName, findInFileDuplicates, ImportRowReport, summarize } from './import-report';
-
-describe('findInFileDuplicates', () => {
-  it('первая строка ключа — оригинал, остальные ссылаются на неё', () => {
-    const result = findInFileDuplicates([
-      { rowNumber: 2, key: 'a' },
-      { rowNumber: 3, key: 'b' },
-      { rowNumber: 4, key: 'a' },
-      { rowNumber: 7, key: 'a' },
-    ]);
-    expect([...result]).toEqual([
-      [4, 2],
-      [7, 2],
-    ]);
-  });
-});
+import { decodeUploadedFileName, ImportRowReport, summarize } from './import-report';
 
 describe('summarize', () => {
   it('считает итоги по типам', () => {

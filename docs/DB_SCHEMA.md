@@ -927,7 +927,7 @@ listing_imports
 - skipped_exists_count  int NOT NULL default 0
 - skipped_in_file_count int NOT NULL default 0
 - error_count           int NOT NULL default 0
-- unknown_columns       text[] NOT NULL default '{}'   (нераспознанные заголовки файла)
+- unknown_columns       text[] default '{}', nullable в SQL (Prisma не генерирует NOT NULL для скалярных списков)   (нераспознанные заголовки файла)
 - created_at            timestamptz NOT NULL default now()
 Indexes:
 - (created_by_id)

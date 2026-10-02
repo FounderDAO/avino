@@ -14,7 +14,6 @@ import {
 } from './import-owner.resolver';
 import {
   decodeUploadedFileName,
-  findInFileDuplicates,
   ImportRowReport,
   ListingImportReport,
   summarize,
@@ -162,11 +161,12 @@ export class ListingImportService {
       }
     }
 
-    const inFile = findInFileDuplicates(valid);
+    // Якорь повтора — первая строка ключа, не закончившаяся ERROR; строки идут в порядке файла.
+    const anchorByKey = new Map<string, number>();
     const pending: PendingRow[] = [];
-    for (const { rowNumber, input } of valid) {
+    for (const { rowNumber, key, input } of valid) {
       const base = { row: rowNumber, phone: input.phone, title: input.dto.translation.title };
-      const duplicateOf = inFile.get(rowNumber);
+      const duplicateOf = anchorByKey.get(key);
       if (duplicateOf !== undefined) {
         reports.push({ ...base, outcome: 'SKIPPED_DUPLICATE_IN_FILE', duplicate_of_row: duplicateOf });
         continue;
@@ -195,6 +195,7 @@ export class ListingImportService {
       if (lookup.kind === 'EXISTING') {
         const existing = await findOwnerDuplicate(this.prisma, lookup.userId, input.dto);
         if (existing) {
+          anchorByKey.set(key, rowNumber);
           reports.push({
             ...base,
             outcome: 'SKIPPED_EXISTS',
@@ -209,6 +210,7 @@ export class ListingImportService {
         outcome: 'TO_CREATE',
         owner_is_new: lookup.kind === 'NEW',
       };
+      anchorByKey.set(key, rowNumber);
       reports.push(report);
       pending.push({ report, input, data });
     }
