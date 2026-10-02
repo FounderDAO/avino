@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import {
   uzPhoneDigits,
   formatUzPhone,
+  formatUzPhoneLocal,
   uzPhoneE164,
   uzPhoneComplete,
 } from './phone-mask';
@@ -49,7 +50,7 @@ describe('uzPhoneDigits', () => {
 });
 
 describe('formatUzPhone', () => {
-  it('без значащих цифр → пустая строка (виден placeholder)', () => {
+  it('без значащих цифр → пустая строка', () => {
     expect(formatUzPhone('')).toBe('');
     expect(formatUzPhone('abc')).toBe('');
     expect(formatUzPhone('+998 ')).toBe('');
@@ -69,6 +70,31 @@ describe('formatUzPhone', () => {
 
   it('идемпотентен на уже отформатированном значении', () => {
     expect(formatUzPhone('+998 90 123 45 67')).toBe('+998 90 123 45 67');
+  });
+});
+
+describe('formatUzPhoneLocal', () => {
+  it('без значащих цифр → пустая строка (виден placeholder)', () => {
+    expect(formatUzPhoneLocal('')).toBe('');
+    expect(formatUzPhoneLocal('abc')).toBe('');
+    expect(formatUzPhoneLocal('+998 ')).toBe('');
+  });
+
+  it('цифры абонента группами XX XXX XX XX без кода страны', () => {
+    expect(formatUzPhoneLocal('9')).toBe('9');
+    expect(formatUzPhoneLocal('901')).toBe('90 1');
+    expect(formatUzPhoneLocal('901234567')).toBe('90 123 45 67');
+  });
+
+  it('код страны из маски/E.164/вставки отбрасывается', () => {
+    expect(formatUzPhoneLocal('+998 90 123 45 67')).toBe('90 123 45 67');
+    expect(formatUzPhoneLocal('+998901234567')).toBe('90 123 45 67');
+    expect(formatUzPhoneLocal('998901234567')).toBe('90 123 45 67');
+    expect(formatUzPhoneLocal('8 90 123-45-67')).toBe('90 123 45 67');
+  });
+
+  it('оператор 99 не путается с кодом страны', () => {
+    expect(formatUzPhoneLocal('+998 99 812 34 56')).toBe('99 812 34 56');
   });
 });
 

@@ -123,4 +123,68 @@ describe('RegionDistrictSelect', () => {
     fireEvent.click(screen.getByTestId('district-option-d1'));
     expect(onChange).toHaveBeenCalledWith({ regionId: 'r1', districtId: 'd1' });
   });
+
+  it('показывает лейблы полей; звёздочка — только при required', () => {
+    const { rerender } = render(
+      <RegionDistrictSelect regions={REGIONS} districts={DISTRICTS} onChange={vi.fn()} />,
+    );
+    // Лейблы из listingNew.fields.*.label (одна строка на название поля).
+    expect(screen.getByText(ru.listingNew.fields.region.label)).toBeInTheDocument();
+    expect(screen.getByText(ru.listingNew.fields.district.label)).toBeInTheDocument();
+    expect(screen.queryByText('*')).toBeNull();
+
+    rerender(
+      <RegionDistrictSelect regions={REGIONS} districts={DISTRICTS} onChange={vi.fn()} required />,
+    );
+    expect(screen.getAllByText('*')).toHaveLength(2);
+  });
+
+  it('без ошибок поля не помечены aria-invalid', () => {
+    render(
+      <RegionDistrictSelect regions={REGIONS} districts={DISTRICTS} onChange={vi.fn()} required />,
+    );
+    expect(screen.getByTestId('region-trigger')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByTestId('district-trigger')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('regionError / districtError: aria-invalid, красная рамка и текст ошибки под полем', () => {
+    render(
+      <RegionDistrictSelect
+        regions={REGIONS}
+        districts={DISTRICTS}
+        onChange={vi.fn()}
+        required
+        regionError="Обязательное поле (регион)"
+        districtError="Обязательное поле (район)"
+      />,
+    );
+    const region = screen.getByTestId('region-trigger');
+    const district = screen.getByTestId('district-trigger');
+    expect(region).toHaveAttribute('aria-invalid', 'true');
+    expect(district).toHaveAttribute('aria-invalid', 'true');
+    expect(region.className).toContain('border-red');
+    expect(region.className).not.toContain('border-border');
+
+    const regionMsg = screen.getByText('Обязательное поле (регион)');
+    const districtMsg = screen.getByText('Обязательное поле (район)');
+    expect(region).toHaveAttribute('aria-describedby', regionMsg.id);
+    expect(district).toHaveAttribute('aria-describedby', districtMsg.id);
+    // Район остаётся disabled, пока не выбран регион.
+    expect(district).toBeDisabled();
+  });
+
+  it('ошибка только у района: регион не подсвечен', () => {
+    render(
+      <RegionDistrictSelect
+        regions={REGIONS}
+        districts={DISTRICTS}
+        regionId="r1"
+        onChange={vi.fn()}
+        districtError="Обязательное поле"
+      />,
+    );
+    expect(screen.getByTestId('region-trigger')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByTestId('district-trigger')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('district-trigger')).not.toBeDisabled();
+  });
 });

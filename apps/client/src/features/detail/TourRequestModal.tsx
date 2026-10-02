@@ -161,7 +161,7 @@ export function TourRequestModal({ listing, open, onOpenChange }: TourRequestMod
                   aria-label={t('phone')}
                   value={phone}
                   onChange={setPhone}
-                  placeholder="+998 90 123 45 67"
+                  placeholder="90 123 45 67"
                   className="rounded-lg border border-border bg-bg px-3 py-2 text-[15px] font-normal"
                 />
               </label>

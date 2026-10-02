@@ -40,7 +40,7 @@ describe('ContactDetailsGate', () => {
     render(<ContactDetailsGate />);
     expect(screen.getByLabelText('contactGate.firstName')).toHaveValue('Ali');
     const phone = screen.getByLabelText('contactGate.phone');
-    expect(phone).toHaveValue('+998 90 123 45 67');
+    expect(phone).toHaveValue('90 123 45 67');
     expect(phone).toBeDisabled();
   });
 
@@ -98,7 +98,7 @@ describe('ContactDetailsGate', () => {
     };
     render(<ContactDetailsGate />);
     expect(screen.getByLabelText('contactGate.phone')).toHaveValue(
-      '+998 90 123 45 67',
+      '90 123 45 67',
     );
   });
 

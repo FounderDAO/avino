@@ -34,15 +34,24 @@ export function uzPhoneDigits(raw: string): string {
 }
 
 /**
- * Отображаемое значение маски: '' без значащих цифр (чтобы был виден
- * placeholder), иначе «+998 » + цифры группами XX XXX XX XX (частично).
+ * Цифры абонента группами «XX XXX XX XX» (частично при недоборе) — без кода
+ * страны; '' без значащих цифр. Это значение показывает <input> PhoneField:
+ * код «+998» там вынесен в фиксированный префикс слева от инпута.
+ */
+export function formatUzPhoneLocal(raw: string): string {
+  const d = uzPhoneDigits(raw);
+  return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)]
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * Полное маскированное значение (контракт PhoneField и состояние форм):
+ * '' без значащих цифр, иначе «+998 » + цифры группами XX XXX XX XX (частично).
  */
 export function formatUzPhone(raw: string): string {
-  const d = uzPhoneDigits(raw);
-  if (!d) return '';
-  const groups = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)]
-    .filter(Boolean);
-  return `+998 ${groups.join(' ')}`;
+  const local = formatUzPhoneLocal(raw);
+  return local ? `+998 ${local}` : '';
 }
 
 /** E.164 для бэкенда: «+998XXXXXXXXX»; '' при отсутствии значащих цифр. */

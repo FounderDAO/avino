@@ -76,7 +76,7 @@ export default function DashboardPage() {
         <div className="a-card" style={{ padding: 22 }}>
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
             <h3 style={{ fontSize: 17 }}>Объявления за год</h3>
-            <span className="muted" style={{ fontSize: 13 }}>за 12 месяцев</span>
+            <span className="muted" style={{ fontSize: 13 }}>опубликованные · за 12 месяцев</span>
           </div>
           {charts ? (
             <LineArea data={charts.listingsOverTime} labels={charts.months} />

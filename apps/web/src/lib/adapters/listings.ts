@@ -38,7 +38,7 @@ export const REJECT_REASON_OPTIONS: string[] = [
   'Недостоверная информация',
 ];
 
-/** API-статус листинга → статус UI-pill (7 значений мок-модели). */
+/** API-статус листинга → статус UI-pill (значения мок-модели). */
 export function apiToUiStatus(s: ListingStatus): AdminListingStatus {
   switch (s) {
     case 'ACTIVE':
@@ -54,10 +54,15 @@ export function apiToUiStatus(s: ListingStatus): AdminListingStatus {
     case 'RENTED':
       return 'RENTED';
     case 'ARCHIVED':
+      return 'ARCHIVED';
     case 'DELETED':
+      return 'DELETED';
+    default: {
+      // Exhaustive-проверка: новый API-статус не скомпилируется молча.
+      const unknownStatus: never = s;
+      void unknownStatus;
       return 'ARCHIVED';
-    default:
-      return 'ARCHIVED';
+    }
   }
 }
 
@@ -71,6 +76,7 @@ export const UI_FILTER_TO_API_STATUS: Record<string, ListingStatus | undefined> 
   SOLD: 'SOLD',
   RENTED: 'RENTED',
   ARCHIVED: 'ARCHIVED',
+  DELETED: 'DELETED',
 };
 
 const TX_LABEL: Record<string, string> = { SALE: 'Продажа', RENT: 'Аренда' };

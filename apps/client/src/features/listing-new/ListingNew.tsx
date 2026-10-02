@@ -9,7 +9,7 @@
  */
 'use client';
 
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useAppSelector } from '@/store/hooks';
 import {
@@ -69,6 +69,7 @@ import { PhotoUploader, type UploadPhoto } from './PhotoUploader';
 import { ToursSection } from '@/features/listing-shared/ToursSection';
 import type { TourWindow, Region, District } from '@/lib/mock/types';
 import { RegionDistrictSelect } from './RegionDistrictSelect';
+import { composeAutoAddress } from '@/features/map/geoMatch';
 
 /** Шаги прогресс-бара (подписи — в словаре `listingNew.steps`). */
 const STEPS = [
@@ -247,8 +248,9 @@ const FIELD_META: Record<
   property_type: { labelKey: 'fields.propertyType', step: 1 },
   address: { labelKey: 'fields.address.label', step: 2 },
   'translation.address_note': { labelKey: 'fields.address.label', step: 2 },
-  city_id: { labelKey: 'validation.region', step: 2, reasonKey: 'validation.reasons.region' },
-  district_id: { labelKey: 'validation.district', step: 2, reasonKey: 'validation.reasons.district' },
+  // Названия полей — те же ключи, что у лейблов шага 2 (одна строка на поле).
+  city_id: { labelKey: 'fields.region.label', step: 2, reasonKey: 'validation.reasons.required' },
+  district_id: { labelKey: 'fields.district.label', step: 2, reasonKey: 'validation.reasons.required' },
   latitude: { labelKey: 'fields.mapPoint', step: 2 },
   longitude: { labelKey: 'fields.mapPoint', step: 2 },
   rooms: { labelKey: 'fields.rooms.label', step: 3 },
@@ -310,6 +312,43 @@ export function describeListingValidationErrors(
     });
   }
   return items.sort((a, b) => a.step - b.step);
+}
+
+/** Обязательное поле шага, которое подсвечивается при попытке перейти дальше. */
+export type StepField = 'region' | 'district' | 'address';
+
+/** Ключ подписи поля в словаре `listingNew` (для предупреждения шага). */
+const STEP_FIELD_LABEL: Record<StepField, string> = {
+  region: 'fields.region.label',
+  district: 'fields.district.label',
+  address: 'fields.address.label',
+};
+
+/**
+ * Шаги с «мягкой» валидацией: кнопка «Далее» кликабельна, а при незаполненных
+ * обязательных полях показывает предупреждение и подсвечивает их (вместо немой
+ * disabled-кнопки). Пока только шаг 2; чтобы распространить на другой шаг —
+ * добавить его сюда и описать поля в `missingStepFields`.
+ */
+const SOFT_STEPS: ReadonlySet<number> = new Set([2]);
+
+/**
+ * Какие обязательные поля шага ещё не заполнены (в порядке на экране). Чистая
+ * функция — вынесена из компонента для юнит-тестов. Для шагов без «мягкой»
+ * валидации возвращает пустой список (их гейтит `canNext`).
+ */
+export function missingStepFields(
+  step: number,
+  f: Pick<FormState, 'address' | 'regionId' | 'districtId'>,
+): StepField[] {
+  if (step !== 2) return [];
+  const missing: StepField[] = [];
+  // Регион и район обязательны для геопривязки; адрес — тоже.
+  // Точка на карте — необязательное уточнение.
+  if (!f.regionId) missing.push('region');
+  if (!f.districtId) missing.push('district');
+  if (!f.address.trim()) missing.push('address');
+  return missing;
 }
 
 /** Иконки типов недвижимости. */
@@ -377,6 +416,38 @@ export function ListingNew({
   }));
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     dispatch({ type: 'set', key, value });
+
+  // Шаги, с которых уже пытались уйти при незаполненных полях: до первой
+  // попытки ошибок не показываем. Сами ошибки в стейте НЕ храним — выводим из
+  // формы, поэтому подсветка поля снимается, как только его заполнили.
+  const [attempted, setAttempted] = useState<ReadonlySet<number>>(new Set());
+  const stepMissing = missingStepFields(step, f);
+  const shownMissing = attempted.has(step) ? stepMissing : [];
+  const fieldError = (field: StepField): string | undefined =>
+    shownMissing.includes(field) ? t('validation.requiredField') : undefined;
+
+  // Последний адрес, подставленный автоматически («Регион, Район»). Пока поле
+  // «Адрес» пусто или всё ещё равно этому значению — его можно обновлять при
+  // смене региона/района; текст пользователя, подсказку и адрес с карты не
+  // затираем (они с этим значением не совпадают). useRef переживает смену шагов.
+  const lastAutoAddress = useRef<string | null>(null);
+
+  /** Пользователь выбрал регион/район в селектах (НЕ вызывается от карты). */
+  const handleRegionDistrictChange = (next: {
+    regionId?: string;
+    districtId?: string;
+  }) => {
+    set('regionId', next.regionId ?? '');
+    set('districtId', next.districtId ?? '');
+    const auto = composeAutoAddress(
+      regions.find((r) => r.id === next.regionId)?.name,
+      districts.find((d) => d.id === next.districtId)?.name,
+    );
+    if (!f.address.trim() || f.address === lastAutoAddress.current) {
+      lastAutoAddress.current = auto;
+      if (auto !== f.address) set('address', auto);
+    }
+  };
 
   // У участка/коммерции нет комнат/этажей.
   const noRooms = f.type === 'LAND' || f.type === 'COMMERCIAL';
@@ -537,13 +608,7 @@ export function ListingNew({
       case 1:
         return Boolean(f.tx && f.type);
       case 2:
-        // Адрес обязателен; регион и район также обязательны для геопривязки.
-        // Точка на карте — необязательное уточнение.
-        return (
-          Boolean(f.address.trim()) &&
-          Boolean(f.regionId) &&
-          Boolean(f.districtId)
-        );
+        return missingStepFields(2, f).length === 0;
       case 3:
         // Год постройки обязателен для квартир/домов (категория «новостройка»
         // вычисляется из него на бэке); может быть будущим — недострой.
@@ -711,10 +776,10 @@ export function ListingNew({
                 districts={districts}
                 regionId={f.regionId || undefined}
                 districtId={f.districtId || undefined}
-                onChange={({ regionId, districtId }) => {
-                  set('regionId', regionId ?? '');
-                  set('districtId', districtId ?? '');
-                }}
+                onChange={handleRegionDistrictChange}
+                required
+                regionError={fieldError('region')}
+                districtError={fieldError('district')}
               />
               <AddressStep
                 address={f.address}
@@ -726,6 +791,19 @@ export function ListingNew({
                   districts.find((d) => d.id === f.districtId)?.name
                 }
                 locale={locale}
+                required
+                addressError={fieldError('address')}
+                regions={regions}
+                districts={districts}
+                regionId={f.regionId || undefined}
+                districtId={f.districtId || undefined}
+                // Регион/район от точки на карте: ставим напрямую, минуя
+                // handleRegionDistrictChange — автоадрес не должен затирать
+                // точный адрес, который карта подставила тем же кликом.
+                onLocationFromMap={({ regionId, districtId }) => {
+                  set('regionId', regionId);
+                  set('districtId', districtId ?? '');
+                }}
               />
             </div>
           )}
@@ -1092,6 +1170,22 @@ export function ListingNew({
           </p>
         )}
 
+        {/* Попытка уйти с шага с незаполненными обязательными полями: называем
+          конкретные поля (они же подсвечены выше). Пропадает само, когда всё
+          заполнено. */}
+        {shownMissing.length > 0 && (
+          <div
+            role="alert"
+            className="mt-4 rounded-input bg-red/5 px-4 py-3 text-[13.5px] font-semibold text-red"
+          >
+            {t('validation.stepMissing', {
+              fields: shownMissing
+                .map((k) => t(STEP_FIELD_LABEL[k]))
+                .join(', '),
+            })}
+          </div>
+        )}
+
         {/* Навигация по шагам */}
         <div className="mt-5 flex justify-between">
           <Button
@@ -1105,8 +1199,16 @@ export function ListingNew({
           {step < TOTAL ? (
             <Button
               type="button"
-              disabled={!canNext()}
-              onClick={() => setStep((s) => s + 1)}
+              // На «мягких» шагах кнопка всегда кликабельна: клик объясняет,
+              // чего не хватает. Остальные шаги — как раньше, disabled.
+              disabled={!SOFT_STEPS.has(step) && !canNext()}
+              onClick={() => {
+                if (!canNext()) {
+                  setAttempted((prev) => new Set(prev).add(step));
+                  return;
+                }
+                setStep((s) => s + 1);
+              }}
             >
               {t('nav.next')} <ChevronRight size={18} />
             </Button>

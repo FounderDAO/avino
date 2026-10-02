@@ -187,8 +187,10 @@ export interface Region {
   id: string;
   /** Человекочитаемое название на языке интерфейса. */
   name: string;
-  /** Машинный код региона (напр. «TASHKENT_CITY»). */
+  /** Машинный код региона — slug справочника (напр. «toshkent-shahri»). */
   code: string;
+  /** Имена на других языках — для сопоставления с геокодером (карта → регион). */
+  aliases?: string[];
 }
 
 /** Район — справочник `GET /api/v1/geo/districts` (ADR-0068). */

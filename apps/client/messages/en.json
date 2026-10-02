@@ -197,7 +197,7 @@
     "title": "Log in to Avino",
     "phoneDescription": "Enter your phone number — we'll send a confirmation code by SMS.",
     "phoneLabel": "Phone number",
-    "phonePlaceholder": "+998 90 123 45 67",
+    "phonePlaceholder": "90 123 45 67",
     "emailDescription": "Enter your email — we'll send a confirmation code to your inbox.",
     "emailLabel": "Email",
     "emailPlaceholder": "you@example.com",
@@ -763,6 +763,15 @@
         "hint": "City, district, street, building",
         "placeholder": "Tashkent, Yunusabad, Amir Temur St 12"
       },
+      "region": {
+        "label": "Region"
+      },
+      "district": {
+        "label": "District",
+        "needsParent": "Fill in “{field}” first"
+      },
+      "selectPlaceholder": "Select",
+      "notSelected": "Not selected",
       "mapPoint": "Point on the map",
       "rooms": {
         "label": "Number of rooms",
@@ -875,16 +884,15 @@
       "generic": "Please check that the fields are filled in correctly and try again.",
       "networkError": "Couldn't reach the server. Check your connection and try again.",
       "unknownError": "Couldn't publish the listing. Please try again.",
-      "region": "Region",
-      "district": "District",
+      "stepMissing": "To continue, fill in the required fields: {fields}.",
+      "requiredField": "Required field",
       "tourWindow": "Tour time",
       "reasons": {
         "default": "check the value",
         "price": "enter a valid price",
         "area": "enter the area in m²",
         "yearBuilt": "required for apartments and houses",
-        "region": "select a region",
-        "district": "select a district"
+        "required": "required field"
       }
     },
     "limitModal": {
@@ -908,7 +916,7 @@
       "firstName": "First name",
       "lastName": "Last name",
       "phone": "Phone",
-      "phonePlaceholder": "+998 90 123 45 67",
+      "phonePlaceholder": "90 123 45 67",
       "phoneHint": "Buyers will see this number. You can change it in your account settings.",
       "noPhoneHint": "To post a listing, <link>add a phone number in your account settings</link>.",
       "submit": "Continue",

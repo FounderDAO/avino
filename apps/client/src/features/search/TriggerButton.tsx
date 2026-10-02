@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 export const TriggerButton = React.forwardRef<
   HTMLButtonElement,
   { label: string; active?: boolean; icon?: React.ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ label, active, icon, ...props }, ref) => (
+>(({ label, active, icon, className, ...props }, ref) => (
   <button
     ref={ref}
     type="button"
@@ -16,6 +16,8 @@ export const TriggerButton = React.forwardRef<
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
       'disabled:cursor-not-allowed disabled:opacity-50',
       active ? 'border-teal bg-mint' : 'border-border bg-surface hover:border-ink',
+      // Внешний класс — последним (напр. красная рамка невалидного поля в визарде).
+      className,
     )}
     {...props}
   >

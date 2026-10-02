@@ -1460,7 +1460,7 @@ listings_active, listings_archived, listings_sale, listings_rent,
 listings_sold, listings_rented, agent_applications_new, support_requests_new }`:
 - `listings_new` — листинги в очереди модерации (`ListingStatus.NEW`);
 - `complaints_new` — необработанные жалобы (`ComplaintStatus.NEW`);
-- `users_total` — все пользователи (как `meta.total` в `/admin/users` без фильтра);
+- `users_total` — пользователи без удалённых аккаунтов (`status != DELETED`, т.е. ACTIVE + BLOCKED);
 - `promotions_active` — активные промо VIP/TOP (`PromotionStatus.ACTIVE`);
 - `listings_sold` — продано (`ListingStatus.SOLD`);
 - `listings_rented` — сдано (`ListingStatus.RENTED`);
@@ -1469,13 +1469,15 @@ listings_sold, listings_rented, agent_applications_new, support_requests_new }`:
 
 #### GET /api/v1/admin/analytics
 Ряды для графиков дашборда и лента «Последних действий» (ADR-0101). Auth:
-**MODERATOR / ADMIN**. Без query-параметров. Везде исключён `DELETED`.
+**MODERATOR / ADMIN**. Без query-параметров. Графики по объявлениям считают только опубликованные
+(`status = ACTIVE`) — та же база, что у KPI `/admin/stats` (`buy_rent.buy/rent` ==
+`listings_sale/listings_rent`).
 200 → `{ listings_over_time, buy_rent, by_district, recent_activity }`:
-- `listings_over_time` — 12 помесячных счётчиков (старые→новые), включая нулевые
-  месяцы: `[{ "month": "2025-07", "count": 5 }, …]`;
+- `listings_over_time` — 12 помесячных счётчиков опубликованных объявлений
+  (старые→новые, по `created_at`), включая нулевые месяцы: `[{ "month": "2025-07", "count": 5 }, …]`;
 - `buy_rent` — сырые счётчики `{ "buy": 64, "rent": 36 }` (SALE/RENT); проценты
   считает клиент;
-- `by_district` — топ-6 районов по числу объявлений с локализованными именами:
+- `by_district` — топ-6 районов по числу опубликованных объявлений с локализованными именами:
   `[{ "district_id": "d1", "name_ru": "Чиланзар", "name_uz": "Chilonzor", "name_en": "Chilanzar", "count": 21 }, …]`;
 - `recent_activity` — последние 6 записей журнала модерации (свежие сверху):
   `[{ "id": "log1", "action": "APPROVE", "new_status": "ACTIVE", "listing_id": "l1", "listing_title": "2-комн квартира", "moderator_name": "Алишер У.", "created_at": "2026-06-20T10:00:00Z" }, …]`;

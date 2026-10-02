@@ -54,6 +54,7 @@ const STATUS_LABEL: Record<AdminListingStatus, string> = {
   SOLD: 'Продано',
   RENTED: 'Сдано',
   ARCHIVED: 'В архиве',
+  DELETED: 'Удалено',
 };
 
 const ACTION_LABEL: Record<ModerationAction, string> = {
@@ -147,8 +148,9 @@ export default function ListingDetailPage() {
   const listing = data ? detailToAdminListing(data) : undefined;
   const status: AdminListingStatus = listing?.status ?? 'ACTIVE';
   // API разрешает модерацию только из NEW/ACTIVE/DRAFT/REJECTED
-  // (MODERATABLE_STATUSES) — на закрытых/архивных кнопки отвечали бы 422.
-  const canModerate = !(['SOLD', 'RENTED', 'ARCHIVED'] as AdminListingStatus[]).includes(status);
+  // (MODERATABLE_STATUSES) — на закрытых/архивных кнопки отвечали бы 422,
+  // на удалённых — 404 (DELETED исключён из read-path API).
+  const canModerate = !(['SOLD', 'RENTED', 'ARCHIVED', 'DELETED'] as AdminListingStatus[]).includes(status);
 
   if (isLoading) {
     return <div className="a-card" style={{ padding: 40 }}>Загрузка…</div>;

@@ -41,7 +41,7 @@ describe('ContactPhoneModal', () => {
 
     expect(screen.getByText(ru.account.contactPhone.modalTitle)).toBeInTheDocument();
 
-    const input = screen.getByPlaceholderText('+998 90 123 45 67');
+    const input = screen.getByPlaceholderText('90 123 45 67');
     fireEvent.change(input, { target: { value: '901234567' } });
 
     await act(async () => {
@@ -65,7 +65,7 @@ describe('ContactPhoneModal', () => {
     const onSuccess = vi.fn();
     render(<ContactPhoneModal open onClose={vi.fn()} onSuccess={onSuccess} />);
 
-    const input = screen.getByPlaceholderText('+998 90 123 45 67');
+    const input = screen.getByPlaceholderText('90 123 45 67');
     fireEvent.change(input, { target: { value: '901234567' } });
 
     await act(async () => {
@@ -95,7 +95,7 @@ describe('ContactPhoneModal', () => {
       });
     render(<ContactPhoneModal open onClose={vi.fn()} onSuccess={vi.fn()} />);
 
-    const input = screen.getByPlaceholderText('+998 90 123 45 67');
+    const input = screen.getByPlaceholderText('90 123 45 67');
     fireEvent.change(input, { target: { value: '901234567' } });
     await act(async () => {
       fireEvent.click(screen.getByText(ru.account.contactChange.sendCode));

@@ -14,7 +14,10 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { useYmaps } from '@/features/map/useYmaps';
-import { reverseGeocode } from '@/features/map/geocode';
+import {
+  reverseGeocodeDetailed,
+  type ReverseGeocodeResult,
+} from '@/features/map/geocode';
 
 /** Координаты [lat, lng]. */
 export type Coords = [number, number];
@@ -30,6 +33,12 @@ export interface PickMapProps {
   onChange: (coords: Coords) => void;
   /** Обратный геокод точки → строка адреса (синхронизация с инпутом). */
   onAddressResolve?: (address: string) => void;
+  /**
+   * Тот же обратный геокод, но с компонентами адреса (регион/район) — чтобы
+   * AddressStep выставил ещё и селекты «Регион»/«Район». Вызывается после
+   * onAddressResolve и только для ПОСЛЕДНЕЙ точки (см. reverseSeq).
+   */
+  onLocationResolve?: (result: ReverseGeocodeResult) => void;
   /** Внешнее перецентрирование карты (метка и value не меняются). */
   focus?: MapFocus | null;
   locale?: string;
@@ -44,7 +53,14 @@ const EPS = 1e-6;
 const sameCoords = (a: Coords | null, b: Coords | null): boolean =>
   !!a && !!b && Math.abs(a[0] - b[0]) < EPS && Math.abs(a[1] - b[1]) < EPS;
 
-export function PickMap({ value, onChange, onAddressResolve, focus, locale }: PickMapProps) {
+export function PickMap({
+  value,
+  onChange,
+  onAddressResolve,
+  onLocationResolve,
+  focus,
+  locale,
+}: PickMapProps) {
   const t = useTranslations('listingNew');
   const { ymaps, status } = useYmaps(locale);
 
@@ -56,8 +72,10 @@ export function PickMap({ value, onChange, onAddressResolve, focus, locale }: Pi
   const lastEmitted = React.useRef<Coords | null>(null);
 
   // Свежие колбэки без пересоздания карты (карта строится один раз).
-  const cbRef = React.useRef({ onChange, onAddressResolve, locale });
-  cbRef.current = { onChange, onAddressResolve, locale };
+  const cbRef = React.useRef({ onChange, onAddressResolve, onLocationResolve, locale });
+  cbRef.current = { onChange, onAddressResolve, onLocationResolve, locale };
+  // Против гонки обратных геокодов при быстрых кликах: применяем только последний.
+  const reverseSeq = React.useRef(0);
   // Актуальный focus для инициализации (карта могла ещё грузиться при выборе региона).
   const focusRef = React.useRef(focus);
   focusRef.current = focus;
@@ -69,9 +87,13 @@ export function PickMap({ value, onChange, onAddressResolve, focus, locale }: Pi
     const emit = (coords: Coords, reverse: boolean) => {
       lastEmitted.current = coords;
       cbRef.current.onChange(coords);
-      if (reverse && cbRef.current.onAddressResolve) {
-        reverseGeocode(coords, cbRef.current.locale).then((addr) => {
-          if (addr) cbRef.current.onAddressResolve?.(addr);
+      // Любая новая точка обесценивает ещё не пришедший ответ по предыдущей.
+      const seq = ++reverseSeq.current;
+      if (reverse && (cbRef.current.onAddressResolve || cbRef.current.onLocationResolve)) {
+        reverseGeocodeDetailed(coords, cbRef.current.locale).then((res) => {
+          if (!res || seq !== reverseSeq.current) return;
+          cbRef.current.onAddressResolve?.(res.address);
+          cbRef.current.onLocationResolve?.(res);
         });
       }
     };
@@ -131,6 +153,8 @@ export function PickMap({ value, onChange, onAddressResolve, focus, locale }: Pi
   React.useEffect(() => {
     if (!value || !mapRef.current || !setMarkerRef.current) return;
     if (sameCoords(lastEmitted.current, value)) return; // наш же клик/перетаскивание
+    // Точку сменили извне (подсказка/Enter) — ответ по старому клику уже неактуален.
+    reverseSeq.current += 1;
     setMarkerRef.current(value);
     mapRef.current.setCenter(value, PLACED_ZOOM, { duration: 200 });
     lastEmitted.current = value;

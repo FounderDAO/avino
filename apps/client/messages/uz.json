@@ -197,7 +197,7 @@
     "title": "Avinoga kirish",
     "phoneDescription": "Telefon raqamingizni kiriting — SMS orqali tasdiqlash kodini yuboramiz.",
     "phoneLabel": "Telefon raqami",
-    "phonePlaceholder": "+998 90 123 45 67",
+    "phonePlaceholder": "90 123 45 67",
     "emailDescription": "Email manzilingizni kiriting — tasdiqlash kodini pochtaga yuboramiz.",
     "emailLabel": "Email",
     "emailPlaceholder": "you@example.com",
@@ -763,6 +763,15 @@
         "hint": "Shahar, tuman, ko'cha, uy",
         "placeholder": "Toshkent, Yunusobod, Amir Temur ko'chasi 12"
       },
+      "region": {
+        "label": "Viloyat"
+      },
+      "district": {
+        "label": "Tuman",
+        "needsParent": "Avval «{field}» maydonini to'ldiring"
+      },
+      "selectPlaceholder": "Tanlang",
+      "notSelected": "Tanlanmagan",
       "mapPoint": "Xaritadagi nuqta",
       "rooms": {
         "label": "Xonalar soni",
@@ -875,16 +884,15 @@
       "generic": "Maydonlar to'g'ri to'ldirilganini tekshiring va qayta urinib ko'ring.",
       "networkError": "Server bilan bog'lanib bo'lmadi. Ulanishni tekshiring va qayta urinib ko'ring.",
       "unknownError": "E'lonni chop etib bo'lmadi. Qayta urinib ko'ring.",
-      "region": "Viloyat",
-      "district": "Tuman",
+      "stepMissing": "Davom etish uchun majburiy maydonlarni to'ldiring: {fields}.",
+      "requiredField": "Majburiy maydon",
       "tourWindow": "Ko'rsatuv vaqti",
       "reasons": {
         "default": "qiymatni tekshiring",
         "price": "to'g'ri narxni kiriting",
         "area": "maydonni m² da kiriting",
         "yearBuilt": "kvartira va uylar uchun majburiy",
-        "region": "viloyatni tanlang",
-        "district": "tumanni tanlang"
+        "required": "majburiy maydon"
       }
     },
     "limitModal": {
@@ -908,7 +916,7 @@
       "firstName": "Ism",
       "lastName": "Familiya",
       "phone": "Telefon",
-      "phonePlaceholder": "+998 90 123 45 67",
+      "phonePlaceholder": "90 123 45 67",
       "phoneHint": "Xaridorlar shu raqamni ko'radi. Uni akkaunt sozlamalarida o'zgartirishingiz mumkin.",
       "noPhoneHint": "E'lon joylash uchun <link>akkaunt sozlamalarida telefon raqamini qo'shing</link>.",
       "submit": "Davom etish",

@@ -89,48 +89,119 @@ vi.mock('@/i18n/navigation', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 /**
- * AddressStep — мок с кнопкой для установки адреса в форме (нужно для теста
- * валидации шага 2, который требует непустого address).
+ * AddressStep — мок: показывает текущий адрес и ошибку поля, кнопки имитируют
+ * ввод пользователя, очистку и ответ карты (адрес + регион/район от точки).
  */
 vi.mock('./AddressStep', () => ({
   AddressStep: ({
+    address,
+    addressError,
+    required,
     onAddressChange,
+    onLocationFromMap,
   }: {
+    address: string;
+    addressError?: string;
+    required?: boolean;
     onAddressChange: (v: string) => void;
+    onLocationFromMap?: (v: { regionId: string; districtId?: string }) => void;
   }) => (
-    <button
-      type="button"
-      data-testid="fill-address"
-      onClick={() => onAddressChange('ул. Тестовая, 1')}
-    >
-      fill-address
-    </button>
+    <div>
+      <span data-testid="address-value">{address}</span>
+      <span data-testid="address-required">{String(Boolean(required))}</span>
+      {addressError && <span data-testid="address-error">{addressError}</span>}
+      <button
+        type="button"
+        data-testid="fill-address"
+        onClick={() => onAddressChange('ул. Тестовая, 1')}
+      >
+        fill-address
+      </button>
+      <button
+        type="button"
+        data-testid="clear-address"
+        onClick={() => onAddressChange('')}
+      >
+        clear-address
+      </button>
+      <button
+        type="button"
+        data-testid="map-pick"
+        onClick={() => {
+          // Порядок как в PickMap: сначала адрес, затем регион/район.
+          onAddressChange('Ташкент, улица Амира Темура, 12');
+          onLocationFromMap?.({ regionId: 'region-2', districtId: 'district-3' });
+        }}
+      >
+        map-pick
+      </button>
+    </div>
   ),
 }));
 /**
- * RegionDistrictSelect — мок с кнопкой, имитирующей выбор региона и района.
+ * RegionDistrictSelect — мок: кнопки имитируют выбор региона/района, а
+ * полученные ошибки и текущий выбор рендерятся для проверок.
  */
 vi.mock('./RegionDistrictSelect', () => ({
   RegionDistrictSelect: ({
     onChange,
+    regionId,
+    districtId,
+    required,
+    regionError,
+    districtError,
   }: {
     onChange: (v: { regionId?: string; districtId?: string }) => void;
+    regionId?: string;
+    districtId?: string;
+    required?: boolean;
+    regionError?: string;
+    districtError?: string;
   }) => (
-    <button
-      type="button"
-      data-testid="fill-region"
-      onClick={() =>
-        onChange({ regionId: 'region-1', districtId: 'district-1' })
-      }
-    >
-      fill-region
-    </button>
+    <div>
+      <span data-testid="select-value">{`${regionId ?? ''}|${districtId ?? ''}`}</span>
+      <span data-testid="select-required">{String(Boolean(required))}</span>
+      {regionError && <span data-testid="region-error">{regionError}</span>}
+      {districtError && <span data-testid="district-error">{districtError}</span>}
+      <button
+        type="button"
+        data-testid="fill-region-only"
+        onClick={() => onChange({ regionId: 'region-1', districtId: undefined })}
+      >
+        fill-region-only
+      </button>
+      <button
+        type="button"
+        data-testid="fill-region"
+        onClick={() =>
+          onChange({ regionId: 'region-1', districtId: 'district-1' })
+        }
+      >
+        fill-region
+      </button>
+      <button
+        type="button"
+        data-testid="fill-district-2"
+        onClick={() =>
+          onChange({ regionId: 'region-1', districtId: 'district-2' })
+        }
+      >
+        fill-district-2
+      </button>
+      <button
+        type="button"
+        data-testid="clear-region"
+        onClick={() => onChange({ regionId: undefined, districtId: undefined })}
+      >
+        clear-region
+      </button>
+    </div>
   ),
 }));
 vi.mock('@/components/layout/LoginModal', () => ({ LoginModal: () => null }));
 vi.mock('next-intl', () => {
   const resolve = (ns: string) => {
-    const lookup = (key: string): string => {
+    const lookup = (key: string, params?: Record<string, unknown>): string => {
       const root = (ns ? (ru as any)[ns] : ru) as any;
       const val = key
         .split('.')
@@ -139,7 +210,13 @@ vi.mock('next-intl', () => {
             o && typeof o === 'object' ? o[k] : undefined,
           root,
         );
-      return typeof val === 'string' ? val : key;
+      if (typeof val !== 'string') return key;
+      // Простая подстановка ICU-параметров {name} — нужна для текста alert'а.
+      return params
+        ? val.replace(/\{(\w+)\}/g, (m, k) =>
+            k in params ? String(params[k]) : m,
+          )
+        : val;
     };
     // t.rich (напр. contactGate.noPhoneHint): для теста достаточно вернуть
     // разрешённую строку — chunks-функции не вызываем.
@@ -153,10 +230,34 @@ import {
   ListingNew,
   buildListingBody,
   describeListingValidationErrors,
+  missingStepFields,
 } from './ListingNew';
 import type { FormState } from './ListingNew';
 
 const emptyProps = { regions: [], districts: [] };
+
+/** Справочник для тестов шага 2 (названия — как в реальном справочнике, ru). */
+const geoProps = {
+  regions: [
+    { id: 'region-1', name: 'город Ташкент', code: 'toshkent-shahri' },
+    { id: 'region-2', name: 'Ташкентская область', code: 'toshkent' },
+  ],
+  districts: [
+    { id: 'district-1', name: 'Юнусабад', regionId: 'region-1' },
+    { id: 'district-2', name: 'Чиланзар', regionId: 'region-1' },
+    { id: 'district-3', name: 'Кибрайский район', regionId: 'region-2' },
+  ],
+};
+
+/** Рендерит визард и переходит на шаг 2 (шаг 1 валиден по умолчанию). */
+function renderAtStep2(props: typeof geoProps | typeof emptyProps = geoProps) {
+  render(<ListingNew {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: /далее/i }));
+  expect(screen.getByText(/Шаг 2 из/)).toBeInTheDocument();
+}
+
+const clickNext = () =>
+  fireEvent.click(screen.getByRole('button', { name: /далее/i }));
 
 describe('ListingNew wizard (variant B)', () => {
   it('прогресс-бар не содержит шаг «Контакты», но содержит «Описание» и «Превью»', () => {
@@ -166,25 +267,156 @@ describe('ListingNew wizard (variant B)', () => {
     expect(screen.getByText('Превью')).toBeInTheDocument();
   });
 
-  it('(а) шаг 2 невалиден без regionId/districtId — кнопка «Далее» задизаблена', () => {
-    render(<ListingNew {...emptyProps} />);
+  it('(а) шаг 2: поля помечены обязательными, до попытки перехода ошибок нет', () => {
+    renderAtStep2();
 
-    // Шаг 1 валиден по умолчанию (SALE + APARTMENT); переходим на шаг 2.
-    const nextBtn = screen.getByRole('button', { name: /далее/i });
-    expect(nextBtn).not.toBeDisabled();
-    fireEvent.click(nextBtn);
+    expect(screen.getByTestId('select-required')).toHaveTextContent('true');
+    expect(screen.getByTestId('address-required')).toHaveTextContent('true');
+    // Кнопка «Далее» кликабельна (а не немая disabled), ошибок ещё нет.
+    expect(screen.getByRole('button', { name: /далее/i })).not.toBeDisabled();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByTestId('region-error')).toBeNull();
+    expect(screen.queryByTestId('district-error')).toBeNull();
+    expect(screen.queryByTestId('address-error')).toBeNull();
+  });
 
-    // Шаг 2: адрес и регион пустые → кнопка «Далее» задизаблена.
-    const nextBtn2 = screen.getByRole('button', { name: /далее/i });
-    expect(nextBtn2).toBeDisabled();
+  it('(а) «Далее» с пустыми полями → alert с названиями полей, шаг не меняется, поля подсвечены', () => {
+    renderAtStep2();
+    clickNext();
 
-    // Заполняем адрес, но регион/район ещё не выбраны → всё ещё задизаблена.
+    // Остались на шаге 2.
+    expect(screen.getByText(/Шаг 2 из/)).toBeInTheDocument();
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Регион');
+    expect(alert).toHaveTextContent('Район');
+    expect(alert).toHaveTextContent('Адрес');
+    expect(screen.getByTestId('region-error')).toHaveTextContent('Обязательное поле');
+    expect(screen.getByTestId('district-error')).toBeInTheDocument();
+    expect(screen.getByTestId('address-error')).toBeInTheDocument();
+  });
+
+  it('(а) подсветка конкретного поля снимается, как только его заполнили', () => {
+    renderAtStep2(emptyProps); // без справочника — автоадрес пустой
+    clickNext();
+
     fireEvent.click(screen.getByTestId('fill-address'));
-    expect(nextBtn2).toBeDisabled();
+    expect(screen.queryByTestId('address-error')).toBeNull();
+    expect(screen.getByTestId('region-error')).toBeInTheDocument();
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Регион');
+    expect(alert).not.toHaveTextContent('Адрес');
 
-    // Выбираем регион и район — теперь кнопка должна стать активной.
+    // Всё ещё не пускает дальше.
+    clickNext();
+    expect(screen.getByText(/Шаг 2 из/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('fill-region-only'));
+    expect(screen.queryByTestId('region-error')).toBeNull();
+    expect(screen.getByTestId('district-error')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Район');
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Регион');
+
     fireEvent.click(screen.getByTestId('fill-region'));
-    expect(nextBtn2).not.toBeDisabled();
+    expect(screen.queryByTestId('district-error')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('(а) после заполнения обязательных полей «Далее» переводит на шаг 3', () => {
+    renderAtStep2();
+    clickNext();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('fill-region'));
+    fireEvent.click(screen.getByTestId('fill-address'));
+    clickNext();
+
+    expect(screen.getByText(/Шаг 3 из/)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('(а) остальные шаги — как раньше: «Далее» disabled, пока шаг не заполнен', () => {
+    renderAtStep2();
+    fireEvent.click(screen.getByTestId('fill-region'));
+    clickNext();
+    // Шаг 3: площадь и год не заполнены.
+    expect(screen.getByText(/Шаг 3 из/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /далее/i })).toBeDisabled();
+  });
+
+  it('missingStepFields: шаг 2 — регион, район, адрес; прочие шаги — пусто', () => {
+    const empty = { address: '  ', regionId: '', districtId: '' };
+    expect(missingStepFields(2, empty)).toEqual(['region', 'district', 'address']);
+    expect(
+      missingStepFields(2, { address: 'ул. 1', regionId: 'r', districtId: '' }),
+    ).toEqual(['district']);
+    expect(
+      missingStepFields(2, { address: 'ул. 1', regionId: 'r', districtId: 'd' }),
+    ).toEqual([]);
+    expect(missingStepFields(3, empty)).toEqual([]);
+  });
+
+  it('(д) автоадрес: регион → «{Регион}», регион+район → «{Регион}, {Район}»', () => {
+    renderAtStep2();
+    const address = screen.getByTestId('address-value');
+    expect(address).toHaveTextContent('');
+
+    fireEvent.click(screen.getByTestId('fill-region-only'));
+    expect(address).toHaveTextContent('город Ташкент');
+
+    fireEvent.click(screen.getByTestId('fill-region'));
+    expect(address).toHaveTextContent('город Ташкент, Юнусабад');
+
+    // Адрес всё ещё автосгенерированный → смена района его обновляет.
+    fireEvent.click(screen.getByTestId('fill-district-2'));
+    expect(address).toHaveTextContent('город Ташкент, Чиланзар');
+
+    // Сброс региона убирает автоадрес (он не был отредактирован).
+    fireEvent.click(screen.getByTestId('clear-region'));
+    expect(address).toHaveTextContent('');
+  });
+
+  it('(д) автоадрес НЕ затирает текст, введённый пользователем', () => {
+    renderAtStep2();
+    const address = screen.getByTestId('address-value');
+
+    fireEvent.click(screen.getByTestId('fill-address'));
+    fireEvent.click(screen.getByTestId('fill-region'));
+    expect(address).toHaveTextContent('ул. Тестовая, 1');
+
+    // Автоадрес → пользователь отредактировал → смена района текст не трогает.
+    fireEvent.click(screen.getByTestId('clear-address'));
+    fireEvent.click(screen.getByTestId('fill-region'));
+    expect(address).toHaveTextContent('город Ташкент, Юнусабад');
+    fireEvent.click(screen.getByTestId('fill-address'));
+    fireEvent.click(screen.getByTestId('fill-district-2'));
+    expect(address).toHaveTextContent('ул. Тестовая, 1');
+  });
+
+  it('(д) пустой адрес снова заполняется автоадресом при выборе района', () => {
+    renderAtStep2();
+    fireEvent.click(screen.getByTestId('fill-address'));
+    fireEvent.click(screen.getByTestId('clear-address'));
+    fireEvent.click(screen.getByTestId('fill-district-2'));
+    expect(screen.getByTestId('address-value')).toHaveTextContent(
+      'город Ташкент, Чиланзар',
+    );
+  });
+
+  it('(е) точка на карте: ставит регион/район, автоадрес НЕ перекрывает адрес с карты', () => {
+    renderAtStep2();
+    const address = screen.getByTestId('address-value');
+
+    // Сначала автоадрес от селектов, затем клик по карте в другом регионе.
+    fireEvent.click(screen.getByTestId('fill-region'));
+    expect(address).toHaveTextContent('город Ташкент, Юнусабад');
+
+    fireEvent.click(screen.getByTestId('map-pick'));
+    expect(screen.getByTestId('select-value')).toHaveTextContent('region-2|district-3');
+    expect(address).toHaveTextContent('Ташкент, улица Амира Темура, 12');
+
+    // Дальнейшая смена района руками адрес с карты тоже не затирает.
+    fireEvent.click(screen.getByTestId('fill-district-2'));
+    expect(address).toHaveTextContent('Ташкент, улица Амира Темура, 12');
   });
 
   it('(б) buildListingBody проставляет district_id и city_id из regionId/districtId', () => {
