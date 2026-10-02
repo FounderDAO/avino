@@ -20,6 +20,7 @@ import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { normalizedAddressSql } from '../listings/address-sql';
 import { PrismaService } from '../prisma';
 import { UploadsService } from '../uploads';
+import { ExportAdminListingsQueryDto } from './dto/export-admin-listings.dto';
 import { ListAdminListingsQueryDto } from './dto/list-admin-listings.dto';
 import { ModerateListingDto } from './dto/moderate-listing.dto';
 import {
@@ -373,11 +374,15 @@ export class ModerationService {
    *
    * Фильтры и сортировка — те же, что у {@link listListings}: в файле то, что
    * админ видит в таблице, но без пагинации. `page`/`limit` игнорируются;
-   * потолок — {@link EXPORT_MAX_ROWS} самых свежих объявлений.
+   * потолок — {@link EXPORT_MAX_ROWS} самых свежих объявлений. `ids` сужает
+   * выгрузку до отмеченных в таблице объявлений.
    */
-  async exportListings(query: ListAdminListingsQueryDto): Promise<Buffer> {
+  async exportListings(query: ExportAdminListingsQueryDto): Promise<Buffer> {
+    const where = this.buildListWhere(query);
+    if (query.ids?.length) where.id = { in: query.ids };
+
     const rows = await this.prisma.listing.findMany({
-      where: this.buildListWhere(query),
+      where,
       select: LISTING_EXPORT_SELECT,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: EXPORT_MAX_ROWS,
