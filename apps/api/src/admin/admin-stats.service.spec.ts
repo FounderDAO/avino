@@ -5,6 +5,7 @@ import {
   PromotionStatus,
   SupportRequestStatus,
   TransactionType,
+  UserStatus,
 } from '@prisma/client';
 import { AdminStatsService } from './admin-stats.service';
 
@@ -84,8 +85,10 @@ describe('AdminStatsService', () => {
     expect(prisma.complaint.count).toHaveBeenCalledWith({
       where: { status: ComplaintStatus.NEW },
     });
-    // users_total — все пользователи, без where (как meta.total в /admin/users).
-    expect(prisma.user.count).toHaveBeenCalledWith();
+    // users_total — без удалённых аккаунтов (status != DELETED).
+    expect(prisma.user.count).toHaveBeenCalledWith({
+      where: { status: { not: UserStatus.DELETED } },
+    });
     expect(prisma.listingPromotion.count).toHaveBeenCalledWith({
       where: { status: PromotionStatus.ACTIVE },
     });

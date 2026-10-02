@@ -39,7 +39,10 @@ export interface AdminActivityItem {
  * - `by_district`        — топ-6 районов по числу объявлений с именами.
  * - `recent_activity`    — последние 6 записей журнала модерации.
  *
- * Везде исключаем `DELETED` (он вне read-path, DB_SCHEMA §15).
+ * Все три агрегата по объявлениям считают только опубликованные
+ * (`ListingStatus.ACTIVE`) — ту же базу, что KPI `/admin/stats`
+ * (`buy_rent.buy/rent` === `listings_sale/listings_rent`). Черновики, очередь
+ * модерации, отклонённые, архив, проданные/сданные и DELETED не учитываются.
  */
 export interface AdminAnalyticsResponse {
   listings_over_time: MonthlyCount[];
@@ -105,6 +108,7 @@ export class AdminAnalyticsService {
    * 12 помесячных счётчиков (старые→новые). `generate_series` гарантирует все 12
    * бакетов, включая месяцы без объявлений (LEFT JOIN → 0), поэтому фронту не
    * нужно зеро-филлить. Окно — последние 12 месяцев по `created_at` (UTC).
+   * Считаются только опубликованные (`status = 'ACTIVE'`).
    */
   private async listingsOverTime(): Promise<MonthlyCount[]> {
     const rows = await this.prisma.$queryRaw<
@@ -119,7 +123,7 @@ export class AdminAnalyticsService {
       LEFT JOIN (
         SELECT date_trunc('month', created_at) AS bucket, count(*) AS cnt
         FROM listings
-        WHERE status <> 'DELETED'
+        WHERE status = 'ACTIVE'
         GROUP BY 1
       ) c ON c.bucket = m
       ORDER BY m
@@ -127,32 +131,32 @@ export class AdminAnalyticsService {
     return rows.map((r) => ({ month: r.month, count: Number(r.count) }));
   }
 
-  /** Счётчики покупка/аренда (без DELETED). Проценты считает фронт. */
+  /** Счётчики покупка/аренда только опубликованные (`ACTIVE`), как KPI `/admin/stats`. Проценты считает фронт. */
   private async buyRentSplit(): Promise<{ buy: number; rent: number }> {
     const [buy, rent] = await Promise.all([
       this.prisma.listing.count({
         where: {
           transactionType: TransactionType.SALE,
-          status: { not: ListingStatus.DELETED },
+          status: ListingStatus.ACTIVE,
         },
       }),
       this.prisma.listing.count({
         where: {
           transactionType: TransactionType.RENT,
-          status: { not: ListingStatus.DELETED },
+          status: ListingStatus.ACTIVE,
         },
       }),
     ]);
     return { buy, rent };
   }
 
-  /** Топ-6 районов по числу объявлений (без DELETED) с локализованными именами. */
+  /** Топ-6 районов по числу опубликованных (`ACTIVE`) объявлений с локализованными именами. */
   private async topDistricts(): Promise<DistrictCount[]> {
     const grouped = await this.prisma.listing.groupBy({
       by: ['districtId'],
       where: {
         districtId: { not: null },
-        status: { not: ListingStatus.DELETED },
+        status: ListingStatus.ACTIVE,
       },
       _count: { _all: true },
       orderBy: { _count: { districtId: 'desc' } },

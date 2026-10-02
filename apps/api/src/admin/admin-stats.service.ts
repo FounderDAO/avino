@@ -6,6 +6,7 @@ import {
   PromotionStatus,
   SupportRequestStatus,
   TransactionType,
+  UserStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma';
 
@@ -80,7 +81,9 @@ export class AdminStatsService {
       this.prisma.complaint.count({
         where: { status: ComplaintStatus.NEW },
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({
+        where: { status: { not: UserStatus.DELETED } },
+      }),
       this.prisma.listingPromotion.count({
         where: { status: PromotionStatus.ACTIVE },
       }),

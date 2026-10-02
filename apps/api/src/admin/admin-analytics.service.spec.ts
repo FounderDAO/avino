@@ -27,6 +27,14 @@ describe('AdminAnalyticsService', () => {
     service = new AdminAnalyticsService(prisma);
   });
 
+  it('monthly series counts only ACTIVE listings (raw SQL filter)', async () => {
+    await service.getAnalytics();
+
+    const sql = (prisma.$queryRaw.mock.calls[0][0] as string[]).join('');
+    expect(sql).toContain("status = 'ACTIVE'");
+    expect(sql).not.toContain('DELETED');
+  });
+
   it('maps the monthly series through (coercing count to number)', async () => {
     prisma.$queryRaw.mockResolvedValue([
       { month: '2025-07', count: 5 },
@@ -41,7 +49,7 @@ describe('AdminAnalyticsService', () => {
     ]);
   });
 
-  it('counts buy/rent excluding DELETED', async () => {
+  it('counts buy/rent for ACTIVE listings only (same base as KPI)', async () => {
     prisma.listing.count
       .mockResolvedValueOnce(64) // SALE
       .mockResolvedValueOnce(36); // RENT
@@ -52,13 +60,13 @@ describe('AdminAnalyticsService', () => {
     expect(prisma.listing.count).toHaveBeenCalledWith({
       where: {
         transactionType: TransactionType.SALE,
-        status: { not: ListingStatus.DELETED },
+        status: ListingStatus.ACTIVE,
       },
     });
     expect(prisma.listing.count).toHaveBeenCalledWith({
       where: {
         transactionType: TransactionType.RENT,
-        status: { not: ListingStatus.DELETED },
+        status: ListingStatus.ACTIVE,
       },
     });
   });
@@ -85,7 +93,7 @@ describe('AdminAnalyticsService', () => {
         by: ['districtId'],
         where: {
           districtId: { not: null },
-          status: { not: ListingStatus.DELETED },
+          status: ListingStatus.ACTIVE,
         },
         take: 6,
       }),
