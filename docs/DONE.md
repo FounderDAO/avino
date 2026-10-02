@@ -37,6 +37,48 @@ Related ADR:
 
 ---
 
+## 2026-10-03
+
+### Ad-hoc — Экспорт списка объявлений в xlsx (api + web/админка)
+
+Status: DONE
+Branch: feat/admin-listings-export
+PR: #516
+
+Files changed:
+- apps/api/src/admin/admin-listings.controller.ts
+- apps/api/src/moderation/moderation.service.ts
+- apps/api/src/moderation/moderation.service.spec.ts
+- apps/api/src/moderation/listing-export.builder.ts (new)
+- apps/api/src/moderation/listing-export.builder.spec.ts (new)
+- apps/api/openapi.internal.json
+- apps/web/src/app/admin/listings/page.tsx
+- apps/web/src/store/api/adminListingsApi.ts
+- apps/web/src/lib/adapters/listingExport.ts (new)
+- apps/web/src/lib/adapters/listingExport.test.ts (new)
+- docs/API.md
+- docs/adr/ADR-0164-admin-listing-export.md (new)
+
+Summary:
+- Кнопка «Экспорт» в /admin/listings была заглушкой из прототипа apps/claudeDesign: тост
+  «Экспорт в CSV» без запроса, эндпоинта в API не было. Заказчик попросил скрыть или доделать —
+  доделано.
+- Добавлен GET /api/v1/admin/listings/export (только ADMIN, MODERATOR → 403): .xlsx по тем же
+  фильтрам и сортировке, что и список, без пагинации, до 5000 самых свежих строк, без фото.
+  Даты — по времени Ташкента; телефон — аккаунта, иначе подтверждённый контактный (ADR-0151).
+- Админка скачивает файл по текущим фильтрам; если под фильтр попало больше 5000, тост
+  предупреждает, что файл неполный. Заглушка «Добавить» убрана.
+- Важно: выгрузка не пишется в audit_logs (нет подходящего AuditAction — нужна миграция enum);
+  EXPORT_MAX_ROWS продублирован в apps/api и apps/web. Клик по кнопке в браузере до мержа не
+  проверялся — проверены API живым запросом, юнит-тесты, tsc, линт, CI.
+
+Commit messages:
+- feat(admin): экспорт списка объявлений в xlsx вместо заглушки
+- chore(api): обновить openapi.internal.json — эндпоинт экспорта объявлений
+
+Related ADR:
+- docs/adr/ADR-0164-admin-listing-export.md
+
 ## 2026-07-22
 
 ### Ad-hoc — Сброс RTK Query-кэша при смене аккаунта (client)
