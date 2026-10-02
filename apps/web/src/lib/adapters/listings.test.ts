@@ -11,7 +11,7 @@ describe('apiToUiStatus', () => {
     ['SOLD', 'SOLD'],
     ['RENTED', 'RENTED'],
     ['ARCHIVED', 'ARCHIVED'],
-    ['DELETED', 'ARCHIVED'],
+    ['DELETED', 'DELETED'],
   ] as const)('%s → %s', (api, ui) => {
     expect(apiToUiStatus(api)).toBe(ui);
   });
@@ -21,6 +21,11 @@ describe('UI_FILTER_TO_API_STATUS', () => {
   it('фильтры «Продано»/«Сдано» транслируются в API-статусы', () => {
     expect(UI_FILTER_TO_API_STATUS.SOLD).toBe('SOLD');
     expect(UI_FILTER_TO_API_STATUS.RENTED).toBe('RENTED');
+  });
+
+  it('«Архив» и «Удалённые» — разные API-статусы', () => {
+    expect(UI_FILTER_TO_API_STATUS.ARCHIVED).toBe('ARCHIVED');
+    expect(UI_FILTER_TO_API_STATUS.DELETED).toBe('DELETED');
   });
 });
 

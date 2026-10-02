@@ -47,6 +47,7 @@ const filters: [string, string][] = [
   ['SOLD', 'Продано'],
   ['RENTED', 'Сдано'],
   ['ARCHIVED', 'Архив'],
+  ['DELETED', 'Удалённые'],
 ];
 
 /** Фильтр по типу сделки (независимая ось от статуса). Пусто — все сделки. */
@@ -97,8 +98,10 @@ export default function ListingsPage() {
   const total = data?.meta.total ?? 0;
   const pages = totalPages(data?.meta);
 
-  const allSel = rows.length > 0 && rows.every((r) => sel.has(r.id));
-  const toggleAll = () => setSel(allSel ? new Set() : new Set(rows.map((r) => r.id)));
+  // Удалённые (soft-delete): деталь отдаёт 404, модерация невозможна — не открываем и не выбираем.
+  const selectable = rows.filter((r) => r.status !== 'DELETED');
+  const allSel = selectable.length > 0 && selectable.every((r) => sel.has(r.id));
+  const toggleAll = () => setSel(allSel ? new Set() : new Set(selectable.map((r) => r.id)));
   const toggle = (id: string) =>
     setSel((p) => {
       const n = new Set(p);
@@ -165,7 +168,7 @@ export default function ListingsPage() {
         <div className="a-card table-scroll">
           <table className="a-table">
             <thead><tr>
-              <th style={{ width: 36 }}><input type="checkbox" checked={allSel} onChange={toggleAll} disabled={rows.length === 0} /></th>
+              <th style={{ width: 36 }}><input type="checkbox" checked={allSel} onChange={toggleAll} disabled={selectable.length === 0} /></th>
               <th style={{ width: 84 }}>№</th>
               <th>Объявление</th><th>Цена</th><th>Тип</th><th>Комн.</th><th>Район</th><th>Агент</th><th>Статус</th><th>Просм.</th><th>Создано</th><th></th>
             </tr></thead>
@@ -175,9 +178,11 @@ export default function ListingsPage() {
               ) : rows.length === 0 ? (
                 <tr><td colSpan={12} className="muted" style={{ textAlign: 'center', padding: 40 }}>Ничего не найдено.</td></tr>
               ) : (
-                rows.map((l) => (
-                  <tr key={l.id} className="clickable" onClick={() => router.push(`/admin/listings/${l.id}`)}>
-                    <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={sel.has(l.id)} onChange={() => toggle(l.id)} /></td>
+                rows.map((l) => {
+                  const deleted = l.status === 'DELETED';
+                  return (
+                  <tr key={l.id} className={deleted ? undefined : 'clickable'} onClick={deleted ? undefined : () => router.push(`/admin/listings/${l.id}`)}>
+                    <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={sel.has(l.id)} disabled={deleted} onChange={() => toggle(l.id)} /></td>
                     <td className="muted" style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{l.reference}</td>
                     <td><div className="row" style={{ minWidth: 220, gap: 14 }}>
                       <div style={{ width: 48, height: 38, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
@@ -194,9 +199,10 @@ export default function ListingsPage() {
                     <td><StatusPill status={l.status} /></td>
                     <td>{l.views}</td>
                     <td className="muted" style={{ whiteSpace: 'nowrap' }}>{l.created}</td>
-                    <td onClick={(e) => e.stopPropagation()}><button className="aicon-btn" style={{ width: 30, height: 30 }} onClick={() => router.push(`/admin/listings/${l.id}`)}>⋯</button></td>
+                    <td onClick={(e) => e.stopPropagation()}><button className="aicon-btn" style={{ width: 30, height: 30 }} disabled={deleted} onClick={() => router.push(`/admin/listings/${l.id}`)}>⋯</button></td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

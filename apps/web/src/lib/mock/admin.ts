@@ -96,6 +96,8 @@ export const STATUS_MAP: StatusMap = {
   SOLD: ['Продано', '#1a73e8', '#e8f0fe'],
   RENTED: ['Сдано', '#7b1fa2', '#f3e5f5'],
   ARCHIVED: ['В архиве', 'var(--muted)', 'var(--archive-bg)'],
+  // Soft-delete — нейтрально-серый, как UserStatusPill deleted.
+  DELETED: ['Удалено', '#78909c', '#eceff1'],
 };
 
 export const logs: Logs = {
