@@ -1205,8 +1205,8 @@ optional response field (non-breaking, §14). `photo_url` — свежий URL �
 
 ### PATCH /api/v1/admin/listings/:id/status
 Сменить статус (модерация). Auth: **MODERATOR / ADMIN**. Действие — одно из
-`moderation_action`: `APPROVE | SEND_TO_DRAFT | REJECT | DELETE`. Маппинг на
-`listing_status`: `ACTIVE | DRAFT | REJECTED | DELETED`. `APPROVE` → `ACTIVE`
+`moderation_action`: `APPROVE | SEND_TO_DRAFT | REJECT | DELETE | ARCHIVE`. Маппинг на
+`listing_status`: `ACTIVE | DRAFT | REJECTED | DELETED | ARCHIVED`. `APPROVE` → `ACTIVE`
 **требует наличия переводов на все языки** (UZ/RU/EN), иначе
 `422 VALIDATION_ERROR` (ADR-0091); при успехе выставляет `published_at`.
 Авто-перевод по очереди удалён — переводы создаёт модератор вручную через
@@ -1222,6 +1222,13 @@ optional response field (non-breaking, §14). `photo_url` — свежий URL �
 ```json
 { "id": "l1", "status": "ACTIVE", "published_at": "2026-06-02T08:10:00Z" }
 ```
+`ARCHIVE` → `ARCHIVED` снимает объявление с публикации без удаления (в админке
+доступно и массово — по одному запросу на выбранную строку). Исходный статус —
+`NEW | ACTIVE | DRAFT | REJECTED`; из `ARCHIVED | SOLD | RENTED` →
+`422 INVALID_STATUS_TRANSITION`. Владелец может вернуть объявление сам
+(`REACTIVATE`): сразу в `ACTIVE` — только если оно было архивировано из `ACTIVE`,
+иначе в `NEW` на повторную модерацию.
+
 Создаёт `LISTING_MODERATION_STATUS_CHANGED` notification владельцу.
 Errors: `403 FORBIDDEN`, `422 INVALID_STATUS_TRANSITION`,
 `422 VALIDATION_ERROR` (нет переводов на все языки), `404 NOT_FOUND`.
@@ -1426,7 +1433,7 @@ Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
 #### GET /api/v1/admin/moderation-logs
 Глобальный журнал модерации (`moderation_logs`) по всем объявлениям — в отличие
 от per-listing `GET /admin/listings/:id/moderation-logs`. Query: `listing_id`,
-`moderator_id`, `action` (`APPROVE|SEND_TO_DRAFT|REJECT|DELETE`), `page`, `limit`.
+`moderator_id`, `action` (`APPROVE|SEND_TO_DRAFT|REJECT|DELETE|ARCHIVE`), `page`, `limit`.
 200 → список (`id`, `listing_id`, `moderator_id`, `action`, `old_status`,
 `new_status`, `reason`, `created_at`).
 

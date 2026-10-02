@@ -1243,6 +1243,7 @@
           "body_REJECTED": "E'lon moderator tomonidan rad etildi.",
           "body_REJECTED_reason": "E'lon moderator tomonidan rad etildi. Sababi: {reason}",
           "body_DELETED": "E'lon moderator tomonidan o'chirildi.",
+          "body_ARCHIVED": "E'lon moderator tomonidan arxivga o'tkazildi va nashrdan olindi.",
           "body": "E'loningiz holati yangilandi."
         },
         "NEW_LEAD": {

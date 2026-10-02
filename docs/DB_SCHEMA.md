@@ -83,7 +83,7 @@ promotion_status       PENDING_PAYMENT | ACTIVE | EXPIRED | CANCELLED | REFUNDED
 payment_status         NOT_REQUIRED | PENDING | PAID | FAILED | REFUNDED
 media_type             IMAGE                              (VIDEO is Phase 2, out of MVP)
 translation_source     USER | GOOGLE | YANDEX
-moderation_action      APPROVE | SEND_TO_DRAFT | REJECT | DELETE
+moderation_action      APPROVE | SEND_TO_DRAFT | REJECT | DELETE | ARCHIVE
 promotion_admin_action ACTIVATE_VIP | ACTIVATE_TOP | CANCEL_PROMOTION | EXTEND_PROMOTION
 notification_type      SAVED_SEARCH_NEW_LISTING | FAVORITE_PRICE_DROP | NEW_CHAT_MESSAGE
                        | LISTING_MODERATION_STATUS_CHANGED | NEW_LEAD
@@ -355,7 +355,7 @@ moderation_logs
 - id                  uuid PK
 - listing_id          uuid FK -> listings(id) ON DELETE CASCADE
 - moderator_id        uuid FK -> users(id) ON DELETE SET NULL NULL
-- action              moderation_action NOT NULL  (APPROVE|SEND_TO_DRAFT|REJECT|DELETE)
+- action              moderation_action NOT NULL  (APPROVE|SEND_TO_DRAFT|REJECT|DELETE|ARCHIVE)
 - old_status          listing_status NULL
 - new_status          listing_status NULL
 - reason              text NULL

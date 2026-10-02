@@ -1243,6 +1243,7 @@
           "body_REJECTED": "Your listing was rejected by a moderator.",
           "body_REJECTED_reason": "Your listing was rejected by a moderator. Reason: {reason}",
           "body_DELETED": "Your listing was removed by a moderator.",
+          "body_ARCHIVED": "Your listing was moved to the archive by a moderator and is no longer published.",
           "body": "Your listing status was updated."
         },
         "NEW_LEAD": {

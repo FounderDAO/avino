@@ -424,6 +424,7 @@ export function moderationStatusBody(
     REJECTED: string;
     REJECTED_reason: string;
     DELETED: string;
+    ARCHIVED: string;
     default: string;
   };
 
@@ -434,6 +435,7 @@ export function moderationStatusBody(
       REJECTED: 'Объявление отклонено модератором.',
       REJECTED_reason: 'Объявление отклонено модератором. Причина: {reason}',
       DELETED: 'Объявление удалено модератором.',
+      ARCHIVED: 'Объявление перенесено модератором в архив и снято с публикации.',
       default: 'Статус вашего объявления обновлён.',
     },
     [Language.UZ]: {
@@ -442,6 +444,7 @@ export function moderationStatusBody(
       REJECTED: 'E\'lon moderator tomonidan rad etildi.',
       REJECTED_reason: 'E\'lon moderator tomonidan rad etildi. Sababi: {reason}',
       DELETED: 'E\'lon moderator tomonidan o\'chirildi.',
+      ARCHIVED: 'E\'lon moderator tomonidan arxivga o\'tkazildi va nashrdan olindi.',
       default: 'E\'loningiz holati yangilandi.',
     },
     [Language.EN]: {
@@ -450,6 +453,7 @@ export function moderationStatusBody(
       REJECTED: 'Your listing was rejected by a moderator.',
       REJECTED_reason: 'Your listing was rejected by a moderator. Reason: {reason}',
       DELETED: 'Your listing was removed by a moderator.',
+      ARCHIVED: 'Your listing was moved to the archive by a moderator and is no longer published.',
       default: 'Your listing status was updated.',
     },
   };

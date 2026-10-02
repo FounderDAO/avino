@@ -2992,6 +2992,38 @@ Scope:
 
 ---
 
+## 22k. Админка — массовые действия в списке объявлений (2026-10-02)
+
+### TASK-261 — Починить массовое «В архив» / «Одобрить» в списке объявлений
+
+Status:
+
+```text
+REVIEW
+```
+
+Branch:
+
+```text
+fix/admin-bulk-archive
+```
+
+Scope:
+
+```text
+Жалоба заказчика: массовый перенос объявлений в архив не работает. Кнопки
+панели «Выбрано: N» в /admin/listings были заглушками (только тост), а у
+модератора в API не было перехода в ARCHIVED.
+apps/api: ModerationAction.ARCHIVE → ARCHIVED (миграция enum), правило
+edited_since_hidden, текст уведомления владельцу. ADR-0163.
+apps/web: кнопки «Одобрить»/«В архив» шлют PATCH /admin/listings/:id/status по
+каждой выбранной строке, тост — счётчики применённых/пропущенных.
+apps/client: текст уведомления body_ARCHIVED (ru/uz/en).
+Деплой: применить миграцию 20261002130000_add_moderation_action_archive.
+```
+
+---
+
 ## 23. Priority execution order
 
 Claude should execute in this order:

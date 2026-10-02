@@ -143,7 +143,8 @@ const MAX_LIMIT = 100;
 
 /**
  * Маппинг решения модератора на целевой `listing_status` (API.md §16).
- * APPROVE → ACTIVE, SEND_TO_DRAFT → DRAFT, REJECT → REJECTED, DELETE → DELETED.
+ * APPROVE → ACTIVE, SEND_TO_DRAFT → DRAFT, REJECT → REJECTED, DELETE → DELETED,
+ * ARCHIVE → ARCHIVED.
  * OWNER_EDIT сюда не входит — это системное событие, не переход по решению
  * модератора (пишется из ListingsService при правке владельцем).
  */
@@ -152,13 +153,15 @@ const ACTION_TO_STATUS: Partial<Record<ModerationAction, ListingStatus>> = {
   [ModerationAction.SEND_TO_DRAFT]: ListingStatus.DRAFT,
   [ModerationAction.REJECT]: ListingStatus.REJECTED,
   [ModerationAction.DELETE]: ListingStatus.DELETED,
+  [ModerationAction.ARCHIVE]: ListingStatus.ARCHIVED,
 };
 
 /**
  * Статусы, над которыми модерация имеет смысл (moderation queue, CLAUDE.md §9).
- * Владельческие терминальные статусы (ARCHIVED/SOLD/RENTED) и уже удалённые
- * листинги модератор не переводит — попытка → `422 INVALID_STATUS_TRANSITION`
- * (для DELETED — `404`, т.к. он исключён из read-path).
+ * Из владельческих терминальных статусов (ARCHIVED/SOLD/RENTED) и из уже
+ * удалённых листингов модератор ничего не переводит — попытка →
+ * `422 INVALID_STATUS_TRANSITION` (для DELETED — `404`, т.к. он исключён из
+ * read-path). В ARCHIVED модератор переводить может (действие ARCHIVE).
  */
 const MODERATABLE_STATUSES: readonly ListingStatus[] = [
   ListingStatus.NEW,
@@ -271,7 +274,7 @@ type DuplicateCardRow = Prisma.ListingGetPayload<{
  * ModerationService — модерация объявлений (TASK-053, API.md §16).
  *
  * Каждый листинг проходит moderation queue (CLAUDE.md §9): создание → `NEW`,
- * модератор/админ переводит в `ACTIVE | DRAFT | REJECTED | DELETED`. Любое
+ * модератор/админ переводит в `ACTIVE | DRAFT | REJECTED | DELETED | ARCHIVED`. Любое
  * действие атомарно: смена статуса + запись `moderation_logs` (доменный лог) +
  * `audit_logs(LISTING_STATUS_CHANGE)` + постановка уведомления владельцу в
  * очередь (`notifications`, status=PENDING — BullMQ-воркер подберёт её позже,
@@ -350,8 +353,14 @@ export class ModerationService {
    * `PATCH /api/v1/admin/listings/:id/status` — модерация листинга (API.md §16).
    *
    * Отсутствующий/DELETED листинг → `404 NOT_FOUND` (DELETED исключён из
-   * read-path). Терминальный владельческий статус (ARCHIVED/SOLD/RENTED) или
-   * переход в тот же статус → `422 INVALID_STATUS_TRANSITION`.
+   * read-path). Исходный терминальный владельческий статус
+   * (ARCHIVED/SOLD/RENTED) или переход в тот же статус →
+   * `422 INVALID_STATUS_TRANSITION`.
+   *
+   * ARCHIVE → ARCHIVED снимает листинг с публикации без удаления; владелец
+   * может вернуть его сам (REACTIVATE). `edited_since_hidden` ставится так,
+   * чтобы возврат шёл сразу в ACTIVE только для листинга, архивированного из
+   * ACTIVE; из NEW/DRAFT/REJECTED — обратно через очередь модерации.
    *
    * APPROVE → ACTIVE требует наличия переводов на все языки (ADR-0091):
    * отсутствие хотя бы одного → `422 VALIDATION_ERROR`. При прохождении гейта
@@ -420,11 +429,19 @@ export class ModerationService {
 
     const reason = dto.reason ?? null;
 
+    // Smart-return владельца (ListingsService.setOwnerStatus) пускает из архива
+    // сразу в ACTIVE при `edited_since_hidden = false`. Контент, архивированный
+    // не из ACTIVE, модерацию не проходил — помечаем его как требующий проверки.
+    const archiveData =
+      newStatus === ListingStatus.ARCHIVED
+        ? { editedSinceHidden: existing.status !== ListingStatus.ACTIVE }
+        : {};
+
     // Атомарно: статус листинга + доменный лог + аудит + постановка уведомления.
     const updated = await this.prisma.$transaction(async (tx) => {
       const listing = await tx.listing.update({
         where: { id: listingId },
-        data: { status: newStatus, publishedAt },
+        data: { status: newStatus, publishedAt, ...archiveData },
         select: { id: true, status: true, publishedAt: true },
       });
 

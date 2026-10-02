@@ -50,12 +50,14 @@ export type PromotionPeriodDays = 7 | 14 | 30;
 
 // OWNER_EDIT — системное значение только в ответах (moderation_logs): владелец
 // правил объявление и оно вернулось в очередь. Модератор его не отправляет
-// (эндпоинт смены статуса принимает лишь APPROVE/SEND_TO_DRAFT/REJECT/DELETE).
+// (эндпоинт смены статуса принимает лишь APPROVE/SEND_TO_DRAFT/REJECT/DELETE/
+// ARCHIVE).
 export type ModerationAction =
   | 'APPROVE'
   | 'SEND_TO_DRAFT'
   | 'REJECT'
   | 'DELETE'
+  | 'ARCHIVE'
   | 'OWNER_EDIT';
 export type PromotionAdminAction =
   | 'ACTIVATE_VIP'
@@ -236,7 +238,8 @@ export interface ListingDetail {
 
 /**
  * Тело `PATCH /admin/listings/:id/status` (§16). `action` маппится на статус
- * сервисом (APPROVE→ACTIVE, SEND_TO_DRAFT→DRAFT, REJECT→REJECTED, DELETE→DELETED).
+ * сервисом (APPROVE→ACTIVE, SEND_TO_DRAFT→DRAFT, REJECT→REJECTED, DELETE→DELETED,
+ * ARCHIVE→ARCHIVED).
  * `reason` опционален (пишется в moderation_logs/audit_logs).
  */
 export interface ModerateListingRequest {
