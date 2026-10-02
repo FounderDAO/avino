@@ -7420,7 +7420,8 @@
               "APPROVE",
               "SEND_TO_DRAFT",
               "REJECT",
-              "DELETE"
+              "DELETE",
+              "ARCHIVE"
             ]
           },
           "reason": {
