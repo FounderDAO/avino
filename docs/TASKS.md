@@ -2475,7 +2475,7 @@ Scope:
 
 ```text
 .github/CODEOWNERS, .github/pull_request_template.md (чеклист из CLAUDE.md §6),
-.nvmrc (20) для единообразия с engines/CI.
+.nvmrc — сделано в PR #518 (Node 22 LTS, ADR-0165); остаются CODEOWNERS и PR-template.
 ```
 
 ---
