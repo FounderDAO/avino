@@ -2920,6 +2920,78 @@ PR-2 нельзя мёржить раньше, чем PR-1 задеплоен
 
 ---
 
+## 22j. Админка — массовый импорт объявлений (2026-10-02)
+
+### TASK-258 — Массовый импорт объявлений: API
+
+Status:
+
+```text
+REVIEW
+```
+
+Branch:
+
+```text
+feat/listing-import
+```
+
+Scope:
+
+```text
+apps/api: модуль listing-imports — POST /admin/listing-imports (dry_run),
+GET /admin/listing-imports/template, GET /admin/listing-imports/:id; только ADMIN.
+Спека: docs/superpowers/specs/2026-10-02-listing-import-design.md, ADR-0162.
+```
+
+---
+
+### TASK-259 — Массовый импорт объявлений: админка
+
+Status:
+
+```text
+TODO
+```
+
+Branch:
+
+```text
+feat/listing-import-web
+```
+
+Scope:
+
+```text
+apps/web: страница импорта объявлений (загрузка файла, предпросмотр dry_run,
+запуск, отчёт, скачивание шаблона).
+```
+
+Dependencies:
+
+```text
+TASK-258
+```
+
+---
+
+### TASK-260 — Импорт фото при массовом импорте (фаза 2)
+
+Status:
+
+```text
+TODO
+```
+
+Scope:
+
+```text
+Нужна отдельная спека: ссылки + фоновая очередь / ZIP / загрузка админом /
+загрузка владельцем.
+```
+
+---
+
 ## 23. Priority execution order
 
 Claude should execute in this order:

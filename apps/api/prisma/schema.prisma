@@ -335,6 +335,9 @@ model User {
   agentApplications          AgentApplication[] @relation("AgentApplicant")
   agentApplicationsModerated AgentApplication[] @relation("AgentApplicationModerator")
 
+  // Массовый импорт объявлений из админки (спека 2026-10-02).
+  listingImports ListingImport[] @relation("ListingImportAuthor")
+
   @@map("users")
 }
 
@@ -1231,4 +1234,52 @@ model LegalDocument {
   @@unique([kind, version])
   @@index([kind, status])
   @@map("legal_documents")
+}
+
+/// Итог строки импорта объявлений (спека 2026-10-02 §4).
+enum ListingImportOutcome {
+  CREATED
+  SKIPPED_EXISTS
+  SKIPPED_DUPLICATE_IN_FILE
+  ERROR
+}
+
+/// Запуск массового импорта объявлений из админки.
+model ListingImport {
+  id                 String   @id @default(uuid()) @db.Uuid
+  createdById        String   @map("created_by_id") @db.Uuid
+  fileName           String   @map("file_name") @db.VarChar(255)
+  totalRows          Int      @map("total_rows")
+  createdCount       Int      @default(0) @map("created_count")
+  skippedExistsCount Int      @default(0) @map("skipped_exists_count")
+  skippedInFileCount Int      @default(0) @map("skipped_in_file_count")
+  errorCount         Int      @default(0) @map("error_count")
+  unknownColumns     String[] @default([]) @map("unknown_columns")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  createdBy User               @relation("ListingImportAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  rows      ListingImportRow[]
+
+  @@index([createdById])
+  @@map("listing_imports")
+}
+
+/// Итог одной строки файла. `listingId` — без FK: удаление объявления не
+/// должно ломать отчёт.
+model ListingImportRow {
+  id             String               @id @default(uuid()) @db.Uuid
+  importId       String               @map("import_id") @db.Uuid
+  rowNumber      Int                  @map("row_number")
+  outcome        ListingImportOutcome
+  listingId      String?              @map("listing_id") @db.Uuid
+  ownerIsNew     Boolean              @default(false) @map("owner_is_new")
+  duplicateOfRow Int?                 @map("duplicate_of_row")
+  errors         Json?
+  raw            Json
+
+  import ListingImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@unique([importId, rowNumber])
+  @@index([listingId])
+  @@map("listing_import_rows")
 }

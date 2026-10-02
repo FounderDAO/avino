@@ -29,3 +29,19 @@ export function normalizeContact(
   const email = destination.trim().toLowerCase();
   return EMAIL_RE.test(email) && email.length <= 255 ? email : null;
 }
+
+/**
+ * Терпимая нормализация телефона из файла импорта (спека 2026-10-02 §2).
+ * В таблицах номер пишут как угодно: без «+», без кода страны, числовой
+ * ячейкой Excel. Приводим к тому же E.164, по которому владелец войдёт через
+ * OTP, и отдаём строгому {@link normalizeContact}.
+ */
+export function normalizeImportPhone(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const raw = typeof value === 'number' ? value.toFixed(0) : String(value);
+  const compact = raw.replace(/[\s\-()]/g, '');
+  let candidate = compact;
+  if (/^998\d{9}$/.test(compact)) candidate = `+${compact}`;
+  else if (/^\d{9}$/.test(compact)) candidate = `+998${compact}`;
+  return normalizeContact(OtpChannel.SMS, candidate);
+}
