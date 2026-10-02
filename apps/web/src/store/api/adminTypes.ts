@@ -872,3 +872,50 @@ export interface LegalConsentVersionSummary {
   effective_at: string | null;
   count: number;
 }
+
+/** Массовый импорт объявлений (API.md §16, ADR-0162). */
+export type ListingImportOutcome =
+  | 'TO_CREATE'
+  | 'CREATED'
+  | 'SKIPPED_EXISTS'
+  | 'SKIPPED_DUPLICATE_IN_FILE'
+  | 'ERROR';
+
+export interface ListingImportRowError {
+  /** Ключ колонки файла или `null` для ошибки всей строки. */
+  column: string | null;
+  code: string;
+  message: string;
+}
+
+export interface ListingImportRow {
+  row: number;
+  outcome: ListingImportOutcome;
+  phone: string | null;
+  title: string | null;
+  owner_is_new?: boolean;
+  listing_id?: string;
+  listing_reference?: number | null;
+  duplicate_of_row?: number;
+  errors?: ListingImportRowError[];
+}
+
+export interface ListingImportSummary {
+  total: number;
+  created: number;
+  to_create: number;
+  skipped_exists: number;
+  skipped_duplicate_in_file: number;
+  errors: number;
+}
+
+export interface ListingImportReport {
+  id: string | null;
+  dry_run: boolean;
+  /** `true` в сохранённом отчёте, если запуск был прерван; в ответе запуска всегда `false`. */
+  incomplete: boolean;
+  file_name: string;
+  summary: ListingImportSummary;
+  unknown_columns: string[];
+  rows: ListingImportRow[];
+}
