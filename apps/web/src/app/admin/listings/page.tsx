@@ -11,6 +11,7 @@ import { SectionTitle } from '@/components/admin/ui/section-title';
 import { StatusPill } from '@/components/admin/ui/pill';
 import { IC } from '@/components/admin/icons';
 import { useToast } from '@/components/admin/toast';
+import { ListingImportModal } from '@/components/admin/ListingImportModal';
 import { useListAdminListingsQuery } from '@/store/api/adminListingsApi';
 import { totalPages, type TransactionType } from '@/store/api/adminApi';
 import { rowToAdminListing, UI_FILTER_TO_API_STATUS } from '@/lib/adapters/listings';
@@ -60,6 +61,7 @@ export default function ListingsPage() {
   const [debouncedQ, setDebouncedQ] = useState<string>('');
   const [page, setPage] = useState<number>(1);
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [importOpen, setImportOpen] = useState(false);
 
   // Дебаунс поиска (400мс), чтобы не дёргать API на каждый символ.
   useEffect(() => {
@@ -105,6 +107,7 @@ export default function ListingsPage() {
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
         <SectionTitle sub={`${total} объявлений всего`}>Объявления</SectionTitle>
         <div className="row gap-8">
+          <button className="abtn abtn-outline" onClick={() => setImportOpen(true)}>Импорт</button>
           <button className="abtn abtn-outline" onClick={() => toast('Экспорт в CSV')}>Экспорт</button>
           <button className="abtn abtn-primary" onClick={() => toast('Форма создания объявления')}><IC.Plus size={17} /> Добавить</button>
         </div>
@@ -211,6 +214,7 @@ export default function ListingsPage() {
           <button className="aicon-btn" style={{ width: 32, height: 32 }} disabled={pages > 0 && page >= pages} onClick={() => setPage((p) => p + 1)}><IC.ChevronRight size={16} /></button>
         </div>
       </div>
+      {importOpen && <ListingImportModal onClose={() => setImportOpen(false)} />}
     </div>
   );
 }
