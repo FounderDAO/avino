@@ -18,6 +18,28 @@ export interface ImportRowReport {
   listing_reference?: number | null;
   duplicate_of_row?: number;
   errors?: ImportRowError[];
+  /** Фото строки записаны и прикреплены к объявлению (спека 2026-10-03 §2). */
+  photos_attached?: boolean;
+  photos?: ImportPhotoReport[];
+}
+
+export interface ImportPhotoReport {
+  id: string | null;
+  position: number;
+  source: 'URL' | 'FILE';
+  ref: string;
+  /** `null` — фото ещё не записано (предпросмотр) или проигнорировано. */
+  status: 'PENDING' | 'AWAITING_UPLOAD' | 'DONE' | 'FAILED' | null;
+  error_code: string | null;
+  http_status: number | null;
+}
+
+export interface ImportPhotosSummary {
+  total: number;
+  done: number;
+  failed: number;
+  pending: number;
+  awaiting_upload: number;
 }
 
 export interface ImportSummary {
@@ -38,6 +60,7 @@ export interface ListingImportReport {
   summary: ImportSummary;
   unknown_columns: string[];
   rows: ImportRowReport[];
+  photos_summary: ImportPhotosSummary;
 }
 
 export function summarize(rows: ImportRowReport[]): ImportSummary {
@@ -51,6 +74,13 @@ export function summarize(rows: ImportRowReport[]): ImportSummary {
     skipped_duplicate_in_file: count('SKIPPED_DUPLICATE_IN_FILE'),
     errors: count('ERROR'),
   };
+}
+
+/** Предпросмотр: что будет поставлено — ссылки в `pending`, файлы в `awaiting_upload`. */
+export function summarizeDraftPhotos(rows: ImportRowReport[]): ImportPhotosSummary {
+  const photos = rows.flatMap((row) => (row.photos_attached ? row.photos ?? [] : []));
+  const urls = photos.filter((photo) => photo.source === 'URL').length;
+  return { total: photos.length, done: 0, failed: 0, pending: urls, awaiting_upload: photos.length - urls };
 }
 
 /**

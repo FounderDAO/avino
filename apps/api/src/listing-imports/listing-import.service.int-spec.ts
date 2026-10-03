@@ -35,7 +35,7 @@ class MemoryLock {
 
 const HEADERS = [
   'Телефон', 'Имя', 'Фамилия', 'Тип сделки', 'Тип недвижимости', 'Заголовок',
-  'Цена', 'Валюта', 'Адрес', 'Площадь', 'Этаж', 'Год постройки',
+  'Цена', 'Валюта', 'Адрес', 'Площадь', 'Этаж', 'Год постройки', 'Фото',
 ];
 
 const PHONE_NEW = '+998905550001';
@@ -43,8 +43,9 @@ const PHONE_EXISTING = '+998905550002';
 const PHONE_BLOCKED = '+998905550003';
 const PHONE_NO_NAME = '+998905550004';
 const PHONE_ANCHOR = '+998905550005';
+const PHONE_PHOTOS = '+998905550006';
 const PHONE_ADMIN = '+998905550009';
-const PHONES = [PHONE_NEW, PHONE_EXISTING, PHONE_BLOCKED, PHONE_NO_NAME, PHONE_ANCHOR, PHONE_ADMIN];
+const PHONES = [PHONE_NEW, PHONE_EXISTING, PHONE_BLOCKED, PHONE_NO_NAME, PHONE_ANCHOR, PHONE_PHOTOS, PHONE_ADMIN];
 
 // Адрес намеренно такой, который normalizeAddress меняет («улица» → «ул.», срез страны).
 const ADDRESS = 'Узбекистан, Ташкент, улица Импортная, 7';
@@ -88,7 +89,10 @@ describe('ListingImportService (integration)', () => {
     addressResolverStub,
   );
   const lock = new MemoryLock();
-  const service = new ListingImportService(prisma, listings, lock as unknown as ListingImportLock);
+  const photoQueue = { enqueue: jest.fn().mockResolvedValue(undefined) };
+  const service = new ListingImportService(prisma, listings, lock as unknown as ListingImportLock, photoQueue as any);
+
+  beforeEach(() => photoQueue.enqueue.mockClear());
 
   let adminId: string;
   let existingId: string;
@@ -361,6 +365,100 @@ describe('ListingImportService (integration)', () => {
     } finally {
       lock.held = false;
     }
+  });
+
+  describe('фото', () => {
+    const photoRows = (importId: string) =>
+      prisma.listingImportPhoto.findMany({ where: { importId }, orderBy: [{ rowNumber: 'asc' }, { position: 'asc' }] });
+
+    it('dry_run: фото в отчёте без id, сводка по ссылкам и файлам, в БД ничего', async () => {
+      const before = await prisma.listingImportPhoto.count();
+      const report = await service.run(
+        await file([row(PHONE_PHOTOS, { Адрес: 'Ташкент, Фото, 1', Фото: 'https://a.uz/1.jpg, 2.jpg' })]),
+        adminId,
+        true,
+      );
+      expect(report.rows[0]).toMatchObject({
+        outcome: 'TO_CREATE',
+        photos_attached: true,
+        photos: [
+          { id: null, position: 0, source: 'URL', ref: 'https://a.uz/1.jpg', status: null },
+          { id: null, position: 1, source: 'FILE', ref: '2.jpg', status: null },
+        ],
+      });
+      expect(report.photos_summary).toEqual({ total: 2, done: 0, failed: 0, pending: 1, awaiting_upload: 1 });
+      expect(await prisma.listingImportPhoto.count()).toBe(before);
+    });
+
+    it('CREATED: записи PENDING/AWAITING_UPLOAD, в очередь — только ссылки', async () => {
+      const report = await service.run(
+        await file([row(PHONE_PHOTOS, { Адрес: 'Ташкент, Фото, 1', Фото: 'https://a.uz/1.jpg, 2.jpg' })]),
+        adminId,
+        false,
+      );
+      expect(report.rows[0]).toMatchObject({ outcome: 'CREATED', photos_attached: true });
+      const records = await photoRows(report.id as string);
+      expect(records.map((r) => [r.position, r.source, r.status, r.listingId])).toEqual([
+        [0, 'URL', 'PENDING', report.rows[0].listing_id],
+        [1, 'FILE', 'AWAITING_UPLOAD', report.rows[0].listing_id],
+      ]);
+      expect(photoQueue.enqueue).toHaveBeenCalledWith([records[0].id]);
+      expect(report.rows[0].photos?.map((p) => p.id)).toEqual(records.map((r) => r.id));
+      expect(report.photos_summary).toEqual({ total: 2, done: 0, failed: 0, pending: 1, awaiting_upload: 1 });
+    });
+
+    it('SKIPPED_EXISTS: незавершённые фото другого импорта → не прикрепляем', async () => {
+      const report = await service.run(
+        await file([row(PHONE_PHOTOS, { Адрес: 'Ташкент, Фото, 1', Фото: '3.jpg' })]),
+        adminId,
+        false,
+      );
+      expect(report.rows[0]).toMatchObject({
+        outcome: 'SKIPPED_EXISTS',
+        photos_attached: false,
+        photos: [{ id: null, ref: '3.jpg', status: null }],
+      });
+      expect(await photoRows(report.id as string)).toHaveLength(0);
+    });
+
+    it('SKIPPED_EXISTS без фото → прикрепляем; повторный запуск — без дублей; ровно одна строка отчёта на строку файла', async () => {
+      // Объявление без фото: создано первой фазой (без колонки «Фото»).
+      await service.run(await file([row(PHONE_PHOTOS, { Адрес: 'Ташкент, Фото, 2' })]), adminId, false);
+      const mixed = await service.run(
+        await file([
+          row(PHONE_PHOTOS, { Адрес: 'Ташкент, Фото, 2', Фото: 'https://a.uz/x.jpg' }),
+          row(PHONE_PHOTOS, { Адрес: 'Ташкент, Фото, 3', Фото: 'y.jpg' }),
+          row(PHONE_PHOTOS, { Цена: 'дорого', Адрес: 'Ташкент, Фото, 4', Фото: 'z.jpg' }),
+        ]),
+        adminId,
+        false,
+      );
+      expect(mixed.rows.map((r) => [r.outcome, r.photos_attached])).toEqual([
+        ['SKIPPED_EXISTS', true],
+        ['CREATED', true],
+        ['ERROR', undefined],
+      ]);
+      const rows = await prisma.listingImportRow.findMany({ where: { importId: mixed.id as string } });
+      expect(rows).toHaveLength(3);
+      expect(rows.find((r) => r.rowNumber === 2)?.photosAttached).toBe(true);
+
+      const again = await service.run(
+        await file([row(PHONE_PHOTOS, { Адрес: 'Ташкент, Фото, 2', Фото: 'https://a.uz/x.jpg' })]),
+        adminId,
+        false,
+      );
+      expect(again.rows[0]).toMatchObject({ outcome: 'SKIPPED_EXISTS', photos_attached: false });
+      expect(await photoRows(again.id as string)).toHaveLength(0);
+    });
+
+    it('getReport совпадает с ответом запуска, включая фото', async () => {
+      const run = await service.run(
+        await file([row(PHONE_PHOTOS, { Адрес: 'Ташкент, Фото, 5', Фото: '5.jpg' })]),
+        adminId,
+        false,
+      );
+      expect(await service.getReport(run.id as string)).toEqual(run);
+    });
   });
 
   async function cleanupOwner(phone: string): Promise<void> {
