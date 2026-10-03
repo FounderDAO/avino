@@ -1261,8 +1261,9 @@ model ListingImport {
   unknownColumns     String[] @default([]) @map("unknown_columns")
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  createdBy User               @relation("ListingImportAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy User                 @relation("ListingImportAuthor", fields: [createdById], references: [id], onDelete: Restrict)
   rows      ListingImportRow[]
+  photos    ListingImportPhoto[]
 
   @@index([createdById])
   @@map("listing_imports")
@@ -1280,10 +1281,50 @@ model ListingImportRow {
   duplicateOfRow Int?                 @map("duplicate_of_row")
   errors         Json?
   raw            Json
+  photosAttached Boolean              @default(false) @map("photos_attached")
 
   import ListingImport @relation(fields: [importId], references: [id], onDelete: Cascade)
 
   @@unique([importId, rowNumber])
   @@index([listingId])
   @@map("listing_import_rows")
+}
+
+enum ListingImportPhotoSource {
+  URL
+  FILE
+}
+
+/// PENDING — ссылка ждёт воркера; AWAITING_UPLOAD — файл ждёт загрузки из браузера.
+enum ListingImportPhotoStatus {
+  PENDING
+  AWAITING_UPLOAD
+  DONE
+  FAILED
+}
+
+/// Фото строки импорта (спека 2026-10-03 §2). `listingId`/`mediaId` — без FK:
+/// удаление объявления или фото не должно ломать отчёт.
+model ListingImportPhoto {
+  id         String                   @id @default(uuid()) @db.Uuid
+  importId   String                   @map("import_id") @db.Uuid
+  rowNumber  Int                      @map("row_number")
+  listingId  String                   @map("listing_id") @db.Uuid
+  position   Int
+  source     ListingImportPhotoSource
+  ref        String                   @db.VarChar(2048)
+  status     ListingImportPhotoStatus
+  errorCode  String?                  @map("error_code") @db.VarChar(32)
+  httpStatus Int?                     @map("http_status")
+  mediaId    String?                  @map("media_id") @db.Uuid
+  attempts   Int                      @default(0)
+  createdAt  DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  import ListingImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@unique([importId, rowNumber, position])
+  @@index([importId, status])
+  @@index([listingId, status])
+  @@map("listing_import_photos")
 }
