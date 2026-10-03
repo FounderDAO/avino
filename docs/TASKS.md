@@ -3024,6 +3024,44 @@ apps/client: текст уведомления body_ARCHIVED (ru/uz/en).
 
 ---
 
+## 22l. Импорт фото (2026-10-03)
+
+### TASK-263 — Импорт фото: API (колонка «Фото», очередь ссылок, загрузка из папки, история)
+
+Status:
+
+```text
+REVIEW
+```
+
+Branch:
+
+```text
+feature/listing-import-photos-api
+```
+
+Spec:
+
+```text
+docs/superpowers/specs/2026-10-03-listing-import-photos-design.md
+```
+
+ADR:
+
+```text
+docs/adr/ADR-0165-listing-import-photos.md
+```
+
+Scope:
+
+```text
+apps/api: колонка photos, таблица listing_import_photos, очередь
+listing_import_photo_queue с безопасным скачиванием (SSRF), PUT загрузки файла из
+папки, повтор ссылок, история импортов, photos_summary в отчёте.
+```
+
+---
+
 ## 23. Priority execution order
 
 Claude should execute in this order:

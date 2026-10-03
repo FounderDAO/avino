@@ -610,6 +610,7 @@ EXIF-strip + thumbnail). Auth: **владелец**.
 ### POST /api/v1/listings/:id/media (proxy, MVP)
 Альтернатива: `multipart/form-data` с полем `file`. Auth: **владелец**. Бэк
 валидирует MIME/размер, грузит в S3, создаёт запись. 201 → объект media.
+Новая запись получает `sort_order = max + 1`; порядок может идти с пропусками.
 
 ### PATCH /api/v1/listings/:id/media/reorder
 Переупорядочить. Auth: **владелец**. `{ "order": ["m2","m1","m3"] }` → 200.
@@ -1370,8 +1371,12 @@ Errors: `400 VALIDATION_ERROR` (self-block), `404 NOT_FOUND` (нет польз�
 | Метод | Путь | Назначение |
 |---|---|---|
 | `POST` | `/api/v1/admin/listing-imports` | `multipart/form-data`, поле `file`; query `dry_run` (boolean, default `false`) |
+| `GET` | `/api/v1/admin/listing-imports` | история импортов; query `page` (≥1, default 1), `limit` (1–100, default 20) |
 | `GET` | `/api/v1/admin/listing-imports/template` | шаблон `.xlsx` |
-| `GET` | `/api/v1/admin/listing-imports/:id` | сохранённый отчёт |
+| `GET` | `/api/v1/admin/listing-imports/:id` | сохранённый отчёт (с фото) |
+| `GET` | `/api/v1/admin/listing-imports/:id/photos/summary` | счётчики фото импорта (для опроса) |
+| `PUT` | `/api/v1/admin/listing-imports/:id/photos/:photoId` | загрузка фото из папки, `multipart/form-data`, поле `file` |
+| `POST` | `/api/v1/admin/listing-imports/:id/photos/retry` | повтор скачивания ссылок |
 
 `POST` отвечает `200` (не `201`). `dry_run=true` — предпросмотр: файл
 разбирается и проверяется, в БД ничего не пишется. Файл не хранится — для
@@ -1392,7 +1397,10 @@ Errors: `400 VALIDATION_ERROR` (self-block), `404 NOT_FOUND` (нет польз�
 `null` для ошибки всей строки), `message` — английский текст для логов, русский
 текст админка строит по `code` + `column`. Коды: `REQUIRED`, `INVALID_VALUE`,
 `TOO_LONG`, `INVALID_PHONE`, `OWNER_BLOCKED`, `OWNER_NAME_REQUIRED`,
-`UNKNOWN_AMENITY`, `INTERNAL`. Ошибка строки не останавливает остальные.
+`UNKNOWN_AMENITY`, `PHOTO_TOO_MANY`, `PHOTO_INVALID_URL`, `PHOTO_UNSUPPORTED_FORMAT`,
+`PHOTO_INVALID_NAME`, `INTERNAL`. Ошибка строки не останавливает остальные. У `PHOTO_*`
+(кроме `PHOTO_TOO_MANY`) в элементе есть необязательное поле `value` — проблемный
+элемент ячейки «Фото».
 
 Ответ `POST` и `GET :id`:
 ```json
@@ -1439,6 +1447,114 @@ Errors: `400 VALIDATION_ERROR` (self-block), `404 NOT_FOUND` (нет польз�
 Шаблон генерируется из того же реестра колонок, что использует парсер: лист 1 —
 только заголовки, лист «Справка» — описание колонок, допустимые значения и
 пример строки.
+
+#### Импорт фото (спека 2026-10-03, ADR-0165)
+
+Колонка `photos` («Фото», необязательная): ссылки и имена файлов в одной ячейке,
+порядок = порядок галереи (первое — обложка, `position = 0`). Разбор ячейки:
+
+- разделители: перевод строки, `,`, `;` (не пробел — в именах файлов бывают
+  пробелы). Запятая внутри ссылки (Cloudinary: `…/w_100,h_100/…`) не делит: если
+  текущий элемент — ссылка, а после запятой нет пробела и не начинается новая
+  ссылка `http(s)://`, кусок приклеивается к ссылке;
+- Excel-ячейка-гиперссылка, у которой текст не содержит `://`, читается по адресу
+  гиперссылки;
+- крайние пробелы срезаются, пустые элементы пропускаются;
+- повтор элемента в ячейке (ссылка — точное совпадение, имя — без учёта регистра)
+  молча убирается, остаётся первое вхождение;
+- элемент с префиксом `http://` / `https://` (без учёта регистра) — `URL`, остальное
+  — `FILE` (имя файла из выбранной папки, совпадение без учёта регистра).
+
+Статические проверки — ошибка строки (`outcome: ERROR`, `column: "photos"`):
+
+| `code` | Когда |
+|---|---|
+| `PHOTO_TOO_MANY` | > 20 элементов после очистки |
+| `PHOTO_INVALID_URL` | не разбирается как URL, протокол не http/https, длина > 2048 |
+| `PHOTO_UNSUPPORTED_FORMAT` | `FILE` с расширением не `.jpg`/`.jpeg`/`.png`/`.webp` (в т.ч. `.heic`) |
+| `PHOTO_INVALID_NAME` | `FILE` содержит `/` или `\`, или длиннее 255 |
+
+Расширение ссылки не проверяется — тип определяется при скачивании по байтам.
+
+Новые поля строки отчёта (`TO_CREATE`, `CREATED`, `SKIPPED_EXISTS`; у прочих итогов
+отсутствуют): `photos_attached` и `photos[]`. Строка без колонки/ячейки фото —
+`photos: []`, `photos_attached: false`.
+```json
+{
+  "row": 2, "outcome": "CREATED", "listing_id": "…", "listing_reference": 10432,
+  "owner_is_new": false,
+  "photos_attached": true,
+  "photos": [
+    { "id": "uuid", "position": 0, "source": "URL", "ref": "https://…/1.jpg",
+      "status": "DONE", "error_code": null, "http_status": null },
+    { "id": "uuid", "position": 1, "source": "FILE", "ref": "1001.jpg",
+      "status": "AWAITING_UPLOAD", "error_code": null, "http_status": null }
+  ]
+}
+```
+`status`: `PENDING` (ссылка ждёт воркера), `AWAITING_UPLOAD` (файл ждёт браузера),
+`DONE`, `FAILED`. При `dry_run` у каждого фото `id: null`, `status: null`;
+`photos_attached` — «будут прикреплены». У `SKIPPED_EXISTS` фото прикрепляются
+только если у найденного объявления 0 фото и нет незавершённых фото другого
+импорта; иначе `photos_attached: false`, а `photos` — разобранная ячейка с
+`id: null`, `status: null` (видно, что проигнорировано).
+
+Верх отчёта (`POST`, `GET :id`) получает `photos_summary`:
+`{ "total", "done", "failed", "pending", "awaiting_upload" }` — одна форма в обоих
+режимах; при `dry_run` считается по строкам с `photos_attached: true`
+(`done = failed = 0`).
+
+`error_code` фото (`FAILED`; объявление при этом остаётся созданным):
+
+| `error_code` | Когда |
+|---|---|
+| `HTTP_ERROR` | ответ 4xx/5xx после попыток; `http_status` сохраняется |
+| `FETCH_FAILED` | сеть / DNS / таймаут после попыток |
+| `NOT_AN_IMAGE` | байты не jpeg/png/webp (в т.ч. HTML-страница) |
+| `TOO_LARGE` | > 10 МБ |
+| `BLOCKED_HOST` | внутренний адрес, недопустимый порт, > 3 редиректов |
+| `MEDIA_LIMIT` | в галерее уже 20 фото |
+| `LISTING_UNAVAILABLE` | объявление не найдено или `DELETED` |
+| `INTERNAL` | прочее |
+
+Файл, не найденный в выбранной папке, — не ошибка: фото остаётся `AWAITING_UPLOAD`.
+
+Ссылки скачивает сервер в фоне (очередь `listing_import_photo_queue`, SSRF-защита,
+10 МБ, 15 с, ≤ 3 редиректа); файлы из папки браузер загружает по одному через `PUT`.
+
+**`GET /api/v1/admin/listing-imports`** → `{ "data": [...], "meta": { "page", "limit", "total" } }`,
+`created_at DESC`:
+```json
+{ "id": "uuid", "file_name": "listings.xlsx", "created_at": "…",
+  "created_by": { "id": "uuid", "name": "Имя Фамилия" },
+  "summary": { "total": 120, "created": 97, "skipped_exists": 15,
+               "skipped_duplicate_in_file": 3, "errors": 5 },
+  "photos_summary": { "total": 300, "done": 280, "failed": 5,
+                      "pending": 0, "awaiting_upload": 15 },
+  "incomplete": false }
+```
+`incomplete` — сохранено меньше строк, чем было в файле.
+
+**`GET /api/v1/admin/listing-imports/:id/photos/summary`** → `{ total, done, failed, pending, awaiting_upload }`.
+
+**`PUT /api/v1/admin/listing-imports/:id/photos/:photoId`** — `multipart/form-data`,
+поле `file`. Ответ — элемент `photos[]` строки.
+
+| Проверка | Ответ |
+|---|---|
+| нет файла | 400 `VALIDATION_ERROR` |
+| `file.size` > 10 МиБ — проверка в сервисе, тем же способом, что `IMPORT_FILE_TOO_LARGE` в `import-file.parser.ts` (`HttpException` с кодом) | 413 `IMPORT_PHOTO_TOO_LARGE`, статус фото не меняется |
+| фото нет или другой импорт | 404 `NOT_FOUND` |
+| `source ≠ FILE` | 409 `IMPORT_PHOTO_NOT_FILE` |
+| имя файла (декодированное, без пути) ≠ `ref` без учёта регистра | 422 `IMPORT_PHOTO_NAME_MISMATCH` |
+| статус `DONE` | 200, элемент как есть, без записи |
+| байты не jpeg/png/webp | 200, фото `FAILED` `NOT_AN_IMAGE` |
+| иначе | `ImportPhotoAttacher.attach` → 200 с обновлённым элементом (`DONE` или `FAILED` `MEDIA_LIMIT` / `LISTING_UNAVAILABLE`) |
+
+**`POST /api/v1/admin/listing-imports/:id/photos/retry`** — фото импорта с
+`source = URL` и статусом `PENDING` или `FAILED`: `FAILED` → `PENDING` (`error_code`,
+`http_status` → `null`), затем все ставятся в очередь. Ответ `200 { "queued": n }`.
+Задача, ещё стоящая в очереди, не дублируется.
 
 ### Admin logs
 
