@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SerializedError } from '@reduxjs/toolkit';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useUploadListingImportPhotoMutation } from '@/store/api/adminListingImportsApi';
@@ -25,10 +25,16 @@ function isTransient(error: unknown): boolean {
  */
 export function useImportPhotoUploader(importId: string | null) {
   const [upload] = useUploadListingImportPhotoMutation();
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [results, setResults] = useState<Map<string, ListingImportPhoto>>(new Map());
+  const [progress, setProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+  const [results, setResults] = useState<Map<string, ListingImportPhoto>>(
+    new Map(),
+  );
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
   const active = progress !== null;
+  const running = useRef(false);
 
   useEffect(() => {
     if (!active) return;
@@ -42,29 +48,54 @@ export function useImportPhotoUploader(importId: string | null) {
 
   const start = useCallback(
     async (photos: ListingImportPhoto[], files: Map<string, File>) => {
-      if (!importId) return;
-      const queue = photos.filter((p) => p.id !== null && files.has(p.ref.toLowerCase()));
+      if (!importId || running.current) return;
+      const queue = photos.filter(
+        (p) => p.id !== null && files.has(p.ref.toLowerCase()),
+      );
       if (queue.length === 0) return;
+      running.current = true;
+      // Перезапуск: старые ошибки/результаты этих фото не должны перекрыть свежий статус.
+      const ids = new Set(queue.map((p) => p.id as string));
+      const without = <T>(prev: Map<string, T>) => {
+        const next = new Map(prev);
+        for (const id of ids) next.delete(id);
+        return next;
+      };
+      setErrors(without);
+      setResults(without);
       let done = 0;
-      setProgress({ done, total: queue.length });
-      await runPool(queue, CONCURRENCY, async (photo) => {
-        const id = photo.id as string;
-        try {
-          const updated = await withRetry(
-            () => upload({ importId, photoId: id, file: files.get(photo.ref.toLowerCase()) as File }).unwrap(),
-            NETWORK_RETRIES,
-            isTransient,
-          );
-          setResults((prev) => new Map(prev).set(id, updated));
-        } catch (error) {
-          const code = getApiErrorCode(error as FetchBaseQueryError | SerializedError);
-          setErrors((prev) => new Map(prev).set(id, importPhotoUploadErrorText(code)));
-        } finally {
-          done += 1;
-          setProgress({ done, total: queue.length });
-        }
-      });
-      setProgress(null);
+      try {
+        setProgress({ done, total: queue.length });
+        await runPool(queue, CONCURRENCY, async (photo) => {
+          const id = photo.id as string;
+          try {
+            const updated = await withRetry(
+              () =>
+                upload({
+                  importId,
+                  photoId: id,
+                  file: files.get(photo.ref.toLowerCase()) as File,
+                }).unwrap(),
+              NETWORK_RETRIES,
+              isTransient,
+            );
+            setResults((prev) => new Map(prev).set(id, updated));
+          } catch (error) {
+            const code = getApiErrorCode(
+              error as FetchBaseQueryError | SerializedError,
+            );
+            setErrors((prev) =>
+              new Map(prev).set(id, importPhotoUploadErrorText(code)),
+            );
+          } finally {
+            done += 1;
+            setProgress({ done, total: queue.length });
+          }
+        });
+      } finally {
+        running.current = false;
+        setProgress(null);
+      }
     },
     [importId, upload],
   );
