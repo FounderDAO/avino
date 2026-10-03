@@ -3024,6 +3024,28 @@ apps/client: текст уведомления body_ARCHIVED (ru/uz/en).
 
 ---
 
+### TASK-262 — Галерея фото в админской карточке объявления
+
+Status:
+
+```text
+REVIEW
+```
+
+Branch:
+
+```text
+feature/admin-listing-gallery
+```
+
+Spec:
+
+```text
+docs/superpowers/specs/2026-10-03-listing-import-photos-design.md §6 (PR web-1)
+```
+
+---
+
 ## 23. Priority execution order
 
 Claude should execute in this order:
