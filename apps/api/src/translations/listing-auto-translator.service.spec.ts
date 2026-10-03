@@ -97,7 +97,7 @@ describe('ListingAutoTranslator', () => {
     prisma.listing.findUnique.mockResolvedValue(null);
     const result = await service.generateTranslations(LISTING_ID);
     expect(prisma.listingTranslation.upsert).not.toHaveBeenCalled();
-    expect(result).toEqual({ regenerated: [], skipped: [] });
+    expect(result).toEqual({ regenerated: [], skipped: [], detected_language: null });
   });
 
   it('generates translations for a NEW listing (no ACTIVE requirement)', async () => {
@@ -138,7 +138,7 @@ describe('ListingAutoTranslator', () => {
     expect(prisma.listingTranslation.upsert).toHaveBeenCalledTimes(1);
     expect(prisma.listingTranslation.upsert.mock.calls[0][0].where.listingId_language.language).toBe(Language.UZ);
     // Result reports the honest split so the UI toast can be truthful.
-    expect(result).toEqual({ regenerated: [Language.UZ], skipped: [Language.EN] });
+    expect(result).toEqual({ regenerated: [Language.UZ], skipped: [Language.EN], detected_language: null });
   });
 
   it('force overwrites manually-edited target languages but never the original', async () => {
@@ -182,7 +182,7 @@ describe('ListingAutoTranslator', () => {
       isAutoTranslated: true,
       title: 'Квартира#EN',
     });
-    expect(result).toEqual({ regenerated: [Language.UZ, Language.EN], skipped: [] });
+    expect(result).toEqual({ regenerated: [Language.UZ, Language.EN], skipped: [], detected_language: null });
   });
 
   it('without force reports every manual target as skipped (nothing regenerated)', async () => {
@@ -200,7 +200,7 @@ describe('ListingAutoTranslator', () => {
     const result = await service.generateTranslations(LISTING_ID);
 
     expect(prisma.listingTranslation.upsert).not.toHaveBeenCalled();
-    expect(result).toEqual({ regenerated: [], skipped: [Language.UZ, Language.EN] });
+    expect(result).toEqual({ regenerated: [], skipped: [Language.UZ, Language.EN], detected_language: null });
   });
 
   it('translates from the author row even when auto rows already exist (re-run)', async () => {
@@ -241,5 +241,58 @@ describe('ListingAutoTranslator', () => {
       expect.anything(),
       expect.anything(),
     );
+  });
+
+  describe('original language check (detected_language)', () => {
+    const LONG_UZ =
+      'Yunusobod tumanida 3 xonali kvartira sotiladi, yevroremont, metro yaqinida';
+    const withDescription = (description: string | null) =>
+      activeListing({
+        translations: [
+          {
+            language: Language.RU,
+            title: 'Квартира',
+            description,
+            addressNote: null,
+            featuresText: null,
+            isAutoTranslated: false,
+          },
+        ],
+      });
+
+    it('reports the language detected in the author text', async () => {
+      provider.detectLanguage = jest.fn().mockResolvedValue(Language.UZ);
+      prisma.listing.findUnique.mockResolvedValue(withDescription(LONG_UZ));
+
+      const result = await service.generateTranslations(LISTING_ID);
+
+      expect(provider.detectLanguage).toHaveBeenCalledWith(LONG_UZ);
+      expect(result.detected_language).toBe(Language.UZ);
+      // Несовпадение — только подсказка модератору: перевод всё равно делается.
+      expect(result.regenerated).toEqual([Language.UZ, Language.EN]);
+    });
+
+    it('does not detect on a text too short to be reliable', async () => {
+      provider.detectLanguage = jest.fn().mockResolvedValue(Language.UZ);
+      prisma.listing.findUnique.mockResolvedValue(withDescription('Uy'));
+
+      const result = await service.generateTranslations(LISTING_ID);
+
+      expect(provider.detectLanguage).not.toHaveBeenCalled();
+      expect(result.detected_language).toBeNull();
+    });
+
+    it('still generates when detection fails or is unsupported', async () => {
+      provider.detectLanguage = jest.fn().mockRejectedValue(new Error('boom'));
+      prisma.listing.findUnique.mockResolvedValue(withDescription(LONG_UZ));
+
+      const failed = await service.generateTranslations(LISTING_ID);
+      expect(failed.detected_language).toBeNull();
+      expect(failed.regenerated).toEqual([Language.UZ, Language.EN]);
+
+      delete provider.detectLanguage;
+      const unsupported = await service.generateTranslations(LISTING_ID);
+      expect(unsupported.detected_language).toBeNull();
+    });
   });
 });

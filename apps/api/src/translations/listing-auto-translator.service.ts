@@ -19,7 +19,17 @@ export interface GenerateTranslationsResult {
    * при вызове без `force`.
    */
   skipped: Language[];
+  /**
+   * Язык, определённый провайдером в авторском тексте, либо `null` (не
+   * определяли / не удалось). Если отличается от `original_language` — автор,
+   * вероятно, указал язык оригинала неверно и перевод получится плохим; UI
+   * подсказывает модератору исправить язык оригинала (ADR-0156).
+   */
+  detected_language: Language | null;
 }
+
+/** Короче этого язык определяется ненадёжно — проверку пропускаем. */
+const MIN_DETECTABLE_LENGTH = 20;
 
 /**
  * Ответ `POST /api/v1/admin/listings/:id/translations/generate` — полный набор
@@ -87,7 +97,11 @@ export class ListingAutoTranslator {
     options: { force?: boolean } = {},
   ): Promise<GenerateTranslationsResult> {
     const force = options.force ?? false;
-    const empty: GenerateTranslationsResult = { regenerated: [], skipped: [] };
+    const empty: GenerateTranslationsResult = {
+      regenerated: [],
+      skipped: [],
+      detected_language: null,
+    };
 
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -113,6 +127,13 @@ export class ListingAutoTranslator {
 
     const from = listing.originalLanguage;
     const targets = ALL_LANGUAGES.filter((lang) => lang !== from);
+
+    const detectedLanguage = await this.detectAuthorLanguage(author);
+    if (detectedLanguage && detectedLanguage !== from) {
+      this.logger.warn(
+        `Listing ${listingId}: original_language=${from}, but author text looks like ${detectedLanguage}`,
+      );
+    }
 
     const regenerated: Language[] = [];
     const skipped: Language[] = [];
@@ -144,7 +165,26 @@ export class ListingAutoTranslator {
       `Generated translations for listing ${listingId} ` +
         `(force=${force}, regenerated=[${regenerated.join(',')}], skipped=[${skipped.join(',')}])`,
     );
-    return { regenerated, skipped };
+    return { regenerated, skipped, detected_language: detectedLanguage };
+  }
+
+  /**
+   * Определить язык авторского текста (описание, иначе заголовок). Только
+   * подсказка: сбой/неподдержка определения генерацию не блокирует.
+   */
+  private async detectAuthorLanguage(author: {
+    title: string;
+    description: string | null;
+  }): Promise<Language | null> {
+    const text = (author.description?.trim() || author.title).trim();
+    if (!this.provider.detectLanguage || text.length < MIN_DETECTABLE_LENGTH) {
+      return null;
+    }
+    try {
+      return await this.provider.detectLanguage(text);
+    } catch {
+      return null;
+    }
   }
 
   private translate(

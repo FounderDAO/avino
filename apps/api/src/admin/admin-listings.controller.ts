@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Header,
+  Logger,
   Param,
   ParseEnumPipe,
   ParseUUIDPipe,
@@ -53,6 +54,8 @@ import {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.MODERATOR, UserRole.ADMIN)
 export class AdminListingsController {
+  private readonly logger = new Logger(AdminListingsController.name);
+
   constructor(
     private readonly moderationService: ModerationService,
     private readonly translator: ListingAutoTranslator,
@@ -142,12 +145,18 @@ export class AdminListingsController {
       result = await this.translator.generateTranslations(listingId, {
         force: dto.force,
       });
-    } catch {
+    } catch (error) {
       // Сбой внешнего провайдера перевода (Yandex 4xx/5xx) → 502, строки
-      // неудачных языков не меняются (ADR-0091, спека §7).
+      // неудачных языков не меняются (ADR-0091, спека §7). Причину логируем и
+      // отдаём модератору: HttpException глобальный фильтр не логирует, и без
+      // этого истёкший/неверный ключ неотличим от любого другого сбоя.
+      const reason = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Translation generation failed for listing ${listingId}: ${reason}`,
+      );
       throw new BadGatewayException({
         code: ApiErrorCode.INTERNAL_ERROR,
-        message: 'Translation provider failed',
+        message: `Translation provider failed: ${reason}`,
       });
     }
     // Отсутствующий/DELETED листинг: generateTranslations молча выходит (пустой
