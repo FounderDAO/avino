@@ -146,18 +146,27 @@ export type LocalMatch<F extends LocalFile> =
   | { kind: 'TOO_LARGE' };
 
 /**
- * Сопоставление имён из ячейки «Фото» с выбранными файлами: по имени без учёта
- * регистра (путь внутри папки не важен). Одно имя в двух подпапках — неоднозначно.
+ * Ключ сравнения имени фото: NFC + нижний регистр. macOS отдаёт имена файлов
+ * в NFD («й», «ё» — буква + диакритика), а в таблице они обычно в NFC.
+ */
+export function photoNameKey(name: string): string {
+  return name.normalize('NFC').toLowerCase();
+}
+
+/**
+ * Сопоставление имён из ячейки «Фото» с выбранными файлами: по `photoNameKey`
+ * (путь внутри папки не важен). Одно имя в двух подпапках — неоднозначно.
+ * Ключи результата — `photoNameKey(ref)`.
  */
 export function matchLocalPhotos<F extends LocalFile>(refs: string[], files: F[]): Map<string, LocalMatch<F>> {
   const byName = new Map<string, F[]>();
   for (const file of files) {
-    const key = file.name.toLowerCase();
+    const key = photoNameKey(file.name);
     byName.set(key, [...(byName.get(key) ?? []), file]);
   }
   const result = new Map<string, LocalMatch<F>>();
   for (const ref of refs) {
-    const key = ref.toLowerCase();
+    const key = photoNameKey(ref);
     const found = byName.get(key) ?? [];
     if (found.length === 0) result.set(key, { kind: 'NOT_FOUND' });
     else if (found.length > 1) result.set(key, { kind: 'AMBIGUOUS' });
@@ -171,7 +180,11 @@ export function matchLocalPhotos<F extends LocalFile>(refs: string[], files: F[]
 export function rowPhotoText(row: ListingImportRow, matches: Map<string, LocalMatch<LocalFile>> | null): string {
   const photos = row.photos ?? [];
   if (photos.length === 0) return '';
-  if (row.outcome === 'SKIPPED_EXISTS' && !row.photos_attached) return 'проигнорированы: у объявления уже есть фото';
+  // Фото не приняты, если у объявления уже есть медиа — в том числе от прошлого
+  // импорта, чья загрузка не завершена.
+  if (row.outcome === 'SKIPPED_EXISTS' && !row.photos_attached) {
+    return 'проигнорированы: у объявления уже есть фото или незавершённая загрузка — дозагрузите из истории импортов';
+  }
   // Сохранённый отчёт: фото записаны — показываем прогресс, а не состав ячейки.
   if (photos.some((p) => p.id !== null)) {
     return `${photos.filter((p) => p.status === 'DONE').length} / ${photos.length}`;
@@ -185,11 +198,13 @@ export function rowPhotoText(row: ListingImportRow, matches: Map<string, LocalMa
     if (matches === null) {
       parts.push('папка не выбрана');
     } else {
-      const missing = photos.filter((p) => p.source === 'FILE' && matches.get(p.ref.toLowerCase())?.kind !== 'FOUND').length;
+      const missing = photos.filter((p) => p.source === 'FILE' && matches.get(photoNameKey(p.ref))?.kind !== 'FOUND').length;
       if (missing > 0) parts.push(`не найдено ${missing}`);
     }
   }
-  return `${photos.length} (${parts.join(', ')})`;
+  const counts = `${photos.length} (${parts.join(', ')})`;
+  // Предпросмотр «уже существует»: фото добавятся к существующему объявлению (спека §6).
+  return row.outcome === 'SKIPPED_EXISTS' ? `будут добавлены: ${counts}` : counts;
 }
 
 const PHOTO_ERROR_TEXT: Record<string, string> = {

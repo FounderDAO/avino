@@ -14,7 +14,7 @@ const NO_FILES: File[] = [];
 
 export default function ListingImportReportPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError } = useGetListingImportQuery(id, {
+  const { data, isLoading, isError, isFetching, error, refetch } = useGetListingImportQuery(id, {
     // Устаревший photos_summary.pending мешал бы опросу панели.
     refetchOnMountOrArgChange: true,
   });
@@ -23,12 +23,22 @@ export default function ListingImportReportPage() {
   useEffect(() => {
     if (data) setReport(data);
   }, [data]);
+  // «Не найден» — только 404; сеть/5xx — можно повторить.
+  const notFound = isError && error !== undefined && 'status' in error && error.status === 404;
 
   return (
     <div className="fade-up">
       <Link href="/admin/listing-imports" className="abtn abtn-ghost" style={{ marginBottom: 14, paddingLeft: 0 }}>← История импортов</Link>
       {isLoading && <p style={{ color: 'var(--muted)' }}>Загрузка…</p>}
-      {isError && !report && <p style={{ color: 'var(--red)' }}>Импорт не найден</p>}
+      {isError && !report && notFound && <p style={{ color: 'var(--red)' }}>Импорт не найден</p>}
+      {isError && !report && !notFound && (
+        <div className="row gap-8" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <p style={{ color: 'var(--red)' }}>Не удалось загрузить отчёт</p>
+          <button className="abtn abtn-outline" disabled={isFetching} onClick={() => void refetch()}>
+            Повторить
+          </button>
+        </div>
+      )}
       {report && (
         <>
           <h1 style={{ fontSize: 22, marginBottom: 6, overflowWrap: 'anywhere' }}>{report.file_name}</h1>

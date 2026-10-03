@@ -52,13 +52,15 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
   const [onlyProblems, setOnlyProblems] = useState(false);
   // Стабильная ссылка: ImportPhotosPanel стартует загрузку один раз на каждый массив.
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  // Идёт загрузка фото из папки (сообщает ImportPhotosPanel) — закрытие её оборвало бы.
+  const [uploading, setUploading] = useState(false);
 
   const [preview, { isLoading: previewing }] = usePreviewListingImportMutation();
   const [run, { isLoading: running }] = useRunListingImportMutation();
   const [downloadTemplate, { isLoading: downloading }] = useDownloadListingImportTemplateMutation();
   const busy = previewing || running;
-  // Закрыть нельзя только во время реального запуска; предпросмотр ничего не пишет.
-  const closeLocked = running;
+  // Закрыть нельзя во время реального запуска и загрузки фото; предпросмотр ничего не пишет.
+  const closeLocked = running || uploading;
   // Недоступная кнопка выглядит неактивной (как в AmenityFormModal).
   const dim = (off: boolean) => (off ? { opacity: 0.5 } : {});
 
@@ -180,7 +182,11 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
 
         {done && report?.id && (
           <p style={{ fontSize: 13, marginBottom: 10 }}>
-            <Link href={`/admin/listing-imports/${report.id}`} prefetch={false}>Открыть отчёт в истории импортов</Link>
+            {uploading ? (
+              <span style={{ color: 'var(--muted)' }}>Идёт загрузка фото — не закрывайте окно</span>
+            ) : (
+              <Link href={`/admin/listing-imports/${report.id}`} prefetch={false}>Открыть отчёт в истории импортов</Link>
+            )}
           </p>
         )}
 
@@ -219,7 +225,13 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
               </p>
             )}
             {done && (
-              <ImportPhotosPanel key={report.id} report={report} initialFiles={photoFiles} onReportChange={setReport} />
+              <ImportPhotosPanel
+                key={report.id}
+                report={report}
+                initialFiles={photoFiles}
+                onReportChange={setReport}
+                onUploadingChange={setUploading}
+              />
             )}
             <ImportRowsTable report={report} matches={matches} onlyProblems={onlyProblems} />
           </>

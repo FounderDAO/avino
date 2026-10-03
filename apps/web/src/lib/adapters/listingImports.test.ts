@@ -6,6 +6,7 @@ import {
   importRowToView,
   isImportFileErrorCode,
   matchLocalPhotos,
+  photoNameKey,
   photoStatusText,
   photoUploadQueue,
   rowPhotoText,
@@ -136,6 +137,16 @@ describe('matchLocalPhotos', () => {
     expect(map.get('big.jpg')).toEqual({ kind: 'TOO_LARGE' });
     expect(map.get('none.jpg')).toEqual({ kind: 'NOT_FOUND' });
   });
+
+  it('имя файла в NFD (macOS) совпадает со ссылкой в NFC', () => {
+    const nfc = 'Йёлка 1.jpg'.normalize('NFC');
+    const nfd = nfc.normalize('NFD');
+    expect(nfd).not.toBe(nfc);
+    const file = { name: nfd, size: 10 };
+    const map = matchLocalPhotos([nfc], [file]);
+    expect(map.get(photoNameKey(nfc))).toEqual({ kind: 'FOUND', file });
+    expect(photoNameKey(nfd)).toBe(photoNameKey(nfc));
+  });
 });
 
 describe('rowPhotoText', () => {
@@ -154,7 +165,21 @@ describe('rowPhotoText', () => {
   });
 
   it('проигнорированные у «уже существует»', () => {
-    expect(rowPhotoText({ ...photoRow([photo({})], false), outcome: 'SKIPPED_EXISTS' }, null)).toBe('проигнорированы: у объявления уже есть фото');
+    expect(rowPhotoText({ ...photoRow([photo({})], false), outcome: 'SKIPPED_EXISTS' }, null)).toBe(
+      'проигнорированы: у объявления уже есть фото или незавершённая загрузка — дозагрузите из истории импортов',
+    );
+  });
+
+  it('«уже существует» с photos_attached в предпросмотре — «будут добавлены: …»', () => {
+    const r = { ...photoRow([photo({ source: 'URL', ref: 'https://a/1' }), photo({ ref: '1.jpg' })]), outcome: 'SKIPPED_EXISTS' as const };
+    expect(rowPhotoText(r, null)).toBe('будут добавлены: 2 (ссылок 1, файлов 1, папка не выбрана)');
+  });
+
+  it('файл в NFD считается найденным для ссылки в NFC', () => {
+    const nfc = 'Йёлка 1.jpg'.normalize('NFC');
+    const r = photoRow([photo({ ref: nfc })]);
+    const matches = matchLocalPhotos([nfc], [{ name: nfc.normalize('NFD'), size: 1 }]);
+    expect(rowPhotoText(r, matches)).toBe('1 (файлов 1)');
   });
 
   it('без фото — пусто', () => {

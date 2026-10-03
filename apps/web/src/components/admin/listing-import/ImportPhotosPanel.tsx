@@ -35,10 +35,13 @@ export function ImportPhotosPanel({
   report,
   initialFiles,
   onReportChange,
+  onUploadingChange,
 }: {
   report: ListingImportReport;
   initialFiles: File[];
   onReportChange: (report: ListingImportReport) => void;
+  /** Идёт загрузка из папки — родитель (модалка) не даёт себя закрыть. */
+  onUploadingChange?: (active: boolean) => void;
 }) {
   const toast = useToast();
   const importId = report.id as string;
@@ -47,6 +50,12 @@ export function ImportPhotosPanel({
   const [retry, { isLoading: retrying }] = useRetryListingImportPhotosMutation();
   const [files, setFiles] = useState<File[]>(initialFiles);
   const startedFor = useRef<File[] | null>(null);
+
+  useEffect(() => {
+    onUploadingChange?.(uploader.active);
+    // Панель размонтирована (смена отчёта) — замок с родителя снимаем.
+    return () => onUploadingChange?.(false);
+  }, [uploader.active, onUploadingChange]);
 
   const urlTotal = report.rows.flatMap((r) => r.photos ?? []).filter((p) => p.id && p.source === 'URL').length;
   // Момент включения опроса: кэш RTK может хранить старый ответ с pending = 0
@@ -75,7 +84,12 @@ export function ImportPhotosPanel({
     const byRef = new Map<string, File>();
     for (const [key, match] of matches) if (match.kind === 'FOUND') byRef.set(key, match.file);
     await uploader.start(queue, byRef);
-    onReportChange(await refetchReport(importId).unwrap());
+    // Вызывается через `void` — ошибку перечитывания не отпускаем в unhandled rejection.
+    try {
+      onReportChange(await refetchReport(importId).unwrap());
+    } catch {
+      toast('Не удалось обновить отчёт');
+    }
   }
 
   // Файлы, выбранные на первом шаге, грузятся сразу после запуска импорта.
@@ -96,19 +110,30 @@ export function ImportPhotosPanel({
     return groups;
   }, [report]);
 
-  const failedUrls = report.rows.flatMap((r) => r.photos ?? []).filter((p) => p.source === 'URL' && p.status === 'FAILED').length;
+  // PENDING тоже: ссылка может застрять (не встала в очередь, воркер не записал
+  // последнюю ошибку) — тогда опрос не закончится, а повтор её перезапустит.
+  const retryableUrls = report.rows
+    .flatMap((r) => r.photos ?? [])
+    .filter((p) => p.id && p.source === 'URL' && (p.status === 'PENDING' || p.status === 'FAILED')).length;
   // Пока опрос не дал свежего ответа — счётчики из отчёта.
   const s = pollPending && summary && (fulfilledTimeStamp ?? 0) > (armedAt ?? 0) ? summary : report.photos_summary;
   if (report.photos_summary.total === 0) return null;
 
   async function onRetry() {
+    let queued: number;
     try {
-      const { queued } = await retry(importId).unwrap();
-      toast(`Ссылок поставлено в очередь: ${queued}`);
-      onReportChange(await refetchReport(importId).unwrap());
-      if (queued > 0) setArmedAt(Date.now());
+      ({ queued } = await retry(importId).unwrap());
     } catch {
       toast('Не удалось повторить ссылки');
+      return;
+    }
+    toast(`Ссылок поставлено в очередь: ${queued}`);
+    // Опрос включаем сразу: сбой перечитывания отчёта не должен его отменить.
+    if (queued > 0) setArmedAt(Date.now());
+    try {
+      onReportChange(await refetchReport(importId).unwrap());
+    } catch {
+      toast('Не удалось обновить отчёт');
     }
   }
 
@@ -144,9 +169,9 @@ export function ImportPhotosPanel({
       )}
 
       <div className="row gap-8" style={{ marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        {failedUrls > 0 && (
+        {retryableUrls > 0 && (
           <button className="abtn abtn-outline" disabled={retrying || uploader.active} onClick={() => void onRetry()}>
-            Повторить ссылки ({failedUrls})
+            Повторить ссылки ({retryableUrls})
           </button>
         )}
         {photoUploadQueue(report).length > 0 && (

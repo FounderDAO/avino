@@ -6,7 +6,7 @@ import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useUploadListingImportPhotoMutation } from '@/store/api/adminListingImportsApi';
 import type { ListingImportPhoto } from '@/store/api/adminTypes';
 import { getApiErrorCode } from '@/store/api/apiError';
-import { importPhotoUploadErrorText } from '@/lib/adapters/listingImports';
+import { importPhotoUploadErrorText, photoNameKey } from '@/lib/adapters/listingImports';
 import { runPool, withRetry } from '@/lib/importPhotoPool';
 
 const CONCURRENCY = 3;
@@ -50,7 +50,7 @@ export function useImportPhotoUploader(importId: string | null) {
     async (photos: ListingImportPhoto[], files: Map<string, File>) => {
       if (!importId || running.current) return;
       const queue = photos.filter(
-        (p) => p.id !== null && files.has(p.ref.toLowerCase()),
+        (p) => p.id !== null && files.has(photoNameKey(p.ref)),
       );
       if (queue.length === 0) return;
       running.current = true;
@@ -74,7 +74,7 @@ export function useImportPhotoUploader(importId: string | null) {
                 upload({
                   importId,
                   photoId: id,
-                  file: files.get(photo.ref.toLowerCase()) as File,
+                  file: files.get(photoNameKey(photo.ref)) as File,
                 }).unwrap(),
               NETWORK_RETRIES,
               isTransient,
