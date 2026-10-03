@@ -37,6 +37,13 @@ export function GoogleSignInButton({ onSuccess }: { onSuccess?: () => void }) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [googleLogin] = useGoogleLoginMutation();
+  // Родитель передаёт onSuccess inline-стрелкой (новая ссылка на каждый рендер).
+  // Держим его в ref, чтобы эффект ниже не перерисовывал iframe кнопки на
+  // каждый ререндер родителя (форма логина дёргалась при вводе телефона).
+  const onSuccessRef = React.useRef(onSuccess);
+  React.useEffect(() => {
+    onSuccessRef.current = onSuccess;
+  }, [onSuccess]);
 
   React.useEffect(() => {
     if (!clientId || !containerRef.current) return;
@@ -48,7 +55,7 @@ export function GoogleSignInButton({ onSuccess }: { onSuccess?: () => void }) {
         callback: (resp) => {
           void googleLogin({ id_token: resp.credential })
             .unwrap()
-            .then(() => onSuccess?.())
+            .then(() => onSuccessRef.current?.())
             .catch(() => {
               /* ошибку показывает родитель/RTK */
             });
@@ -79,7 +86,7 @@ export function GoogleSignInButton({ onSuccess }: { onSuccess?: () => void }) {
     script.defer = true;
     script.onload = render;
     document.head.appendChild(script);
-  }, [clientId, googleLogin, onSuccess]);
+  }, [clientId, googleLogin]);
 
   if (!clientId) return null;
   return <div ref={containerRef} className="mt-3 flex justify-center" />;
