@@ -14,7 +14,10 @@ const NO_FILES: File[] = [];
 
 export default function ListingImportReportPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError } = useGetListingImportQuery(id);
+  const { data, isLoading, isError } = useGetListingImportQuery(id, {
+    // Устаревший photos_summary.pending мешал бы опросу панели.
+    refetchOnMountOrArgChange: true,
+  });
   const [report, setReport] = useState<ListingImportReport | null>(null);
   const [onlyProblems, setOnlyProblems] = useState(false);
   useEffect(() => {
@@ -25,7 +28,7 @@ export default function ListingImportReportPage() {
     <div className="fade-up">
       <Link href="/admin/listing-imports" className="abtn abtn-ghost" style={{ marginBottom: 14, paddingLeft: 0 }}>← История импортов</Link>
       {isLoading && <p style={{ color: 'var(--muted)' }}>Загрузка…</p>}
-      {isError && <p style={{ color: 'var(--red)' }}>Импорт не найден</p>}
+      {isError && !report && <p style={{ color: 'var(--red)' }}>Импорт не найден</p>}
       {report && (
         <>
           <h1 style={{ fontSize: 22, marginBottom: 6, overflowWrap: 'anywhere' }}>{report.file_name}</h1>

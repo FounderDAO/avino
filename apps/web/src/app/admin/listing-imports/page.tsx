@@ -9,7 +9,11 @@ const LIMIT = 20;
 
 export default function ListingImportsPage() {
   const [page, setPage] = useState(1);
-  const { data, isLoading, isError, refetch } = useListListingImportsQuery({ page, limit: LIMIT });
+  const { data, isLoading, isError, refetch } = useListListingImportsQuery(
+    { page, limit: LIMIT },
+    // Счётчики фото меняются вне этого экрана (загрузка/повтор) — не показываем кэш.
+    { refetchOnMountOrArgChange: true },
+  );
   const total = data?.meta.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / LIMIT));
 
