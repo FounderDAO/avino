@@ -163,6 +163,42 @@ describe('TokenService', () => {
       );
     });
 
+    it('slides the session: each rotation restarts the refresh TTL from now (idle timeout, ADR-0167)', async () => {
+      cfg['jwt.refreshTtl'] = 604800;
+      try {
+        prisma.refreshToken.findUnique.mockResolvedValue(activeRow());
+        const before = Date.now();
+
+        await service.rotateSession(TOKEN, '127.0.0.1', 'agent');
+
+        const { expiresAt } = prisma.refreshToken.create.mock.calls[0][0].data;
+        expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 604800_000);
+        expect(expiresAt.getTime()).toBeLessThanOrEqual(Date.now() + 604800_000);
+        expect(jwt.signAsync).toHaveBeenCalledWith(
+          { sub: 'u1', fid: 'fam1' },
+          expect.objectContaining({ expiresIn: 604800 }),
+        );
+      } finally {
+        cfg['jwt.refreshTtl'] = 2592000;
+      }
+    });
+
+    it('falls back to a 7-day refresh TTL when JWT_REFRESH_TTL is not set', async () => {
+      delete cfg['jwt.refreshTtl'];
+      try {
+        prisma.refreshToken.findUnique.mockResolvedValue(activeRow());
+
+        await service.rotateSession(TOKEN, '127.0.0.1', 'agent');
+
+        expect(jwt.signAsync).toHaveBeenCalledWith(
+          { sub: 'u1', fid: 'fam1' },
+          expect.objectContaining({ expiresIn: 604800 }),
+        );
+      } finally {
+        cfg['jwt.refreshTtl'] = 2592000;
+      }
+    });
+
     it('detects reuse of a revoked token and revokes the whole family (TOKEN_REUSED)', async () => {
       prisma.refreshToken.findUnique.mockResolvedValue({
         ...activeRow(),

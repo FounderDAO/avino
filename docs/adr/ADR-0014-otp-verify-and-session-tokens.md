@@ -40,7 +40,7 @@ hash-only, `family_id`, nullable `otp_codes.user_id`), но логику вып�
   секрета — access и refresh подписываются РАЗНЫМИ секретами, передаваемыми
   per-call (`JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`). Секреты обязательны и
   валидируются на старте (fail-fast, без дефолтов — CLAUDE.md §3). TTL:
-  `JWT_ACCESS_TTL`=900, `JWT_REFRESH_TTL`=2592000 (ENV.md §7).
+  `JWT_ACCESS_TTL`=900, `JWT_REFRESH_TTL`=2592000 (ENV.md §7; с ADR-0167 — 604800, 7 дней бездействия).
 - **Payload.** access несёт `sub` (id) + `roles` (под будущий RBAC-guard,
   TASK-044). refresh несёт `sub`, `fid` (session family) и `jti`, равный id строки
   `refresh_tokens` — это связывает токен с записью и даёт TASK-043 опору для

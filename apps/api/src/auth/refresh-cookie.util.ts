@@ -15,7 +15,7 @@ export function refreshCookieOptions(config: ConfigService): CookieOptions {
     // Пустой домен → host-only cookie (staging/голый IP). См. configuration.ts.
     domain: config.get<string>('authCookie.domain') || undefined,
     path: REFRESH_COOKIE_PATH,
-    maxAge: (config.get<number>('authCookie.maxAgeSec') ?? 2592000) * 1000,
+    maxAge: (config.get<number>('authCookie.maxAgeSec') ?? 604800) * 1000,
   };
 }
 
