@@ -1,9 +1,10 @@
 import { randomUUID } from 'crypto';
 import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ListingImportOutcome, Prisma } from '@prisma/client';
+import { ListingImportOutcome, ListingImportPhotoStatus, Prisma } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { ListingCreateData, ListingsService } from '../listings/listings.service';
 import { PrismaService } from '../prisma';
+import { ListingImportPhotoQueue } from '../queues';
 import { findOwnerDuplicate } from './import-duplicate.finder';
 import { ImportUploadedFile, parseImportFile, RawImportRow } from './import-file.parser';
 import {
@@ -13,10 +14,23 @@ import {
   OwnerUnavailableError,
 } from './import-owner.resolver';
 import {
+  canAttachPhotos,
+  createPhotoRecords,
+  draftPhotoReports,
+  EMPTY_PHOTO_SUMMARY,
+  photoSummaries,
+  toPhotoReport,
+} from './import-photo.records';
+import { parsePhotoCell } from './import-photos.parser';
+import {
   decodeUploadedFileName,
+  ImportPhotoReport,
+  ImportPhotosSummary,
   ImportRowReport,
+  ListingImportListItem,
   ListingImportReport,
   summarize,
+  summarizeDraftPhotos,
 } from './import-report';
 import {
   importRowKey,
@@ -27,10 +41,15 @@ import {
 import { ListingImportLock } from './listing-import.lock';
 
 /** Строка, прошедшая классификацию и ожидающая записи. */
-interface PendingRow {
-  report: ImportRowReport;
-  input: ImportRowInput;
-  data: ListingCreateData;
+type PendingRow =
+  | { kind: 'CREATE'; report: ImportRowReport; input: ImportRowInput; data: ListingCreateData }
+  // «Уже существует» с пустой галереей: пишется своей транзакцией с фото (спека 2026-10-03 §2).
+  | { kind: 'ATTACH'; report: ImportRowReport; input: ImportRowInput; listingId: string };
+
+/** Итог записи строки; `persisted` — строка отчёта уже записана внутри транзакции. */
+interface RowResult {
+  report: Partial<ImportRowReport>;
+  persisted: boolean;
 }
 
 interface Classified {
@@ -62,6 +81,7 @@ export class ListingImportService {
     private readonly prisma: PrismaService,
     private readonly listings: ListingsService,
     private readonly lock: ListingImportLock,
+    private readonly photoQueue: ListingImportPhotoQueue,
   ) {}
 
   async run(
@@ -74,7 +94,7 @@ export class ListingImportService {
 
     if (dryRun) {
       const { reports, unknownColumns } = await this.classify(parsed.rows, parsed.unknownColumns);
-      return this.toReport(null, true, fileName, unknownColumns, reports, false);
+      return this.toReport(null, true, fileName, unknownColumns, reports, false, summarizeDraftPhotos(reports));
     }
 
     const token = await this.lock.acquire();
@@ -99,6 +119,42 @@ export class ListingImportService {
     }
   }
 
+  /** История импортов, новые сверху. `incomplete` — строк записано меньше, чем было в файле. */
+  async list(page: number, limit: number): Promise<{ data: ListingImportListItem[]; meta: { page: number; limit: number; total: number } }> {
+    const [total, imports] = await Promise.all([
+      this.prisma.listingImport.count(),
+      this.prisma.listingImport.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          createdBy: { select: { id: true, profile: { select: { firstName: true, lastName: true } } } },
+          _count: { select: { rows: true } },
+        },
+      }),
+    ]);
+    const photos = await photoSummaries(this.prisma, imports.map((item) => item.id));
+    const data = imports.map((item): ListingImportListItem => {
+      const name = [item.createdBy.profile?.firstName, item.createdBy.profile?.lastName].filter(Boolean).join(' ');
+      return {
+        id: item.id,
+        file_name: item.fileName,
+        created_at: item.createdAt.toISOString(),
+        created_by: { id: item.createdBy.id, name: name || null },
+        summary: {
+          total: item.totalRows,
+          created: item.createdCount,
+          skipped_exists: item.skippedExistsCount,
+          skipped_duplicate_in_file: item.skippedInFileCount,
+          errors: item.errorCount,
+        },
+        photos_summary: photos.get(item.id) ?? { ...EMPTY_PHOTO_SUMMARY },
+        incomplete: item._count.rows !== item.totalRows,
+      };
+    });
+    return { data, meta: { page, limit, total } };
+  }
+
   async getReport(id: string): Promise<ListingImportReport> {
     const saved = await this.prisma.listingImport.findUnique({
       where: { id },
@@ -116,8 +172,18 @@ export class ListingImportService {
         })
       ).map((listing) => [listing.id, listing.reference]),
     );
+    const records = await this.prisma.listingImportPhoto.findMany({
+      where: { importId: id },
+      orderBy: [{ rowNumber: 'asc' }, { position: 'asc' }],
+    });
+    const photosByRow = new Map<number, ImportPhotoReport[]>();
+    for (const record of records) {
+      const list = photosByRow.get(record.rowNumber) ?? [];
+      list.push(toPhotoReport(record));
+      photosByRow.set(record.rowNumber, list);
+    }
     const rows = saved.rows.map((row): ImportRowReport => {
-      const raw = row.raw as { phone?: string; title?: string; normalized_phone?: string };
+      const raw = row.raw as { phone?: string; title?: string; normalized_phone?: string; photos?: string };
       const base: ImportRowReport = {
         row: row.rowNumber,
         outcome: row.outcome,
@@ -130,14 +196,30 @@ export class ListingImportService {
       if (row.outcome === ListingImportOutcome.SKIPPED_DUPLICATE_IN_FILE) {
         return { ...base, duplicate_of_row: row.duplicateOfRow as number };
       }
+      // Непрекреплённые фото в БД не пишутся — показываем их из исходной ячейки.
+      const parsedCell = parsePhotoCell(raw.photos);
+      const photos = row.photosAttached
+        ? photosByRow.get(row.rowNumber) ?? []
+        : draftPhotoReports(parsedCell.ok ? parsedCell.photos : []);
       return {
         ...base,
         ...(row.outcome === ListingImportOutcome.CREATED ? { owner_is_new: row.ownerIsNew } : {}),
         listing_id: row.listingId as string,
         listing_reference: references.get(row.listingId as string) ?? null,
+        photos_attached: row.photosAttached,
+        photos,
       };
     });
-    return this.toReport(saved.id, false, saved.fileName, saved.unknownColumns, rows, saved.rows.length !== saved.totalRows);
+    const photosSummary = (await photoSummaries(this.prisma, [saved.id])).get(saved.id) ?? EMPTY_PHOTO_SUMMARY;
+    return this.toReport(
+      saved.id,
+      false,
+      saved.fileName,
+      saved.unknownColumns,
+      rows,
+      saved.rows.length !== saved.totalRows,
+      photosSummary,
+    );
   }
 
   /** Только чтение: итог каждой строки, как если бы импорт был запущен сейчас. */
@@ -196,12 +278,17 @@ export class ListingImportService {
         const existing = await findOwnerDuplicate(this.prisma, lookup.userId, input.dto);
         if (existing) {
           anchorByKey.set(key, rowNumber);
-          reports.push({
+          const attach = input.photos.length > 0 && (await canAttachPhotos(this.prisma, existing.id));
+          const report: ImportRowReport = {
             ...base,
             outcome: 'SKIPPED_EXISTS',
             listing_id: existing.id,
             listing_reference: existing.reference,
-          });
+            photos_attached: attach,
+            photos: draftPhotoReports(input.photos),
+          };
+          reports.push(report);
+          if (attach) pending.push({ kind: 'ATTACH', report, input, listingId: existing.id });
           continue;
         }
       }
@@ -209,10 +296,12 @@ export class ListingImportService {
         ...base,
         outcome: 'TO_CREATE',
         owner_is_new: lookup.kind === 'NEW',
+        photos_attached: input.photos.length > 0,
+        photos: draftPhotoReports(input.photos),
       };
       anchorByKey.set(key, rowNumber);
       reports.push(report);
-      pending.push({ report, input, data });
+      pending.push({ kind: 'CREATE', report, input, data });
     }
 
     reports.sort((a, b) => a.row - b.row);
@@ -248,13 +337,21 @@ export class ListingImportService {
       ...(report.phone ? { normalized_phone: report.phone } : {}),
     });
 
+    // Строки, записанные внутри своих транзакций, — общий createMany их пропускает.
+    const persisted = new Set<number>();
     for (const row of pending) {
       const { report } = row;
       try {
-        const result = await this.createRowWithRetry(importId, row, rawOf(report));
-        Object.assign(report, result);
+        const result =
+          row.kind === 'CREATE'
+            ? await this.createRowWithRetry(importId, row, rawOf(report))
+            : await this.attachRow(importId, row, rawOf(report));
+        if (result.persisted) persisted.add(report.row);
+        Object.assign(report, result.report);
       } catch (error) {
-        delete report.owner_is_new;
+        for (const field of ['owner_is_new', 'listing_id', 'listing_reference', 'photos_attached', 'photos'] as const) {
+          delete report[field];
+        }
         report.outcome = 'ERROR';
         if (error instanceof OwnerUnavailableError) {
           report.errors = [error.rowError];
@@ -265,12 +362,11 @@ export class ListingImportService {
       }
     }
 
-    // Строки, записанные внутри транзакций создания, уже в БД — дописываем остальные.
-    const rest = reports.filter((report) => report.outcome !== 'CREATED');
+    const rest = reports.filter((report) => !persisted.has(report.row));
     if (rest.length > 0) {
       await this.prisma.listingImportRow.createMany({
         data: rest.map((report) => ({
-          importId: importId,
+          importId,
           rowNumber: report.row,
           outcome: report.outcome as ListingImportOutcome,
           listingId: report.listing_id ?? null,
@@ -279,6 +375,18 @@ export class ListingImportService {
           raw: rawOf(report),
         })),
       });
+    }
+
+    // Ставим ссылки после записи всех строк. Сбой Redis не валит импорт: фото
+    // остаются PENDING и подхватываются «Повторить ссылки».
+    const pendingPhotos = await this.prisma.listingImportPhoto.findMany({
+      where: { importId, status: ListingImportPhotoStatus.PENDING },
+      select: { id: true },
+    });
+    try {
+      await this.photoQueue.enqueue(pendingPhotos.map((photo) => photo.id));
+    } catch (error) {
+      this.logger.error(`Import ${importId}: failed to enqueue photos`, error as Error);
     }
 
     const summary = summarize(reports);
@@ -291,7 +399,8 @@ export class ListingImportService {
         errorCount: summary.errors,
       },
     });
-    return this.toReport(importId, false, fileName, unknownColumns, reports, false);
+    // Ответ строится так же, как сохранённый отчёт: id фото есть только в БД.
+    return this.getReport(importId);
   }
 
   /**
@@ -301,9 +410,9 @@ export class ListingImportService {
    */
   private async createRowWithRetry(
     importId: string,
-    row: PendingRow,
+    row: Extract<PendingRow, { kind: 'CREATE' }>,
     raw: Prisma.InputJsonValue,
-  ): Promise<Partial<ImportRowReport>> {
+  ): Promise<RowResult> {
     try {
       return await this.createRow(importId, row, raw);
     } catch (error) {
@@ -314,22 +423,38 @@ export class ListingImportService {
 
   private createRow(
     importId: string,
-    row: PendingRow,
+    row: Extract<PendingRow, { kind: 'CREATE' }>,
     raw: Prisma.InputJsonValue,
-  ): Promise<Partial<ImportRowReport>> {
+  ): Promise<RowResult> {
     const { input, data, report } = row;
-    return this.prisma.$transaction(async (tx): Promise<Partial<ImportRowReport>> => {
+    return this.prisma.$transaction(async (tx): Promise<RowResult> => {
       const owner = await ensureOwner(tx, input);
       // Перепроверка под транзакцией: строка выше по файлу могла создать и
       // владельца, и такое же объявление.
       const existing = owner.isNew ? null : await findOwnerDuplicate(tx, owner.userId, input.dto);
       if (existing) {
-        return {
-          outcome: 'SKIPPED_EXISTS',
+        const skipped = {
+          outcome: 'SKIPPED_EXISTS' as const,
           owner_is_new: undefined,
           listing_id: existing.id,
           listing_reference: existing.reference,
         };
+        // Дубль появился выше по файлу. Прикрепляем фото по тому же правилу, что ATTACH.
+        if (input.photos.length === 0 || !(await canAttachPhotos(tx, existing.id))) {
+          return { report: { ...skipped, photos_attached: false }, persisted: false };
+        }
+        await tx.listingImportRow.create({
+          data: {
+            importId,
+            rowNumber: report.row,
+            outcome: ListingImportOutcome.SKIPPED_EXISTS,
+            listingId: existing.id,
+            photosAttached: true,
+            raw,
+          },
+        });
+        await createPhotoRecords(tx, importId, report.row, existing.id, input.photos);
+        return { report: { ...skipped, photos_attached: true }, persisted: true };
       }
       const created = await this.listings.createInTransaction(tx, owner.userId, data, input.dto);
       const { reference } = await tx.listing.findUniqueOrThrow({
@@ -343,15 +468,48 @@ export class ListingImportService {
           outcome: ListingImportOutcome.CREATED,
           listingId: created.id,
           ownerIsNew: owner.isNew,
+          photosAttached: input.photos.length > 0,
           raw,
         },
       });
+      await createPhotoRecords(tx, importId, report.row, created.id, input.photos);
       return {
-        outcome: 'CREATED',
-        owner_is_new: owner.isNew,
-        listing_id: created.id,
-        listing_reference: reference,
+        report: {
+          outcome: 'CREATED',
+          owner_is_new: owner.isNew,
+          listing_id: created.id,
+          listing_reference: reference,
+        },
+        persisted: true,
       };
+    });
+  }
+
+  /**
+   * «Уже существует» с прикреплением фото: перепроверка под транзакцией → строка
+   * отчёта → записи фото. Если галерея за это время перестала быть пустой —
+   * строка пишется без фото.
+   */
+  private attachRow(
+    importId: string,
+    row: Extract<PendingRow, { kind: 'ATTACH' }>,
+    raw: Prisma.InputJsonValue,
+  ): Promise<RowResult> {
+    const { report, input, listingId } = row;
+    return this.prisma.$transaction(async (tx): Promise<RowResult> => {
+      const attach = await canAttachPhotos(tx, listingId);
+      await tx.listingImportRow.create({
+        data: {
+          importId,
+          rowNumber: report.row,
+          outcome: ListingImportOutcome.SKIPPED_EXISTS,
+          listingId,
+          photosAttached: attach,
+          raw,
+        },
+      });
+      if (attach) await createPhotoRecords(tx, importId, report.row, listingId, input.photos);
+      return { report: { photos_attached: attach }, persisted: true };
     });
   }
 
@@ -362,6 +520,7 @@ export class ListingImportService {
     unknownColumns: string[],
     rows: ImportRowReport[],
     incomplete: boolean,
+    photosSummary: ImportPhotosSummary,
   ): ListingImportReport {
     return {
       id,
@@ -371,6 +530,7 @@ export class ListingImportService {
       summary: summarize(rows),
       unknown_columns: unknownColumns,
       rows: rows.map((row) => JSON.parse(JSON.stringify(row)) as ImportRowReport),
+      photos_summary: photosSummary,
     };
   }
 }

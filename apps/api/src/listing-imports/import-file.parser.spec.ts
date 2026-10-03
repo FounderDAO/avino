@@ -1,6 +1,6 @@
 import { HttpException } from '@nestjs/common';
-import { Workbook } from 'exceljs';
-import { ImportUploadedFile, parseImportFile } from './import-file.parser';
+import { CellValue, Workbook } from 'exceljs';
+import { cellToString, ImportUploadedFile, parseImportFile } from './import-file.parser';
 
 const HEADERS = ['Телефон', 'Тип сделки', 'Тип недвижимости', 'Заголовок', 'Цена', 'Валюта', 'Адрес', 'Площадь'];
 const ROW = [998901234567, 'Продажа', 'Квартира', 'Квартира на Навои', 85000.5, 'USD', 'Ташкент, Навои 12', 55];
@@ -129,5 +129,74 @@ describe('parseImportFile', () => {
         'address',
       ]);
     }
+  });
+
+  it('ячейка-гиперссылка без адреса в тексте читается по hyperlink; многострочный текст сохраняется', async () => {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('Импорт');
+    sheet.addRow(['Телефон', 'Тип сделки', 'Тип недвижимости', 'Заголовок', 'Цена', 'Валюта', 'Адрес', 'Фото']);
+    sheet.addRow(['+998901234567', 'Продажа', 'Квартира', 'T', '1', 'USD', 'A', '']);
+    sheet.addRow(['+998901234568', 'Продажа', 'Квартира', 'T', '1', 'USD', 'B', 'https://a.uz/1.jpg\nhttps://a.uz/2.jpg']);
+    sheet.getCell('H2').value = { text: 'фото', hyperlink: 'https://a.uz/x.jpg' };
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    const parsed = await parseImportFile({ buffer, originalname: 'f.xlsx', size: buffer.length });
+    expect(parsed.rows[0].values.photos).toBe('https://a.uz/x.jpg');
+    expect(parsed.rows[1].values.photos).toBe('https://a.uz/1.jpg\nhttps://a.uz/2.jpg');
+    expect(parsed.unknownColumns).toEqual([]);
+  });
+
+  async function parseHyperlinkRows(
+    cells: Record<string, unknown>,
+  ): Promise<Awaited<ReturnType<typeof parseImportFile>>> {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('Импорт');
+    sheet.addRow(['Телефон', 'Тип сделки', 'Тип недвижимости', 'Заголовок', 'Цена', 'Валюта', 'Адрес', 'Фото']);
+    sheet.addRow(['+998901234567', 'Продажа', 'Квартира', 'T', '1', 'USD', 'A', '']);
+    for (const [address, value] of Object.entries(cells)) {
+      sheet.getCell(address).value = value as never;
+    }
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    return parseImportFile({ buffer, originalname: 'f.xlsx', size: buffer.length });
+  }
+
+  it('гиперссылка в не-фото колонке не подменяет текст (заголовок, адрес, mailto)', async () => {
+    const parsed = await parseHyperlinkRows({
+      D2: { text: 'Квартира', hyperlink: 'https://site.uz/x' },
+      G2: { text: 'Ташкент, Навои 12', hyperlink: 'mailto:a@b.uz' },
+    });
+    expect(parsed.rows[0].values.title).toBe('Квартира');
+    expect(parsed.rows[0].values.address).toBe('Ташкент, Навои 12');
+  });
+
+  it('фото: текст с адресами сохраняется, даже если hyperlink стоит на первой ссылке', async () => {
+    const parsed = await parseHyperlinkRows({
+      H2: { text: 'https://a.uz/1.jpg\nhttps://a.uz/2.jpg', hyperlink: 'https://a.uz/1.jpg' },
+    });
+    expect(parsed.rows[0].values.photos).toBe('https://a.uz/1.jpg\nhttps://a.uz/2.jpg');
+  });
+
+  // exceljs не сохраняет в xlsx гиперссылку без подписи — проверяем конвертер напрямую.
+  it('фото: гиперссылка без подписи (или с пустой) → адрес; в не-фото колонке → пусто', () => {
+    const noText = { hyperlink: 'https://a.uz/x.jpg' } as unknown as CellValue;
+    const emptyText = { text: '', hyperlink: 'https://a.uz/x.jpg' } as unknown as CellValue;
+    expect(cellToString(noText, true)).toBe('https://a.uz/x.jpg');
+    expect(cellToString(emptyText, true)).toBe('https://a.uz/x.jpg');
+    expect(cellToString(noText)).toBe('');
+    expect(cellToString(emptyText)).toBe('');
+  });
+
+  it('фото: rich-text подпись без адреса → hyperlink; rich-text с адресом → текст', async () => {
+    const noUrl = await parseHyperlinkRows({
+      H2: { text: { richText: [{ text: 'фо' }, { text: 'то' }] }, hyperlink: 'https://a.uz/x.jpg' },
+    });
+    expect(noUrl.rows[0].values.photos).toBe('https://a.uz/x.jpg');
+
+    const withUrl = await parseHyperlinkRows({
+      H2: {
+        text: { richText: [{ text: 'https://a.uz/1.jpg' }, { text: '\nhttps://a.uz/2.jpg' }] },
+        hyperlink: 'https://a.uz/1.jpg',
+      },
+    });
+    expect(withUrl.rows[0].values.photos).toBe('https://a.uz/1.jpg\nhttps://a.uz/2.jpg');
   });
 });

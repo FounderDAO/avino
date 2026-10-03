@@ -850,6 +850,7 @@ Behavioural rules enforced by the data layer
 [x] agent_applications      ("Become an agent" request + moderation, ADR-0140, §18)
 [x] listing_imports         (запуск массового импорта объявлений, ADR-0162, §19)
 [x] listing_import_rows     (итог строки импорта, ADR-0162, §19)
+[x] listing_import_photos  (фото строки импорта, ADR-0165)
 ```
 
 ## 17. Out of scope for MVP
@@ -942,6 +943,7 @@ listing_import_rows
 - duplicate_of_row  int NULL
 - errors            jsonb NULL    ([{ column, code, message }])
 - raw               jsonb NOT NULL (исходные значения строки)
+- photos_attached   boolean NOT NULL default false   (фото строки записаны в listing_import_photos, ADR-0165)
 Constraints:
 - UNIQUE (import_id, row_number)
 Indexes:
@@ -955,4 +957,29 @@ Rules:
   уже лежат в users.
 - Поиск ключа «уже существует» идёт по существующему listings(owner_id);
   отдельный индекс не нужен.
+
+listing_import_photos   (ADR-0165, спека 2026-10-03; источник правды статусов фото импорта)
+- id            uuid PK
+- import_id     uuid FK -> listing_imports(id) ON DELETE CASCADE NOT NULL
+- row_number    int NOT NULL
+- listing_id    uuid NOT NULL   (БЕЗ FK)
+- position      int NOT NULL    (порядок в галерее, 0 — обложка)
+- source        ListingImportPhotoSource NOT NULL   (URL | FILE)
+- ref           varchar(2048) NOT NULL   (ссылка или имя файла)
+- status        ListingImportPhotoStatus NOT NULL   (PENDING | AWAITING_UPLOAD | DONE | FAILED)
+- error_code    varchar(32) NULL
+- http_status   int NULL
+- media_id      uuid NULL       (созданная запись listing_media; БЕЗ FK)
+- attempts      int NOT NULL default 0
+- created_at    timestamptz NOT NULL default now()
+- updated_at    timestamptz NOT NULL
+Constraints:
+- UNIQUE (import_id, row_number, position)
+Indexes:
+- (import_id, status)
+- (listing_id, status)
+Rules:
+- Нет FK на listing_id и media_id: удаление объявления или фото не должно ломать
+  отчёт (как listing_import_rows.listing_id).
+- Записи создаются в той же транзакции, что и строка listing_import_rows.
 ```

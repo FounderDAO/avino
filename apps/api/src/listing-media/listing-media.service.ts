@@ -49,26 +49,28 @@ const MEDIA_SELECT = {
   type: true,
 } as const;
 
-type ListingMediaRow = Prisma.ListingMediaGetPayload<{
+export type ListingMediaRow = Prisma.ListingMediaGetPayload<{
   select: typeof MEDIA_SELECT;
 }>;
+
+export type ImageMimeType = 'image/jpeg' | 'image/png' | 'image/webp';
 
 /**
  * Allow-list MIME → расширение ключа S3 (MVP: только изображения; VIDEO — Phase 2,
  * DB_SCHEMA §6 / API.md §8). Ключ allow-list'а одновременно служит валидатором
  * content-type загружаемого файла.
  */
-const ALLOWED_IMAGE_MIME: Readonly<Record<string, string>> = {
+const ALLOWED_IMAGE_MIME: Readonly<Record<ImageMimeType, string>> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
   'image/webp': '.webp',
 };
 
-/** Максимальный размер одного файла (proxy-загрузка) — 10 MiB. */
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+/** Максимальный размер одного файла — 10 MiB (общий с импортом фото). */
+export const MEDIA_MAX_FILE_BYTES = 10 * 1024 * 1024;
 
-/** Максимум медиа на одно объявление. */
-const MAX_MEDIA_PER_LISTING = 20;
+/** Максимум медиа на одно объявление (общий с импортом фото). */
+export const MAX_MEDIA_PER_LISTING = 20;
 
 /**
  * Роли, которые могут изменять медиа ЧУЖОГО объявления наравне с владельцем
@@ -148,17 +150,17 @@ export class ListingMediaService {
       });
     }
 
-    const extension = ALLOWED_IMAGE_MIME[file.mimetype];
+    const extension = ALLOWED_IMAGE_MIME[file.mimetype as ImageMimeType];
     if (!extension) {
       throw new UnsupportedMediaTypeException({
         code: ApiErrorCode.UNSUPPORTED_MEDIA_TYPE,
         message: 'Allowed types: image/jpeg, image/png, image/webp',
       });
     }
-    if (file.size > MAX_FILE_SIZE_BYTES) {
+    if (file.size > MEDIA_MAX_FILE_BYTES) {
       throw new PayloadTooLargeException({
         code: ApiErrorCode.FILE_TOO_LARGE,
-        message: `File exceeds the ${MAX_FILE_SIZE_BYTES} byte limit`,
+        message: `File exceeds the ${MEDIA_MAX_FILE_BYTES} byte limit`,
       });
     }
 
@@ -170,34 +172,70 @@ export class ListingMediaService {
       });
     }
 
-    const root = this.uploads.rootPrefix();
-    const prefix = [root, 'listings', listingId, 'media']
-      .filter(Boolean)
-      .join('/');
-    const { key, url } = await this.uploads.upload({
-      buffer: file.buffer,
-      contentType: file.mimetype,
-      prefix,
-      extension,
-    });
-
-    const media = await this.prisma.listingMedia.create({
-      data: {
-        listingId,
-        url,
-        // Стабильный key — source of truth для отдачи (ADR-0086). `url` пишем для
-        // обратной совместимости/легаси-фолбэка, но на чтении не используем.
-        storageKey: key,
-        sortOrder: count,
-        type: MediaType.IMAGE,
-        mimeType: file.mimetype,
-        sizeBytes: file.size,
-      },
-      select: MEDIA_SELECT,
+    const stored = await this.uploadToStorage(listingId, file.buffer, file.mimetype as ImageMimeType);
+    const media = await this.createMediaRecord(this.prisma, listingId, {
+      ...stored,
+      mimeType: file.mimetype,
+      sizeBytes: file.size,
+      sortOrder: await this.nextSortOrder(listingId),
     });
     // Добавление фото — изменение контента: возвращает ACTIVE/REJECTED на модерацию.
     await this.reModerateOnOwnerMediaChange(listingId, listing, user, 'добавлено фото');
     return this.toResponse(media);
+  }
+
+  /**
+   * Положить изображение в хранилище под префикс галереи объявления — тот же,
+   * что сканирует media-cleanup (ADR-0099). Без БД: запись создаёт
+   * {@link createMediaRecord}, чтобы вызывающий мог держать put вне транзакции.
+   */
+  async uploadToStorage(
+    listingId: string,
+    buffer: Buffer,
+    mimeType: ImageMimeType,
+  ): Promise<{ key: string; url: string }> {
+    const prefix = [this.uploads.rootPrefix(), 'listings', listingId, 'media']
+      .filter(Boolean)
+      .join('/');
+    return this.uploads.upload({
+      buffer,
+      contentType: mimeType,
+      prefix,
+      extension: ALLOWED_IMAGE_MIME[mimeType],
+    });
+  }
+
+  /** Запись `listing_media` для уже загруженного объекта; `db` — транзакция или Prisma. */
+  createMediaRecord(
+    db: Prisma.TransactionClient | PrismaService,
+    listingId: string,
+    input: { key: string; url: string; mimeType: string; sizeBytes: number; sortOrder: number },
+  ): Promise<ListingMediaRow> {
+    return db.listingMedia.create({
+      data: {
+        listingId,
+        url: input.url,
+        // Стабильный key — source of truth для отдачи (ADR-0086).
+        storageKey: input.key,
+        sortOrder: input.sortOrder,
+        type: MediaType.IMAGE,
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+      },
+      select: MEDIA_SELECT,
+    });
+  }
+
+  /**
+   * Позиция для фото в конец галереи. `max + 1`, а не `count`: фото импорта
+   * встают на свои позиции и оставляют пропуски, `count` совпал бы с занятой.
+   */
+  async nextSortOrder(listingId: string): Promise<number> {
+    const { _max } = await this.prisma.listingMedia.aggregate({
+      where: { listingId },
+      _max: { sortOrder: true },
+    });
+    return (_max.sortOrder ?? -1) + 1;
   }
 
   /**

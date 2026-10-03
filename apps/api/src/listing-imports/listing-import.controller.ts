@@ -6,6 +6,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   StreamableFile,
   UploadedFile,
@@ -18,9 +19,14 @@ import { CurrentUser, Roles } from '../common/decorators';
 import { JwtAuthGuard, RolesGuard } from '../common/guards';
 import { RunListingImportQueryDto } from './dto/run-listing-import.dto';
 import { ImportUploadedFile } from './import-file.parser';
-import { ListingImportReport } from './import-report';
+import { ListListingImportsQueryDto } from './dto/list-listing-imports.dto';
+import { ImportPhotoReport, ImportPhotosSummary, ListingImportListItem, ListingImportReport } from './import-report';
 import { buildImportTemplate } from './import-template.builder';
+import { ListingImportPhotosService } from './listing-import-photos.service';
 import { ListingImportService } from './listing-import.service';
+
+/** Жёсткий потолок памяти для multipart; бизнес-лимит 10 МиБ — в сервисе (свой код ошибки). */
+const PHOTO_UPLOAD_HARD_LIMIT = 20 * 1024 * 1024;
 
 /**
  * ListingImportController — массовый импорт объявлений из админки
@@ -31,7 +37,16 @@ import { ListingImportService } from './listing-import.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 export class ListingImportController {
-  constructor(private readonly service: ListingImportService) {}
+  constructor(
+    private readonly service: ListingImportService,
+    private readonly photos: ListingImportPhotosService,
+  ) {}
+
+  /** `GET /api/v1/admin/listing-imports` — история импортов, новые сверху. */
+  @Get()
+  list(@Query() query: ListListingImportsQueryDto): Promise<{ data: ListingImportListItem[]; meta: { page: number; limit: number; total: number } }> {
+    return this.service.list(query.page ?? 1, query.limit ?? 20);
+  }
 
   /**
    * `POST /api/v1/admin/listing-imports` — `multipart/form-data`, поле `file`
@@ -60,5 +75,29 @@ export class ListingImportController {
   @Get(':id')
   getReport(@Param('id', ParseUUIDPipe) id: string): Promise<ListingImportReport> {
     return this.service.getReport(id);
+  }
+
+  /** `GET /api/v1/admin/listing-imports/:id/photos/summary` — счётчики фото для опроса. */
+  @Get(':id/photos/summary')
+  photoSummary(@Param('id', ParseUUIDPipe) id: string): Promise<ImportPhotosSummary> {
+    return this.photos.summary(id);
+  }
+
+  /** `PUT /api/v1/admin/listing-imports/:id/photos/:photoId` — загрузка фото из папки, поле `file`. */
+  @Put(':id/photos/:photoId')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: PHOTO_UPLOAD_HARD_LIMIT } }))
+  uploadPhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string,
+    @UploadedFile() file: ImportUploadedFile | undefined,
+  ): Promise<ImportPhotoReport> {
+    return this.photos.upload(id, photoId, file);
+  }
+
+  /** `POST /api/v1/admin/listing-imports/:id/photos/retry` — повтор ссылок. */
+  @Post(':id/photos/retry')
+  @HttpCode(200)
+  retryPhotos(@Param('id', ParseUUIDPipe) id: string): Promise<{ queued: number }> {
+    return this.photos.retry(id);
   }
 }

@@ -53,6 +53,7 @@ describe('ListingMediaService', () => {
       listing: { findUnique: jest.fn(), update: jest.fn((args) => args) },
       listingMedia: {
         count: jest.fn(),
+        aggregate: jest.fn().mockResolvedValue({ _max: { sortOrder: null } }),
         create: jest.fn(),
         findFirst: jest.fn(),
         findMany: jest.fn(),
@@ -175,10 +176,52 @@ describe('ListingMediaService', () => {
     });
   });
 
+  describe('общий путь записи', () => {
+    it('uploadToStorage кладёт файл в {root}/listings/{id}/media с расширением по MIME', async () => {
+      uploads.rootPrefix.mockReturnValue('prod');
+      await service.uploadToStorage(LISTING_ID, Buffer.from('x'), 'image/png');
+      expect(uploads.upload).toHaveBeenCalledWith({
+        buffer: Buffer.from('x'),
+        contentType: 'image/png',
+        prefix: `prod/listings/${LISTING_ID}/media`,
+        extension: '.png',
+      });
+    });
+
+    it('createMediaRecord пишет запись с переданным sort_order через данный клиент', async () => {
+      const tx = { listingMedia: { create: jest.fn().mockResolvedValue({ id: M1 }) } };
+      await service.createMediaRecord(tx as any, LISTING_ID, {
+        key: 'k', url: 'u', mimeType: 'image/jpeg', sizeBytes: 5, sortOrder: 7,
+      });
+      expect(tx.listingMedia.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ listingId: LISTING_ID, storageKey: 'k', url: 'u', sortOrder: 7, sizeBytes: 5 }),
+        }),
+      );
+    });
+
+    it('uploadFile ставит sort_order = max + 1, а не count (после пропусков)', async () => {
+      mockListing();
+      prisma.listingMedia.count.mockResolvedValue(2);
+      prisma.listingMedia.aggregate.mockResolvedValue({ _max: { sortOrder: 5 } });
+      prisma.listingMedia.create.mockResolvedValue({ id: M1, url: 'u', storageKey: 'k', thumbnailUrl: null, sortOrder: 6, type: MediaType.IMAGE });
+      await service.uploadFile(LISTING_ID, admin, makeFile());
+      expect(prisma.listingMedia.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ sortOrder: 6 }) }),
+      );
+    });
+
+    it('nextSortOrder пустой галереи — 0', async () => {
+      expect(await service.nextSortOrder(LISTING_ID)).toBe(0);
+    });
+  });
+
   describe('uploadFile', () => {
     it('uploads to S3 and creates a media row appended at the end', async () => {
       mockListing();
       prisma.listingMedia.count.mockResolvedValue(2);
+      // sort_order = max + 1: для занятых 0 и 1 это 2
+      prisma.listingMedia.aggregate.mockResolvedValue({ _max: { sortOrder: 1 } });
       prisma.listingMedia.create.mockResolvedValue({
         id: M1,
         url: 'https://cdn.avino.uz/listings/x/media/u.webp',

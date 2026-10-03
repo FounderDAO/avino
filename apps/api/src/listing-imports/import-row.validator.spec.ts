@@ -145,4 +145,29 @@ describe('importRowKey', () => {
     expect(importRowKey(ok({ ...base, floor: '4' }))).not.toBe(a);
     expect(importRowKey(ok({ ...base, phone: '901234568' }))).not.toBe(a);
   });
+
+  it('фото попадают в input с позициями', () => {
+    const result = validateImportRow({ ...base, photos: 'https://a.uz/1.jpg, 2.jpg' });
+    expect(result).toMatchObject({
+      ok: true,
+      input: {
+        photos: [
+          { position: 0, source: 'URL', ref: 'https://a.uz/1.jpg' },
+          { position: 1, source: 'FILE', ref: '2.jpg' },
+        ],
+      },
+    });
+  });
+
+  it('ошибка фото — ошибка строки', () => {
+    const result = validateImportRow({ ...base, photos: '1.heic' });
+    expect(result).toMatchObject({
+      ok: false,
+      errors: [{ column: 'photos', code: 'PHOTO_UNSUPPORTED_FORMAT', value: '1.heic' }],
+    });
+  });
+
+  it('без колонки фото — пустой список', () => {
+    expect(validateImportRow(base)).toMatchObject({ ok: true, input: { photos: [] } });
+  });
 });
