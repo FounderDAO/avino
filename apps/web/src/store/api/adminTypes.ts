@@ -733,6 +733,11 @@ export interface UpdateOriginalRequest {
 export interface GenerateTranslationsResult extends ListingTranslations {
   regenerated: TranslationLanguage[];
   skipped: TranslationLanguage[];
+  /**
+   * Язык, определённый провайдером в авторском тексте (`null` — не определён).
+   * Отличается от `original_language` → автор, вероятно, указал язык неверно.
+   */
+  detected_language?: TranslationLanguage | null;
 }
 
 // ─── Дашборд (ADMIN-15, §16) ─────────────────────────────────────────────────
