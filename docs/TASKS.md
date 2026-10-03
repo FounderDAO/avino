@@ -3027,6 +3027,7 @@ apps/client: текст уведомления body_ARCHIVED (ru/uz/en).
 ## 22l. Импорт фото (2026-10-03)
 
 ### TASK-263 — Импорт фото: API (колонка «Фото», очередь ссылок, загрузка из папки, история)
+### TASK-262 — Галерея фото в админской карточке объявления
 
 Status:
 
@@ -3038,6 +3039,7 @@ Branch:
 
 ```text
 feature/listing-import-photos-api
+feature/admin-listing-gallery
 ```
 
 Spec:
@@ -3058,6 +3060,7 @@ Scope:
 apps/api: колонка photos, таблица listing_import_photos, очередь
 listing_import_photo_queue с безопасным скачиванием (SSRF), PUT загрузки файла из
 папки, повтор ссылок, история импортов, photos_summary в отчёте.
+docs/superpowers/specs/2026-10-03-listing-import-photos-design.md §6 (PR web-1)
 ```
 
 ### TASK-264 — Импорт фото: админка (модалка с фото, история импортов)
