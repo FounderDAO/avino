@@ -34,6 +34,7 @@ import {
 } from '@/store/api/adminPromotionsApi';
 import { PromoteListingModal } from '@/components/admin/PromoteListingModal';
 import { ConfirmModal } from '@/components/admin/ConfirmModal';
+import { ListingMediaManager } from '@/components/admin/ListingMediaManager';
 import { ListingDuplicates } from '@/components/admin/ListingDuplicates';
 import { detailToAdminListing, ownerName, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
 import { LISTING_STATUS_LABEL } from '@/lib/adapters/logs';
@@ -245,16 +246,7 @@ export default function ListingDetailPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }} className="dash-row">
         <div className="col gap-20">
           <div className="a-card" style={{ padding: 22 }}>
-            {src.photos.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-                {src.photos.slice(0, 4).map((p, i) => (
-                  <div key={i} style={{ aspectRatio: '4/3', borderRadius: 10, overflow: 'hidden' }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </div>
-                ))}
-              </div>
-            )}
+            {data && <ListingMediaManager listingId={id} media={data.media} />}
             <div className="row gap-8" style={{ marginBottom: 8, flexWrap: 'wrap' }}>
               <StatusPill status={status} />
               {listing.promo !== 'NORMAL' && <span className="a-pill" style={{ background: listing.promo === 'VIP' ? 'var(--gold-bg)' : 'var(--red-bg)', color: listing.promo === 'VIP' ? 'var(--gold)' : 'var(--red)' }}>{listing.promo}</span>}
