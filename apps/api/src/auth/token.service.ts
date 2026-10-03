@@ -84,7 +84,7 @@ export class TokenService {
    */
   async issueSession(input: IssueSessionInput): Promise<IssuedTokens> {
     const accessTtl = this.config.get<number>('jwt.accessTtl') ?? 900;
-    const refreshTtl = this.config.get<number>('jwt.refreshTtl') ?? 2592000;
+    const refreshTtl = this.config.get<number>('jwt.refreshTtl') ?? 604800;
     const accessSecret = this.config.get<string>('jwt.accessSecret')!;
     const refreshSecret = this.config.get<string>('jwt.refreshSecret')!;
     const maxSessions = this.config.get<number>('jwt.maxSessions') ?? 5;
@@ -234,7 +234,7 @@ export class TokenService {
     const roles = user.roles.map((r) => r.role.code);
 
     const accessTtl = this.config.get<number>('jwt.accessTtl') ?? 900;
-    const refreshTtl = this.config.get<number>('jwt.refreshTtl') ?? 2592000;
+    const refreshTtl = this.config.get<number>('jwt.refreshTtl') ?? 604800;
     const accessSecret = this.config.get<string>('jwt.accessSecret')!;
 
     const newTokenId = randomUUID();

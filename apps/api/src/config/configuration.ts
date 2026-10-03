@@ -245,7 +245,7 @@ export const jwtConfig = registerAs('jwt', () => ({
   accessSecret: process.env.JWT_ACCESS_SECRET,
   refreshSecret: process.env.JWT_REFRESH_SECRET,
   accessTtl: parseInt(process.env.JWT_ACCESS_TTL ?? '900', 10),
-  refreshTtl: parseInt(process.env.JWT_REFRESH_TTL ?? '2592000', 10),
+  refreshTtl: parseInt(process.env.JWT_REFRESH_TTL ?? '604800', 10),
   // Лимит одновременных активных сессий (session families) на пользователя;
   // при логине сверх лимита старейшая по активности family отзывается (ADR-0143).
   maxSessions: parseInt(process.env.AUTH_MAX_SESSIONS ?? '5', 10),
@@ -270,7 +270,7 @@ export const authCookieConfig = registerAs('authCookie', () => ({
   maxAgeSec: parseInt(
     process.env.AUTH_COOKIE_MAX_AGE_SEC ??
       process.env.JWT_REFRESH_TTL ??
-      '2592000',
+      '604800',
     10,
   ),
 }));
