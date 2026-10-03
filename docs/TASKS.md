@@ -3063,6 +3063,40 @@ listing_import_photo_queue с безопасным скачиванием (SSRF)
 docs/superpowers/specs/2026-10-03-listing-import-photos-design.md §6 (PR web-1)
 ```
 
+### TASK-264 — Импорт фото: админка (модалка с фото, история импортов)
+
+Status:
+
+```text
+REVIEW
+```
+
+Branch:
+
+```text
+feature/listing-import-photos-web
+```
+
+Spec:
+
+```text
+docs/superpowers/specs/2026-10-03-listing-import-photos-design.md §6 (PR web-2)
+```
+
+Depends on:
+
+```text
+TASK-263
+```
+
+Scope:
+
+```text
+apps/web: модалка импорта с фото (выбор папки, предпросмотр, загрузка), страницы
+/admin/listing-imports (история) и /admin/listing-imports/[id] (отчёт, повтор
+ссылок, дозагрузка из папки), ссылка «История импортов» на странице объявлений.
+```
+
 ---
 
 ## 23. Priority execution order
