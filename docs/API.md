@@ -1441,6 +1441,9 @@ Errors: `400 VALIDATION_ERROR` (self-block), `404 NOT_FOUND` (нет польз�
 | 422 | `IMPORT_TOO_MANY_ROWS` | > 500 строк |
 | 422 | `IMPORT_MISSING_COLUMNS` | нет обязательной колонки; `details[].field` — ключ колонки |
 | 409 | `IMPORT_IN_PROGRESS` | другой импорт уже выполняется |
+| 413 | `IMPORT_PHOTO_TOO_LARGE` | `PUT` фото: файл > 10 МиБ |
+| 409 | `IMPORT_PHOTO_NOT_FILE` | `PUT` фото: фото — ссылка (`source = URL`), а не файл |
+| 422 | `IMPORT_PHOTO_NAME_MISMATCH` | `PUT` фото: имя файла не совпадает с `ref` |
 
 `GET :id` с неизвестным id → `404 NOT_FOUND`.
 
@@ -1670,6 +1673,9 @@ listings_sold, listings_rented, agent_applications_new, support_requests_new }`:
 | `IMPORT_TOO_MANY_ROWS` | 422 | Импорт объявлений: больше 500 строк |
 | `IMPORT_MISSING_COLUMNS` | 422 | Импорт объявлений: нет обязательной колонки (`details[].field`) |
 | `IMPORT_IN_PROGRESS` | 409 | Импорт объявлений: другой импорт уже выполняется |
+| `IMPORT_PHOTO_TOO_LARGE` | 413 | Импорт объявлений: загружаемое фото больше 10 МиБ |
+| `IMPORT_PHOTO_NOT_FILE` | 409 | Импорт объявлений: фото — ссылка, загрузка файла недопустима |
+| `IMPORT_PHOTO_NAME_MISMATCH` | 422 | Импорт объявлений: имя файла не совпадает с именем в ячейке «Фото» |
 | `INTERNAL_ERROR` | 500 | Внутренняя ошибка |
 
 Примеры тел:
