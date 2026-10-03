@@ -3,6 +3,7 @@ export { PromotionQueue } from './promotion.queue';
 export { EmailQueue } from './email.queue';
 export { SavedSearchQueue } from './saved-search.queue';
 export { MediaCleanupQueue } from './media-cleanup.queue';
+export { ListingImportPhotoQueue } from './listing-import-photo.queue';
 export {
   PROMOTION_QUEUE_NAME,
   EXPIRE_LISTING_PROMOTIONS_JOB,
@@ -16,4 +17,8 @@ export {
   MEDIA_CLEANUP_QUEUE_NAME,
   CLEANUP_ORPHAN_MEDIA_JOB,
   CleanupOrphanMediaJobData,
+  LISTING_IMPORT_PHOTO_QUEUE_NAME,
+  FETCH_IMPORT_PHOTO_JOB,
+  FetchImportPhotoJobData,
+  LISTING_IMPORT_PHOTO_JOB_OPTIONS,
 } from './queue.constants';

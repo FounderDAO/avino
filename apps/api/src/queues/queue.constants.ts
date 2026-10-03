@@ -128,3 +128,26 @@ export const DISPATCH_BROADCASTS_JOB = 'dispatch_broadcasts';
  * рассылки — конкретный broadcastId не передаётся.
  */
 export type DispatchBroadcastsJobData = Record<string, never>;
+
+/**
+ * Очередь скачивания фото импорта по ссылкам (спека 2026-10-03 §3). Одна задача
+ * — одно фото; `jobId = photoId` не даёт поставить фото дважды, пока задача жива.
+ */
+export const LISTING_IMPORT_PHOTO_QUEUE_NAME = 'listing_import_photo_queue';
+
+export const FETCH_IMPORT_PHOTO_JOB = 'fetch_import_photo';
+
+export interface FetchImportPhotoJobData {
+  photoId: string;
+}
+
+/**
+ * `removeOnFail: true` обязателен: оставленная упавшая задача с тем же jobId
+ * молча заблокировала бы повторную постановку из `retry`.
+ */
+export const LISTING_IMPORT_PHOTO_JOB_OPTIONS = {
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 5000 },
+  removeOnComplete: true,
+  removeOnFail: true,
+} as const;
