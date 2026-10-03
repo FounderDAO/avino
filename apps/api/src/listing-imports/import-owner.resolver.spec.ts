@@ -7,6 +7,7 @@ const input = (firstName: string | null, lastName: string | null): ImportRowInpu
   firstName,
   lastName,
   dto: {} as CreateListingDto,
+  photos: [],
 });
 
 describe('ownerError', () => {

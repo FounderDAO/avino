@@ -25,6 +25,11 @@ const HELP: Record<ImportColumnKey, [required: string, hint: string, example: st
   latitude: ['нет', 'Только вместе с долготой', '41.311081'],
   longitude: ['нет', 'Только вместе с широтой', '69.240562'],
   amenities: ['нет', 'Коды удобств из справочника через запятую', 'wifi, conditioner'],
+  photos: [
+    'нет',
+    'До 20 фото: ссылки https://… и/или имена файлов из папки (1001.jpg) через запятую, точку с запятой или с новой строки. Первое — обложка. Файлы: JPG, PNG, WebP до 10 МБ',
+    '1001.jpg, 1002.jpg, https://site.uz/photo.jpg',
+  ],
 };
 
 /**

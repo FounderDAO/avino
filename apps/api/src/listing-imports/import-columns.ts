@@ -37,6 +37,7 @@ export const IMPORT_COLUMNS = [
   { key: 'latitude', label: 'Широта', header: false },
   { key: 'longitude', label: 'Долгота', header: false },
   { key: 'amenities', label: 'Удобства', header: false },
+  { key: 'photos', label: 'Фото', header: false },
 ] as const;
 
 export type ImportColumnKey = (typeof IMPORT_COLUMNS)[number]['key'];

@@ -130,4 +130,18 @@ describe('parseImportFile', () => {
       ]);
     }
   });
+
+  it('ячейка-гиперссылка без адреса в тексте читается по hyperlink; многострочный текст сохраняется', async () => {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('Импорт');
+    sheet.addRow(['Телефон', 'Тип сделки', 'Тип недвижимости', 'Заголовок', 'Цена', 'Валюта', 'Адрес', 'Фото']);
+    sheet.addRow(['+998901234567', 'Продажа', 'Квартира', 'T', '1', 'USD', 'A', '']);
+    sheet.addRow(['+998901234568', 'Продажа', 'Квартира', 'T', '1', 'USD', 'B', 'https://a.uz/1.jpg\nhttps://a.uz/2.jpg']);
+    sheet.getCell('H2').value = { text: 'фото', hyperlink: 'https://a.uz/x.jpg' };
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    const parsed = await parseImportFile({ buffer, originalname: 'f.xlsx', size: buffer.length });
+    expect(parsed.rows[0].values.photos).toBe('https://a.uz/x.jpg');
+    expect(parsed.rows[1].values.photos).toBe('https://a.uz/1.jpg\nhttps://a.uz/2.jpg');
+    expect(parsed.unknownColumns).toEqual([]);
+  });
 });

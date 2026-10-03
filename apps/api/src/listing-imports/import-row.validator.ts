@@ -14,6 +14,7 @@ import {
   parsePropertyType,
   parseTransactionType,
 } from './import-columns';
+import { ParsedPhoto, parsePhotoCell } from './import-photos.parser';
 
 export type ImportErrorCode =
   | 'REQUIRED'
@@ -23,12 +24,18 @@ export type ImportErrorCode =
   | 'OWNER_BLOCKED'
   | 'OWNER_NAME_REQUIRED'
   | 'UNKNOWN_AMENITY'
+  | 'PHOTO_TOO_MANY'
+  | 'PHOTO_INVALID_URL'
+  | 'PHOTO_UNSUPPORTED_FORMAT'
+  | 'PHOTO_INVALID_NAME'
   | 'INTERNAL';
 
 export interface ImportRowError {
   column: ImportColumnKey | null;
   code: ImportErrorCode;
   message: string;
+  /** Проблемный элемент значения (например, ссылка или имя файла в ячейке «Фото»). */
+  value?: string;
 }
 
 export interface ImportRowInput {
@@ -36,6 +43,8 @@ export interface ImportRowInput {
   firstName: string | null;
   lastName: string | null;
   dto: CreateListingDto;
+  /** Фото строки в порядке ячейки; пусто — колонки или значения нет. */
+  photos: ParsedPhoto[];
 }
 
 export type ImportRowValidation =
@@ -164,11 +173,18 @@ export function validateImportRow(values: ImportRowValues): ImportRowValidation 
     if (plain[key] === undefined) delete plain[key];
   }
 
+  // --- фото ---
+  const photoCell = parsePhotoCell(values.photos);
+  if (!photoCell.ok) {
+    failed.add('photos');
+    errors.push(photoCell.error);
+  }
+
   const dto = plainToInstance(CreateListingDto, plain);
   collect(validateSync(dto, { whitelist: true }), values, fail);
 
-  if (errors.length > 0 || !phone) return { ok: false, errors };
-  return { ok: true, input: { phone, firstName, lastName, dto } };
+  if (errors.length > 0 || !phone || !photoCell.ok) return { ok: false, errors };
+  return { ok: true, input: { phone, firstName, lastName, dto, photos: photoCell.photos } };
 }
 
 /** Ошибки class-validator → ошибки колонок; уже провалившиеся колонки не дублируем. */

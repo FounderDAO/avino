@@ -50,6 +50,11 @@ function cellToString(value: CellValue | undefined): string {
   if (typeof value === 'object') {
     if ('richText' in value) return value.richText.map((part) => part.text).join('').trim();
     if ('result' in value) return cellToString(value.result as CellValue);
+    // Ячейка-гиперссылка с подписью («фото»): берём адрес. Если в тексте уже есть
+    // адрес(а) — текст (Excel ставит hyperlink только на первую ссылку ячейки).
+    if ('hyperlink' in value && typeof value.hyperlink === 'string' && !String(value.text ?? '').includes('://')) {
+      return value.hyperlink.trim();
+    }
     if ('text' in value) return String(value.text).trim();
   }
   return '';
