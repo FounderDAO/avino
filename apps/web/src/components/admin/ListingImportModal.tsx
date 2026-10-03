@@ -19,19 +19,20 @@ import type { SerializedError } from '@reduxjs/toolkit';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import type { ListingImportReport } from '@/store/api/adminTypes';
 import { getApiErrorCode } from '@/store/api/apiError';
+import { FolderPicker } from '@/components/admin/listing-import/FolderPicker';
+import { ImportRowsTable } from '@/components/admin/listing-import/ImportRowsTable';
+import { ImportPhotosPanel } from '@/components/admin/listing-import/ImportPhotosPanel';
 import {
   IMPORT_RUN_UNKNOWN_TEXT,
   importButtonLabel,
   importFileErrorText,
-  importRowToView,
   isImportFileErrorCode,
+  matchLocalPhotos,
 } from '@/lib/adapters/listingImports';
 
 interface ListingImportModalProps {
   onClose: () => void;
 }
-
-const TONE_COLOR = { ok: 'var(--green)', skip: 'var(--muted)', error: 'var(--red)' } as const;
 
 function Counter({ label, value }: { label: string; value: number }) {
   return (
@@ -49,21 +50,30 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
   const [report, setReport] = useState<ListingImportReport | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [onlyProblems, setOnlyProblems] = useState(false);
+  // Стабильная ссылка: ImportPhotosPanel стартует загрузку один раз на каждый массив.
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  // Идёт загрузка фото из папки (сообщает ImportPhotosPanel) — закрытие её оборвало бы.
+  const [uploading, setUploading] = useState(false);
 
   const [preview, { isLoading: previewing }] = usePreviewListingImportMutation();
   const [run, { isLoading: running }] = useRunListingImportMutation();
   const [downloadTemplate, { isLoading: downloading }] = useDownloadListingImportTemplateMutation();
   const busy = previewing || running;
-  // Закрыть нельзя только во время реального запуска; предпросмотр ничего не пишет.
-  const closeLocked = running;
+  // Закрыть нельзя во время реального запуска и загрузки фото; предпросмотр ничего не пишет.
+  const closeLocked = running || uploading;
   // Недоступная кнопка выглядит неактивной (как в AmenityFormModal).
   const dim = (off: boolean) => (off ? { opacity: 0.5 } : {});
 
   const done = report !== null && !report.dry_run;
-  const rows = useMemo(() => {
-    const views = (report?.rows ?? []).map(importRowToView);
-    return onlyProblems ? views.filter((v) => v.tone !== 'ok') : views;
-  }, [report, onlyProblems]);
+  const matches = useMemo(() => {
+    if (!report || photoFiles.length === 0) return null;
+    const refs = report.rows.flatMap((r) => (r.photos ?? []).filter((p) => p.source === 'FILE').map((p) => p.ref));
+    return matchLocalPhotos(refs, photoFiles);
+  }, [report, photoFiles]);
+  const fileRefs = report?.rows.some((r) => r.photos_attached && (r.photos ?? []).some((p) => p.source === 'FILE')) ?? false;
+  const heic = photoFiles.some((f) => /\.heic$/i.test(f.name));
+  const ambiguous = matches ? [...matches.values()].filter((m) => m.kind === 'AMBIGUOUS').length : 0;
+  const tooLarge = matches ? [...matches.values()].filter((m) => m.kind === 'TOO_LARGE').length : 0;
 
   /**
    * Предпросмотр файла (dry_run). `keepMessage` — текст, который нужно оставить
@@ -164,8 +174,24 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
           </div>
         )}
 
+        {!done && (
+          <div style={{ marginBottom: 14 }}>
+            <FolderPicker files={photoFiles} onChange={setPhotoFiles} disabled={busy} />
+          </div>
+        )}
+
+        {done && report?.id && (
+          <p style={{ fontSize: 13, marginBottom: 10 }}>
+            {uploading ? (
+              <span style={{ color: 'var(--muted)' }}>Идёт загрузка фото — не закрывайте окно</span>
+            ) : (
+              <Link href={`/admin/listing-imports/${report.id}`} prefetch={false}>Открыть отчёт в истории импортов</Link>
+            )}
+          </p>
+        )}
+
         {previewing && <p style={{ color: 'var(--muted)' }}>Проверяем файл…</p>}
-        {err && <p role="alert" style={{ color: TONE_COLOR.error, marginBottom: 12 }}>{err}</p>}
+        {err && <p role="alert" style={{ color: 'var(--red)', marginBottom: 12 }}>{err}</p>}
 
         {report && summary && (
           <>
@@ -184,46 +210,30 @@ export function ListingImportModal({ onClose }: ListingImportModalProps) {
               <input type="checkbox" checked={onlyProblems} onChange={(e) => setOnlyProblems(e.target.checked)} />
               Только проблемные строки
             </label>
-            <div className="a-card table-scroll" style={{ overflow: 'auto', flex: 1, minHeight: 120 }}>
-              <table className="a-table">
-                <thead>
-                  <tr>
-                    <th>Строка</th>
-                    <th>Телефон</th>
-                    <th>Заголовок</th>
-                    <th>Итог</th>
-                    <th>Подробности</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((v) => (
-                    <tr key={v.row}>
-                      <td>{v.row}</td>
-                      <td style={{ whiteSpace: 'nowrap' }}>{v.phone}</td>
-                      <td>
-                        <div title={v.title} style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</div>
-                      </td>
-                      <td style={{ color: TONE_COLOR[v.tone], fontWeight: 700, whiteSpace: 'nowrap' }}>{v.label}</td>
-                      <td style={{ fontSize: 13, overflowWrap: 'anywhere' }}>
-                        {v.listingId ? (
-                          <Link href={`/admin/listings/${v.listingId}`} target="_blank" prefetch={false}>
-                            {v.reference ? `Объявление № ${v.reference}` : 'Открыть объявление'}
-                          </Link>
-                        ) : (
-                          v.reason
-                        )}
-                        {v.listingId && v.tone === 'ok' && v.reason ? ` · ${v.reason}` : ''}
-                      </td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={5} style={{ color: 'var(--muted)' }}>Проблемных строк нет</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            {!done && fileRefs && photoFiles.length === 0 && (
+              <p style={{ fontSize: 13, color: 'var(--gold)', marginBottom: 8 }}>
+                В файле указаны имена фото, но папка не выбрана — эти фото можно будет дозагрузить позже из истории импортов.
+              </p>
+            )}
+            {!done && (heic || ambiguous > 0 || tooLarge > 0) && (
+              <p style={{ fontSize: 13, color: 'var(--gold)', marginBottom: 8 }}>
+                {[
+                  heic && 'есть файлы .heic — конвертируйте в JPG',
+                  ambiguous > 0 && `одинаковые имена в разных подпапках: ${ambiguous}`,
+                  tooLarge > 0 && `файлы больше 10 МБ: ${tooLarge}`,
+                ].filter(Boolean).join('; ')}
+              </p>
+            )}
+            {done && (
+              <ImportPhotosPanel
+                key={report.id}
+                report={report}
+                initialFiles={photoFiles}
+                onReportChange={setReport}
+                onUploadingChange={setUploading}
+              />
+            )}
+            <ImportRowsTable report={report} matches={matches} onlyProblems={onlyProblems} />
           </>
         )}
 

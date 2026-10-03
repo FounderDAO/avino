@@ -10,6 +10,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SectionTitle } from '@/components/admin/ui/section-title';
 import { StatusPill } from '@/components/admin/ui/pill';
@@ -163,6 +164,7 @@ export default function ListingsPage() {
         <SectionTitle sub={`${total} объявлений всего`}>Объявления</SectionTitle>
         <div className="row gap-8">
           <button className="abtn abtn-outline" onClick={() => setImportOpen(true)}>Импорт</button>
+          <Link href="/admin/listing-imports" className="abtn abtn-ghost">История импортов</Link>
           <button className="abtn abtn-outline" style={exportDisabled ? { opacity: 0.5 } : undefined} disabled={exportDisabled} onClick={() => void onExport()}>
             {exporting ? 'Экспорт…' : sel.size > 0 ? `Экспорт (${sel.size})` : 'Экспорт'}
           </button>
