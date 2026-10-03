@@ -894,6 +894,27 @@ export interface ListingImportRowError {
   column: string | null;
   code: string;
   message: string;
+  /** Проблемный элемент значения (ссылка или имя файла в ячейке «Фото»). */
+  value?: string;
+}
+
+export interface ListingImportPhoto {
+  /** `null` — фото не записано (предпросмотр или проигнорировано). */
+  id: string | null;
+  position: number;
+  source: 'URL' | 'FILE';
+  ref: string;
+  status: 'PENDING' | 'AWAITING_UPLOAD' | 'DONE' | 'FAILED' | null;
+  error_code: string | null;
+  http_status: number | null;
+}
+
+export interface ListingImportPhotosSummary {
+  total: number;
+  done: number;
+  failed: number;
+  pending: number;
+  awaiting_upload: number;
 }
 
 export interface ListingImportRow {
@@ -906,6 +927,8 @@ export interface ListingImportRow {
   listing_reference?: number | null;
   duplicate_of_row?: number;
   errors?: ListingImportRowError[];
+  photos_attached?: boolean;
+  photos?: ListingImportPhoto[];
 }
 
 export interface ListingImportSummary {
@@ -924,6 +947,17 @@ export interface ListingImportReport {
   incomplete: boolean;
   file_name: string;
   summary: ListingImportSummary;
+  photos_summary: ListingImportPhotosSummary;
   unknown_columns: string[];
   rows: ListingImportRow[];
+}
+
+export interface ListingImportListItem {
+  id: string;
+  file_name: string;
+  created_at: string;
+  created_by: { id: string; name: string | null };
+  summary: Omit<ListingImportSummary, 'to_create'>;
+  photos_summary: ListingImportPhotosSummary;
+  incomplete: boolean;
 }
