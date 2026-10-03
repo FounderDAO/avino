@@ -41,6 +41,15 @@ describe('ListingImportPhotosService', () => {
     expect(result).toMatchObject({ id: 'p1', status: 'DONE' });
   });
 
+  it('имя файла в NFD (macOS) совпадает со ссылкой в NFC', async () => {
+    const nfc = 'Йёлка 1.jpg'.normalize('NFC');
+    prisma.listingImportPhoto.findFirst.mockResolvedValue({ ...photo, ref: nfc });
+    const nfd = nfc.normalize('NFD');
+    expect(nfd).not.toBe(nfc);
+    await service.upload('i1', 'p1', file(nfd));
+    expect(attacher.attach).toHaveBeenCalled();
+  });
+
   it('нет файла → 400, больше 10 МиБ → 413, нет фото → 404, ссылка → 409, другое имя → 422', async () => {
     expect(await status(service.upload('i1', 'p1', undefined))).toEqual([400, 'VALIDATION_ERROR']);
     expect(await status(service.upload('i1', 'p1', file('Фото 1.JPG', JPEG, 11 * 1024 * 1024)))).toEqual([413, 'IMPORT_PHOTO_TOO_LARGE']);

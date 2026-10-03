@@ -37,8 +37,12 @@ function fileError(
   return new HttpException({ code, message, ...(details ? { details } : {}) }, status);
 }
 
-/** Значение ячейки → обрезанная строка. Числа — без экспоненты и float-хвостов. */
-function cellToString(value: CellValue | undefined): string {
+/**
+ * Значение ячейки → обрезанная строка. Числа — без экспоненты и float-хвостов.
+ * `useHyperlink` — только для колонки «Фото»: в остальных колонках ссылка-источник
+ * (заголовок с сайта, mailto:, tel:, #Лист!A1) не должна подменять текст.
+ */
+export function cellToString(value: CellValue | undefined, useHyperlink = false): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number') {
@@ -49,13 +53,26 @@ function cellToString(value: CellValue | undefined): string {
   if (value instanceof Date) return value.toISOString();
   if (typeof value === 'object') {
     if ('richText' in value) return value.richText.map((part) => part.text).join('').trim();
-    if ('result' in value) return cellToString(value.result as CellValue);
-    // Ячейка-гиперссылка с подписью («фото»): берём адрес. Если в тексте уже есть
-    // адрес(а) — текст (Excel ставит hyperlink только на первую ссылку ячейки).
-    if ('hyperlink' in value && typeof value.hyperlink === 'string' && !String(value.text ?? '').includes('://')) {
+    if ('result' in value) return cellToString(value.result as CellValue, useHyperlink);
+    if ('text' in value) {
+      // Подпись гиперссылки бывает rich text — собираем части, а не «[object Object]».
+      const text = cellToString(value.text as CellValue);
+      // Фото-ячейка с подписью («фото»): берём адрес. Если в тексте уже есть
+      // адрес(а) — текст (Excel ставит hyperlink только на первую ссылку ячейки).
+      if (
+        useHyperlink &&
+        'hyperlink' in value &&
+        typeof value.hyperlink === 'string' &&
+        !text.includes('://')
+      ) {
+        return value.hyperlink.trim();
+      }
+      return text;
+    }
+    // Гиперссылка без подписи (в xlsx exceljs такую не пишет, но читать её безопасно).
+    if (useHyperlink && 'hyperlink' in value && typeof value.hyperlink === 'string') {
       return value.hyperlink.trim();
     }
-    if ('text' in value) return String(value.text).trim();
   }
   return '';
 }
@@ -149,7 +166,7 @@ export async function parseImportFile(
     const row = sheet.getRow(rowNumber);
     const values: ImportRowValues = {};
     for (const [index, key] of columnByIndex) {
-      const value = cellToString(row.getCell(index).value);
+      const value = cellToString(row.getCell(index).value, key === 'photos');
       if (value) values[key] = value;
     }
     if (Object.keys(values).length > 0) rows.push({ rowNumber, values });

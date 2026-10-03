@@ -1549,14 +1549,15 @@ Errors: `400 VALIDATION_ERROR` (self-block), `404 NOT_FOUND` (нет польз�
 | `file.size` > 10 МиБ — проверка в сервисе, тем же способом, что `IMPORT_FILE_TOO_LARGE` в `import-file.parser.ts` (`HttpException` с кодом) | 413 `IMPORT_PHOTO_TOO_LARGE`, статус фото не меняется |
 | фото нет или другой импорт | 404 `NOT_FOUND` |
 | `source ≠ FILE` | 409 `IMPORT_PHOTO_NOT_FILE` |
-| имя файла (декодированное, без пути) ≠ `ref` без учёта регистра | 422 `IMPORT_PHOTO_NAME_MISMATCH` |
+| имя файла (декодированное, без пути) ≠ `ref` без учёта регистра и Unicode-нормализации (NFC) | 422 `IMPORT_PHOTO_NAME_MISMATCH` |
 | статус `DONE` | 200, элемент как есть, без записи |
 | байты не jpeg/png/webp | 200, фото `FAILED` `NOT_AN_IMAGE` |
 | иначе | `ImportPhotoAttacher.attach` → 200 с обновлённым элементом (`DONE` или `FAILED` `MEDIA_LIMIT` / `LISTING_UNAVAILABLE`) |
 
 **`POST /api/v1/admin/listing-imports/:id/photos/retry`** — фото импорта с
 `source = URL` и статусом `PENDING` или `FAILED`: `FAILED` → `PENDING` (`error_code`,
-`http_status` → `null`), затем все ставятся в очередь. Ответ `200 { "queued": n }`.
+`http_status` → `null`, счётчик `attempts` сбрасывается в `0`), затем все ставятся в
+очередь. Ответ `200 { "queued": n }`.
 Задача, ещё стоящая в очереди, не дублируется.
 
 ### Admin logs

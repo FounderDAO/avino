@@ -31,6 +31,10 @@ export class ImportPhotoFetchProcessor {
     try {
       image = await this.fetchImage(photo.ref);
     } catch (error) {
+      if (!(error instanceof ImageFetchError)) {
+        // Не ожидаемый отказ скачивания, а баг/сбой — иначе он виден только как INTERNAL.
+        this.logger.error(`Import photo ${photoId} fetch crashed`, error as Error);
+      }
       const failure = error instanceof ImageFetchError ? error : new ImageFetchError('INTERNAL', false);
       if (failure.retryable && !isLastAttempt) throw failure;
       await this.attacher.fail(photoId, failure.code, failure.httpStatus);

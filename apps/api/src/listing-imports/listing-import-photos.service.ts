@@ -41,8 +41,9 @@ export class ListingImportPhotosService {
       throw new HttpException({ code: ApiErrorCode.IMPORT_PHOTO_NOT_FILE, message: 'Photo is a URL, not a file' }, HttpStatus.CONFLICT);
     }
     // Браузер может прислать относительный путь из выбранной папки — сравниваем имя.
+    // NFC: macOS отдаёт имена в NFD («й», «ё» — буква + диакритика), а в файле импорта — NFC.
     const name = decodeUploadedFileName(file.originalname).split(/[\\/]/).pop() ?? '';
-    if (name.toLowerCase() !== photo.ref.toLowerCase()) {
+    if (name.normalize('NFC').toLowerCase() !== photo.ref.normalize('NFC').toLowerCase()) {
       throw new HttpException(
         { code: ApiErrorCode.IMPORT_PHOTO_NAME_MISMATCH, message: 'File name does not match the photo' },
         HttpStatus.UNPROCESSABLE_ENTITY,

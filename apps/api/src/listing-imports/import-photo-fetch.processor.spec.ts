@@ -50,6 +50,14 @@ describe('ImportPhotoFetchProcessor', () => {
     expect(attacher.fail).toHaveBeenCalledWith('p1', 'NOT_AN_IMAGE', null);
   });
 
+  it('неожиданная ошибка скачивания — логируется и FAILED INTERNAL без повтора', async () => {
+    const logError = jest.spyOn((processor as any).logger, 'error').mockImplementation(() => undefined);
+    (processor.fetchImage as jest.Mock).mockRejectedValue(new TypeError('boom'));
+    await expect(processor.process('p1', false)).resolves.toBeUndefined();
+    expect(attacher.fail).toHaveBeenCalledWith('p1', 'INTERNAL', null);
+    expect(logError).toHaveBeenCalledTimes(1);
+  });
+
   it('сбой прикрепления: не последняя попытка — бросает, последняя — FAILED INTERNAL', async () => {
     attacher.attach.mockRejectedValue(new Error('s3 down'));
     await expect(processor.process('p1', false)).rejects.toThrow('s3 down');
