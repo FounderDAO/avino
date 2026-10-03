@@ -96,6 +96,16 @@ const BATHROOM_OPTIONS = ['1', '1.5', '2', '2.5', '3', '4+'] as const;
 /** Язык оригинала объявления. */
 type Lang = 'RU' | 'UZ' | 'EN';
 
+/**
+ * Язык оригинала по умолчанию — язык интерфейса: автор на `/uz` пишет
+ * по-узбекски. С жёстким дефолтом RU такие объявления уходили с неверным
+ * `original_language`, и машинный перевод возвращал текст непереведённым.
+ */
+export function defaultOriginalLanguage(locale: string): Lang {
+  const lang = locale.toUpperCase();
+  return lang === 'UZ' || lang === 'EN' ? lang : 'RU';
+}
+
 /** Состояние формы визарда. */
 export interface FormState {
   tx: TransactionType;
@@ -413,6 +423,7 @@ export function ListingNew({
   const [f, dispatch] = useReducer(reducer, initialTx, (tx) => ({
     ...INITIAL,
     tx: tx ?? INITIAL.tx,
+    lang: defaultOriginalLanguage(locale),
   }));
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     dispatch({ type: 'set', key, value });

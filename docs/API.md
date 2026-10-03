@@ -1261,10 +1261,18 @@ Errors: `403 FORBIDDEN`, `422 INVALID_STATUS_TRANSITION`,
 (ADR-0091). Auth: **MODERATOR / ADMIN**. Переводит `title/description/
 address_note/features_text` с `original_language` на остальные (UZ/RU/EN);
 **не перезаписывает** строки с `is_auto_translated=false` (ручные правки).
-Идемпотентно. Тела запроса нет.
+Идемпотентно. Тело (опц.): `{ "force": true }` — перезаписать и правленные
+вручную целевые языки (оригинал не трогается).
 200 → тот же контракт, что `GET /listings/:id/translations` (полный набор с
-`source`/`is_auto_translated`).
-Errors: `403 FORBIDDEN`, `404 NOT_FOUND`, `502` (сбой провайдера перевода).
+`source`/`is_auto_translated`) плюс итог генерации:
+`regenerated` / `skipped` — массивы языков; `detected_language` —
+`UZ | RU | EN | null`, язык, определённый провайдером в авторском тексте. Если он
+отличается от `original_language`, автор, вероятно, указал язык неверно — UI
+подсказывает модератору исправить язык оригинала (`PATCH …/original`). Перевод
+при несовпадении всё равно выполняется. Текст длиннее лимита провайдера
+(Yandex — 10 000 символов на запрос) переводится частями.
+Errors: `403 FORBIDDEN`, `404 NOT_FOUND`, `502` (сбой провайдера перевода;
+`message` = `Translation provider failed: <причина от провайдера>`).
 
 ### PATCH /api/v1/admin/listings/:id/translations/:language
 Ручная правка одного языкового перевода модератором (ADR-0091).

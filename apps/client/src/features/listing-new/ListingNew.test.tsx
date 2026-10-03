@@ -231,6 +231,7 @@ import {
   buildListingBody,
   describeListingValidationErrors,
   missingStepFields,
+  defaultOriginalLanguage,
 } from './ListingNew';
 import type { FormState } from './ListingNew';
 
@@ -653,5 +654,17 @@ describe('describeListingValidationErrors', () => {
       label: 'mystery_field',
       reason: 'validation.reasons.default',
     });
+  });
+});
+
+describe('defaultOriginalLanguage', () => {
+  it('follows the interface locale, so an Uzbek author is not sent as RU', () => {
+    expect(defaultOriginalLanguage('uz')).toBe('UZ');
+    expect(defaultOriginalLanguage('en')).toBe('EN');
+    expect(defaultOriginalLanguage('ru')).toBe('RU');
+  });
+
+  it('falls back to RU for an unknown locale', () => {
+    expect(defaultOriginalLanguage('kk')).toBe('RU');
   });
 });

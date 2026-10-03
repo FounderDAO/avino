@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Language, TranslationSource } from '@prisma/client';
+import { readProviderErrorReason } from './provider-error';
 import { TranslationProvider } from './translation-provider.interface';
 
 /** `Language` (enum) → ISO-код языка, понятный Google (`UZ` → `uz`). */
@@ -51,7 +52,10 @@ export class GoogleTranslationProvider implements TranslationProvider {
     );
 
     if (!res.ok) {
-      throw new Error(`Google Translate failed: ${res.status}`);
+      const reason = await readProviderErrorReason(res);
+      throw new Error(
+        `Google Translate failed: ${res.status} ${reason}`.trim(),
+      );
     }
 
     const json = (await res.json()) as {

@@ -38,7 +38,12 @@ import { ListingMediaManager } from '@/components/admin/ListingMediaManager';
 import { ListingDuplicates } from '@/components/admin/ListingDuplicates';
 import { detailToAdminListing, ownerName, REJECT_REASON_OPTIONS } from '@/lib/adapters/listings';
 import { LISTING_STATUS_LABEL } from '@/lib/adapters/logs';
-import { translationResultToast } from '@/lib/translations';
+import {
+  originalLanguageMismatchWarning,
+  translationErrorToast,
+  translationResultToast,
+  translationRowKey,
+} from '@/lib/translations';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import type { AdminListingStatus } from '@/lib/mock';
 import type {
@@ -136,7 +141,7 @@ export default function ListingDetailPage() {
   const { data: logs, isLoading: logsLoading, isError: logsError } =
     useListingModerationLogsQuery(id);
   const { data: tr } = useGetListingTranslationsQuery(id);
-  const [generate, { isLoading: isGenerating }] = useGenerateTranslationsMutation();
+  const [generate, { isLoading: isGenerating, data: lastGenerated }] = useGenerateTranslationsMutation();
   const [saveTr, { isLoading: isSavingTr }] = useUpdateTranslationMutation();
   const [saveOriginal, { isLoading: isSavingOriginal }] = useUpdateOriginalTranslationMutation();
   const { data: promos } = useListListingPromotionsQuery(id);
@@ -146,6 +151,7 @@ export default function ListingDetailPage() {
   const [retranslateOpen, setRetranslateOpen] = useState(false);
 
   const presentLangs = new Set((tr?.translations ?? []).map((t) => t.language));
+  const langWarning = originalLanguageMismatchWarning(lastGenerated, id, tr?.original_language);
   const translationsComplete = REQUIRED_LANGS.every((l) => presentLangs.has(l));
 
   const listing = data ? detailToAdminListing(data) : undefined;
@@ -292,7 +298,7 @@ export default function ListingDetailPage() {
                   disabled={isGenerating}
                   onClick={async () => {
                     try { toast(translationResultToast(await generate({ id }).unwrap())); }
-                    catch { toast('Не удалось сгенерировать переводы'); }
+                    catch (e) { toast(translationErrorToast(e)); }
                   }}
                 >
                   {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
@@ -306,10 +312,15 @@ export default function ListingDetailPage() {
                 </button>
               </div>
             </div>
+            {langWarning && (
+              <div className="row gap-8" style={{ background: 'var(--warn-bg)', color: 'var(--warn)', borderRadius: 10, padding: '10px 13px', fontSize: 13.5, fontWeight: 600, marginTop: 10, alignItems: 'center' }}>
+                <IC.Alert size={16} style={{ flexShrink: 0 }} /> {langWarning}
+              </div>
+            )}
             {(tr?.translations ?? []).map((t) =>
               t.language === tr?.original_language ? (
                 <OriginalTranslationEditor
-                  key={t.language}
+                  key={translationRowKey(id, t)}
                   item={t}
                   originalLanguage={tr.original_language}
                   saving={isSavingOriginal}
@@ -322,7 +333,7 @@ export default function ListingDetailPage() {
                 />
               ) : (
                 <TranslationRow
-                  key={t.language}
+                  key={translationRowKey(id, t)}
                   item={t}
                   saving={isSavingTr}
                   original={false}
@@ -443,7 +454,7 @@ export default function ListingDetailPage() {
           isSubmitting={isGenerating}
           onConfirm={async () => {
             try { toast(translationResultToast(await generate({ id: id, force: true }).unwrap(), { forced: true })); }
-            catch { toast('Не удалось сгенерировать переводы'); }
+            catch (e) { toast(translationErrorToast(e)); }
             finally { setRetranslateOpen(false); }
           }}
           onClose={() => setRetranslateOpen(false)}

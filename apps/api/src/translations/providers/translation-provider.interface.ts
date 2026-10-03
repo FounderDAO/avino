@@ -24,4 +24,12 @@ export interface TranslationProvider {
 
   /** Перевести `text` с языка `from` на язык `to`. Пустой текст → пустая строка. */
   translate(text: string, from: Language, to: Language): Promise<string>;
+
+  /**
+   * Определить язык текста среди поддерживаемых (UZ/RU/EN) — для подсказки
+   * модератору, что `original_language` указан неверно. Best-effort: `null`, если
+   * язык не определён/не поддерживается, провайдер не сконфигурирован или вызов
+   * не удался (ошибку не бросает). Необязателен для реализации.
+   */
+  detectLanguage?(text: string): Promise<Language | null>;
 }

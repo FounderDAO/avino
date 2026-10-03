@@ -37,7 +37,12 @@ import { totalPages } from '@/store/api/adminApi';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import { detailToAdminListing, rowToModerationItem } from '@/lib/adapters/listings';
 import { ROLE_LABEL } from '@/lib/adapters/users';
-import { translationResultToast } from '@/lib/translations';
+import {
+  originalLanguageMismatchWarning,
+  translationErrorToast,
+  translationResultToast,
+  translationRowKey,
+} from '@/lib/translations';
 import type { UserStatus } from '@/store/api/authApi';
 import type {
   AdminListingOwner,
@@ -205,10 +210,11 @@ export default function ModerationPage() {
   // Переводы выбранного объявления — генерация/ревью/правка прямо в очереди
   // модерации. Эндпоинты те же, что и на детальной карточке `/admin/listings/:id`.
   const { data: tr } = useGetListingTranslationsQuery(selId ?? '', { skip: !selId });
-  const [generate, { isLoading: isGenerating }] = useGenerateTranslationsMutation();
+  const [generate, { isLoading: isGenerating, data: lastGenerated }] = useGenerateTranslationsMutation();
   const [saveTr, { isLoading: isSavingTr }] = useUpdateTranslationMutation();
   const [saveOriginal, { isLoading: isSavingOriginal }] = useUpdateOriginalTranslationMutation();
   const presentLangs = new Set((tr?.translations ?? []).map((t) => t.language));
+  const langWarning = originalLanguageMismatchWarning(lastGenerated, selId ?? '', tr?.original_language);
   // APPROVE гейтится предупреждением пока нет всех языков (дублирует серверный гейт 422).
   const translationsComplete = REQUIRED_LANGS.every((l) => presentLangs.has(l));
 
@@ -328,7 +334,7 @@ export default function ModerationPage() {
                         disabled={isGenerating}
                         onClick={async () => {
                           try { toast(translationResultToast(await generate({ id: sel.id }).unwrap())); }
-                          catch { toast('Не удалось сгенерировать переводы'); }
+                          catch (e) { toast(translationErrorToast(e)); }
                         }}
                       >
                         {isGenerating ? 'Генерация…' : 'Сгенерировать переводы'}
@@ -342,10 +348,15 @@ export default function ModerationPage() {
                       </button>
                     </div>
                   </div>
+                  {langWarning && (
+                    <div className="row gap-8" style={{ background: 'var(--warn-bg)', color: 'var(--warn)', borderRadius: 10, padding: '10px 13px', fontSize: 13.5, fontWeight: 600, marginTop: 10, alignItems: 'center' }}>
+                      <IC.Alert size={16} style={{ flexShrink: 0 }} /> {langWarning}
+                    </div>
+                  )}
                   {(tr?.translations ?? []).map((t) =>
                     t.language === tr?.original_language ? (
                       <OriginalTranslationEditor
-                        key={t.language}
+                        key={translationRowKey(sel.id, t)}
                         item={t}
                         originalLanguage={tr.original_language}
                         saving={isSavingOriginal}
@@ -358,7 +369,7 @@ export default function ModerationPage() {
                       />
                     ) : (
                       <TranslationRow
-                        key={t.language}
+                        key={translationRowKey(sel.id, t)}
                         item={t}
                         saving={isSavingTr}
                         original={false}
@@ -420,7 +431,7 @@ export default function ModerationPage() {
           isSubmitting={isGenerating}
           onConfirm={async () => {
             try { toast(translationResultToast(await generate({ id: sel.id, force: true }).unwrap(), { forced: true })); }
-            catch { toast('Не удалось сгенерировать переводы'); }
+            catch (e) { toast(translationErrorToast(e)); }
             finally { setRetranslateOpen(false); }
           }}
           onClose={() => setRetranslateOpen(false)}
