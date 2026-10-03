@@ -27,6 +27,7 @@ import {
   ImportPhotoReport,
   ImportPhotosSummary,
   ImportRowReport,
+  ListingImportListItem,
   ListingImportReport,
   summarize,
   summarizeDraftPhotos,
@@ -116,6 +117,42 @@ export class ListingImportService {
         this.logger.warn(`Не удалось снять блокировку импорта: ${(error as Error).message}`);
       }
     }
+  }
+
+  /** История импортов, новые сверху. `incomplete` — строк записано меньше, чем было в файле. */
+  async list(page: number, limit: number): Promise<{ data: ListingImportListItem[]; meta: { page: number; limit: number; total: number } }> {
+    const [total, imports] = await Promise.all([
+      this.prisma.listingImport.count(),
+      this.prisma.listingImport.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          createdBy: { select: { id: true, profile: { select: { firstName: true, lastName: true } } } },
+          _count: { select: { rows: true } },
+        },
+      }),
+    ]);
+    const photos = await photoSummaries(this.prisma, imports.map((item) => item.id));
+    const data = imports.map((item): ListingImportListItem => {
+      const name = [item.createdBy.profile?.firstName, item.createdBy.profile?.lastName].filter(Boolean).join(' ');
+      return {
+        id: item.id,
+        file_name: item.fileName,
+        created_at: item.createdAt.toISOString(),
+        created_by: { id: item.createdBy.id, name: name || null },
+        summary: {
+          total: item.totalRows,
+          created: item.createdCount,
+          skipped_exists: item.skippedExistsCount,
+          skipped_duplicate_in_file: item.skippedInFileCount,
+          errors: item.errorCount,
+        },
+        photos_summary: photos.get(item.id) ?? { ...EMPTY_PHOTO_SUMMARY },
+        incomplete: item._count.rows !== item.totalRows,
+      };
+    });
+    return { data, meta: { page, limit, total } };
   }
 
   async getReport(id: string): Promise<ListingImportReport> {

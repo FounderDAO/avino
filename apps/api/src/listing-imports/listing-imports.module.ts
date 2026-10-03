@@ -7,6 +7,7 @@ import { ImportPhotoAttacher } from './import-photo.attacher';
 import { ListingImportController } from './listing-import.controller';
 import { ListingImportLock } from './listing-import.lock';
 import { ListingImportPhotoWorker } from './listing-import-photo.worker';
+import { ListingImportPhotosService } from './listing-import-photos.service';
 import { ListingImportService } from './listing-import.service';
 
 /**
@@ -22,6 +23,7 @@ import { ListingImportService } from './listing-import.service';
   controllers: [ListingImportController],
   providers: [
     ListingImportService,
+    ListingImportPhotosService,
     ListingImportLock,
     ImportPhotoAttacher,
     ImportPhotoFetchProcessor,

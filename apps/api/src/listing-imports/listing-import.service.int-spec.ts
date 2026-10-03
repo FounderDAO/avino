@@ -2,13 +2,16 @@ import { HttpException } from '@nestjs/common';
 import { ListingStatus, UserStatus } from '@prisma/client';
 import { Workbook } from 'exceljs';
 import { AddressResolverService, DistrictsService } from '../geo';
+import { ListingMediaService } from '../listing-media';
 import { ListingsService } from '../listings/listings.service';
 import { PrismaService } from '../prisma';
 import { ActiveListingLimitService } from '../settings';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
 import { ImportUploadedFile } from './import-file.parser';
+import { ImportPhotoAttacher } from './import-photo.attacher';
 import { ListingImportLock } from './listing-import.lock';
+import { ListingImportPhotosService } from './listing-import-photos.service';
 import { ListingImportService } from './listing-import.service';
 
 // Лимит активных объявлений = 1: импорт обязан его игнорировать.
@@ -458,6 +461,64 @@ describe('ListingImportService (integration)', () => {
         false,
       );
       expect(await service.getReport(run.id as string)).toEqual(run);
+    });
+
+    it('list: новые сверху, счётчики и сводка фото', async () => {
+      const run = await service.run(
+        await file([row(PHONE_PHOTOS, { Адрес: 'Ташкент, Список, 1', Фото: 'l.jpg' })]),
+        adminId,
+        false,
+      );
+      const { data, meta } = await service.list(1, 100);
+      expect(meta).toMatchObject({ page: 1, limit: 100 });
+      expect(data[0]).toMatchObject({
+        id: run.id,
+        file_name: 'import.xlsx',
+        created_by: { id: adminId },
+        summary: { total: 1, created: 1 },
+        photos_summary: { total: 1, awaiting_upload: 1 },
+        incomplete: false,
+      });
+    });
+
+    it('retry переводит FAILED в PENDING и ставит в очередь вместе с «зависшими» PENDING', async () => {
+      const run = await service.run(
+        await file([row(PHONE_PHOTOS, { Адрес: 'Ташкент, Повтор, 1', Фото: 'https://a.uz/1.jpg, https://a.uz/2.jpg' })]),
+        adminId,
+        false,
+      );
+      const [first, second] = await prisma.listingImportPhoto.findMany({ where: { importId: run.id as string }, orderBy: { position: 'asc' } });
+      await prisma.listingImportPhoto.update({ where: { id: first.id }, data: { status: 'FAILED', errorCode: 'HTTP_ERROR', httpStatus: 404, attempts: 3 } });
+      const queue = { enqueue: jest.fn() };
+      const photosService = new ListingImportPhotosService(prisma, {} as any, queue as any);
+      expect(await photosService.retry(run.id as string)).toEqual({ queued: 2 });
+      expect(queue.enqueue).toHaveBeenCalledWith(expect.arrayContaining([first.id, second.id]));
+      expect(await prisma.listingImportPhoto.findUniqueOrThrow({ where: { id: first.id } })).toMatchObject({
+        status: 'PENDING', errorCode: null, httpStatus: null, attempts: 0,
+      });
+    });
+
+    it('attach создаёт listing_media с sort_order = position; повторный attach не дублирует', async () => {
+      const run = await service.run(
+        await file([row(PHONE_PHOTOS, { Адрес: 'Ташкент, Прикрепление, 1', Фото: 'a.jpg, b.jpg' })]),
+        adminId,
+        false,
+      );
+      const [, second] = await prisma.listingImportPhoto.findMany({ where: { importId: run.id as string }, orderBy: { position: 'asc' } });
+      const uploads = {
+        rootPrefix: () => 'test',
+        upload: jest.fn(async () => ({ key: `test/k-${Math.random()}`, url: 'https://cdn/x' })),
+      };
+      const media = new ListingMediaService(prisma, uploads as any);
+      const attacher = new ImportPhotoAttacher(prisma, media);
+      await attacher.attach(second, Buffer.from([0xff, 0xd8, 0xff]), 'image/jpeg');
+      await attacher.attach(second, Buffer.from([0xff, 0xd8, 0xff]), 'image/jpeg');
+      const gallery = await prisma.listingMedia.findMany({ where: { listingId: second.listingId } });
+      expect(gallery).toHaveLength(1);
+      expect(gallery[0].sortOrder).toBe(1);
+      expect(await prisma.listingImportPhoto.findUniqueOrThrow({ where: { id: second.id } })).toMatchObject({ status: 'DONE', mediaId: gallery[0].id });
+      // Следующая загрузка владельцем/админом встаёт после пропуска: max + 1 = 2.
+      expect(await media.nextSortOrder(second.listingId)).toBe(2);
     });
   });
 

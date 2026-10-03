@@ -51,6 +51,16 @@ export interface ImportSummary {
   errors: number;
 }
 
+export interface ListingImportListItem {
+  id: string;
+  file_name: string;
+  created_at: string;
+  created_by: { id: string; name: string | null };
+  summary: Omit<ImportSummary, 'to_create'>;
+  photos_summary: ImportPhotosSummary;
+  incomplete: boolean;
+}
+
 export interface ListingImportReport {
   id: string | null;
   dry_run: boolean;
