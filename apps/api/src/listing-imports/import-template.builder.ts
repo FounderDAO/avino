@@ -20,7 +20,7 @@ const HELP: Record<ImportColumnKey, [required: string, hint: string, example: st
   total_floors: ['нет', 'Целое число', '9'],
   rooms: ['нет', 'Целое число', '2'],
   bathrooms: ['нет', 'Шаг 0.5: 1, 1.5, 2', '1'],
-  year_built: ['для квартиры и дома', 'Год, целое число', '2015'],
+  year_built: ['нет', 'Год, целое число. Без года квартира и дом не попадут в фильтр «Новостройки»', '2015'],
   parking_type: ['нет', 'YARD / COVERED / GARAGE / UNDERGROUND', 'YARD'],
   latitude: ['нет', 'Только вместе с долготой', '41.311081'],
   longitude: ['нет', 'Только вместе с широтой', '69.240562'],

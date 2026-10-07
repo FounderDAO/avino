@@ -94,11 +94,17 @@ describe('validateImportRow', () => {
     expect(errors({ ...base, title: 'я'.repeat(256) })).toEqual(['title:TOO_LONG']);
   });
 
-  it('год постройки обязателен для квартиры и дома', () => {
-    expect(errors({ ...base, year_built: '' })).toEqual(['year_built:REQUIRED']);
-    expect(
-      validateImportRow({ ...base, property_type: 'Коммерция', year_built: '' }).ok,
-    ).toBe(true);
+  it('год постройки необязателен для любого типа', () => {
+    for (const property_type of ['Квартира', 'Дом', 'Коммерция']) {
+      const input = ok({ ...base, property_type, year_built: '' });
+      expect(input.dto.year_built).toBeUndefined();
+    }
+  });
+
+  it('заполненный год постройки проверяется', () => {
+    expect(errors({ ...base, year_built: 'новый' })).toEqual(['year_built:INVALID_VALUE']);
+    expect(errors({ ...base, year_built: '99999' })).toEqual(['year_built:INVALID_VALUE']);
+    expect(ok({ ...base, year_built: '2027' }).dto.year_built).toBe(2027);
   });
 
   it('площадь: для участка обязательна lot_area, для остальных — area', () => {

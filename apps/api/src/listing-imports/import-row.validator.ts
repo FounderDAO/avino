@@ -67,6 +67,7 @@ function cleanNumber(raw: string): string {
  * Проверка и преобразование одной строки файла (спека 2026-10-02 §1–§2).
  * Чистая функция: БД не трогает. Правила полей объявления не дублируются —
  * строка превращается в {@link CreateListingDto} и проходит class-validator.
+ * Единственное отступление — пустой год постройки допустим для любого типа.
  */
 export function validateImportRow(values: ImportRowValues): ImportRowValidation {
   const errors: ImportRowError[] = [];
@@ -181,7 +182,12 @@ export function validateImportRow(values: ImportRowValues): ImportRowValidation 
   }
 
   const dto = plainToInstance(CreateListingDto, plain);
-  collect(validateSync(dto, { whitelist: true }), values, fail);
+  // Импорт мягче CreateListingDto в одном: год постройки необязателен и для
+  // квартиры/дома — в чужих базах его часто нет. Заполненный проверяется как обычно.
+  const found = validateSync(dto, { whitelist: true }).filter(
+    (error) => !(error.property === 'year_built' && !text('year_built')),
+  );
+  collect(found, values, fail);
 
   if (errors.length > 0 || !phone || !photoCell.ok) return { ok: false, errors };
   return { ok: true, input: { phone, firstName, lastName, dto, photos: photoCell.photos } };
