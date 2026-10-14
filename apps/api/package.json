@@ -28,7 +28,7 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.1.28",
     "@nestjs/platform-socket.io": "^10.4.22",
-    "@nestjs/swagger": "^7.4.0",
+    "@nestjs/swagger": "^11.4.6",
     "@nestjs/throttler": "^6.0.0",
     "@nestjs/websockets": "^10",
     "@prisma/client": "^5.18.0",
