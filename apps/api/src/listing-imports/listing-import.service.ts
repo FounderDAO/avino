@@ -2,9 +2,11 @@ import { randomUUID } from 'crypto';
 import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ListingImportOutcome, ListingImportPhotoStatus, Prisma } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
+import { AddressResolverService } from '../geo';
 import { ListingCreateData, ListingsService } from '../listings/listings.service';
 import { PrismaService } from '../prisma';
 import { ListingImportPhotoQueue } from '../queues';
+import { resolveImportDistricts } from './import-district.resolver';
 import { findOwnerDuplicate } from './import-duplicate.finder';
 import { ImportUploadedFile, parseImportFile, RawImportRow } from './import-file.parser';
 import {
@@ -82,6 +84,7 @@ export class ListingImportService {
     private readonly listings: ListingsService,
     private readonly lock: ListingImportLock,
     private readonly photoQueue: ListingImportPhotoQueue,
+    private readonly addressResolver: AddressResolverService,
   ) {}
 
   async run(
@@ -336,6 +339,20 @@ export class ListingImportService {
       ...rawByRow.get(report.row),
       ...(report.phone ? { normalized_phone: report.phone } : {}),
     });
+
+    // Район по точке для новых объявлений без района — иначе они выпадают из
+    // фильтра по региону. Только при записи (не в предпросмотре); сбой геокодера
+    // импорт не валит — районы доставит scripts/backfill-districts.
+    const districtStats = await resolveImportDistricts(
+      pending.flatMap((row) => (row.kind === 'CREATE' ? [row.data] : [])),
+      (lat, lng) => this.addressResolver.resolveDistrictId(lat, lng),
+    );
+    if (districtStats.failed > 0) {
+      this.logger.warn(
+        `Import ${importId}: district geocoding failed ${districtStats.failed}x` +
+          (districtStats.aborted ? ', stopped — run backfill-districts' : ''),
+      );
+    }
 
     // Строки, записанные внутри своих транзакций, — общий createMany их пропускает.
     const persisted = new Set<number>();

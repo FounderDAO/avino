@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { GeoModule } from '../geo';
 import { ListingMediaModule } from '../listing-media/listing-media.module';
 import { ListingsModule } from '../listings/listings.module';
 import { RolesModule } from '../roles';
@@ -14,12 +15,13 @@ import { ListingImportService } from './listing-import.service';
  * ListingImportsModule — массовый импорт объявлений (спека 2026-10-02).
  * `RolesModule` — Bearer + роли; `ListingsModule` — общая с обычным созданием
  * запись объявления ({@link ListingsService.createInTransaction});
- * `ListingMediaModule` — запись фото в галерею (спека 2026-10-03). Prisma,
+ * `ListingMediaModule` — запись фото в галерею (спека 2026-10-03); `GeoModule` —
+ * район по координатам строки (AddressResolverService.resolveDistrictId). Prisma,
  * Redis и очереди — глобальные модули; воркер `listing_import_photo_queue`
  * живёт здесь, как и другие консьюмеры в доменных модулях.
  */
 @Module({
-  imports: [RolesModule, ListingsModule, ListingMediaModule],
+  imports: [RolesModule, ListingsModule, ListingMediaModule, GeoModule],
   controllers: [ListingImportController],
   providers: [
     ListingImportService,

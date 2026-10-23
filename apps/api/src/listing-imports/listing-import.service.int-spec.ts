@@ -16,11 +16,12 @@ import { ListingImportService } from './listing-import.service';
 
 // Лимит активных объявлений = 1: импорт обязан его игнорировать.
 const activeLimitStub = { getLimit: async () => 1 } as unknown as ActiveListingLimitService;
-// Геокодер не должен вызываться при импорте вообще.
+// Адрес импорт не геокодирует; район по точке — только resolveDistrictId.
 const addressResolverStub = {
   resolve: async () => {
     throw new Error('geocoder must not be called by import');
   },
+  resolveDistrictId: async () => null,
 } as unknown as AddressResolverService;
 
 /** Блокировка в памяти — int-spec не зависит от Redis. */
@@ -93,7 +94,13 @@ describe('ListingImportService (integration)', () => {
   );
   const lock = new MemoryLock();
   const photoQueue = { enqueue: jest.fn().mockResolvedValue(undefined) };
-  const service = new ListingImportService(prisma, listings, lock as unknown as ListingImportLock, photoQueue as any);
+  const service = new ListingImportService(
+    prisma,
+    listings,
+    lock as unknown as ListingImportLock,
+    photoQueue as any,
+    addressResolverStub,
+  );
 
   beforeEach(() => photoQueue.enqueue.mockClear());
 
