@@ -29,6 +29,10 @@ describe('AdminStatsService', () => {
     service = new AdminStatsService(prisma);
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('counts each metric with the right filter and maps to snake_case', async () => {
     prisma.listing.count.mockResolvedValue(12);
     prisma.complaint.count.mockResolvedValue(3);
@@ -85,18 +89,59 @@ describe('AdminStatsService', () => {
     expect(prisma.complaint.count).toHaveBeenCalledWith({
       where: { status: ComplaintStatus.NEW },
     });
-    // users_total — без удалённых аккаунтов (status != DELETED).
-    expect(prisma.user.count).toHaveBeenCalledWith({
-      where: { status: { not: UserStatus.DELETED } },
-    });
-    expect(prisma.listingPromotion.count).toHaveBeenCalledWith({
-      where: { status: PromotionStatus.ACTIVE },
-    });
+
     expect(prisma.agentApplication.count).toHaveBeenCalledWith({
       where: { status: AgentApplicationStatus.PENDING },
     });
     expect(prisma.supportRequest.count).toHaveBeenCalledWith({
       where: { status: SupportRequestStatus.NEW },
+    });
+  });
+
+  it('users_total counts real accounts: not DELETED and not import shadows', async () => {
+    prisma.listing.count.mockResolvedValue(0);
+    prisma.complaint.count.mockResolvedValue(0);
+    prisma.user.count.mockResolvedValue(0);
+    prisma.listingPromotion.count.mockResolvedValue(0);
+    prisma.agentApplication.count.mockResolvedValue(0);
+    prisma.supportRequest.count.mockResolvedValue(0);
+
+    await service.getStats();
+
+    // Теневой владелец из импорта (import-owner.resolver): ни разу не входил и
+    // не подтвердил ни телефон, ни email — живым пользователем не считается.
+    // BLOCKED остаётся в счётчике: это реальный аккаунт, просто заблокированный.
+    expect(prisma.user.count).toHaveBeenCalledWith({
+      where: {
+        status: { not: UserStatus.DELETED },
+        OR: [
+          { lastLoginAt: { not: null } },
+          { isPhoneVerified: true },
+          { isEmailVerified: true },
+        ],
+      },
+    });
+  });
+
+  it('promotions_active excludes ACTIVE promos already past expires_at', async () => {
+    const now = new Date('2026-10-23T09:00:00.000Z');
+    jest.useFakeTimers().setSystemTime(now);
+    prisma.listing.count.mockResolvedValue(0);
+    prisma.complaint.count.mockResolvedValue(0);
+    prisma.user.count.mockResolvedValue(0);
+    prisma.listingPromotion.count.mockResolvedValue(0);
+    prisma.agentApplication.count.mockResolvedValue(0);
+    prisma.supportRequest.count.mockResolvedValue(0);
+
+    await service.getStats();
+
+    // Sweep истечения идёт раз в 6–12 ч; до него просроченная промо ещё ACTIVE,
+    // но фактически уже не действует (поиск отсекает её тем же time-guard).
+    expect(prisma.listingPromotion.count).toHaveBeenCalledWith({
+      where: {
+        status: PromotionStatus.ACTIVE,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
     });
   });
 

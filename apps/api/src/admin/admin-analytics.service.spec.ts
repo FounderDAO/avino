@@ -27,12 +27,36 @@ describe('AdminAnalyticsService', () => {
     service = new AdminAnalyticsService(prisma);
   });
 
-  it('monthly series counts only ACTIVE listings (raw SQL filter)', async () => {
+  /** Текст raw-SQL помесячного ряда (единственный $queryRaw сервиса). */
+  const monthlySql = (): string =>
+    (prisma.$queryRaw.mock.calls[0][0] as string[]).join('').replace(/\s+/g, ' ');
+
+  it('monthly series buckets by published_at, not created_at', async () => {
     await service.getAnalytics();
 
-    const sql = (prisma.$queryRaw.mock.calls[0][0] as string[]).join('');
-    expect(sql).toContain("status = 'ACTIVE'");
-    expect(sql).not.toContain('DELETED');
+    const sql = monthlySql();
+    // Месяц публикации, а не создания: импорт/черновик ≠ публикация.
+    expect(sql).toContain('published_at');
+    expect(sql).not.toContain('created_at');
+    // Никогда не публиковавшиеся (NEW/DRAFT/REJECTED без published_at) — мимо.
+    expect(sql).toContain('published_at IS NOT NULL');
+  });
+
+  it('monthly series does not depend on the CURRENT status (history must not shrink)', async () => {
+    await service.getAnalytics();
+
+    // Проданное/сданное/архивное объявление было опубликовано в своём месяце —
+    // фильтр по текущему статусу «съедал» прошлые месяцы.
+    expect(monthlySql()).not.toMatch(/status\s*=/);
+  });
+
+  it('monthly series buckets months in Asia/Tashkent, not UTC', async () => {
+    await service.getAnalytics();
+
+    const sql = monthlySql();
+    // И границы окна (now()), и бакеты (published_at) — в местном времени.
+    expect(sql).toContain("now() AT TIME ZONE 'Asia/Tashkent'");
+    expect(sql).toContain("published_at AT TIME ZONE 'Asia/Tashkent'");
   });
 
   it('maps the monthly series through (coercing count to number)', async () => {
