@@ -1,33 +1,53 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Language } from '@prisma/client';
-import {
-  abbreviateStreetRu,
-  extractGeoParts,
-  formatAddress,
-  stripCityPrefix,
-  type GeoParts,
-} from './address-format';
-import { DistrictsService } from './districts.service';
+import { distanceMeters, extractGeoObject, type GeoObjectParts } from './address-format';
+import { mergeListingAddress } from './address-merge';
+import { DistrictsService, type DistrictNames } from './districts.service';
 
-/** Результат резолва: канонический ru-адрес + английская версия (или null). */
+/**
+ * Результат резолва: ru-адрес (null — собрать нечего), en-версия (или null) и
+ * район справочника, в который попадает точка (или null — не распознан).
+ */
 export interface ResolvedAddress {
-  address: string;
+  address: string | null;
   addressEn: string | null;
+  districtId: string | null;
+}
+
+export interface ResolveAddressOptions {
+  /** Район, выбранный пользователем, — для адреса, только если по точке район не распознан. */
+  districtId?: string | null;
+  /** Адрес, который ввёл/выбрал пользователь: не заменяется ближайшим домом геокодера. */
+  userAddress?: string;
 }
 
 const GEOCODER_URL = 'https://geocode-maps.yandex.ru/1.x/';
 const GEOCODER_TIMEOUT_MS = 3_000;
+/**
+ * Дом из ответа считается «домом у точки», только если его точка не дальше
+ * этого расстояния. Дальше — это соседний/ближайший дом, номер не берём.
+ */
+const HOUSE_MAX_DISTANCE_M = 30;
+
+/** Ответ одного запроса: `ok: false` — геокодер недоступен; `parts: null` — по точке ничего нет. */
+type GeocodeOutcome = { ok: false } | { ok: true; parts: GeoObjectParts | null };
 
 /**
- * AddressResolverService — реверс-геокод адреса объявления через Yandex HTTP
- * Geocoder (ADR-0147). Два параллельных запроса (ru_RU + en_US) по координатам;
- * формат собирается из структурных Components, район подставляется из НАШЕЙ
- * таблицы districts (трёхъязычна, консистентна с фильтрами).
+ * AddressResolverService — адрес и район объявления по координатам через Yandex
+ * HTTP Geocoder (ADR-0147, правка 2026-10-23).
  *
- * Best-effort: нет ключа / сеть / пустой ответ → null, вызывающий применяет
- * строковый фолбэк normalizeAddress. Создание объявления никогда не блокируется.
- * uz не запрашивается — Яндекс его не поддерживает (спека 2026-07-13).
+ * - Запрос БЕЗ `kind=house`: Яндекс отдаёт самый точный объект у точки (как
+ *   JS-геокодер визарда), а не принудительно ближайший дом — для новостроек
+ *   и частного сектора это был соседний дом.
+ * - Район — по точке: компоненты ответа сопоставляются со справочником
+ *   (DistrictsService.matchByComponents, правило как в визарде). Он же идёт в
+ *   адрес и в `district_id` объявления, если тот не задан.
+ * - Адрес пользователя не перезаписывается: геокодер только дополняет его и
+ *   даёт en-версию (address-merge.ts).
+ *
+ * Best-effort: нет ключа / сеть / пустой ответ на ru → null, вызывающий
+ * применяет строковый фолбэк normalizeAddress. Создание объявления никогда не
+ * блокируется. uz не запрашивается — Яндекс его не поддерживает.
  */
 @Injectable()
 export class AddressResolverService {
@@ -41,54 +61,72 @@ export class AddressResolverService {
   async resolve(
     lat: string,
     lng: string,
-    districtId?: string | null,
+    options: ResolveAddressOptions = {},
   ): Promise<ResolvedAddress | null> {
     const apiKey = this.config.get<string>('maps.yandexApiKey');
     if (!apiKey) {
       return null;
     }
-    const [ru, en] = await Promise.all([
+    const [ruOutcome, enOutcome] = await Promise.all([
       this.geocode(apiKey, lat, lng, 'ru_RU'),
       this.geocode(apiKey, lat, lng, 'en_US'),
     ]);
+    const ru = ruOutcome.ok ? ruOutcome.parts : null;
     if (!ru) {
       return null;
     }
-    const districtNames = districtId
-      ? (await this.districts.namesByIds([districtId])).get(districtId)
-      : undefined;
-    const address = formatAddress({
-      locality: ru.locality ? stripCityPrefix(ru.locality) : null,
-      district: this.districts.pickName(districtNames, Language.RU),
-      street: ru.street ? abbreviateStreetRu(ru.street) : null,
-      house: ru.house,
-    });
-    if (!address) {
-      return null;
+    const en = enOutcome.ok ? enOutcome.parts : null;
+
+    const matched = await this.districts.matchByComponents(ru.components);
+    let district: DistrictNames | undefined = matched?.names;
+    if (!district && options.districtId) {
+      district = (await this.districts.namesByIds([options.districtId])).get(options.districtId);
     }
-    const addressEn = en
-      ? formatAddress({
-          locality: en.locality,
-          district: this.districts.pickName(districtNames, Language.EN),
-          street: en.street,
-          house: en.house,
-        })
-      : '';
-    return { address, addressEn: addressEn || null };
+    const query = { lat: Number(lat), lng: Number(lng) };
+    const houseTrusted =
+      ru.house !== null && ru.point !== null && distanceMeters(query, ru.point) <= HOUSE_MAX_DISTANCE_M;
+
+    const merged = mergeListingAddress(options.userAddress, {
+      ru,
+      en,
+      houseTrusted,
+      district: district ?? null,
+    });
+    return { ...merged, districtId: matched?.id ?? null };
   }
 
-  /** Один запрос к геокодеру; любая осечка → null (best-effort, warn в лог). */
+  /**
+   * Только район справочника по точке (один ru-запрос) — для импорта и backfill.
+   * `null` — геокодер недоступен (нет ключа/сеть/ошибка); `{ districtId: null }` —
+   * ответ есть, но район не распознан.
+   */
+  async resolveDistrictId(lat: string, lng: string): Promise<{ districtId: string | null } | null> {
+    const apiKey = this.config.get<string>('maps.yandexApiKey');
+    if (!apiKey) {
+      return null;
+    }
+    const outcome = await this.geocode(apiKey, lat, lng, 'ru_RU');
+    if (!outcome.ok) {
+      return null;
+    }
+    if (!outcome.parts) {
+      return { districtId: null };
+    }
+    const matched = await this.districts.matchByComponents(outcome.parts.components);
+    return { districtId: matched?.id ?? null };
+  }
+
+  /** Один запрос к геокодеру; любая осечка → `{ ok: false }` (best-effort, warn в лог). */
   private async geocode(
     apiKey: string,
     lat: string,
     lng: string,
     lang: 'ru_RU' | 'en_US',
-  ): Promise<GeoParts | null> {
+  ): Promise<GeocodeOutcome> {
     const params = new URLSearchParams({
       apikey: apiKey,
       geocode: `${lng},${lat}`, // longlat-порядок Яндекса
       sco: 'longlat',
-      kind: 'house',
       format: 'json',
       results: '1',
       lang,
@@ -99,12 +137,12 @@ export class AddressResolverService {
       });
       if (!res.ok) {
         this.logger.warn(`Geocoder ${lang} responded ${res.status}`);
-        return null;
+        return { ok: false };
       }
-      return extractGeoParts(await res.json());
+      return { ok: true, parts: extractGeoObject(await res.json()) };
     } catch (e) {
       this.logger.warn(`Geocoder ${lang} failed: ${(e as Error).message}`);
-      return null;
+      return { ok: false };
     }
   }
 }

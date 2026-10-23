@@ -38,13 +38,15 @@ async function backfillAddresses(): Promise<void> {
 
     for (const l of listings) {
       if (l.latitude != null && l.longitude != null) {
+        // Сохранённый адрес — «адрес пользователя»: резолвер его не заменяет
+        // ближайшим домом, только дополняет и даёт en-версию.
         const resolved = await resolver.resolve(
           l.latitude.toString(),
           l.longitude.toString(),
-          l.districtId,
+          { districtId: l.districtId, userAddress: l.address ?? undefined },
         );
         await new Promise((r) => setTimeout(r, 300));
-        if (resolved) {
+        if (resolved?.address) {
           await prisma.listing.update({
             where: { id: l.id },
             data: { address: resolved.address, addressEn: resolved.addressEn },

@@ -764,7 +764,7 @@ export class ListingsService {
 
     const data: Prisma.ListingUpdateInput = this.toScalarData(dto);
     await this.applyAddress(
-      data as { address?: string | null; addressEn?: string | null },
+      data as { address?: string | null; addressEn?: string | null; districtId?: string | null },
       dto,
       existing,
     );
@@ -1146,14 +1146,20 @@ export class ListingsService {
   }
 
   /**
-   * Адрес объявления (ADR-0147): координаты в dto → реверс-геокод ru+en
-   * (AddressResolverService); геокодер молчит → строковая нормализация
-   * присланного текста, addressEn сбрасывается (мог протухнуть против нового
-   * ru). Правка только текста без координат ре-геокод НЕ вызывает — ручная
-   * правка владельца уважается (но чистится нормализатором).
+   * Адрес и район объявления по координатам (ADR-0147, правка 2026-10-23).
+   *
+   * Координаты в dto → AddressResolverService:
+   *  - адрес, присланный пользователем, НЕ заменяется ближайшим домом геокодера —
+   *    геокодер только дополняет его и даёт en-версию (address-merge.ts);
+   *  - район по точке пишется в `districtId`, только если района нет ни в dto,
+   *    ни у объявления: явный выбор пользователя не перезаписываем. Без района
+   *    объявление выпадало из фильтра по региону (поиск по Ташкенту по умолчанию).
+   * Геокодер молчит / адрес не собран → строковая нормализация присланного
+   * текста, addressEn сбрасывается. Правка только текста без координат
+   * ре-геокод НЕ вызывает — ручная правка владельца уважается.
    */
   private async applyAddress(
-    data: { address?: string | null; addressEn?: string | null },
+    data: { address?: string | null; addressEn?: string | null; districtId?: string | null },
     dto: {
       latitude?: string;
       longitude?: string;
@@ -1169,9 +1175,12 @@ export class ListingsService {
       const resolved = await this.addressResolver.resolve(
         dto.latitude as string,
         dto.longitude as string,
-        districtId,
+        { districtId, userAddress: dto.address },
       );
-      if (resolved) {
+      if (resolved?.districtId && !districtId) {
+        data.districtId = resolved.districtId;
+      }
+      if (resolved?.address) {
         data.address = resolved.address;
         data.addressEn = resolved.addressEn;
         return;
