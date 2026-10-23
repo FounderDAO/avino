@@ -42,14 +42,16 @@ vi.mock('@/store/api/listingEditApi', async (importOriginal) => {
 });
 /**
  * AddressStep — мок: рендерит полученные пропсы (адрес, обязательность, наличие
- * проводки «карта → регион/район»), чтобы проверить, что редактирование ничего
- * не перезаписывает автоматически.
+ * проводки «карта → регион/район»). Кнопка `map-pick` имитирует клик по карте
+ * как настоящий AddressStep: сначала onAddressChange (адрес от обратного
+ * геокода), затем onLocationFromMap (регион/район из справочника).
  */
 vi.mock('@/features/listing-new/AddressStep', () => ({
   AddressStep: (props: {
     address: string;
     required?: boolean;
-    onLocationFromMap?: unknown;
+    regions?: unknown[];
+    onLocationFromMap?: (v: { regionId: string; districtId?: string }) => void;
     onAddressChange: (v: string) => void;
   }) => {
     addressChangeSpy = props.onAddressChange;
@@ -57,7 +59,19 @@ vi.mock('@/features/listing-new/AddressStep', () => ({
       <div>
         <span data-testid="address-value">{props.address}</span>
         <span data-testid="address-required">{String(Boolean(props.required))}</span>
-        <span data-testid="address-map-wired">{String(Boolean(props.onLocationFromMap))}</span>
+        <span data-testid="address-map-wired">
+          {String(Boolean(props.onLocationFromMap && props.regions?.length))}
+        </span>
+        <button
+          type="button"
+          data-testid="map-pick"
+          onClick={() => {
+            props.onAddressChange('Самарканд, ул. Регистан, 1');
+            props.onLocationFromMap?.({ regionId: 'region-2', districtId: 'district-3' });
+          }}
+        >
+          map
+        </button>
       </div>
     );
   },
@@ -326,10 +340,14 @@ describe('missingRequiredFields', () => {
 // ── Рендер: блок «Адрес» на странице редактирования ──────────────────────────
 describe('ListingEdit — регион/район/адрес', () => {
   const GEO = {
-    regions: [{ id: 'region-1', name: 'город Ташкент', code: 'toshkent-shahri' }],
+    regions: [
+      { id: 'region-1', name: 'город Ташкент', code: 'toshkent-shahri' },
+      { id: 'region-2', name: 'Самаркандская область', code: 'samarqand' },
+    ],
     districts: [
       { id: 'district-1', name: 'Юнусабад', regionId: 'region-1' },
       { id: 'district-2', name: 'Чиланзар', regionId: 'region-1' },
+      { id: 'district-3', name: 'Самарканд', regionId: 'region-2' },
     ],
   };
 
@@ -349,11 +367,42 @@ describe('ListingEdit — регион/район/адрес', () => {
     expect(screen.getByTestId('select-value')).toHaveTextContent('region-1|district-1');
   });
 
-  it('поля помечены обязательными; автоподстановки от карты на edit нет', () => {
+  it('поля помечены обязательными; карта подключена к регион/район', () => {
     renderEdit();
     expect(screen.getByTestId('select-required')).toHaveTextContent('true');
     expect(screen.getByTestId('address-required')).toHaveTextContent('true');
-    expect(screen.getByTestId('address-map-wired')).toHaveTextContent('false');
+    expect(screen.getByTestId('address-map-wired')).toHaveTextContent('true');
+  });
+
+  it('точка на карте выставляет регион/район и адрес с карты', () => {
+    renderEdit();
+    fireEvent.click(screen.getByTestId('map-pick'));
+    expect(screen.getByTestId('select-value')).toHaveTextContent('region-2|district-3');
+    // Автоадрес «Регион, Район» не затирает точный адрес от карты.
+    expect(screen.getByTestId('address-value')).toHaveTextContent(
+      'Самарканд, ул. Регистан, 1',
+    );
+  });
+
+  it('пустой адрес: выбор района подставляет «Регион, Район»', () => {
+    renderEdit({ address: '' });
+    fireEvent.click(screen.getByTestId('pick-district-2'));
+    expect(screen.getByTestId('address-value')).toHaveTextContent('город Ташкент, Чиланзар');
+  });
+
+  it('сохранённый автоадрес обновляется при смене района, а после — и повторно', () => {
+    renderEdit({ address: 'город Ташкент, Юнусабад' });
+    fireEvent.click(screen.getByTestId('pick-district-2'));
+    expect(screen.getByTestId('address-value')).toHaveTextContent('город Ташкент, Чиланзар');
+    fireEvent.click(screen.getByTestId('clear-region'));
+    expect(screen.getByTestId('address-value')).toHaveTextContent(/^$/);
+  });
+
+  it('адрес, введённый вручную на странице, смена района не затирает', () => {
+    renderEdit({ address: '' });
+    React.act(() => addressChangeSpy!('ул. Своя, 3'));
+    fireEvent.click(screen.getByTestId('pick-district-2'));
+    expect(screen.getByTestId('address-value')).toHaveTextContent('ул. Своя, 3');
   });
 
   it('смена района и сброс региона не трогают сохранённый адрес', () => {
