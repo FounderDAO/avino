@@ -18,6 +18,12 @@ describe('statsToKpis', () => {
     expect(kpis.find((k) => k.label === 'Сдано')?.value).toBe('10');
   });
 
+  it('плитка жалоб явно говорит, что это новые (complaints_new = только NEW)', () => {
+    const kpis = statsToKpis(stats);
+    expect(kpis.map((k) => k.label)).not.toContain('Жалобы');
+    expect(kpis.find((k) => k.label === 'Новые жалобы')?.value).toBe('2');
+  });
+
   it('placeholderKpis зеркалит тот же набор лейблов', () => {
     expect(placeholderKpis('…').map((k) => k.label)).toEqual(
       statsToKpis(stats).map((k) => k.label),
