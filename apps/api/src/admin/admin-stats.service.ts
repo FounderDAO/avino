@@ -14,11 +14,19 @@ import { PrismaService } from '../prisma';
  * Сводные счётчики для дашборда админ-панели (ADMIN-15, snake_case контракт).
  *
  * - `listings_new`      — объявления в очереди модерации (`ListingStatus.NEW`).
- * - `complaints_new`    — необработанные жалобы (`ComplaintStatus.NEW`).
- * - `users_total`       — все пользователи (как `meta.total` в `/admin/users`
- *                         без фильтра — админ видит всё, включая DELETED).
- * - `promotions_active` — активные промо VIP/TOP (`PromotionStatus.ACTIVE`,
- *                         `listing_promotions` — source of truth, ADR-006).
+ * - `complaints_new`    — новые, ещё не взятые в работу жалобы
+ *                         (`ComplaintStatus.NEW`; IN_REVIEW сюда не входит —
+ *                         это очередь «разобрать», она же бейдж в сайдбаре).
+ * - `users_total`       — реальные пользователи: без DELETED и без «теневых»
+ *                         владельцев из импорта объявлений, которые ни разу не
+ *                         входили (`last_login_at IS NULL`) и не подтвердили ни
+ *                         телефон, ни email (import-owner.resolver). BLOCKED
+ *                         считаются — это настоящие аккаунты. Поэтому число
+ *                         меньше `meta.total` в `/admin/users` без фильтра.
+ * - `promotions_active` — действующие промо VIP/TOP: `PromotionStatus.ACTIVE` и
+ *                         не истёкшие (`expires_at` пуст или в будущем) —
+ *                         sweep истечения идёт раз в 6–12 ч, до него просрочка
+ *                         ещё ACTIVE (`listing_promotions` — source of truth, ADR-006).
  * - `listings_active`   — опубликованные объявления (`ListingStatus.ACTIVE`).
  * - `listings_archived` — объявления в архиве (`ListingStatus.ARCHIVED`).
  * - `listings_sale`     — активная витрина на продажу (`ACTIVE` + `SALE`).
@@ -63,6 +71,7 @@ export class AdminStatsService {
 
   /** `GET /api/v1/admin/stats` — четыре счётчика одним ответом. */
   async getStats(): Promise<AdminStatsResponse> {
+    const now = new Date();
     const [
       listingsNew,
       complaintsNew,
@@ -82,10 +91,23 @@ export class AdminStatsService {
         where: { status: ComplaintStatus.NEW },
       }),
       this.prisma.user.count({
-        where: { status: { not: UserStatus.DELETED } },
+        where: {
+          status: { not: UserStatus.DELETED },
+          // Хотя бы один признак живого аккаунта: все пути входа (OTP, Google,
+          // Apple) ставят last_login_at и verified-флаг; теневой владелец из
+          // импорта создаётся без них.
+          OR: [
+            { lastLoginAt: { not: null } },
+            { isPhoneVerified: true },
+            { isEmailVerified: true },
+          ],
+        },
       }),
       this.prisma.listingPromotion.count({
-        where: { status: PromotionStatus.ACTIVE },
+        where: {
+          status: PromotionStatus.ACTIVE,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
       }),
       this.prisma.listing.count({ where: { status: ListingStatus.ACTIVE } }),
       this.prisma.listing.count({

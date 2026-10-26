@@ -1610,9 +1610,12 @@ Security audit-лог (`audit_logs`, ADR-004). Query: `action`, `actor_id`,
 listings_active, listings_archived, listings_sale, listings_rent,
 listings_sold, listings_rented, agent_applications_new, support_requests_new }`:
 - `listings_new` — листинги в очереди модерации (`ListingStatus.NEW`);
-- `complaints_new` — необработанные жалобы (`ComplaintStatus.NEW`);
-- `users_total` — пользователи без удалённых аккаунтов (`status != DELETED`, т.е. ACTIVE + BLOCKED);
-- `promotions_active` — активные промо VIP/TOP (`PromotionStatus.ACTIVE`);
+- `complaints_new` — новые, ещё не взятые в работу жалобы (`ComplaintStatus.NEW`; `IN_REVIEW` не входит);
+- `users_total` — реальные пользователи: `status != DELETED` (ACTIVE + BLOCKED) и не «теневые»
+  владельцы из импорта объявлений — нужен хотя бы один признак живого аккаунта
+  (`last_login_at` задан, или подтверждён телефон, или подтверждён email);
+- `promotions_active` — действующие промо VIP/TOP: `PromotionStatus.ACTIVE` и `expires_at`
+  пуст или в будущем (не ждёт sweep истечения, который идёт раз в 6–12 ч);
 - `listings_sold` — продано (`ListingStatus.SOLD`);
 - `listings_rented` — сдано (`ListingStatus.RENTED`);
 - `agent_applications_new` — заявки «Стать агентом» в очереди (`PENDING`);
@@ -1620,12 +1623,14 @@ listings_sold, listings_rented, agent_applications_new, support_requests_new }`:
 
 #### GET /api/v1/admin/analytics
 Ряды для графиков дашборда и лента «Последних действий» (ADR-0101). Auth:
-**MODERATOR / ADMIN**. Без query-параметров. Графики по объявлениям считают только опубликованные
-(`status = ACTIVE`) — та же база, что у KPI `/admin/stats` (`buy_rent.buy/rent` ==
-`listings_sale/listings_rent`).
+**MODERATOR / ADMIN**. Без query-параметров. `buy_rent` и `by_district` — срез текущей
+витрины (`status = ACTIVE`), та же база, что у KPI `/admin/stats` (`buy_rent.buy/rent` ==
+`listings_sale/listings_rent`). `listings_over_time` — история публикаций (см. ниже).
 200 → `{ listings_over_time, buy_rent, by_district, recent_activity }`:
-- `listings_over_time` — 12 помесячных счётчиков опубликованных объявлений
-  (старые→новые, по `created_at`), включая нулевые месяцы: `[{ "month": "2025-07", "count": 5 }, …]`;
+- `listings_over_time` — 12 помесячных счётчиков публикаций (старые→новые), включая нулевые
+  месяцы: `[{ "month": "2025-07", "count": 5 }, …]`. Месяц — по `published_at` (первая
+  публикация) в часовом поясе Asia/Tashkent; текущий статус не важен (проданные, архивные и
+  удалённые позже остаются в своём месяце), никогда не публиковавшиеся не считаются;
 - `buy_rent` — сырые счётчики `{ "buy": 64, "rent": 36 }` (SALE/RENT); проценты
   считает клиент;
 - `by_district` — топ-6 районов по числу опубликованных объявлений с локализованными именами:

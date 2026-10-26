@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma';
 
 /** Один помесячный бакет ряда «объявления за год» (12 точек, старые→новые). */
 export interface MonthlyCount {
-  /** Метка месяца `YYYY-MM` (UTC, по `date_trunc('month', created_at)`). */
+  /** Метка месяца `YYYY-MM` (по `published_at` в часовом поясе Asia/Tashkent). */
   month: string;
   count: number;
 }
@@ -34,15 +34,22 @@ export interface AdminActivityItem {
 /**
  * Аналитика дашборда (`GET /admin/analytics`): ряды для графиков и лента действий.
  *
- * - `listings_over_time` — 12 помесячных счётчиков (включая нулевые месяцы).
+ * - `listings_over_time` — 12 помесячных счётчиков публикаций (включая нулевые
+ *                          месяцы): сколько объявлений впервые опубликовано в
+ *                          каждом месяце (`published_at`, Asia/Tashkent).
  * - `buy_rent`           — счётчики SALE/RENT (фронт считает проценты для пончика).
  * - `by_district`        — топ-6 районов по числу объявлений с именами.
  * - `recent_activity`    — последние 6 записей журнала модерации.
  *
- * Все три агрегата по объявлениям считают только опубликованные
- * (`ListingStatus.ACTIVE`) — ту же базу, что KPI `/admin/stats`
- * (`buy_rent.buy/rent` === `listings_sale/listings_rent`). Черновики, очередь
- * модерации, отклонённые, архив, проданные/сданные и DELETED не учитываются.
+ * `buy_rent` и `by_district` — срез текущей витрины: только опубликованные
+ * сейчас (`ListingStatus.ACTIVE`), та же база, что KPI `/admin/stats`
+ * (`buy_rent.buy/rent` === `listings_sale/listings_rent`).
+ *
+ * `listings_over_time` — история, а не срез: объявление считается в месяце
+ * своей первой публикации независимо от текущего статуса (проданное, сданное,
+ * архивное, удалённое позже тоже было опубликовано). Иначе прошлые месяцы
+ * «таяли» бы по мере продаж и снятий. Никогда не публиковавшиеся
+ * (`published_at IS NULL`: очередь, черновики, отклонённые) не учитываются.
  */
 export interface AdminAnalyticsResponse {
   listings_over_time: MonthlyCount[];
@@ -105,10 +112,17 @@ export class AdminAnalyticsService {
   }
 
   /**
-   * 12 помесячных счётчиков (старые→новые). `generate_series` гарантирует все 12
-   * бакетов, включая месяцы без объявлений (LEFT JOIN → 0), поэтому фронту не
-   * нужно зеро-филлить. Окно — последние 12 месяцев по `created_at` (UTC).
-   * Считаются только опубликованные (`status = 'ACTIVE'`).
+   * 12 помесячных счётчиков публикаций (старые→новые). `generate_series`
+   * гарантирует все 12 бакетов, включая месяцы без публикаций (LEFT JOIN → 0),
+   * поэтому фронту не нужно зеро-филлить.
+   *
+   * - Дата — `published_at`: ставится при первом APPROVE → ACTIVE и не
+   *   сбрасывается (moderation.service). `created_at` не годится: импорт или
+   *   черновик создаётся задолго до публикации.
+   * - Статус не фильтруется: см. описание {@link AdminAnalyticsResponse}.
+   * - Месяцы — по Asia/Tashkent (UTC+5): и окно (`now()`), и бакеты
+   *   (`published_at`) переводятся в местное время, иначе публикации с 00:00 до
+   *   05:00 первого числа попадали бы в предыдущий месяц.
    */
   private async listingsOverTime(): Promise<MonthlyCount[]> {
     const rows = await this.prisma.$queryRaw<
@@ -116,14 +130,16 @@ export class AdminAnalyticsService {
     >`
       SELECT to_char(m, 'YYYY-MM') AS month, COALESCE(c.cnt, 0)::int AS count
       FROM generate_series(
-        date_trunc('month', now()) - interval '11 months',
-        date_trunc('month', now()),
+        date_trunc('month', now() AT TIME ZONE 'Asia/Tashkent') - interval '11 months',
+        date_trunc('month', now() AT TIME ZONE 'Asia/Tashkent'),
         interval '1 month'
       ) AS m
       LEFT JOIN (
-        SELECT date_trunc('month', created_at) AS bucket, count(*) AS cnt
+        SELECT
+          date_trunc('month', published_at AT TIME ZONE 'Asia/Tashkent') AS bucket,
+          count(*) AS cnt
         FROM listings
-        WHERE status = 'ACTIVE'
+        WHERE published_at IS NOT NULL
         GROUP BY 1
       ) c ON c.bucket = m
       ORDER BY m
