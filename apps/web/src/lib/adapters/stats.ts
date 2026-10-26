@@ -11,7 +11,12 @@ import type { Kpi } from '@/lib/mock';
 
 const numberFmt = new Intl.NumberFormat('en-US');
 
-/** Сводные счётчики `AdminStats` → 10 KPI-карточек UI. */
+/**
+ * Сводные счётчики `AdminStats` → 10 KPI-карточек UI.
+ *
+ * «Новые жалобы» — `complaints_new`, т.е. только `NEW` (ещё не взятые в работу;
+ * IN_REVIEW/RESOLVED/REJECTED не входят). Голое «Жалобы» читалось как «все».
+ */
 export function statsToKpis(s: AdminStats): Kpi[] {
   return [
     { label: 'На проверке', value: numberFmt.format(s.listings_new), delta: '', accent: 'warn' },
@@ -22,7 +27,7 @@ export function statsToKpis(s: AdminStats): Kpi[] {
     { label: 'Пользователи', value: numberFmt.format(s.users_total), delta: '' },
     { label: 'Продажа', value: numberFmt.format(s.listings_sale), delta: '' },
     { label: 'Аренда', value: numberFmt.format(s.listings_rent), delta: '' },
-    { label: 'Жалобы', value: numberFmt.format(s.complaints_new), delta: '' },
+    { label: 'Новые жалобы', value: numberFmt.format(s.complaints_new), delta: '' },
     { label: 'Активные промо', value: numberFmt.format(s.promotions_active), delta: '' },
   ];
 }
@@ -38,7 +43,7 @@ export function placeholderKpis(value: string): Kpi[] {
     { label: 'Пользователи', value, delta: '' },
     { label: 'Продажа', value, delta: '' },
     { label: 'Аренда', value, delta: '' },
-    { label: 'Жалобы', value, delta: '' },
+    { label: 'Новые жалобы', value, delta: '' },
     { label: 'Активные промо', value, delta: '' },
   ];
 }
