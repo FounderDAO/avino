@@ -65,6 +65,7 @@ import {
 import { ToursSection } from '@/features/listing-shared/ToursSection';
 import type { TourWindow, Region, District } from '@/lib/mock/types';
 import { RegionDistrictSelect } from '@/features/listing-new/RegionDistrictSelect';
+import { composeAutoAddress } from '@/features/map/geoMatch';
 
 const ROOM_OPTIONS = ['studio', '1', '2', '3', '4', '5+'] as const;
 /** 3.5 скрыт — зеркалит BathroomsControl; API принимает шаг 0.5 (LAST_CHANGED_API.md §1). */
@@ -335,6 +336,36 @@ export function ListingEdit({
   const set = <K extends keyof EditForm>(key: K, value: EditForm[K]) =>
     setF((prev) => (prev ? { ...prev, [key]: value } : prev));
 
+  // Последний адрес, подставленный автоматически («Регион, Район») на этой
+  // странице. Адрес обновляем при смене региона/района, только если поле пусто
+  // или всё ещё автоматическое — то есть равно этому значению либо «Регион,
+  // Район» текущего выбора (так выглядит адрес, автоподставленный ещё при
+  // создании). Сохранённый точный адрес и текст пользователя не затираем.
+  const lastAutoAddress = React.useRef<string | null>(null);
+
+  /** Пользователь выбрал регион/район в селектах (НЕ вызывается от карты). */
+  const handleRegionDistrictChange = (next: { regionId?: string; districtId?: string }) => {
+    set('regionId', next.regionId ?? '');
+    set('districtId', next.districtId ?? '');
+    if (!f) return;
+    const nameOf = (regionId?: string, districtId?: string) => ({
+      region: regions.find((r) => r.id === regionId)?.name,
+      district: districts.find((d) => d.id === districtId)?.name,
+    });
+    const cur = nameOf(f.regionId || undefined, f.districtId || undefined);
+    const nxt = nameOf(next.regionId, next.districtId);
+    const auto = composeAutoAddress(nxt.region, nxt.district);
+    const address = f.address;
+    const isAuto =
+      !address.trim() ||
+      address === lastAutoAddress.current ||
+      address === composeAutoAddress(cur.region, cur.district);
+    if (isAuto) {
+      lastAutoAddress.current = auto;
+      if (auto !== address) set('address', auto);
+    }
+  };
+
   // ── Состояния-заглушки ──
   const notice = (title: string, text: string, withBack = true) => (
     <div className="mx-auto max-w-[620px] px-6 py-20 text-center">
@@ -491,19 +522,17 @@ export function ListingEdit({
           </FormField>
         </Section>
 
-        {/* Адрес и точка на карте (Yandex suggest + карта). Автоадрес
-          «Регион, Район» и «карта → регион/район» из визарда сюда намеренно
-          НЕ подключены: сохранённые значения ничего не должно перезаписывать. */}
+        {/* Адрес и точка на карте (Yandex suggest + карта) — та же логика, что
+          в визарде: автоадрес «Регион, Район» (только поверх пустого или
+          автоматического адреса) и «точка на карте → регион/район» (только при
+          совпадении со справочником). */}
         <Section title={tNew('steps.address')}>
           <RegionDistrictSelect
             regions={regions}
             districts={districts}
             regionId={f.regionId || undefined}
             districtId={f.districtId || undefined}
-            onChange={({ regionId, districtId }) => {
-              set('regionId', regionId ?? '');
-              set('districtId', districtId ?? '');
-            }}
+            onChange={handleRegionDistrictChange}
             required
           />
           <AddressStep
@@ -515,6 +544,17 @@ export function ListingEdit({
             districtName={districts.find((d) => d.id === f.districtId)?.name}
             locale={locale}
             required
+            regions={regions}
+            districts={districts}
+            regionId={f.regionId || undefined}
+            districtId={f.districtId || undefined}
+            // Регион/район от точки на карте: ставим напрямую, минуя
+            // handleRegionDistrictChange — автоадрес не должен затирать точный
+            // адрес, который карта подставила тем же кликом.
+            onLocationFromMap={({ regionId, districtId }) => {
+              set('regionId', regionId);
+              set('districtId', districtId ?? '');
+            }}
           />
         </Section>
 
