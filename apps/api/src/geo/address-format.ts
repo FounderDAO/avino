@@ -95,39 +95,80 @@ interface GeocoderComponent {
   name?: unknown;
 }
 
+/** Разобранный первый объект ответа геокодера: части адреса + все компоненты + точка объекта. */
+export interface GeoObjectParts extends GeoParts {
+  components: Array<{ kind: string; name: string }>;
+  /** `GeocoderMetaData.kind` объекта (house / street / district / locality …). */
+  kind: string | null;
+  /** Координаты найденного объекта (`Point.pos` = "lng lat"). */
+  point: { lat: number; lng: number } | null;
+}
+
+/**
+ * Первый объект ответа Yandex HTTP Geocoder: структурные компоненты
+ * (`GeoObject.metaDataProperty.GeocoderMetaData.Address.Components`), kind и
+ * точка объекта. Нет компонентов → null.
+ */
+export function extractGeoObject(json: unknown): GeoObjectParts | null {
+  const geoObject = (json as {
+    response?: {
+      GeoObjectCollection?: {
+        featureMember?: Array<{
+          GeoObject?: {
+            metaDataProperty?: {
+              GeocoderMetaData?: { kind?: unknown; Address?: { Components?: unknown } };
+            };
+            Point?: { pos?: unknown };
+          };
+        }>;
+      };
+    };
+  })?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
+  const meta = geoObject?.metaDataProperty?.GeocoderMetaData;
+  const raw = meta?.Address?.Components;
+  if (!Array.isArray(raw)) {
+    return null;
+  }
+  const components = (raw as GeocoderComponent[])
+    .filter((c) => typeof c.kind === 'string' && typeof c.name === 'string')
+    .map((c) => ({ kind: c.kind as string, name: c.name as string }));
+  const names = (kind: string): string[] => components.filter((c) => c.kind === kind).map((c) => c.name);
+  // .at(-1): у kind=district их несколько (район + махалля) — берём НЕ их;
+  // locality обычно один, для province последний — самый специфичный.
+  const locality = names('locality').at(-1) ?? names('province').at(-1) ?? null;
+  let point: GeoObjectParts['point'] = null;
+  if (typeof geoObject?.Point?.pos === 'string') {
+    const [lng, lat] = geoObject.Point.pos.trim().split(/\s+/).map(Number);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) point = { lat, lng };
+  }
+  return {
+    locality,
+    street: names('street').at(-1) ?? null,
+    house: names('house').at(-1) ?? null,
+    components,
+    kind: typeof meta?.kind === 'string' ? meta.kind : null,
+    point,
+  };
+}
+
 /**
  * Достаёт locality/street/house из ответа Yandex HTTP Geocoder
  * (`GeoObject.metaDataProperty.GeocoderMetaData.Address.Components`).
  * Нет компонентов → null (вызывающий уходит в строковый фолбэк).
  */
 export function extractGeoParts(json: unknown): GeoParts | null {
-  const components = (json as {
-    response?: {
-      GeoObjectCollection?: {
-        featureMember?: Array<{
-          GeoObject?: {
-            metaDataProperty?: {
-              GeocoderMetaData?: { Address?: { Components?: unknown } };
-            };
-          };
-        }>;
-      };
-    };
-  })?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject
-    ?.metaDataProperty?.GeocoderMetaData?.Address?.Components;
-  if (!Array.isArray(components)) {
-    return null;
-  }
-  const names = (kind: string): string[] =>
-    (components as GeocoderComponent[])
-      .filter((c) => c.kind === kind && typeof c.name === 'string')
-      .map((c) => c.name as string);
-  // .at(-1): у kind=district их несколько (район + махалля) — берём НЕ их;
-  // locality обычно один, для province последний — самый специфичный.
-  const locality = names('locality').at(-1) ?? names('province').at(-1) ?? null;
-  return {
-    locality,
-    street: names('street').at(-1) ?? null,
-    house: names('house').at(-1) ?? null,
-  };
+  const parsed = extractGeoObject(json);
+  return parsed ? { locality: parsed.locality, street: parsed.street, house: parsed.house } : null;
+}
+
+/** Расстояние между точками в метрах (гаверсинус; для «дом у точки или в стороне»). */
+export function distanceMeters(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6_371_000 * Math.asin(Math.sqrt(h));
 }

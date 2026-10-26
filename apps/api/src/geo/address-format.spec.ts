@@ -1,5 +1,7 @@
 import {
   abbreviateStreetRu,
+  distanceMeters,
+  extractGeoObject,
   extractGeoParts,
   formatAddress,
   normalizeAddress,
@@ -121,5 +123,50 @@ describe('extractGeoParts', () => {
   it('мусорный json → null', () => {
     expect(extractGeoParts({})).toBeNull();
     expect(extractGeoParts(null)).toBeNull();
+  });
+});
+
+describe('extractGeoObject', () => {
+  it('компоненты, kind и точка объекта (pos = "lng lat")', () => {
+    const parsed = extractGeoObject({
+      response: {
+        GeoObjectCollection: {
+          featureMember: [
+            {
+              GeoObject: {
+                metaDataProperty: {
+                  GeocoderMetaData: {
+                    kind: 'house',
+                    Address: {
+                      Components: [
+                        { kind: 'province', name: 'Ташкент' },
+                        { kind: 'district', name: 'Чиланзарский район' },
+                        { kind: 'house', name: '5' },
+                      ],
+                    },
+                  },
+                },
+                Point: { pos: '69.2401 41.2995' },
+              },
+            },
+          ],
+        },
+      },
+    });
+    expect(parsed).toMatchObject({
+      locality: 'Ташкент',
+      house: '5',
+      kind: 'house',
+      point: { lat: 41.2995, lng: 69.2401 },
+    });
+    expect(parsed?.components).toHaveLength(3);
+  });
+});
+
+describe('distanceMeters', () => {
+  it('0.001° широты ≈ 111 м', () => {
+    const d = distanceMeters({ lat: 41.3, lng: 69.24 }, { lat: 41.301, lng: 69.24 });
+    expect(d).toBeGreaterThan(110);
+    expect(d).toBeLessThan(112);
   });
 });

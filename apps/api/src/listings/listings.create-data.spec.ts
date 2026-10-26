@@ -44,11 +44,13 @@ describe('ListingsService.buildCreateData / createInTransaction', () => {
     expect(data.latitude).toBe('41.31');
   });
 
-  it('geocode: true — адрес берётся из геокодера', async () => {
-    resolve.mockResolvedValue({ address: 'ул. Навои, 12', addressEn: 'Navoi St, 12' });
+  it('geocode: true — адрес и район берутся из резолвера (адрес пользователя передаётся ему)', async () => {
+    resolve.mockResolvedValue({ address: 'ул. Навои, 12', addressEn: 'Navoi St, 12', districtId: 'd1' });
     const data = await service.buildCreateData(dto, { geocode: true });
+    expect(resolve).toHaveBeenCalledWith('41.31', '69.24', { districtId: null, userAddress: dto.address });
     expect(data.address).toBe('ул. Навои, 12');
     expect(data.addressEn).toBe('Navoi St, 12');
+    expect(data.districtId).toBe('d1');
   });
 
   it('неизвестное удобство → 422', async () => {

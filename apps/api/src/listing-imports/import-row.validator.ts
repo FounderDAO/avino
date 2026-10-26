@@ -53,6 +53,26 @@ export type ImportRowValidation =
 
 const NAME_MAX = 100;
 
+/**
+ * Грубые границы Узбекистана (bbox с запасом). Импорт — только по Узбекистану:
+ * точка вне рамки — почти всегда перепутанные колонки широты/долготы (69.x в
+ * «Широте»), а диапазон-проверка DTO (±90/±180) такое пропускает молча.
+ */
+const UZ_BOUNDS = { minLat: 37.1, maxLat: 45.6, minLng: 55.9, maxLng: 73.2 };
+
+const inUzbekistan = (lat: number, lng: number): boolean =>
+  lat >= UZ_BOUNDS.minLat && lat <= UZ_BOUNDS.maxLat && lng >= UZ_BOUNDS.minLng && lng <= UZ_BOUNDS.maxLng;
+
+/** Текст ошибки для точки вне Узбекистана (с подсказкой про перепутанные колонки) или null. */
+export function uzbekistanPointProblem(lat: number, lng: number): string | null {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null; // формат проверит DTO
+  if (inUzbekistan(lat, lng)) return null;
+  if (inUzbekistan(lng, lat)) {
+    return `latitude/longitude look swapped: ${lat}, ${lng} is outside Uzbekistan, ${lng}, ${lat} is inside — swap the columns`;
+  }
+  return `coordinates ${lat}, ${lng} are outside Uzbekistan (latitude ${UZ_BOUNDS.minLat}–${UZ_BOUNDS.maxLat}, longitude ${UZ_BOUNDS.minLng}–${UZ_BOUNDS.maxLng})`;
+}
+
 /** Свойство DTO → колонка файла (там, где имена расходятся). */
 const DTO_PROPERTY_TO_COLUMN: Record<string, ImportColumnKey> = {
   original_language: 'language',
@@ -141,6 +161,10 @@ export function validateImportRow(values: ImportRowValues): ImportRowValidation 
   const longitude = decimal('longitude');
   if (latitude && !longitude) fail('longitude', 'REQUIRED', 'longitude is required with latitude');
   if (longitude && !latitude) fail('latitude', 'REQUIRED', 'latitude is required with longitude');
+  if (latitude && longitude) {
+    const problem = uzbekistanPointProblem(Number(latitude), Number(longitude));
+    if (problem) fail('latitude', 'INVALID_VALUE', problem);
+  }
 
   const amenities = text('amenities')
     .split(',')

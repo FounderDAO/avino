@@ -812,18 +812,71 @@ describe('ListingsService', () => {
       addressResolver.resolve.mockResolvedValue({
         address: 'Ташкент, Чиланзар, ул. Сеул, 7/1',
         addressEn: 'Tashkent, Chilanzar, Seul koʻchasi, 7/1',
+        districtId: 'd1',
       });
+      const userAddress = 'город Ташкент, Чиланзар, улица Сеул, 7/1, Чиланзарский р-н';
       await service.create(OWNER_ID, {
         ...validCreate,
-        address: 'город Ташкент, Чиланзар, улица Сеул, 7/1, Чиланзарский р-н',
+        address: userAddress,
         latitude: '41.299500',
         longitude: '69.240100',
         district_id: 'd1',
       } as any);
-      expect(addressResolver.resolve).toHaveBeenCalledWith('41.299500', '69.240100', 'd1');
+      // Адрес пользователя передаётся резолверу: он не заменяется ближайшим домом.
+      expect(addressResolver.resolve).toHaveBeenCalledWith('41.299500', '69.240100', {
+        districtId: 'd1',
+        userAddress,
+      });
       const data = prisma.listing.create.mock.calls[0][0].data;
       expect(data.address).toBe('Ташкент, Чиланзар, ул. Сеул, 7/1');
       expect(data.addressEn).toBe('Tashkent, Chilanzar, Seul koʻchasi, 7/1');
+    });
+
+    it('create без district_id: район берётся по точке', async () => {
+      addressResolver.resolve.mockResolvedValue({
+        address: 'Ташкент, Юнусабад, ул. Амира Темура, 107',
+        addressEn: null,
+        districtId: 'd-yun',
+      });
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        address: 'Ташкент, ул. Амира Темура, 107',
+        latitude: '41.340000',
+        longitude: '69.285000',
+      } as any);
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.districtId).toBe('d-yun');
+    });
+
+    it('create с явным district_id: район по точке его НЕ перезаписывает', async () => {
+      addressResolver.resolve.mockResolvedValue({
+        address: 'Ташкент, Юнусабад, ул. Амира Темура, 107',
+        addressEn: null,
+        districtId: 'd-yun',
+      });
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        address: 'Ташкент, ул. Амира Темура, 107',
+        latitude: '41.340000',
+        longitude: '69.285000',
+        district_id: 'd-user',
+      } as any);
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.districtId).toBe('d-user');
+    });
+
+    it('геокодер не собрал адрес (address null) → строковый фолбэк, район по точке всё равно ставится', async () => {
+      addressResolver.resolve.mockResolvedValue({ address: null, addressEn: null, districtId: 'd-yun' });
+      await service.create(OWNER_ID, {
+        ...validCreate,
+        address: 'Узбекистан, Ташкент, ЖК Новый, 3',
+        latitude: '41.340000',
+        longitude: '69.285000',
+      } as any);
+      const data = prisma.listing.create.mock.calls[0][0].data;
+      expect(data.address).toBe('Ташкент, ЖК Новый, 3');
+      expect(data.addressEn).toBeNull();
+      expect(data.districtId).toBe('d-yun');
     });
 
     it('create: геокодер молчит → строковый фолбэк, addressEn null', async () => {
@@ -863,15 +916,48 @@ describe('ListingsService', () => {
         districtId: 'd-existing',
       });
       prisma.listing.update.mockResolvedValue(dbListing);
-      addressResolver.resolve.mockResolvedValue({ address: 'Ташкент, ул. Новая, 1', addressEn: null });
+      addressResolver.resolve.mockResolvedValue({
+        address: 'Ташкент, ул. Новая, 1',
+        addressEn: null,
+        districtId: 'd-other',
+      });
       await service.update(OWNER_ID, LISTING_ID, {
         latitude: '41.311000',
         longitude: '69.280000',
       } as any);
-      expect(addressResolver.resolve).toHaveBeenCalledWith('41.311000', '69.280000', 'd-existing');
+      expect(addressResolver.resolve).toHaveBeenCalledWith('41.311000', '69.280000', {
+        districtId: 'd-existing',
+        userAddress: undefined,
+      });
       const data = prisma.listing.update.mock.calls[0][0].data;
       expect(data.address).toBe('Ташкент, ул. Новая, 1');
       expect(data.addressEn).toBeNull();
+      // Уже заданный район объявления не перезаписывается.
+      expect(data.districtId).toBeUndefined();
+    });
+
+    it('update: координаты у объявления без района → район по точке', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.DRAFT,
+        toursEnabled: false,
+        tourWindows: [],
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+        latitude: null,
+        longitude: null,
+        districtId: null,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+      addressResolver.resolve.mockResolvedValue({ address: 'Ташкент, Чиланзар', addressEn: null, districtId: 'd-chil' });
+      await service.update(OWNER_ID, LISTING_ID, {
+        latitude: '41.280000',
+        longitude: '69.200000',
+      } as any);
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.districtId).toBe('d-chil');
     });
 
     it('update: правка только текста адреса → нормализация БЕЗ ре-геокода', async () => {

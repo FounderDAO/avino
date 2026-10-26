@@ -129,6 +129,30 @@ describe('validateImportRow', () => {
     expect(input.dto.latitude).toBe('41.31');
   });
 
+  it('координаты вне Узбекистана → ошибка строки', () => {
+    const result = validateImportRow({ ...base, latitude: '55.75', longitude: '37.62' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toEqual([
+      expect.objectContaining({ column: 'latitude', code: 'INVALID_VALUE' }),
+    ]);
+    expect(result.errors[0].message).toMatch(/Uzbekistan/);
+  });
+
+  it('перепутанные широта и долгота (69.x в широте) → ошибка с подсказкой', () => {
+    const result = validateImportRow({ ...base, latitude: '69.24', longitude: '41.31' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toMatchObject({ column: 'latitude', code: 'INVALID_VALUE' });
+    expect(result.errors[0].message).toMatch(/swapped/);
+  });
+
+  it('границы Узбекистана: Нукус и Фергана проходят', () => {
+    expect(ok({ ...base, latitude: '42.46', longitude: '59.61' }).dto.latitude).toBe('42.46');
+    expect(ok({ ...base, latitude: '40.38', longitude: '71.78' }).dto.longitude).toBe('71.78');
+  });
+
   it('удобства разбиваются по запятой', () => {
     expect(ok({ ...base, amenities: 'wifi, parking ,' }).dto.amenities).toEqual([
       'wifi',
