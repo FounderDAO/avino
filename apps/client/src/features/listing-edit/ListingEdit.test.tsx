@@ -294,7 +294,6 @@ describe('missingRequiredFields', () => {
     floor: '',
     isBasement: false,
     totalFloors: '',
-    // Год постройки обязателен для квартир/домов (категория «новостройка»).
     year: '2020',
     price: '100000',
     currency: 'USD' as const,
@@ -326,15 +325,13 @@ describe('missingRequiredFields', () => {
     expect(missing).not.toContain('rooms');
   });
 
-  it('требует год постройки для квартиры', () => {
-    const missing = missingRequiredFields({ ...FULL_FORM, year: '' }, 1);
-    expect(missing).toContain('year');
-  });
-
-  it('не требует год постройки для участка (LAND)', () => {
-    const missing = missingRequiredFields({ ...FULL_FORM, type: 'LAND', rooms: '', year: '' }, 1);
-    expect(missing).not.toContain('year');
-  });
+  it.each(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL'] as const)(
+    'не требует год постройки (%s)',
+    (type) => {
+      const rooms = type === 'LAND' || type === 'COMMERCIAL' ? '' : FULL_FORM.rooms;
+      expect(missingRequiredFields({ ...FULL_FORM, type, rooms, year: '' }, 1)).toEqual([]);
+    },
+  );
 });
 
 // ── Рендер: блок «Адрес» на странице редактирования ──────────────────────────

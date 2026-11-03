@@ -229,7 +229,6 @@ export type RequiredField =
   | 'location'
   | 'area'
   | 'rooms'
-  | 'year'
   | 'price'
   | 'photos';
 
@@ -246,9 +245,8 @@ export function missingRequiredFields(f: EditForm, photoCount: number): Required
   if (!f.regionId || !f.districtId) missing.push('location');
   if (!f.area) missing.push('area');
   if (!noRooms && !f.rooms) missing.push('rooms');
-  // Год постройки обязателен для квартир/домов (категория «новостройка»
-  // вычисляется из него на бэке); может быть будущим — недострой.
-  if (!noRooms && !f.year) missing.push('year');
+  // Год постройки необязателен (ADR-0139): без него объявление просто не
+  // попадает в «новостройку».
   if (!f.price) missing.push('price');
   if (photoCount === 0) missing.push('photos');
   return missing;
@@ -406,7 +404,6 @@ export function ListingEdit({
     location: t('fieldLocation'),
     area: tNew('fields.area.label'),
     rooms: tNew('fields.rooms.label'),
-    year: tNew('fields.yearBuilt'),
     price: tNew('fields.price.label'),
     photos: tNew('fields.photos'),
   };

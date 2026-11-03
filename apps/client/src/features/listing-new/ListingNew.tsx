@@ -621,9 +621,9 @@ export function ListingNew({
       case 2:
         return missingStepFields(2, f).length === 0;
       case 3:
-        // Год постройки обязателен для квартир/домов (категория «новостройка»
-        // вычисляется из него на бэке); может быть будущим — недострой.
-        return Boolean(f.area && (noRooms || (f.rooms && f.year)));
+        // Год постройки необязателен (ADR-0139): без него объявление просто не
+        // попадает в «новостройку». Заполненный проверяет бэкенд (целое, SmallInt).
+        return Boolean(f.area && (noRooms || f.rooms));
       case 4:
         return Boolean(f.price);
       case 5:

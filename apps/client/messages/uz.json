@@ -893,7 +893,7 @@
         "default": "qiymatni tekshiring",
         "price": "to'g'ri narxni kiriting",
         "area": "maydonni m² da kiriting",
-        "yearBuilt": "kvartira va uylar uchun majburiy",
+        "yearBuilt": "yilni butun son bilan kiriting, masalan 2015",
         "required": "majburiy maydon"
       }
     },

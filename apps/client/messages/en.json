@@ -893,7 +893,7 @@
         "default": "check the value",
         "price": "enter a valid price",
         "area": "enter the area in m²",
-        "yearBuilt": "required for apartments and houses",
+        "yearBuilt": "enter the year as a whole number, e.g. 2015",
         "required": "required field"
       }
     },
