@@ -16,7 +16,6 @@ import {
   Max,
   MaxLength,
   Min,
-  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import {
@@ -162,17 +161,13 @@ export class CreateListingDto {
   total_floors?: number;
 
   /**
-   * Год постройки. ОБЯЗАТЕЛЕН для квартир/домов: категория «новостройка»
-   * вычисляется из него (`?new_construction=true`). Может быть в будущем —
-   * недострой («сдача в 2028», квартиру перепродают до сдачи дома).
+   * Год постройки. Необязателен для любого типа (баглист клиента, 2026-11-03):
+   * без года объявление просто не попадает в категорию «новостройка»
+   * (`?new_construction=true`, ADR-0139). Заполненный проверяется как целое
+   * в диапазоне SmallInt. Может быть в будущем — недострой («сдача в 2028»).
    */
-  @ValidateIf(
-    (o: CreateListingDto) =>
-      o.property_type === PropertyType.APARTMENT ||
-      o.property_type === PropertyType.HOUSE ||
-      o.year_built !== undefined,
-  )
-  @IsInt({ message: 'year_built is required for APARTMENT/HOUSE and must be an integer' })
+  @IsOptional()
+  @IsInt()
   @Min(0)
   @Max(SMALLINT_MAX)
   year_built?: number;

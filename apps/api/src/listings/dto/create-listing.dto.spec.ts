@@ -9,8 +9,6 @@ const BASE = {
   original_language: 'RU',
   price: '100000.00',
   currency: 'UZS',
-  // year_built обязателен для APARTMENT/HOUSE (категория «новостройка»
-  // вычисляется из него) — без него BASE перестал бы быть валидным.
   year_built: 2015,
   translation: { title: 'Тест' },
 };
@@ -37,18 +35,23 @@ describe('CreateListingDto — bathrooms (дробные, шаг 0.5)', () => {
   });
 });
 
-describe('CreateListingDto — year_built обязателен для APARTMENT/HOUSE', () => {
+describe('CreateListingDto — year_built необязателен, но проверяется', () => {
   const hasYearError = (errors: ReturnType<typeof errorsFor>) =>
     errors.some((e) => e.property === 'year_built');
 
-  it.each(['APARTMENT', 'HOUSE'])('%s без year_built → ошибка', (pt) => {
-    const errors = errorsFor({ property_type: pt, year_built: undefined });
-    expect(hasYearError(errors)).toBe(true);
-  });
-
-  it.each(['LAND', 'COMMERCIAL'])('%s без year_built → валидно', (pt) => {
+  it.each(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL'])('%s без year_built → валидно', (pt) => {
     const errors = errorsFor({ property_type: pt, year_built: undefined });
     expect(hasYearError(errors)).toBe(false);
+  });
+
+  it('null year_built → валидно', () => {
+    expect(hasYearError(errorsFor({ year_built: null }))).toBe(false);
+  });
+
+  it('вне диапазона SmallInt или дробный → ошибка', () => {
+    expect(hasYearError(errorsFor({ year_built: -1 }))).toBe(true);
+    expect(hasYearError(errorsFor({ year_built: 40000 }))).toBe(true);
+    expect(hasYearError(errorsFor({ year_built: 2015.5 }))).toBe(true);
   });
 
   it('будущий год (недострой «сдача в 2028») → валидно', () => {

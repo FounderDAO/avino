@@ -206,11 +206,9 @@ export function validateImportRow(values: ImportRowValues): ImportRowValidation 
   }
 
   const dto = plainToInstance(CreateListingDto, plain);
-  // Импорт мягче CreateListingDto в одном: год постройки необязателен и для
-  // квартиры/дома — в чужих базах его часто нет. Заполненный проверяется как обычно.
-  const found = validateSync(dto, { whitelist: true }).filter(
-    (error) => !(error.property === 'year_built' && !text('year_built')),
-  );
+  // Год постройки необязателен и в CreateListingDto (ADR-0139) — отдельного
+  // исключения для импорта больше не нужно.
+  const found = validateSync(dto, { whitelist: true });
   collect(found, values, fail);
 
   if (errors.length > 0 || !phone || !photoCell.ok) return { ok: false, errors };
