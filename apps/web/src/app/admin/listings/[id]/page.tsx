@@ -43,6 +43,7 @@ import {
   translationErrorToast,
   translationResultToast,
   translationRowKey,
+  withMissingTranslations,
 } from '@/lib/translations';
 import { getApiError, getApiErrorCode } from '@/store/api/apiError';
 import type { AdminListingStatus } from '@/lib/mock';
@@ -102,7 +103,7 @@ function moderationErrorMessage(error: unknown): string {
   const msg = getApiError(error as never)?.message ?? '';
   const status = e?.status;
   if (status === 422 && msg.includes('Translations required')) {
-    return 'Сначала сгенерируйте переводы на все языки';
+    return 'Сначала заполните переводы на все языки — сгенерируйте или впишите вручную';
   }
   if (status === 422 || code === 'INVALID_STATUS_TRANSITION') {
     return 'Недопустимый переход статуса для этого объявления.';
@@ -198,7 +199,7 @@ export default function ListingDetailPage() {
 
   const act = async (action: ModerationAction) => {
     if (action === 'APPROVE' && !translationsComplete) {
-      toast('Сначала сгенерируйте переводы на все языки');
+      toast('Сначала заполните переводы на все языки — сгенерируйте или впишите вручную');
       return;
     }
     if (action === 'REJECT' && !reason) {
@@ -317,7 +318,7 @@ export default function ListingDetailPage() {
                 <IC.Alert size={16} style={{ flexShrink: 0 }} /> {langWarning}
               </div>
             )}
-            {(tr?.translations ?? []).map((t) =>
+            {withMissingTranslations(tr).map((t) =>
               t.language === tr?.original_language ? (
                 <OriginalTranslationEditor
                   key={translationRowKey(id, t)}
@@ -334,6 +335,7 @@ export default function ListingDetailPage() {
               ) : (
                 <TranslationRow
                   key={translationRowKey(id, t)}
+                  missing={!presentLangs.has(t.language)}
                   item={t}
                   saving={isSavingTr}
                   original={false}
@@ -404,7 +406,7 @@ export default function ListingDetailPage() {
                 <>
                   {!translationsComplete && (
                     <div className="row gap-8" style={{ background: 'var(--warn-bg)', color: 'var(--warn)', borderRadius: 10, padding: '10px 13px', fontSize: 13, fontWeight: 600, alignItems: 'center' }}>
-                      <IC.Alert size={16} style={{ flexShrink: 0 }} /> Перед публикацией сгенерируйте переводы на все языки (UZ, RU, EN)
+                      <IC.Alert size={16} style={{ flexShrink: 0 }} /> Перед публикацией заполните переводы на все языки (UZ, RU, EN) — сгенерируйте или впишите вручную
                     </div>
                   )}
                   <button

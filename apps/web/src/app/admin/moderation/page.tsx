@@ -42,6 +42,7 @@ import {
   translationErrorToast,
   translationResultToast,
   translationRowKey,
+  withMissingTranslations,
 } from '@/lib/translations';
 import type { UserStatus } from '@/store/api/authApi';
 import type {
@@ -115,7 +116,7 @@ function moderationErrorMessage(error: unknown): string {
   const status = e?.status;
   const msg = getApiError(error as never)?.message ?? '';
   if (status === 422 && msg.includes('Translations required')) {
-    return 'Сначала сгенерируйте переводы на все языки';
+    return 'Сначала заполните переводы на все языки — сгенерируйте или впишите вручную';
   }
   if (status === 422 || code === 'INVALID_STATUS_TRANSITION') {
     return 'Недопустимый переход статуса для этого объявления.';
@@ -220,7 +221,7 @@ export default function ModerationPage() {
 
   const act = async (id: string, action: ModerationAction) => {
     if (action === 'APPROVE' && !translationsComplete) {
-      toast('Сначала сгенерируйте переводы на все языки');
+      toast('Сначала заполните переводы на все языки — сгенерируйте или впишите вручную');
       return;
     }
     if (action === 'REJECT' && !reason) {
@@ -353,7 +354,7 @@ export default function ModerationPage() {
                       <IC.Alert size={16} style={{ flexShrink: 0 }} /> {langWarning}
                     </div>
                   )}
-                  {(tr?.translations ?? []).map((t) =>
+                  {withMissingTranslations(tr).map((t) =>
                     t.language === tr?.original_language ? (
                       <OriginalTranslationEditor
                         key={translationRowKey(sel.id, t)}
@@ -370,6 +371,7 @@ export default function ModerationPage() {
                     ) : (
                       <TranslationRow
                         key={translationRowKey(sel.id, t)}
+                        missing={!presentLangs.has(t.language)}
                         item={t}
                         saving={isSavingTr}
                         original={false}
@@ -395,7 +397,7 @@ export default function ModerationPage() {
                   </select>
                   {!translationsComplete && (
                     <div className="row gap-8" style={{ background: 'var(--warn-bg)', color: 'var(--warn)', borderRadius: 10, padding: '10px 13px', fontSize: 13.5, fontWeight: 600, marginBottom: 12, alignItems: 'center' }}>
-                      <IC.Alert size={16} style={{ flexShrink: 0 }} /> Перед публикацией сгенерируйте переводы на все языки (UZ, RU, EN)
+                      <IC.Alert size={16} style={{ flexShrink: 0 }} /> Перед публикацией заполните переводы на все языки (UZ, RU, EN) — сгенерируйте или впишите вручную
                     </div>
                   )}
                   <div className="row gap-10">
