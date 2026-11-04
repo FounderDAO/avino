@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TranslationItem } from '@/store/api/adminTypes';
 import {
   originalLanguageMismatchWarning,
+  withMissingTranslations,
   translationErrorToast,
   translationRowKey,
 } from './translations';
@@ -91,5 +92,30 @@ describe('originalLanguageMismatchWarning', () => {
 
   it('disappears once the moderator fixed the original language', () => {
     expect(originalLanguageMismatchWarning(result('UZ'), 'a', 'UZ')).toBeNull();
+  });
+});
+
+describe('withMissingTranslations', () => {
+  const original = item({ language: 'RU', source: 'USER', is_auto_translated: false, title: 'Квартира, 80 м²', description: 'Текст' });
+
+  it('adds empty rows for missing required languages so they can be filled manually', () => {
+    const rows = withMissingTranslations({ original_language: 'RU', translations: [original] });
+    expect(rows.map((r) => r.language)).toEqual(['RU', 'UZ', 'EN']);
+    const uz = rows.find((r) => r.language === 'UZ')!;
+    expect(uz.description).toBeNull();
+    expect(uz.title).toBe('Квартира, 80 м²');
+  });
+
+  it('keeps existing translations untouched and adds nothing when all are present', () => {
+    const en = item({ language: 'EN' });
+    const uz = item({ language: 'UZ', title: 'Kvartira' });
+    const rows = withMissingTranslations({ original_language: 'RU', translations: [original, en, uz] });
+    expect(rows).toEqual([original, en, uz]);
+  });
+
+  it('returns nothing without data and adds no placeholders without the original row', () => {
+    expect(withMissingTranslations(undefined)).toEqual([]);
+    const en = item({ language: 'EN' });
+    expect(withMissingTranslations({ original_language: 'RU', translations: [en] })).toEqual([en]);
   });
 });

@@ -105,3 +105,38 @@ export function originalLanguageMismatchWarning(
     'заново — иначе перевод будет некорректным.'
   );
 }
+
+/** Языки, без которых объявление нельзя одобрить (дублирует серверный гейт 422). */
+export const REQUIRED_TRANSLATION_LANGS: readonly TranslationLanguage[] = ['UZ', 'RU', 'EN'];
+
+/**
+ * Строки панели «Переводы»: существующие переводы плюс пустые заготовки для
+ * недостающих обязательных языков. Заготовка даёт модератору поле, чтобы
+ * вписать перевод вручную, когда автоперевод недоступен (провайдер упал).
+ * Ручное сохранение идёт через тот же `PATCH .../translations/:language`,
+ * который на бэке создаёт строку, если её нет.
+ *
+ * `title` заготовки берётся из оригинала: это авто-строка («тип, площадь,
+ * адрес»), в клиенте она не показывается, а бэкенд требует непустой title.
+ */
+export function withMissingTranslations(
+  tr: { original_language: TranslationLanguage; translations: TranslationItem[] } | null | undefined,
+): TranslationItem[] {
+  if (!tr) return [];
+  const present = new Set(tr.translations.map((t) => t.language));
+  const original = tr.translations.find((t) => t.language === tr.original_language);
+  // Без оригинала заготовкам не из чего взять title — показываем как есть.
+  if (!original) return tr.translations;
+  const placeholders: TranslationItem[] = REQUIRED_TRANSLATION_LANGS.filter(
+    (l) => !present.has(l),
+  ).map((language) => ({
+    language,
+    source: 'USER',
+    is_auto_translated: false,
+    title: original.title,
+    description: null,
+    address_note: null,
+    features_text: null,
+  }));
+  return [...tr.translations, ...placeholders];
+}

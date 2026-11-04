@@ -4,6 +4,8 @@
  * Показывает один языковой вариант объявления: заголовок + описание.
  * Исходный язык (original=true) — только для чтения.
  * Ручные правки маркируются бейджем «Правлено вручную».
+ * Пустая заготовка недостающего языка (missing=true) маркируется «Нет перевода»:
+ * модератор вписывает текст вручную, когда автоперевод недоступен.
  * «Сохранить» недоступен пока идёт сохранение (saving=true).
  *
  * Стили совпадают с остальной admin-страницей: .a-field, .abtn, .a-pill, .muted.
@@ -22,11 +24,13 @@ const LANG_LABEL: Record<string, string> = {
 interface TranslationRowProps {
   item: TranslationItem;
   original: boolean;
+  /** Перевода на этот язык ещё нет — строка-заготовка для ручного ввода. */
+  missing?: boolean;
   onSave: (body: TranslationEditRequest) => void;
   saving?: boolean;
 }
 
-export function TranslationRow({ item, original, onSave, saving }: TranslationRowProps) {
+export function TranslationRow({ item, original, missing, onSave, saving }: TranslationRowProps) {
   const [description, setDescription] = useState(item.description ?? '');
 
   const isDirty = description !== (item.description ?? '');
@@ -59,7 +63,15 @@ export function TranslationRow({ item, original, onSave, saving }: TranslationRo
             Исходный
           </span>
         )}
-        {!item.is_auto_translated && (
+        {missing && (
+          <span
+            className="a-pill"
+            style={{ background: 'var(--warn-bg)', color: 'var(--warn)', fontSize: 11 }}
+          >
+            Нет перевода — впишите вручную
+          </span>
+        )}
+        {!missing && !item.is_auto_translated && (
           <span
             className="a-pill"
             style={{ background: 'var(--warn-bg)', color: 'var(--warn)', fontSize: 11 }}
@@ -82,6 +94,7 @@ export function TranslationRow({ item, original, onSave, saving }: TranslationRo
             style={{ width: '100%', minHeight: 72, resize: 'vertical' }}
             value={description}
             readOnly={original}
+            placeholder={missing ? 'Введите перевод описания' : undefined}
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
