@@ -9,7 +9,9 @@
  *    зажал → обвёл → отпустил → `onPolygonComplete`), оверлей территории
  *    (`polygon`) и отчёт о видимой области (`onBoundsChange`, debounce).
  *
- * Маркеры — кластеризуются (ymaps.Clusterer). Пины брендовые (ADR-0060):
+ * Маркеры — кластеризуются (ymaps.Clusterer). Если объявлений в области больше,
+ * чем пришло пинов, родитель передаёт серверные кластеры (`clusters`) — тогда
+ * вместо пинов рисуются кружки со счётчиком, клик приближает карту. Пины брендовые (ADR-0060):
  * аренда — оранжевые, продажа — красные, активный — тёмный (ink). Клик по пину → `onSelect`,
  * наведение → `onHover`; активный пин подсвечивается, центрирование карты —
  * опционально (admin-флаг recenterOnHover).
@@ -24,6 +26,7 @@ import { useTranslations } from 'next-intl';
 import { usePriceFormatter } from '@/lib/usePriceFormatter';
 import { clampRadius, type LatLng, type LatLngBounds } from '@/lib/geo';
 import type { Listing, RadiusCircle, TransactionType } from '@/lib/mock/types';
+import type { MapCluster } from '@/lib/api/listings';
 import { useYmaps, type Ymaps, type YmapsStatus } from './useYmaps';
 
 export type DrawMode = 'radius' | 'polygon' | null;
@@ -63,7 +66,10 @@ export interface MapViewProps {
   /** Видимая область карты (debounce). Эмитится только без активного draw/polygon.
    *  meta.user=true — изменению предшествовал жест пользователя (drag/wheel/зум-контролы),
    *  false — программный setBounds (autoFit, initialBounds, оверлеи). */
-  onBoundsChange?: (bounds: LatLngBounds, meta: { user: boolean }) => void;
+  onBoundsChange?: (bounds: LatLngBounds, meta: { user: boolean; zoom: number }) => void;
+
+  /** Серверные кластеры области. Непустой массив → кружки со счётчиком вместо пинов. */
+  clusters?: MapCluster[] | null;
 
   /** Начальная область (SSR-восстановление ?sw_lat=…): map.setBounds после
    *  создания вместо center/zoom. Читается один раз. */
@@ -107,6 +113,12 @@ function pinHTML(active: boolean, priceText: string, tx: TransactionType): strin
   return `<div class="av-ypin ${active ? 'active' : ''}" style="background:${bg};color:#fff;border:none">${priceText}</div>`;
 }
 
+/** HTML серверного кластера: кружок со счётчиком, размер растёт с числом. */
+function clusterHTML(count: number): string {
+  const size = count >= 1000 ? 58 : count >= 100 ? 50 : count >= 10 ? 42 : 34;
+  return `<div class="av-ycluster" style="width:${size}px;height:${size}px">${count}</div>`;
+}
+
 /** Стили пинов (инжектим один раз — это сырой HTML внутри iconLayout, не Tailwind). */
 const PIN_STYLE_ID = 'avino-ymaps-pins';
 function ensurePinStyles() {
@@ -124,6 +136,16 @@ function ensurePinStyles() {
     }
     .av-ypin:hover { transform: translate(-50%, -50%) scale(1.08); }
     .av-ypin.active { transform: translate(-50%, -50%) scale(1.12); z-index: 1000; }
+    .av-ycluster {
+      position: absolute; transform: translate(-50%, -50%);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 999px; background: var(--red, #e03c42); color: #fff;
+      border: 3px solid rgba(255,255,255,.9);
+      font-size: 14px; font-weight: 800; line-height: 1;
+      box-shadow: 0 3px 10px rgba(40,34,24,.32);
+      cursor: pointer; transition: transform .12s ease;
+    }
+    .av-ycluster:hover { transform: translate(-50%, -50%) scale(1.08); }
   `;
   document.head.appendChild(style);
 }
@@ -166,6 +188,7 @@ export function MapView({
   recenterOnHover = false,
   preview = null,
   onPreviewClose,
+  clusters = null,
 }: MapViewProps) {
   const fmt = usePriceFormatter();
   const tSearch = useTranslations('search');
@@ -174,6 +197,7 @@ export function MapView({
   const elRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<any>(null);
   const clustererRef = React.useRef<any>(null);
+  const serverClustersRef = React.useRef<any>(null); // коллекция серверных кластеров
   const placemarksRef = React.useRef<Record<string, any>>({});
   const overlayRef = React.useRef<any>(null); // активный circle/polygon оверлей
   const drawTmpRef = React.useRef<any>(null); // временная геометрия рисования
@@ -213,8 +237,11 @@ export function MapView({
       preset: 'islands#invertedRedClusterIcons',
     });
     map.geoObjects.add(clusterer);
+    const serverClusters = new ymaps.GeoObjectCollection();
+    map.geoObjects.add(serverClusters);
     mapRef.current = map;
     clustererRef.current = clusterer;
+    serverClustersRef.current = serverClusters;
 
     // SSR-восстановление области (?sw_lat=…): вид по bbox вместо center/zoom.
     if (initialBoundsRef.current) {
@@ -241,7 +268,7 @@ export function MapView({
       userGestureRef.current = false; // флаг одноразовый — потребляем на эмите
       cb.current.onBoundsChange?.(
         { swLat: b[0][0], swLng: b[0][1], neLat: b[1][0], neLng: b[1][1] },
-        { user },
+        { user, zoom: Math.round(map.getZoom()) },
       );
     };
 
@@ -305,6 +332,7 @@ export function MapView({
       map.destroy();
       mapRef.current = null;
       clustererRef.current = null;
+      serverClustersRef.current = null;
       placemarksRef.current = {};
       overlayRef.current = null;
       drawTmpRef.current = null;
@@ -322,13 +350,40 @@ export function MapView({
     .map((l) => l.id)
     .sort()
     .join(',');
+  const clustersKey = clusters?.length
+    ? clusters.map((c) => `${c.lat},${c.lng},${c.count}`).join(';')
+    : '';
   React.useEffect(() => {
     const map = mapRef.current;
     const clusterer = clustererRef.current;
-    if (!map || !clusterer || !ymaps) return;
+    const serverClusters = serverClustersRef.current;
+    if (!map || !clusterer || !serverClusters || !ymaps) return;
 
     clusterer.removeAll();
+    serverClusters.removeAll();
     placemarksRef.current = {};
+
+    // Объявлений в области больше, чем пинов → только серверные кластеры.
+    if (clusters && clusters.length > 0) {
+      clusters.forEach((c) => {
+        const pm = new ymaps.Placemark(
+          [c.lat, c.lng],
+          {},
+          {
+            iconLayout: makeIconLayout(ymaps, clusterHTML(c.count)),
+            iconShape: { type: 'Circle', coordinates: [0, 0], radius: 26 },
+            zIndex: c.count,
+          },
+        );
+        pm.events.add('click', () => {
+          userGestureRef.current = true; // приближение кликом — жест пользователя
+          const z = Math.min(map.getZoom() + 2, 17);
+          map.setCenter([c.lat, c.lng], z, { duration: 300 });
+        });
+        serverClusters.add(pm);
+      });
+      return;
+    }
 
     const placemarks: any[] = [];
     listings.forEach((l) => {
@@ -361,7 +416,7 @@ export function MapView({
     }
     // activeId — отдельным эффектом (подсветка без перестроения).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listingsKey, ymaps, autoFit]);
+  }, [listingsKey, clustersKey, ymaps, autoFit]);
 
   // ── Подсветка активного пина + панорамирование (без перестроения) ──
   React.useEffect(() => {

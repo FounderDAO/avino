@@ -4,7 +4,7 @@
  * иначе выдача карты игнорирует amenities/parking/мультитип и т.д.
  */
 import { describe, it, expect } from 'vitest';
-import { boundsSearchPath, polygonSearchPath, searchPagePath } from './listings';
+import { boundsSearchPath, clustersSearchPath, polygonSearchPath, searchPagePath } from './listings';
 import { PARKING_TYPES } from '@/lib/mock/types';
 import type { LatLngBounds } from '@/lib/geo';
 
@@ -53,6 +53,27 @@ describe('polygonSearchPath', () => {
     const qs = new URLSearchParams(path.split('?')[1]);
     expect(qs.get('points')).toBe('41.2,69.1;41.3,69.2;41.25,69.3');
     expect(qs.getAll('amenities')).toEqual([TEST_AMENITY]);
+  });
+});
+
+describe('clustersSearchPath', () => {
+  it('передаёт bbox, целый зум и фильтры, без limit/sort', () => {
+    const path = clustersSearchPath({ tx: 'SALE', sort: 'price_asc' as never }, bounds, 6.4);
+    expect(path.startsWith('/search/clusters?')).toBe(true);
+    const qs = new URLSearchParams(path.split('?')[1]);
+    expect(qs.get('sw_lat')).toBe('41.2');
+    expect(qs.get('ne_lng')).toBe('69.4');
+    expect(qs.get('zoom')).toBe('6');
+    expect(qs.get('transaction_type')).toBe('SALE');
+    expect(qs.has('limit')).toBe(false);
+    expect(qs.has('sort')).toBe(false);
+  });
+
+  it('зажимает зум в 0..22', () => {
+    const qs = (z: number) =>
+      new URLSearchParams(clustersSearchPath({}, bounds, z).split('?')[1]).get('zoom');
+    expect(qs(-3)).toBe('0');
+    expect(qs(30)).toBe('22');
   });
 });
 

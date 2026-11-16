@@ -10,16 +10,21 @@ import type { LatLngBounds } from '@/lib/geo';
 import type { Listing } from '@/lib/mock/types';
 
 const listing = { id: 'l1' } as unknown as Listing;
-const trigger = vi.fn(() => ({ unwrap: () => Promise.resolve([listing]) }));
+const page = (listings: Listing[], total = listings.length) => ({ listings, total });
+const trigger = vi.fn(() => ({ unwrap: () => Promise.resolve(page([listing])) }));
+const cells = [{ lat: 39.66, lng: 66.93, count: 128 }];
+const triggerClusters = vi.fn(() => ({ unwrap: () => Promise.resolve(cells) }));
 
 vi.mock('@/store/api/searchApi', () => ({
   useLazySearchByBoundsQuery: () => [trigger, { isFetching: false }],
+  useLazySearchClustersQuery: () => [triggerClusters, { isFetching: false }],
 }));
 
 const B: LatLngBounds = { swLat: 41.2, swLng: 69.1, neLat: 41.4, neLng: 69.4 };
 
 beforeEach(() => {
   trigger.mockClear();
+  triggerClusters.mockClear();
   window.history.replaceState(null, '', '/search?tx=SALE');
 });
 
@@ -132,12 +137,13 @@ describe('useViewportSearch (always, /map)', () => {
   });
 
   it('устаревший ответ не перезаписывает свежий (гонка bounds-запросов)', async () => {
-    let resolveFirst: (v: Listing[]) => void = () => {};
-    let resolveSecond: (v: Listing[]) => void = () => {};
-    const firstPromise = new Promise<Listing[]>((res) => {
+    type Page = ReturnType<typeof page>;
+    let resolveFirst: (v: Page) => void = () => {};
+    let resolveSecond: (v: Page) => void = () => {};
+    const firstPromise = new Promise<Page>((res) => {
       resolveFirst = res;
     });
-    const secondPromise = new Promise<Listing[]>((res) => {
+    const secondPromise = new Promise<Page>((res) => {
       resolveSecond = res;
     });
     trigger.mockImplementationOnce(() => ({ unwrap: () => firstPromise }));
@@ -153,15 +159,61 @@ describe('useViewportSearch (always, /map)', () => {
 
     // Резолвим в обратном порядке: сначала свежий (второй) запрос, потом устаревший (первый).
     await act(async () => {
-      resolveSecond([{ id: 'fresh' } as unknown as Listing]);
+      resolveSecond(page([{ id: 'fresh' } as unknown as Listing]));
       await secondPromise;
     });
     await act(async () => {
-      resolveFirst([{ id: 'stale' } as unknown as Listing]);
+      resolveFirst(page([{ id: 'stale' } as unknown as Listing]));
       await firstPromise;
     });
 
     expect(result.current.listings).toEqual([{ id: 'fresh' }]);
+  });
+
+  it('в области больше объявлений, чем пинов, — грузит кластеры и общий счётчик', async () => {
+    trigger.mockImplementationOnce(() => ({
+      unwrap: () => Promise.resolve(page([listing], 732)),
+    }));
+    const { result } = renderHook(() => useViewportSearch({ mode: 'always', filter: {} }));
+    act(() => result.current.handleBoundsChange(B, { user: false, zoom: 6 }));
+    await waitFor(() => expect(result.current.clusters).toEqual(cells));
+    expect(triggerClusters).toHaveBeenCalledWith({ bounds: B, zoom: 6, filter: {} });
+    expect(result.current.total).toBe(732);
+    expect(result.current.listings).toEqual([listing]);
+  });
+
+  it('все объявления области поместились в пины — кластеры не грузит', async () => {
+    const { result } = renderHook(() => useViewportSearch({ mode: 'always', filter: {} }));
+    act(() => result.current.handleBoundsChange(B, { user: false, zoom: 6 }));
+    await waitFor(() => expect(result.current.listings).toEqual([listing]));
+    expect(triggerClusters).not.toHaveBeenCalled();
+    expect(result.current.clusters).toBe(null);
+    expect(result.current.total).toBe(1);
+  });
+
+  it('близкий зум (≥16) — пины без кластеров, даже если объявлений больше', async () => {
+    trigger.mockImplementationOnce(() => ({
+      unwrap: () => Promise.resolve(page([listing], 500)),
+    }));
+    const { result } = renderHook(() => useViewportSearch({ mode: 'always', filter: {} }));
+    act(() => result.current.handleBoundsChange(B, { user: false, zoom: 16 }));
+    await waitFor(() => expect(result.current.total).toBe(500));
+    expect(triggerClusters).not.toHaveBeenCalled();
+    expect(result.current.clusters).toBe(null);
+  });
+
+  it('сбой кластеров — остаёмся на пинах', async () => {
+    trigger.mockImplementationOnce(() => ({
+      unwrap: () => Promise.resolve(page([listing], 732)),
+    }));
+    triggerClusters.mockImplementationOnce(() => ({
+      unwrap: () => Promise.reject(new Error('500')),
+    }));
+    const { result } = renderHook(() => useViewportSearch({ mode: 'always', filter: {} }));
+    act(() => result.current.handleBoundsChange(B, { user: false, zoom: 6 }));
+    await waitFor(() => expect(result.current.total).toBe(732));
+    expect(result.current.clusters).toBe(null);
+    expect(result.current.listings).toEqual([listing]);
   });
 
   it('превью: openPreview/closePreview', () => {
