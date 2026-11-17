@@ -18,6 +18,7 @@ import {
   selectIsAuthenticated,
 } from '@/store/slices/authSlice';
 import { isProfileCompleteForListing } from '@/lib/profile-complete';
+import { track } from '@/lib/analytics';
 import {
   useCreateListingMutation,
   useUploadListingMediaMutation,
@@ -428,6 +429,14 @@ export function ListingNew({
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     dispatch({ type: 'set', key, value });
 
+  // Открытие формы подачи объявления — один раз на заход на страницу.
+  const startTracked = useRef(false);
+  useEffect(() => {
+    if (startTracked.current) return;
+    startTracked.current = true;
+    track({ event: 'listing_start' });
+  }, []);
+
   // Шаги, с которых уже пытались уйти при незаполненных полях: до первой
   // попытки ошибок не показываем. Сами ошибки в стейте НЕ храним — выводим из
   // формы, поэтому подсветка поля снимается, как только его заполнили.
@@ -593,6 +602,7 @@ export function ListingNew({
 
     try {
       const { id } = await createListing(buildBody()).unwrap();
+      track({ event: 'listing_published', listing_id: id, deal_type: f.tx });
 
       let failures = 0;
       let firstErrorCode: string | null = null;

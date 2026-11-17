@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@avino/shared": "workspace:*",
+    "@next/third-parties": "15.5.29",
     "@reduxjs/toolkit": "^2.5.0",
     "@sentry/nextjs": "^10.69.0",
     "class-variance-authority": "^0.7.1",

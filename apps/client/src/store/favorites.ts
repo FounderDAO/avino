@@ -23,6 +23,7 @@ import {
   useRemoveFavoriteMutation,
 } from './api/favoritesApi';
 import type { RootState } from './store';
+import { track } from '@/lib/analytics';
 
 /**
  * Внутренний хук: набор id избранного из активного источника.
@@ -72,6 +73,7 @@ export function useToggleFavorite(): (id: string) => void {
 
   return useCallback(
     (id: string) => {
+      if (!ids.includes(id)) track({ event: 'add_favorite', listing_id: id });
       if (isAuthenticated) {
         // Fire-and-forget: тэг 'Favorite' инвалидируется мутацией,
         // список перезагрузится сам. 409 ALREADY_FAVORITED уже трактуется
