@@ -123,6 +123,7 @@ export class AppleAuthService {
       refresh_token: tokens.refreshToken,
       token_type: 'Bearer',
       expires_in: tokens.expiresIn,
+      is_new_user: isNew,
       user: {
         id: user.id,
         phone: user.phone,

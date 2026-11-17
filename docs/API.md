@@ -123,11 +123,15 @@ Body:
   "refresh_token": "eyJ...",
   "token_type": "Bearer",
   "expires_in": 900,
+  "is_new_user": false,
   "user": { "id": "u1", "phone": "+998901234567", "email": null,
             "default_language": "RU", "status": "ACTIVE", "roles": ["USER"],
             "is_phone_verified": true }
 }
 ```
+`is_new_user: true` — аккаунт создан этим входом (login=signup); клиенты шлют
+по нему событие регистрации в аналитику. Тот же флаг отдают `auth/google` и `auth/apple`.
+
 Errors: `400 OTP_INVALID`, `400 OTP_EXPIRED`, `429 OTP_ATTEMPTS_EXCEEDED`, `403 USER_BLOCKED`.
 
 ### POST /api/v1/auth/google

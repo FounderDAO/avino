@@ -241,6 +241,7 @@ describe('AuthService.verifyOtp', () => {
       data: { userId: 'new', roleId: 'role-user' },
     });
     expect(result.user.id).toBe('new');
+    expect(result.is_new_user).toBe(true);
     expect(tokenService.issueSession).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'new', roles: ['USER'] }),
     );
@@ -258,7 +259,8 @@ describe('AuthService.verifyOtp', () => {
     prisma.user.findFirst.mockResolvedValue(baseUser);
     prisma.user.update.mockResolvedValue(baseUser);
 
-    await service.verifyOtp(dto(), '127.0.0.1');
+    const result = await service.verifyOtp(dto(), '127.0.0.1');
+    expect(result.is_new_user).toBe(false);
 
     const whereArg = prisma.user.findFirst.mock.calls[0][0].where;
     expect(whereArg).toHaveProperty('phone', DEST);
