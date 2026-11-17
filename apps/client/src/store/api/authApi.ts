@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi';
 import { clearCredentials, setCredentials, setUser } from '../slices/authSlice';
+import { trackSignUp } from '@/lib/analytics';
 
 /**
  * authApi — passwordless OTP flow публичного портала (docs/API.md §3).
@@ -75,6 +76,8 @@ export interface VerifyOtpBody {
 }
 
 export interface VerifyOtpResponse extends TokenPair {
+  /** true — аккаунт создан этим входом (login=signup). Старый бэкенд поле не отдаёт. */
+  is_new_user?: boolean;
   user: AuthUser;
 }
 
@@ -130,6 +133,7 @@ export const authApi = baseApi.injectEndpoints({
               user: data.user,
             }),
           );
+          if (data.is_new_user) trackSignUp();
         } catch {
           /* ошибку показывает UI через apiError-хелпер */
         }
@@ -153,6 +157,7 @@ export const authApi = baseApi.injectEndpoints({
               user: data.user,
             }),
           );
+          if (data.is_new_user) trackSignUp();
         } catch {
           /* ошибку показывает UI через apiError-хелпер */
         }
@@ -179,6 +184,7 @@ export const authApi = baseApi.injectEndpoints({
               user: data.user,
             }),
           );
+          if (data.is_new_user) trackSignUp();
         } catch {
           /* ошибку показывает UI через apiError-хелпер */
         }

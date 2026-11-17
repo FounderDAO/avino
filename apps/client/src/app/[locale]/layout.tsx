@@ -9,12 +9,14 @@ import { notFound } from 'next/navigation';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { preconnect } from 'react-dom';
+import { GoogleTagManager } from '@next/third-parties/google';
 import { routing } from '@/i18n/routing';
 import { StoreProvider } from '@/store/StoreProvider';
 import { Header } from '@/components/layout/Header';
 import { FooterGate } from '@/components/layout/FooterGate';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { BASE } from '@/lib/seo/base';
+import { GTM_ID } from '@/lib/analytics';
 import '../globals.css';
 
 const inter = Inter({
@@ -26,6 +28,10 @@ const inter = Inter({
 // Тот же origin, что baseQuery.ts (без /api/v1 — preconnect держит TCP+TLS
 // к домену, путь ему не нужен).
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
+
+// GTM (GA4, Meta Pixel, Clarity внутри контейнера) — только в prod-сборке,
+// чтобы локальная разработка не попадала в статистику.
+const GTM_ENABLED = process.env.NODE_ENV === 'production';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -100,7 +106,18 @@ export default async function RootLayout({ children, modal, params }: LayoutProp
 
   return (
     <html lang={locale} className={inter.variable}>
+      {GTM_ENABLED && <GoogleTagManager gtmId={GTM_ID} />}
       <body className="font-sans antialiased">
+        {GTM_ENABLED && (
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
+              height="0"
+              width="0"
+              style={{ display: 'none', visibility: 'hidden' }}
+            />
+          </noscript>
+        )}
         <JsonLd data={organizationLd} />
         <JsonLd data={websiteLd} />
         <NextIntlClientProvider>

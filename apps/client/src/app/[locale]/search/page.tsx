@@ -29,6 +29,7 @@ import type {
 import { PARKING_TYPES } from '@/lib/mock/types';
 import { FilterBar, type FilterValues } from '@/features/search/FilterBar';
 import { SearchResults } from '@/features/search/SearchResults';
+import { SearchTracker } from '@/features/search/SearchTracker';
 import { alternatesFor } from '@/lib/seo/alternates';
 import { BASE } from '@/lib/seo/base';
 import { routing } from '@/i18n/routing';
@@ -407,8 +408,22 @@ export default async function SearchPage({
       query: districtName || regionName || query || t('defaultLocation'),
     });
 
+  // Событие `search` для GTM: город — код региона (стабилен для всех языков).
+  const trackRegionId =
+    effectiveRegionId ?? districts.find((d) => d.id === districtId)?.regionId;
+  const trackCity = allRegions
+    ? 'all'
+    : (regions.find((r) => r.id === trackRegionId)?.code ?? null);
+
   return (
     <div className="fade-up">
+      <SearchTracker
+        dealType={effectiveTx}
+        city={trackCity}
+        district={districtName ?? null}
+        priceMin={priceMin ?? null}
+        priceMax={priceMax ?? null}
+      />
       <FilterBar
         values={filterValues}
         districts={districts}

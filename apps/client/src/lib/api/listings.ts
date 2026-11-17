@@ -338,6 +338,7 @@ export function mapListing(api: AnyApiListing): Listing {
 
     // Имя района на языке ответа (TASK-209, ADR-0068); null → '' (без uuid в UI).
     district: api.district_name ?? '',
+    regionId: api.city_id ?? undefined,
     // Точный адрес отдаётся и в выдаче поиска, и в detail (оба члена union).
     address: api.address ?? '',
     lat: toNumberOrUndef(api.latitude),

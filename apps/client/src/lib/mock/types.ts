@@ -153,6 +153,8 @@ export interface Listing {
 
   /** Район Ташкента. */
   district: string;
+  /** UUID региона (API `city_id`); нужен аналитике, чтобы назвать город. */
+  regionId?: string;
   /** Точный адрес/массив. */
   address: string;
   /** Координаты для карты. */

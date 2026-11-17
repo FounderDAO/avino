@@ -39,6 +39,7 @@ import { ReportButton } from './ReportButton';
 import { ViewTracker } from './ViewTracker';
 import { AmenityChips } from './AmenityChips';
 import { getAmenities } from '@/lib/api/amenities';
+import { getRegions } from '@/lib/api/geo';
 import { SimilarListings } from './SimilarListings';
 
 /** Пропы хлебной крошки — передаются из page.tsx (уже имеет переводы). */
@@ -65,6 +66,10 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
   // Справочник удобств — только когда есть что рендерить (Task 5); кэш 1 час.
   const amenityOptions = listing.amenities?.length ? await getAmenities() : [];
   const parts = specs(listing, tUnits);
+  // Код региона для аналитики (справочник кэшируется на час).
+  const cityCode = listing.regionId
+    ? ((await getRegions(locale)).find((r) => r.id === listing.regionId)?.code ?? null)
+    : null;
   // Ссылка «Назад к поиску» сохраняет тип сделки текущего объекта.
   const backHref = `/search?tx=${listing.tx}`;
 
@@ -88,7 +93,12 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
       }
     >
       {/* Регистрирует просмотр (POST /listings/:id/view, LAST_CHANGED_API.md §2). Без UI. */}
-      <ViewTracker id={listing.id} />
+      <ViewTracker
+        id={listing.id}
+        dealType={listing.tx}
+        price={listing.price}
+        city={cityCode}
+      />
 
       {/* Внутри модалки вся шапка (назад/избранное/шеринг) — в тулбаре ListingModal.
           На полной странице одной линией (по-зилловски): слева «Назад к поиску» +

@@ -22,6 +22,7 @@ import { selectCurrentUser, selectIsAuthenticated } from '@/store/slices/authSli
 import { useCreateThreadMutation } from '@/store/api/chatApi';
 import { useRegisterListingCallMutation } from '@/store/api/listingEditApi';
 import { getApiError } from '@/store/api/apiError';
+import { track } from '@/lib/analytics';
 
 export interface ContactCardProps {
   listing: Listing;
@@ -79,13 +80,14 @@ export function ContactCard({ listing, className }: ContactCardProps) {
   // «Написать»: гость → открываем модалку входа (не редиректим на главную) и
   // запоминаем намерение; авторизован → сразу создаём диалог.
   const handleMessage = React.useCallback(() => {
+    track({ event: 'contact_click', listing_id: listing.id, method: 'message' });
     if (!isAuthenticated) {
       setPendingMessage(true);
       setLoginOpen(true);
       return;
     }
     void createThreadAndGo();
-  }, [isAuthenticated, createThreadAndGo]);
+  }, [isAuthenticated, createThreadAndGo, listing.id]);
 
   // После успешного входа из карточки — продолжаем отложенное намерение «Написать».
   React.useEffect(() => {
@@ -188,7 +190,14 @@ export function ContactCard({ listing, className }: ContactCardProps) {
               <Phone size={18} /> {agent.phone}
             </a>
           ) : (
-            <Button size="lg" className="w-full" onClick={() => setPhoneShown(true)}>
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={() => {
+                setPhoneShown(true);
+                track({ event: 'contact_click', listing_id: listing.id, method: 'phone' });
+              }}
+            >
               <Phone size={18} /> {t('contact.showPhone')}
             </Button>
           ))}
