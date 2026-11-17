@@ -44,6 +44,8 @@ export interface VerifyOtpResult {
   refresh_token: string;
   token_type: 'Bearer';
   expires_in: number;
+  /** true — аккаунт создан этим входом (signup-as-login); для аналитики клиентов. */
+  is_new_user: boolean;
   user: AuthUserSummary;
 }
 
@@ -223,6 +225,7 @@ export class AuthService {
       refresh_token: tokens.refreshToken,
       token_type: 'Bearer',
       expires_in: tokens.expiresIn,
+      is_new_user: user.isNew,
       user: {
         id: user.id,
         phone: user.phone,

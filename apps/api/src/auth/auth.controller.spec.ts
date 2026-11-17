@@ -40,6 +40,7 @@ const SESSION: VerifyOtpResult = {
   refresh_token: 'refresh',
   token_type: 'Bearer',
   expires_in: 900,
+  is_new_user: false,
   user: {
     id: 'u1',
     phone: '+998901234567',
