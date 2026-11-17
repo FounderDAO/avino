@@ -19,9 +19,12 @@ import {
   mapListing,
   prioritizePhotos,
   boundsSearchPath,
+  clustersSearchPath,
   polygonSearchPath,
   searchPagePath,
   similarSearchPath,
+  type ClustersEnvelope,
+  type MapCluster,
   type SearchEnvelope,
   type SearchListingsPage,
 } from '@/lib/api/listings';
@@ -39,6 +42,20 @@ export interface BoundsSearchArgs {
   filter?: ListingFilter;
   /** Размер страницы (бэкенд: default 20 / max 100). Для карты берём максимум. */
   limit?: number;
+}
+
+/** Выдача по области: страница листингов + сколько всего объявлений в области. */
+export interface BoundsSearchResult {
+  listings: Listing[];
+  /** meta.total — все объявления в области под фильтром (может быть больше страницы). */
+  total: number;
+}
+
+/** Аргументы кластеров: bbox + зум карты + фильтры §9. */
+export interface ClustersSearchArgs {
+  bounds: LatLngBounds;
+  zoom: number;
+  filter?: ListingFilter;
 }
 
 /** Аргументы поиска по территории: сериализованное кольцо `points` + фильтры §9. */
@@ -69,10 +86,25 @@ export interface SimilarListingsArgs {
 export const searchApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     /** Листинги внутри видимой области карты (bbox), полный набор фильтров §9. */
-    searchByBounds: build.query<Listing[], BoundsSearchArgs>({
+    searchByBounds: build.query<BoundsSearchResult, BoundsSearchArgs>({
       query: ({ bounds, filter = {}, limit = 100 }) =>
         boundsSearchPath(filter, bounds, limit),
-      transformResponse: (env: SearchEnvelope) => env.data.map(mapListing),
+      transformResponse: (env: SearchEnvelope) => ({
+        listings: env.data.map(mapListing),
+        total: env.meta.total,
+      }),
+      providesTags: ['Search'],
+    }),
+
+    /**
+     * Кластеры видимой области (GET /search/clusters): ячейки сетки со счётчиком.
+     * Нужны, когда в области объявлений больше, чем помещается в одну страницу
+     * пинов, — иначе отдалённая карта показывает только самые новые 100.
+     */
+    searchClusters: build.query<MapCluster[], ClustersSearchArgs>({
+      query: ({ bounds, zoom, filter = {} }) => clustersSearchPath(filter, bounds, zoom),
+      transformResponse: (env: ClustersEnvelope) =>
+        env.data.map((c) => ({ lat: c.latitude, lng: c.longitude, count: c.count })),
       providesTags: ['Search'],
     }),
 
@@ -127,6 +159,7 @@ export const searchApi = baseApi.injectEndpoints({
 export const {
   useSearchByBoundsQuery,
   useLazySearchByBoundsQuery,
+  useLazySearchClustersQuery,
   useSearchByPolygonQuery,
   useLazySearchByPolygonQuery,
   useLazySearchPageQuery,

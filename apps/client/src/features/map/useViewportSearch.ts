@@ -12,6 +12,12 @@
  * SSR /search читает эти параметры и восстанавливает область (initialBounds).
  * Смена не-гео фильтров при активном режиме перезапрашивает последнюю область
  * клиентски (FilterBar пересобирает URL без bbox — режим живёт в состоянии).
+ *
+ * Кластеры: страница пинов ограничена 100 самыми новыми объявлениями области.
+ * Если в области их больше (meta.total > 100) — дозапрашиваем серверные
+ * кластеры (GET /search/clusters) и карта рисует кружки со счётчиком вместо
+ * неполного набора пинов. Иначе при отдалённой карте (весь Узбекистан) почти
+ * все 100 пинов уходят Ташкенту, и другие города выглядят пустыми.
  */
 'use client';
 
@@ -22,8 +28,25 @@ import {
   BBOX_PARAM_KEYS,
   type LatLngBounds,
 } from '@/lib/geo';
-import { useLazySearchByBoundsQuery } from '@/store/api/searchApi';
+import {
+  useLazySearchByBoundsQuery,
+  useLazySearchClustersQuery,
+} from '@/store/api/searchApi';
+import type { MapCluster } from '@/lib/api/listings';
 import type { Listing, ListingFilter } from '@/lib/mock/types';
+
+/** Размер страницы пинов (максимум API). */
+const BOUNDS_LIMIT = 100;
+/** Ближе этого зума кластеры не нужны — показываем отдельные пины (как в мобильном). */
+const MAX_CLUSTER_ZOOM = 16;
+
+/** Мета эмита области из MapView. */
+export interface BoundsMeta {
+  /** Изменению предшествовал жест пользователя. */
+  user: boolean;
+  /** Текущий зум карты (для сетки кластеров). */
+  zoom?: number;
+}
 
 export interface ViewportSearchOptions {
   /** 'always' — /map: любой bounds грузит выдачу; 'gesture' — /search:
@@ -46,9 +69,13 @@ export interface ViewportSearch {
   active: boolean;
   /** Выдача последнего bounds-запроса; null — запросов ещё не было. */
   listings: Listing[] | null;
+  /** Сколько всего объявлений в области (meta.total); null — запросов ещё не было. */
+  total: number | null;
+  /** Кластеры области, когда объявлений больше страницы пинов; иначе null. */
+  clusters: MapCluster[] | null;
   isFetching: boolean;
   /** Колбэк для MapView.onBoundsChange. */
-  handleBoundsChange: (b: LatLngBounds, meta?: { user: boolean }) => void;
+  handleBoundsChange: (b: LatLngBounds, meta?: BoundsMeta) => void;
   /** Повторить запрос по последней области (сброс территории на /map). */
   refetchLastBounds: () => void;
   /** Превью пина (клик по маркеру). */
@@ -78,10 +105,14 @@ export function useViewportSearch({
     mode === 'always' || Boolean(initialBounds),
   );
   const [listings, setListings] = React.useState<Listing[] | null>(null);
+  const [total, setTotal] = React.useState<number | null>(null);
+  const [clusters, setClusters] = React.useState<MapCluster[] | null>(null);
   const [previewId, setPreviewId] = React.useState<string | null>(null);
   const [trigger, { isFetching }] = useLazySearchByBoundsQuery();
+  const [triggerClusters, { isFetching: isFetchingClusters }] = useLazySearchClustersQuery();
 
   const lastBoundsRef = React.useRef<LatLngBounds | null>(initialBounds);
+  const lastZoomRef = React.useRef<number | undefined>(undefined);
   // Свежий фильтр в ref: runBounds стабилен, эффект смены фильтра — отдельный.
   const filterRef = React.useRef(filter);
   filterRef.current = filter;
@@ -90,13 +121,28 @@ export function useViewportSearch({
   const runBounds = React.useCallback(
     (b: LatLngBounds) => {
       if (!isValidBounds(b)) return;
-      trigger({ bounds: b, filter: filterRef.current, limit: 100 })
+      const zoom = lastZoomRef.current;
+      const f = filterRef.current;
+      trigger({ bounds: b, filter: f, limit: BOUNDS_LIMIT })
         .unwrap()
-        .then((res) => {
+        .then(async (res) => {
           // Защита от гонки: свежее панорамирование инвалидирует ответ старого
           // запроса — если это уже не последняя область, ответ устарел.
           if (lastBoundsRef.current !== b) return;
-          setListings(res);
+          // Пинов меньше, чем объявлений в области → кластеры. Грузим ДО
+          // публикации, чтобы карта сменила пины на кластеры за одно обновление.
+          let cells: MapCluster[] | null = null;
+          if (zoom != null && zoom < MAX_CLUSTER_ZOOM && res.total > res.listings.length) {
+            try {
+              cells = await triggerClusters({ bounds: b, zoom, filter: f }).unwrap();
+            } catch {
+              cells = null; // сбой кластеров — остаёмся на пинах
+            }
+            if (lastBoundsRef.current !== b) return;
+          }
+          setListings(res.listings);
+          setTotal(res.total);
+          setClusters(cells && cells.length > 0 ? cells : null);
           if (syncUrl && typeof window !== 'undefined') {
             const url = new URL(window.location.href);
             setBoundsParams(url.searchParams, b);
@@ -107,12 +153,13 @@ export function useViewportSearch({
           /* сеть/5xx — оставляем прежнюю выдачу (toast покажет мидлварь) */
         });
     },
-    [trigger, syncUrl],
+    [trigger, triggerClusters, syncUrl],
   );
 
   const handleBoundsChange = React.useCallback(
-    (b: LatLngBounds, meta?: { user: boolean }) => {
+    (b: LatLngBounds, meta?: BoundsMeta) => {
       lastBoundsRef.current = b; // помним область даже под полигоном/фильтром
+      if (meta?.zoom != null) lastZoomRef.current = meta.zoom;
       if (polygonActive || geoFilterActive) return;
       if (mode === 'gesture' && !active && !meta?.user) return;
       if (!active) setActive(true);
@@ -131,6 +178,8 @@ export function useViewportSearch({
     if (mode !== 'gesture' || !geoFilterActive) return;
     setActive(false);
     setListings(null);
+    setTotal(null);
+    setClusters(null);
     if (syncUrl) clearBboxFromUrl();
   }, [geoFilterActive, mode, syncUrl]);
 
@@ -154,7 +203,9 @@ export function useViewportSearch({
   return {
     active,
     listings,
-    isFetching,
+    total,
+    clusters,
+    isFetching: isFetching || isFetchingClusters,
     handleBoundsChange,
     refetchLastBounds,
     previewId,

@@ -529,6 +529,49 @@ export function boundsSearchPath(
   return `/search/bounds?${params.toString()}`;
 }
 
+/** Ячейка серверной кластерной сетки (GET /search/clusters). */
+export interface ApiClusterCell {
+  latitude: number;
+  longitude: number;
+  count: number;
+  min_price: number;
+  avg_price: number;
+}
+
+/** Ответ GET /search/clusters. */
+export interface ClustersEnvelope {
+  data: ApiClusterCell[];
+  currency: string;
+}
+
+/** Кластер для карты: центр и число объявлений в нём. */
+export interface MapCluster {
+  lat: number;
+  lng: number;
+  count: number;
+}
+
+/**
+ * Путь GET /search/clusters: bbox + зум + все фильтры §9. Сервер считает
+ * объявления по сетке и отдаёт ячейки со счётчиком — так при отдалённой карте
+ * видны все города, а не только 100 самых новых объявлений области.
+ */
+export function clustersSearchPath(
+  filter: ListingFilter,
+  bounds: LatLngBounds,
+  zoom: number,
+): string {
+  const params = buildSearchParams(filter, 1);
+  params.delete('limit');
+  params.delete('sort');
+  params.set('sw_lat', String(bounds.swLat));
+  params.set('sw_lng', String(bounds.swLng));
+  params.set('ne_lat', String(bounds.neLat));
+  params.set('ne_lng', String(bounds.neLng));
+  params.set('zoom', String(Math.min(22, Math.max(0, Math.round(zoom)))));
+  return `/search/clusters?${params.toString()}`;
+}
+
 /** Путь GET /search/polygon: сериализованное кольцо + все фильтры §9. */
 export function polygonSearchPath(
   filter: ListingFilter,

@@ -116,7 +116,8 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
   const preview = vp.previewId
     ? displayed.find((l) => l.id === vp.previewId) ?? raw.find((l) => l.id === vp.previewId) ?? null
     : null;
-  const total = displayed.length;
+  // Без территории счётчик — все объявления области (meta.total), а не 100 пинов.
+  const total = polygon ? displayed.length : vp.total ?? displayed.length;
 
   return (
     <div className="relative flex h-[calc(100dvh-var(--header-h)-1px)] min-h-[480px]">
@@ -139,6 +140,7 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
           drawMode={drawing ? 'polygon' : null}
           onPolygonComplete={handlePolygonComplete}
           onBoundsChange={vp.handleBoundsChange}
+          clusters={polygon ? null : vp.clusters}
           autoFit={false}
           preview={
             preview

@@ -277,7 +277,12 @@ export function SearchResults({
     vp.active && !points ? sortedForDisplay.slice(0, visibleCount) : sortedForDisplay;
 
   const shownCount = listShown.length;
-  const totalCount = points || vp.active ? sortedForDisplay.length : totalAll;
+  // Viewport: счётчик — все объявления области (meta.total), а не 100 пинов страницы.
+  const totalCount = points
+    ? sortedForDisplay.length
+    : vp.active
+      ? vp.total ?? sortedForDisplay.length
+      : totalAll;
   const hasMore = points
     ? false
     : vp.active
@@ -340,6 +345,7 @@ export function SearchResults({
           drawMode={drawing ? 'polygon' : null}
           onPolygonComplete={handlePolygonComplete}
           onBoundsChange={vp.handleBoundsChange}
+          clusters={vp.active && !points ? vp.clusters : null}
           initialBounds={initialBounds}
           autoFit={hasLocationIntent && !vp.active}
           recenterOnHover={recenterOnHover}
