@@ -18,6 +18,7 @@ import { FavButton } from '@/components/ui/fav-button';
 import { specs, propertyTypeLabel } from '@/lib/format';
 import type { Listing } from '@/lib/mock/types';
 import { usePriceFormatter } from '@/lib/usePriceFormatter';
+import { listingHeadline } from '@/lib/seo/listingTitle';
 
 export interface PropertyCardProps {
   listing: Listing;
@@ -27,7 +28,15 @@ export interface PropertyCardProps {
 export function PropertyCard({ listing, className }: PropertyCardProps) {
   const tUnits = useTranslations('units');
   const tEnums = useTranslations('enums');
+  const tListing = useTranslations('listing');
   const fmt = usePriceFormatter();
+  // alt фото — заголовок из полей на языке страницы, а не title автора
+  // (обычно русский адрес: на /uz он давал десятки русских alt).
+  const photoAlt = listingHeadline(
+    listing,
+    (k, v) => tListing(k as never, v as never),
+    (k, v) => tUnits(k as never, v as never),
+  );
   const parts = specs(listing, tUnits);
   // Тип жилья — последним элементом строки спеков (как «House for sale» у Zillow).
   const specParts = [...parts, propertyTypeLabel(listing.type, tEnums)];
@@ -43,7 +52,7 @@ export function PropertyCard({ listing, className }: PropertyCardProps) {
       <div className="relative aspect-[16/9] shrink-0 overflow-hidden">
         <CardPhotoCarousel
           photos={listing.photos}
-          alt={listing.title}
+          alt={photoAlt}
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
         />
         <div className="absolute left-3 top-3 z-10 flex gap-1.5">

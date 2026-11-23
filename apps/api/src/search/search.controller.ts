@@ -20,6 +20,7 @@ import {
 } from './dto/clusters.dto';
 import {
   CursorPaginatedResponse,
+  SearchFacets,
   SearchListItem,
   SearchService,
 } from './search.service';
@@ -56,6 +57,19 @@ export class SearchController {
    * метров от точки (`ST_DWithin`, GIST-индекс). Promotion-приоритетный порядок
    * (keyset), у каждого элемента — `distance_m`. API.md §10.
    */
+  /**
+   * `GET /api/v1/search/facets` — число объявлений под фильтрами `/search`:
+   * всего, по сделке, типу, району и региону (SEO AUD-12). cursor/page/sort
+   * игнорируются.
+   */
+  @Get('facets')
+  facets(
+    @Query() query: SearchListingsQueryDto,
+    @CurrentUser() viewer?: AuthenticatedUser,
+  ): Promise<SearchFacets> {
+    return this.searchService.facets(query, viewer?.id);
+  }
+
   @Get('radius')
   searchRadius(
     @Query() query: RadiusSearchQueryDto,

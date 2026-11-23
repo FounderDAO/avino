@@ -11,6 +11,7 @@ import {
   getFeaturedListings,
   prioritizePhotos,
   searchListings,
+  searchListingsPage,
 } from '@/lib/api/listings';
 import { getDistricts } from '@/lib/api/geo';
 import { getAgents } from '@/lib/api/agents';
@@ -21,6 +22,10 @@ import { Districts } from '@/features/home/Districts';
 import { Agents } from '@/features/home/Agents';
 import { AgentCTA } from '@/features/home/AgentCTA';
 import { Faq } from '@/features/home/Faq';
+import { HOME_FAQ_KEYS } from '@/features/home/faqKeys';
+import { faqNode } from '@/lib/seo/graph';
+import { openGraphBase } from '@/lib/seo/og';
+import { SiteGraph } from '@/components/seo/SiteGraph';
 
 export async function generateMetadata({
   params,
@@ -32,15 +37,15 @@ export async function generateMetadata({
   const title = t('title');
   const description = t('description');
   return {
-    title,
+    // Заголовок главной уже начинается с «Avino —»: без шаблона «%s | Avino» из layout.
+    title: { absolute: title },
     description,
-    alternates: alternatesFor('/'),
+    alternates: alternatesFor('/', locale),
     openGraph: {
-      type: 'website',
+      ...openGraphBase(locale),
       title,
       description,
       url: `${BASE}/${locale}`,
-      locale,
     },
     twitter: { card: 'summary_large_image' },
   };
@@ -56,17 +61,34 @@ export default async function HomePage({
   // Рекомендованные (VIP/TOP в приоритете), свежее в аренде, районы для
   // автокомплита локации в Hero (выбор района → /search?district_id=) и
   // каталог агентов для блока «Агенты» (по числу активных объявлений, §21).
-  const [featured, rent, districts, agentsPage] = await Promise.all([
+  const [featured, rent, districts, agentsPage, all] = await Promise.all([
     getFeaturedListings(8, locale),
     searchListings({ tx: 'RENT' }, locale),
     getDistricts(locale),
     getAgents(6),
+    // Только meta.total — число активных объявлений для вводного абзаца.
+    searchListingsPage({}, locale, 1),
   ]);
+
+  // FAQPage — те же вопросы, что рендерит аккордеон Faq (HOME_FAQ_KEYS).
+  const faq = faqNode(
+    `${BASE}/${locale}`,
+    HOME_FAQ_KEYS.map((key) => ({ q: t(`faq.items.${key}.q`), a: t(`faq.items.${key}.a`) })),
+  );
 
   return (
     <div className="fade-up pb-12">
+      <SiteGraph nodes={[faq]} page={{ path: '/', nameKey: 'meta.title', aboutOrg: true }} />
       <Hero districts={districts} />
       <Categories />
+      {/* Answer-first: что такое Avino и сколько объявлений — из API, не захардкожено. */}
+      {all.total > 0 && (
+        <section className="mx-auto max-w-[1280px] px-4 pt-8 sm:px-6">
+          <p className="max-w-[72ch] text-[15px] leading-relaxed text-muted-foreground">
+            {t('intro', { count: all.total })}
+          </p>
+        </section>
+      )}
       <FeaturedCarousel
         title={t('featured.recommended.title')}
         subtitle={t('featured.recommended.subtitle')}

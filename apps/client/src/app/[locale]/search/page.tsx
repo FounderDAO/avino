@@ -6,17 +6,24 @@
  * Фильтры — единственный источник истины в URL, поэтому страница
  * пересобирается при каждом изменении query (FilterBar → router.replace).
  *
- * SEO canonical (ADR-0104):
- * - Сохраняем только семантические параметры (tx, type, district_id).
- * - Дроп: view, sort, cursor, priceMin/priceMax/rooms (длиннохвостые комбинации).
- * - Длиннохвостые URL (priceMin/priceMax/rooms) → robots: noindex.
- * - Базовые tx/type/district — индексируемые лендинги.
+ * SEO (ADR-0104, правила — в lib/seo/searchHeading):
+ * - Индексируемые лендинги: tx, один type, new_construction, region_id, district_id.
+ *   Canonical собирается в стабильном порядке, без tx — tx=SALE.
+ * - noindex, follow (без canonical): длиннохвостые фильтры, сортировка, карта,
+ *   несколько type, текстовый запрос, «Все регионы».
+ * - H1 и <title> уникальны для лендинга: «Аренда домов · Ташкент».
  */
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { getAgentById } from '@/lib/api/agents';
 import { getDistricts, getRegions } from '@/lib/api/geo';
-import { searchListingsPage, searchListingsByBounds, type SearchListingsPage } from '@/lib/api/listings';
+import {
+  SEARCH_PAGE_SIZE,
+  searchListingsByBounds,
+  searchListingsPageAt,
+  type SearchListingsPage,
+} from '@/lib/api/listings';
 import { deserializePolygonRing, parseBoundsParams } from '@/lib/geo';
 import type {
   Amenity,
@@ -29,13 +36,15 @@ import type {
 import { PARKING_TYPES } from '@/lib/mock/types';
 import { FilterBar, type FilterValues } from '@/features/search/FilterBar';
 import { SearchResults } from '@/features/search/SearchResults';
+import { SearchTransitionProvider } from '@/features/search/SearchTransition';
 import { SearchTracker } from '@/features/search/SearchTracker';
 import { alternatesFor } from '@/lib/seo/alternates';
+import { buildSearchCanonical, buildSearchHeading } from '@/lib/seo/searchHeading';
+import { parsePageParam, totalPages } from '@/lib/seo/pagination';
+import { PageNav } from '@/components/seo/PageNav';
+import { SiteGraph } from '@/components/seo/SiteGraph';
 import { BASE } from '@/lib/seo/base';
-import { routing } from '@/i18n/routing';
-
-/** Семантические параметры поиска — остаются в canonical (формируют лендинги). */
-const SEMANTIC_PARAMS = ['tx', 'type', 'district_id', 'new_construction'] as const;
+import { breadcrumbNode, itemListNode } from '@/lib/seo/graph';
 
 export async function generateMetadata({
   params,
@@ -48,45 +57,44 @@ export async function generateMetadata({
   const sp = await searchParams;
   const t = await getTranslations({ locale, namespace: 'search' });
 
-  // Флаг «длиннохвостой» комбинации фильтров — цена, комнаты или расширенные фильтры.
-  const isLongTail = Boolean(
-    sp.sw_lat ||
-    sp.priceMin || sp.priceMax || sp.rooms ||
-    sp.rooms_min || sp.bathrooms_min || sp.area_min || sp.area_max ||
-    sp.floor_min || sp.floor_max ||
-    sp.total_floors_min || sp.total_floors_max ||
-    sp.year_min || sp.year_max ||
-    sp.lot_area_min || sp.lot_area_max ||
-    sp.listing_source || sp.tours_enabled || sp.is_basement || sp.parking_type || sp.amenities ||
-    sp.agent_id || sp.include_closed,
-  );
+  // Канонический лендинг (tx/type/new_construction/region_id/district_id) или noindex.
+  const canonical = buildSearchCanonical(sp);
 
-  // Canonical: оставляем только семантические параметры (strip sort/view/cursor/price/rooms).
-  const canonicalParams = new URLSearchParams();
-  for (const key of SEMANTIC_PARAMS) {
-    const val = Array.isArray(sp[key]) ? sp[key][0] : sp[key];
-    if (val) canonicalParams.set(key, val);
-  }
-  const canonicalSuffix = canonicalParams.toString() ? `?${canonicalParams.toString()}` : '';
-  const canonicalPath = `/search${canonicalSuffix}`;
+  // <title> и description — той же функцией, что и H1 (уникальны для каждого лендинга).
+  // Справочники гео кэшируются (revalidate 3600), агент — дедуп запроса со страницей.
+  const districtId = first(sp.district_id);
+  const regionId = first(sp.region_id);
+  const agentId = first(sp.agent_id);
+  const [districts, regions, agent] = await Promise.all([
+    districtId ? getDistricts(locale) : Promise.resolve([]),
+    regionId && regionId !== 'all' ? getRegions(locale) : Promise.resolve([]),
+    agentId ? getAgentById(agentId).catch(() => null) : Promise.resolve(null),
+  ]);
+  const rawTypes = Array.isArray(sp.type) ? sp.type : sp.type ? [sp.type] : [];
+  const tCatalog = agent ? await getTranslations({ locale, namespace: 'agentsCatalog' }) : null;
+  const { heading, description } = buildSearchHeading({
+    tx: first(sp.tx) === 'RENT' ? 'RENT' : 'SALE',
+    types: rawTypes.filter((v): v is PropertyType => PROPERTY_TYPES.includes(v as PropertyType)),
+    newConstruction: first(sp.new_construction) === 'true' || rawTypes.includes('NEW_BUILDING'),
+    districtName: districts.find((d) => d.id === districtId)?.name,
+    regionName: regionId === 'all' ? t('filters.allRegions') : regions.find((r) => r.id === regionId)?.name,
+    query: first(sp.query),
+    agentName: agent ? agent.name?.trim() || agent.agencyName || tCatalog!('privateAgent') : undefined,
+    t,
+  });
 
-  // alternatesFor строит canonical + hreflang; для поиска подставляем canonical-путь.
-  const canonicalUrl = `${BASE}/${locale}${canonicalPath}`;
-  const languages: Record<string, string> = {};
-  for (const l of routing.locales) {
-    languages[l] = `${BASE}/${l}${canonicalPath}`;
-  }
-  languages['x-default'] = `${BASE}/${routing.defaultLocale}${canonicalPath}`;
+  // Страница 2+ — свой заголовок («… — страница 2»), иначе дубли title.
+  const pageNum = parsePageParam(sp.page) ?? 1;
+  const tPage = await getTranslations({ locale, namespace: 'pagination' });
+  const title = pageNum > 1 ? tPage('titleSuffix', { title: heading, page: pageNum }) : heading;
 
   return {
-    title: t('metaTitle'),
-    description: t('metaDescription'),
-    alternates: {
-      canonical: canonicalUrl,
-      languages,
-    },
-    // Длиннохвостые URL (цена + комнаты) — не индексируем, не дублируем контент.
-    ...(isLongTail && { robots: { index: false, follow: true } }),
+    title,
+    description,
+    // noindex-страницы — без canonical и hreflang: не сигналим Google противоречиво.
+    ...(canonical.path
+      ? { alternates: alternatesFor(canonical.path, locale) }
+      : { robots: { index: false, follow: true } }),
   };
 }
 
@@ -154,6 +162,9 @@ export default async function SearchPage({
   // во все виды поиска (страница/bbox/радиус/дозагрузка).
   const agentId = first(sp.agent_id) || undefined;
   const view: 'list' | 'map' = first(sp.view) === 'map' ? 'map' : 'list';
+  // Номерная страница (?page=N) — для краулеров; мусорное значение → 404.
+  const pageParam = parsePageParam(sp.page);
+  if (pageParam === null) notFound();
 
   /** Парсит строку в число; undefined если нет или NaN. */
   function toNum(s: string | undefined): number | undefined {
@@ -318,7 +329,9 @@ export default async function SearchPage({
     includeClosed,
   };
 
-  let page = await (initialBounds
+  // Viewport-режим (bbox) не нумеруется: номер страницы в нём игнорируем.
+  const pageNum = initialBounds ? 1 : pageParam;
+  let page: SearchListingsPage | null = await (initialBounds
     ? searchListingsByBounds(filter, initialBounds, locale, 100).then(
         (listings): SearchListingsPage => ({
           listings,
@@ -326,21 +339,24 @@ export default async function SearchPage({
           nextCursor: null,
         }),
       )
-    : searchListingsPage(filter, locale));
+    : searchListingsPageAt(filter, locale, pageNum));
 
   // Кнопка «Объявления» агента ведёт на /search?agent_id= без tx, а дефолтная
   // «Продажа» у агента-арендодателя даёт пустую выдачу при бейдже «N активных».
   // Поэтому без явного ?tx= пустая продажа перепроверяется по аренде.
   let effectiveTx = tx;
-  if (agentId && !first(sp.tx) && !initialBounds && page.total === 0) {
+  if (agentId && !first(sp.tx) && !initialBounds && (page?.total ?? 0) === 0) {
     const rentFilter: ListingFilter = { ...filter, tx: 'RENT' };
-    const rentPage = await searchListingsPage(rentFilter, locale);
-    if (rentPage.total > 0) {
+    const rentPage = await searchListingsPageAt(rentFilter, locale, pageNum);
+    if (rentPage && rentPage.total > 0) {
       effectiveTx = 'RENT';
       filter = rentFilter;
       page = rentPage;
     }
   }
+  // Страница за пределами выдачи (?page=99) — 404, а не пустой дубль.
+  if (!page) notFound();
+  const pages = initialBounds ? 1 : totalPages(page.total, SEARCH_PAGE_SIZE);
 
   // Значения для FilterBar (цена и диапазоны — строкой, как в инпутах).
   const filterValues: FilterValues = {
@@ -395,18 +411,43 @@ export default async function SearchPage({
     : undefined;
   // Фильтр по агенту главнее локации: «Продажа/Аренда от агента · <имя>».
   // Фолбэк имени — как в AgentRow: агентство, затем «Частный маклер».
-  let agentHeading: string | undefined;
-  if (agent) {
-    const tCatalog = await getTranslations({ locale, namespace: 'agentsCatalog' });
-    agentHeading = t(effectiveTx === 'RENT' ? 'headingAgentRent' : 'headingAgentSale', {
-      name: agent.name?.trim() || agent.agencyName || tCatalog('privateAgent'),
-    });
-  }
-  const heading =
-    agentHeading ??
-    t(effectiveTx === 'RENT' ? 'headingRent' : 'headingSale', {
-      query: districtName || regionName || query || t('defaultLocation'),
-    });
+  const tCatalog = agent ? await getTranslations({ locale, namespace: 'agentsCatalog' }) : null;
+  // H1 и <title> строит одна функция (lib/seo/searchHeading): сделка + тип + локация.
+  const { heading, subject, place } = buildSearchHeading({
+    tx: effectiveTx,
+    types,
+    newConstruction,
+    districtName,
+    regionName: allRegions ? t('filters.allRegions') : regionName,
+    query,
+    agentName: agent ? agent.name?.trim() || agent.agencyName || tCatalog!('privateAgent') : undefined,
+    t,
+  });
+
+  // Answer-first: 2–3 предложения над выдачей индексируемого лендинга (1-я
+  // страница, не агент). Число — из API (meta.total), не захардкожено.
+  const canonicalPath = buildSearchCanonical(sp).path;
+  const intro =
+    canonicalPath && pageNum === 1 && !agent && subject && place
+      ? t('landing.intro', { subject, place, count: page.total })
+      : undefined;
+
+  // JSON-LD выдачи: крошки (Главная › Купить/Аренда › локация) и ItemList —
+  // только URL объявлений этой страницы.
+  const tCrumb = await getTranslations({ locale, namespace: 'breadcrumb' });
+  const pageUrl = `${BASE}/${locale}${canonicalPath ?? `/search?tx=${effectiveTx}`}`;
+  const txUrl = `${BASE}/${locale}/search?tx=${effectiveTx}`;
+  const graphNodes = [
+    breadcrumbNode(pageUrl, [
+      { name: tCrumb('home'), url: `${BASE}/${locale}` },
+      { name: tCrumb(effectiveTx === 'RENT' ? 'rent' : 'sale'), url: txUrl },
+      ...(pageUrl !== txUrl ? [{ name: heading, url: pageUrl }] : []),
+    ]),
+    itemListNode(
+      pageUrl,
+      page.listings.map((l) => `${BASE}/${locale}/listing/${l.id}`),
+    ),
+  ];
 
   // Событие `search` для GTM: город — код региона (стабилен для всех языков).
   const trackRegionId =
@@ -417,6 +458,16 @@ export default async function SearchPage({
 
   return (
     <div className="fade-up">
+      <SiteGraph
+        nodes={graphNodes}
+        page={{
+          path: canonicalPath ?? `/search?tx=${effectiveTx}`,
+          name: heading,
+          type: 'CollectionPage',
+          breadcrumbId: `${pageUrl}#breadcrumb`,
+          mainEntityId: `${pageUrl}#itemlist`,
+        }}
+      />
       <SearchTracker
         dealType={effectiveTx}
         city={trackCity}
@@ -424,23 +475,30 @@ export default async function SearchPage({
         priceMin={priceMin ?? null}
         priceMax={priceMax ?? null}
       />
-      <FilterBar
-        values={filterValues}
-        districts={districts}
-        regions={regions}
-        fallbackRegionId={tashkentRegionId}
-      />
-      <SearchResults
-        listings={page.listings}
-        total={page.total}
-        initialCursor={page.nextCursor}
-        view={view}
-        heading={heading}
-        filter={filter}
-        initialBounds={initialBounds}
-        initialPolygon={initialPolygon}
-        regionIsDefault={defaultRegionId != null}
-      />
+      {/* Общий transition: скелетон выдачи при смене фильтров (вместо loading.tsx). */}
+      <SearchTransitionProvider>
+        <FilterBar
+          values={filterValues}
+          districts={districts}
+          regions={regions}
+          fallbackRegionId={tashkentRegionId}
+        />
+        <SearchResults
+          listings={page.listings}
+          total={page.total}
+          initialCursor={page.nextCursor}
+          view={view}
+          heading={heading}
+          filter={filter}
+          initialBounds={initialBounds}
+          initialPolygon={initialPolygon}
+          regionIsDefault={defaultRegionId != null}
+          intro={intro}
+          pagination={
+            <PageNav locale={locale} pathname="/search" searchParams={sp} page={pageNum} totalPages={pages} />
+          }
+        />
+      </SearchTransitionProvider>
     </div>
   );
 }

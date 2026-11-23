@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RolesModule } from '../roles';
 import { ListingAutoTranslator } from './listing-auto-translator.service';
+import { ListingTranslateWorker } from './listing-translate.worker';
 import { createTranslationProvider } from './providers/translation-provider.factory';
 import { TRANSLATION_PROVIDER } from './providers/translation-provider.interface';
 import { TranslationsController } from './translations.controller';
@@ -29,6 +30,8 @@ import { TranslationsService } from './translations.service';
       inject: [ConfigService],
     },
     ListingAutoTranslator,
+    // Перевод одобренных объявлений в фоне (SEO AUD-14, TRANSLATE_ON_APPROVE).
+    ListingTranslateWorker,
   ],
   exports: [TranslationsService, ListingAutoTranslator],
 })

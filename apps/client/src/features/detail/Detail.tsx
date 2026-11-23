@@ -26,7 +26,9 @@ import { Badge } from '@/components/ui/badge';
 import { FavButton } from '@/components/ui/fav-button';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { specs, txLabel, propertyTypeLabel } from '@/lib/format';
+import { listingHeadline } from '@/lib/seo/listingTitle';
 import type { Listing } from '@/lib/mock/types';
+import { descriptionLang } from '@/lib/seo/descriptionLang';
 import { Facts } from './Facts';
 import { PriceHistory } from './PriceHistory';
 import { ContactCard } from './ContactCard';
@@ -127,14 +129,18 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
       )}
 
       {/* Галерея */}
-      <Gallery photos={listing.photos} alt={listing.title} />
+      <Gallery photos={listing.photos} alt={listingHeadline(listing, t, tUnits)} />
 
       {/* Две колонки: контент + sticky-контакт */}
       <div className="mt-7 grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_360px]">
         {/* Левая колонка — контент */}
         <div className="min-w-0">
-          {/* Заголовок объявления скрыт на клиенте (пока не нужен);
-              h1 остаётся в <title>/OG-метаданных страницы. */}
+          {/* H1 — заголовок из полей объекта (тип, комнаты, площадь, район) на языке
+              страницы. Свободный title автора не показываем: обычно это адрес. Тот же
+              текст — в <title>, JSON-LD и og:title (src/lib/seo/listingTitle.ts). */}
+          <h1 className="mb-3 text-[22px] font-extrabold leading-tight tracking-[-0.01em] sm:text-[26px]">
+            {listingHeadline(listing, t, tUnits)}
+          </h1>
 
           {/* Бейджи: промо + тип + сделка */}
           <div className="flex flex-wrap items-center gap-2.5">
@@ -222,7 +228,14 @@ export async function Detail({ listing, breadcrumb, embedded }: DetailProps) {
           {listing.desc && (
             <div className="mt-8">
               <h2 className="text-[22px]">{t('sections.description')}</h2>
-              <p className="mt-2.5 text-base leading-relaxed text-ink-soft">{listing.desc}</p>
+              {/* Текст без перевода на язык страницы — на языке автора: помечаем lang,
+                  чтобы поисковики и скринридеры не считали его текстом страницы (SEO AUD-14). */}
+              <p
+                className="mt-2.5 text-base leading-relaxed text-ink-soft"
+                lang={descriptionLang(listing, locale)}
+              >
+                {listing.desc}
+              </p>
             </div>
           )}
 

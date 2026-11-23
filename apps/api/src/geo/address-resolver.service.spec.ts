@@ -49,7 +49,7 @@ describe('AddressResolverService', () => {
   const CHILANZAR = { nameUz: 'Chilonzor', nameRu: 'Чиланзар', nameEn: 'Chilanzar' };
   const YUNUSABAD = { nameUz: 'Yunusobod', nameRu: 'Юнусабад', nameEn: 'Yunusabad' };
 
-  let districts: { namesByIds: jest.Mock; matchByComponents: jest.Mock };
+  let districts: { namesByIds: jest.Mock; matchByComponents: jest.Mock; districtIdByPoint: jest.Mock };
   let fetchMock: jest.SpyInstance;
 
   const makeService = (apiKey: string | undefined) => {
@@ -69,6 +69,8 @@ describe('AddressResolverService', () => {
     districts = {
       namesByIds: jest.fn().mockResolvedValue(new Map()),
       matchByComponents: jest.fn().mockResolvedValue({ id: 'd-chil', names: CHILANZAR }),
+      // Границ районов нет — путь через геокодер, как раньше (SEO AUD-3).
+      districtIdByPoint: jest.fn().mockResolvedValue(null),
     };
     fetchMock = jest.spyOn(global, 'fetch');
   });
@@ -198,6 +200,39 @@ describe('AddressResolverService', () => {
       fetchMock.mockRejectedValue(new Error('timeout'));
       const service = makeService('test-key');
       await expect(service.resolveDistrictId(LAT, LNG)).resolves.toBeNull();
+    });
+  });
+
+  describe('границы районов (SEO AUD-3)', () => {
+    it('район по границе — без запроса к геокодеру и даже без ключа', async () => {
+      districts.districtIdByPoint.mockResolvedValue('d-yun');
+      await expect(makeService(undefined).resolveDistrictId(LAT, LNG)).resolves.toEqual({ districtId: 'd-yun' });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('resolve: геокодер недоступен, граница есть → район без адреса (фолбэк адреса у вызывающего)', async () => {
+      districts.districtIdByPoint.mockResolvedValue('d-yun');
+      fetchMock.mockRejectedValue(new Error('timeout'));
+      await expect(makeService('test-key').resolve(LAT, LNG)).resolves.toEqual({
+        address: null,
+        addressEn: null,
+        districtId: 'd-yun',
+      });
+    });
+
+    it('resolve: граница важнее компонент геокодера', async () => {
+      districts.districtIdByPoint.mockResolvedValue('d-yun');
+      districts.namesByIds.mockResolvedValue(new Map([['d-yun', YUNUSABAD]]));
+      respondWith(geocoderBody(RU_COMPONENTS), geocoderBody(RU_COMPONENTS));
+      const result = await makeService('test-key').resolve(LAT, LNG);
+      expect(result?.districtId).toBe('d-yun');
+      expect(districts.matchByComponents).not.toHaveBeenCalled();
+    });
+
+    it('сбой запроса границ не мешает геокодеру', async () => {
+      districts.districtIdByPoint.mockRejectedValue(new Error('relation does not exist'));
+      fetchMock.mockResolvedValue(okResponse(geocoderBody(RU_COMPONENTS)));
+      await expect(makeService('test-key').resolveDistrictId(LAT, LNG)).resolves.toEqual({ districtId: 'd-chil' });
     });
   });
 });

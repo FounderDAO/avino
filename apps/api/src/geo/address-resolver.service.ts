@@ -63,9 +63,12 @@ export class AddressResolverService {
     lng: string,
     options: ResolveAddressOptions = {},
   ): Promise<ResolvedAddress | null> {
+    // Район по границе (SEO AUD-3) — точнее компонент геокодера и работает без него.
+    const byPoint = await this.districtByPoint(lat, lng);
+    const pointOnly = byPoint ? { address: null, addressEn: null, districtId: byPoint } : null;
     const apiKey = this.config.get<string>('maps.yandexApiKey');
     if (!apiKey) {
-      return null;
+      return pointOnly;
     }
     const [ruOutcome, enOutcome] = await Promise.all([
       this.geocode(apiKey, lat, lng, 'ru_RU'),
@@ -73,11 +76,13 @@ export class AddressResolverService {
     ]);
     const ru = ruOutcome.ok ? ruOutcome.parts : null;
     if (!ru) {
-      return null;
+      return pointOnly;
     }
     const en = enOutcome.ok ? enOutcome.parts : null;
 
-    const matched = await this.districts.matchByComponents(ru.components);
+    const matched = byPoint
+      ? { id: byPoint, names: (await this.districts.namesByIds([byPoint])).get(byPoint) }
+      : await this.districts.matchByComponents(ru.components);
     let district: DistrictNames | undefined = matched?.names;
     if (!district && options.districtId) {
       district = (await this.districts.namesByIds([options.districtId])).get(options.districtId);
@@ -101,6 +106,11 @@ export class AddressResolverService {
    * ответ есть, но район не распознан.
    */
   async resolveDistrictId(lat: string, lng: string): Promise<{ districtId: string | null } | null> {
+    // Сначала граница района (SEO AUD-3): без сети и квоты геокодера.
+    const byPoint = await this.districtByPoint(lat, lng);
+    if (byPoint) {
+      return { districtId: byPoint };
+    }
     const apiKey = this.config.get<string>('maps.yandexApiKey');
     if (!apiKey) {
       return null;
@@ -114,6 +124,16 @@ export class AddressResolverService {
     }
     const matched = await this.districts.matchByComponents(outcome.parts.components);
     return { districtId: matched?.id ?? null };
+  }
+
+  /** Район по границам; сбой БД не мешает запасному пути через геокодер. */
+  private async districtByPoint(lat: string, lng: string): Promise<string | null> {
+    try {
+      return await this.districts.districtIdByPoint(lat, lng);
+    } catch (e) {
+      this.logger.warn(`District boundary lookup failed: ${(e as Error).message}`);
+      return null;
+    }
   }
 
   /** Один запрос к геокодеру; любая осечка → `{ ok: false }` (best-effort, warn в лог). */

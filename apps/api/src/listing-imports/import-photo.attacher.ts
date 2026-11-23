@@ -36,7 +36,7 @@ export class ImportPhotoAttacher {
     }
     const stored = await this.media.uploadToStorage(photo.listingId, buffer, mimeType);
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const done = await this.prisma.$transaction(async (tx) => {
         const media = await this.media.createMediaRecord(tx, photo.listingId, {
           ...stored,
           mimeType,
@@ -56,6 +56,9 @@ export class ImportPhotoAttacher {
         if (count === 0) throw new PhotoAlreadyDone();
         return tx.listingImportPhoto.findUniqueOrThrow({ where: { id: photo.id } });
       });
+      // WebP-варианты и размеры — в фоне, после коммита (SEO AUD-8).
+      if (done.mediaId) await this.media.scheduleVariants([done.mediaId]);
+      return done;
     } catch (error) {
       if (error instanceof PhotoAlreadyDone) {
         return this.prisma.listingImportPhoto.findUniqueOrThrow({ where: { id: photo.id } });

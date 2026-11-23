@@ -38,6 +38,7 @@ import { TourRequestsModule } from './tour-requests';
 import { TranslationsModule } from './translations';
 import { UploadsModule } from './uploads';
 import { UsersModule } from './users/users.module';
+import { SeoSyncModule } from './seo-sync/seo-sync.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { UsersModule } from './users/users.module';
     AgentsModule,
     AmenitiesModule,
     LegalDocumentsModule,
+    SeoSyncModule,
   ],
   controllers: [AppController],
   providers: [

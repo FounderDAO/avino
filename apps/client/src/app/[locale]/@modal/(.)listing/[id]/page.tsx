@@ -4,11 +4,16 @@
  * прямой заход идут на полную страницу listing/[id]/page.tsx (там же SEO/JSON-LD).
  * Здесь JSON-LD и generateMetadata НЕ дублируем.
  */
+import type { Metadata } from 'next';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getListingById } from '@/lib/api/listings';
 import { Detail } from '@/features/detail/Detail';
 import { ListingModal } from '@/features/detail/ListingModal';
+
+// Модалка живёт только при soft-навигации; краулер её не видит, но явный
+// noindex страхует от индексации, если перехват когда-то сработает на hard-nav.
+export const metadata: Metadata = { robots: { index: false, follow: true } };
 
 interface PageProps {
   params: Promise<{ locale: string; id: string }>;

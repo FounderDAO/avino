@@ -26,8 +26,9 @@ describe('Footer', () => {
       render(<Footer variant={variant} />);
       expect(screen.getByRole('contentinfo')).toBeInTheDocument();
       expect(screen.getByText('slogan')).toBeInTheDocument();
-      // 11 ссылок колонок (5 временно скрыто: careers, press, safeDeal, mortgage, Avino Pro) + 4 соц-иконки
-      expect(screen.getAllByRole('link')).toHaveLength(15);
+      // 11 ссылок колонок (5 временно скрыто: careers, press, safeDeal, mortgage, Avino Pro) + 3 соц-иконки
+      // (YouTube @avino_uz отвечает 404 — скрыт через lib/seo/entity).
+      expect(screen.getAllByRole('link')).toHaveLength(14);
     },
   );
 

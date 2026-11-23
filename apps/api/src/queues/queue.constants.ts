@@ -151,3 +151,83 @@ export const LISTING_IMPORT_PHOTO_JOB_OPTIONS = {
   removeOnComplete: true,
   removeOnFail: true,
 } as const;
+
+/**
+ * Синхронизация изменённого объявления с сайтом (SEO AUD-11): одна задача —
+ * одно объявление; `jobId = listingId` + задержка схлопывают серию правок в
+ * один вызов `POST /api/seo/sync`.
+ */
+export const LISTING_URL_SYNC_QUEUE_NAME = 'listing_url_sync_queue';
+
+export const SYNC_LISTING_URLS_JOB = 'sync_listing_urls';
+
+export interface SyncListingUrlsJobData {
+  listingId: string;
+}
+
+/** `removeOnFail: true` — упавшая задача с тем же jobId иначе блокировала бы новую постановку. */
+export const LISTING_URL_SYNC_JOB_OPTIONS = {
+  attempts: 5,
+  backoff: { type: 'exponential', delay: 10_000 },
+  removeOnComplete: true,
+  removeOnFail: true,
+} as const;
+
+/**
+ * Повторное определение района по точке (SEO AUD-2): раньше сбой геокодера при
+ * создании или правке молча оставлял объявление без района — и вне фильтра по
+ * региону. Одна задача — одно объявление (`jobId = listingId`).
+ */
+export const GEO_RESOLVE_QUEUE_NAME = 'geo_resolve_queue';
+
+export const RESOLVE_LISTING_DISTRICT_JOB = 'resolve_listing_district';
+
+export interface ResolveListingDistrictJobData {
+  listingId: string;
+}
+
+/** 6 попыток с шагом от минуты: переживает короткий сбой или исчерпанную квоту геокодера. */
+export const GEO_RESOLVE_JOB_OPTIONS = {
+  attempts: 6,
+  backoff: { type: 'exponential', delay: 60_000 },
+  removeOnComplete: true,
+  removeOnFail: true,
+} as const;
+
+/**
+ * Машинный перевод объявления после одобрения (SEO AUD-14): включается
+ * TRANSLATE_ON_APPROVE. Ручные правки переводов не перезаписываются.
+ */
+export const LISTING_TRANSLATE_QUEUE_NAME = 'listing_translate_queue';
+
+export const TRANSLATE_LISTING_JOB = 'translate_listing';
+
+export interface TranslateListingJobData {
+  listingId: string;
+}
+
+export const LISTING_TRANSLATE_JOB_OPTIONS = {
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 30_000 },
+  removeOnComplete: true,
+  removeOnFail: true,
+} as const;
+
+/**
+ * Обработка загруженного фото (SEO AUD-8): WebP-варианты, размеры, thumbnail.
+ * Одна задача — одно медиа (`jobId = mediaId`).
+ */
+export const MEDIA_PROCESSING_QUEUE_NAME = 'media_processing_queue';
+
+export const PROCESS_UPLOADED_IMAGE_JOB = 'process_uploaded_image';
+
+export interface ProcessUploadedImageJobData {
+  mediaId: string;
+}
+
+export const MEDIA_PROCESSING_JOB_OPTIONS = {
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 15_000 },
+  removeOnComplete: true,
+  removeOnFail: true,
+} as const;

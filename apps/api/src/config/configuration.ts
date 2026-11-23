@@ -77,6 +77,9 @@ export const translateConfig = registerAs('translate', () => ({
   provider: process.env.TRANSLATE_PROVIDER ?? 'yandex',
   apiKey: process.env.TRANSLATE_API_KEY,
   folderId: process.env.TRANSLATE_FOLDER_ID,
+  // Перевод при одобрении модератором (SEO AUD-14): платный провайдер, поэтому
+  // включается явно — решение владельца. Без него перевод — кнопкой в админке.
+  onApprove: process.env.TRANSLATE_ON_APPROVE === 'true',
 }));
 
 // Фоновое истечение промо VIP/TOP (TASK-123, ENV.md). expiryCron — расписание
@@ -399,6 +402,18 @@ export const throttlerConfig = registerAs('throttler', () => ({
   otpTtl: parseInt(process.env.THROTTLE_OTP_TTL ?? '60', 10),
 }));
 
+/**
+ * Синхронизация с сайтом после изменения объявления (SEO AUD-11): backend зовёт
+ * `POST https://avino.uz/api/seo/sync` — сайт сбрасывает кэш страниц и
+ * отправляет URL в IndexNow. Пустой `SEO_SYNC_URL` — синхронизация выключена.
+ */
+export const seoSyncConfig = registerAs('seoSync', () => ({
+  url: process.env.SEO_SYNC_URL ?? '',
+  secret: process.env.SEO_SYNC_SECRET ?? '',
+  // Задержка схлопывает серию правок одного объявления в один вызов.
+  delayMs: parseInt(process.env.SEO_SYNC_DELAY_MS ?? '60000', 10),
+}));
+
 export const configurations = [
   appConfig,
   corsConfig,
@@ -428,4 +443,5 @@ export const configurations = [
   firebaseConfig,
   broadcastsConfig,
   throttlerConfig,
+  seoSyncConfig,
 ];

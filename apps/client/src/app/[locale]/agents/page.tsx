@@ -12,6 +12,10 @@ import { getTranslations } from 'next-intl/server';
 import { getAgents, AGENTS_CATALOG_LIMIT } from '@/lib/api/agents';
 import { AgentsCatalog } from '@/features/agents/AgentsCatalog';
 import { alternatesFor } from '@/lib/seo/alternates';
+import { SiteGraph } from '@/components/seo/SiteGraph';
+import { PageNav } from '@/components/seo/PageNav';
+import { parsePageParam } from '@/lib/seo/pagination';
+import { notFound } from 'next/navigation';
 
 /**
  * Каталог рендерится на запрос, а не пререндерится на билде: в Docker-сборке
@@ -23,25 +27,43 @@ export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const { locale } = await params;
+  const pageNum = parsePageParam((await searchParams).page) ?? 1;
   const t = await getTranslations({ locale, namespace: 'agentsCatalog' });
+  const tPage = await getTranslations({ locale, namespace: 'pagination' });
 
   return {
-    title: t('meta.title'),
+    title: pageNum > 1 ? tPage('titleSuffix', { title: t('meta.title'), page: pageNum }) : t('meta.title'),
     description: t('meta.description'),
-    alternates: alternatesFor('/agents'),
+    // Страница 2+ канонична сама себе: у неё свой набор агентов.
+    alternates: alternatesFor(pageNum > 1 ? `/agents?page=${pageNum}` : '/agents', locale),
   };
 }
 
-export default async function AgentsPage() {
-  const { agents, total } = await getAgents(AGENTS_CATALOG_LIMIT);
+export default async function AgentsPage({ params, searchParams }: PageProps) {
+  const { locale } = await params;
+  const sp = await searchParams;
+  // ?page=N — ссылками для краулеров: агентов больше, чем помещается в один запрос API (100).
+  const pageNum = parsePageParam(sp.page);
+  if (pageNum === null) notFound();
+  const { agents, total } = await getAgents(AGENTS_CATALOG_LIMIT, pageNum);
+  if (pageNum > 1 && agents.length === 0) notFound();
+  const pages = Math.max(1, Math.ceil(total / AGENTS_CATALOG_LIMIT));
   const t = await getTranslations('agentsCatalog');
 
   return (
     <div className="fade-up mx-auto max-w-[1280px] px-4 pb-12 pt-8 sm:px-6">
+      <SiteGraph
+        page={{
+          path: pageNum > 1 ? `/agents?page=${pageNum}` : '/agents',
+          nameKey: 'agentsCatalog.meta.title',
+          type: 'CollectionPage',
+        }}
+      />
       {/* Hero каталога: заголовок + счётчик; панель управления — в AgentsCatalog. */}
       <div className="mb-6">
         <h1 className="text-[26px] font-bold tracking-[-0.02em] text-ink sm:text-[32px]">
@@ -51,7 +73,12 @@ export default async function AgentsPage() {
           {t('subtitle', { count: total })}
         </p>
       </div>
-      <AgentsCatalog initialAgents={agents} total={total} />
+      <AgentsCatalog
+        initialAgents={agents}
+        total={total}
+        startPage={pageNum}
+        pagination={<PageNav locale={locale} pathname="/agents" searchParams={sp} page={pageNum} totalPages={pages} />}
+      />
     </div>
   );
 }

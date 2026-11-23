@@ -1,9 +1,11 @@
 import {
   ForbiddenException,
+  GoneException,
   HttpException,
   HttpStatus,
   Injectable,
   NotFoundException,
+  Optional,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import {
@@ -31,6 +33,15 @@ import { ListMyListingsQueryDto } from './dto/list-my-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { OwnerListingAction } from './dto/owner-status.dto';
 import { validateToursInput, TourWindow } from './tour-window';
+import { ListingUrlSyncQueue } from '../queues/listing-url-sync.queue';
+import { GeoResolveQueue } from '../queues/geo-resolve.queue';
+import { availableTranslationLanguages } from '../translations/translation-availability';
+import {
+  applyPublishedVersion,
+  capturePublishedVersion,
+  PUBLISHED_VERSION_STATUSES,
+  PublishedVersionData,
+} from './published-version';
 
 /** Данные создания объявления без владельца — см. `buildCreateData`. */
 export type ListingCreateData = Omit<Prisma.ListingUncheckedCreateInput, 'ownerId'>;
@@ -176,6 +187,11 @@ export interface ListingMediaResponse {
   thumbnail_url: string | null;
   sort_order: number;
   type: MediaType;
+  /** Размеры оригинала (SEO AUD-8); null — фото ещё не обработано. */
+  width: number | null;
+  height: number | null;
+  /** WebP-варианты 320/640/1280 для srcset (SEO AUD-8); пусто — ещё не обработано. */
+  variants: { url: string; width: number; height: number; format: string }[];
 }
 
 /**
@@ -207,6 +223,10 @@ export interface PriceHistoryEntry {
 
 export interface ListingDetailResponse {
   id: string;
+  /** Язык, на котором автор написал объявление (SEO AUD-14). */
+  original_language: Language;
+  /** Языки с настоящим текстом: оригинал, ручная правка, перевод ≠ копии (SEO AUD-14). */
+  translations_available: Language[];
   /** Публичный человекочитаемый номер объявления (ADR-0137). */
   reference: number;
   status: ListingStatus;
@@ -228,6 +248,8 @@ export interface ListingDetailResponse {
   year_built: number | null;
   city_id: string | null;
   district_id: string | null;
+  /** Регион района (SEO AUD-5). */
+  region_id: string | null;
   /** Имя района по языку ответа (TASK-209); `null` если район не найден. */
   district_name: string | null;
   address: string | null;
@@ -254,6 +276,8 @@ export interface ListingDetailResponse {
   likes_count: number;
   published_at: string | null;
   created_at: string;
+  /** Дата изменения содержимого (цена, текст, фото, статус) — SEO AUD-6. */
+  updated_at: string;
 }
 
 const LISTING_DETAIL_SELECT = {
@@ -303,11 +327,13 @@ const LISTING_DETAIL_SELECT = {
   addressEn: true,
   cityId: true,
   districtId: true,
+  regionId: true,
   latitude: true,
   longitude: true,
   promotionType: true,
   promotionExpiresAt: true,
   publishedAt: true,
+  contentUpdatedAt: true,
   createdAt: true,
   toursEnabled: true,
   tourWindows: true,
@@ -327,6 +353,8 @@ const LISTING_DETAIL_SELECT = {
       description: true,
       addressNote: true,
       featuresText: true,
+      // SEO AUD-14: отличить настоящий перевод от копии оригинала.
+      isAutoTranslated: true,
     },
   },
   media: {
@@ -337,6 +365,9 @@ const LISTING_DETAIL_SELECT = {
       thumbnailUrl: true,
       sortOrder: true,
       type: true,
+      width: true,
+      height: true,
+      variants: true,
     },
     orderBy: { sortOrder: Prisma.SortOrder.asc },
   },
@@ -368,6 +399,8 @@ export interface ListingListItem {
   is_basement: boolean;
   city_id: string | null;
   district_id: string | null;
+  /** Регион района (SEO AUD-5). */
+  region_id: string | null;
   address: string | null;
   promotion_type: PromotionType;
   promotion_expires_at: string | null;
@@ -379,6 +412,8 @@ export interface ListingListItem {
   likes_count: number;
   published_at: string | null;
   created_at: string;
+  /** Дата изменения содержимого (цена, текст, фото, статус) — SEO AUD-6. */
+  updated_at: string;
 }
 
 /**
@@ -406,10 +441,12 @@ const LISTING_LIST_SELECT = {
   isBasement: true,
   cityId: true,
   districtId: true,
+  regionId: true,
   address: true,
   promotionType: true,
   promotionExpiresAt: true,
   publishedAt: true,
+  contentUpdatedAt: true,
   createdAt: true,
   viewsCount: true,
   callsCount: true,
@@ -466,6 +503,17 @@ const SELLER_ROLES: readonly UserRole[] = [
  * Логика переводов (построение авторской строки, выбор языка ответа с фолбэком)
  * делегируется {@link TranslationsService} — единому источнику (TASK-070).
  */
+/** listing_media.variants (JSON) → проверенные варианты (SEO AUD-8); мусор игнорируется. */
+function parseVariants(raw: unknown): { key: string; width: number; height: number; format: string }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((v) => {
+    const o = v as { key?: unknown; width?: unknown; height?: unknown; format?: unknown } | null;
+    return o && typeof o.key === 'string' && typeof o.width === 'number' && typeof o.height === 'number'
+      ? [{ key: o.key, width: o.width, height: o.height, format: typeof o.format === 'string' ? o.format : 'webp' }]
+      : [];
+  });
+}
+
 @Injectable()
 export class ListingsService {
   constructor(
@@ -475,6 +523,11 @@ export class ListingsService {
     private readonly uploads: UploadsService,
     private readonly activeLimit: ActiveListingLimitService,
     private readonly addressResolver: AddressResolverService,
+    // SEO AUD-11: после изменения — синхронизация с сайтом (кэш страниц + IndexNow).
+    // Optional: юнит-тесты создают сервис без очереди.
+    @Optional() private readonly urlSync?: ListingUrlSyncQueue,
+    // SEO AUD-2: точка без района (сбой геокодера) → повторное определение в фоне.
+    @Optional() private readonly geoResolve?: GeoResolveQueue,
   ) {}
 
   /** `POST /api/v1/listings` — создать объявление (статус `NEW`). */
@@ -492,6 +545,9 @@ export class ListingsService {
     const listing = await this.prisma.$transaction((tx) =>
       this.createInTransaction(tx, ownerId, data, dto),
     );
+    if (data.latitude != null && data.longitude != null && !data.districtId) {
+      await this.geoResolve?.enqueue([listing.id]);
+    }
     return this.toResponse(listing);
   }
 
@@ -804,6 +860,10 @@ export class ListingsService {
     if (reModerated) {
       data.status = ListingStatus.NEW;
     }
+    // Содержимое изменилось → новая дата для lastmod/dateModified (SEO AUD-6).
+    if (changes.length > 0) {
+      data.contentUpdatedAt = new Date();
+    }
     // Smart-return: правка скрытого (ARCHIVED) листинга требует повторной
     // модерации при возврате в продажу.
     if (existing.status === ListingStatus.ARCHIVED) {
@@ -830,6 +890,11 @@ export class ListingsService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      // Одобренное содержимое копируется ДО правки: пока правка на проверке,
+      // посетители видят его, а не 404 (SEO AUD-9).
+      if (reModerated) {
+        await capturePublishedVersion(tx, listingId, existing.status);
+      }
       const row = await tx.listing.update({
         where: { id: listingId },
         data,
@@ -857,6 +922,12 @@ export class ListingsService {
       }
       return row;
     });
+    const districtMissing =
+      !(data as { districtId?: string | null }).districtId && !existing.districtId;
+    if (dto.latitude !== undefined && dto.longitude !== undefined && districtMissing) {
+      await this.geoResolve?.enqueue([listingId]);
+    }
+    await this.urlSync?.enqueue([listingId]);
     return this.toResponse(updated);
   }
 
@@ -886,6 +957,7 @@ export class ListingsService {
         status: true,
         transactionType: true,
         publishedAt: true,
+  contentUpdatedAt: true,
         editedSinceHidden: true,
       },
     });
@@ -955,11 +1027,17 @@ export class ListingsService {
       }
     }
 
+    // Смена статуса владельцем (продано/сдано/скрыто/снова в продаже) меняет
+    // то, что видит посетитель, — это изменение содержимого (SEO AUD-6).
+    if (data.status !== undefined && data.status !== existing.status) {
+      data.contentUpdatedAt = new Date();
+    }
     const updated = await this.prisma.listing.update({
       where: { id: listingId },
       data,
       select: LISTING_SELECT,
     });
+    await this.urlSync?.enqueue([listingId]);
     return this.toResponse(updated);
   }
 
@@ -1012,6 +1090,16 @@ export class ListingsService {
    * выбор языка перевода и имени района, сборка ответа. Используется и findOne
    * (по id), и findByReference (по номеру).
    */
+  /** Начало текущей повторной модерации — последняя правка владельца (OWNER_EDIT). */
+  private async reviewStartedAt(listingId: string): Promise<Date | null> {
+    const log = await this.prisma.moderationLog.findFirst({
+      where: { listingId, action: ModerationAction.OWNER_EDIT },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+    return log?.createdAt ?? null;
+  }
+
   private async resolveDetail(
     listing: ListingDetailRow | null,
     viewer: AuthenticatedUser | undefined,
@@ -1022,17 +1110,61 @@ export class ListingsService {
       code: ApiErrorCode.NOT_FOUND,
       message: 'Listing not found',
     });
-    // DELETED исключён из read-path — для всех 404, даже для владельца/админа.
-    if (!listing || listing.status === ListingStatus.DELETED) {
+    if (!listing) {
       throw notFound;
+    }
+    // DELETED исключён из read-path для всех, даже владельца/админа. 410, а не
+    // 404: объявление было и удалено навсегда — поисковики убирают такой URL
+    // быстрее (SEO AUD-10). Несуществующий id — по-прежнему 404.
+    if (listing.status === ListingStatus.DELETED) {
+      throw new GoneException({ code: ApiErrorCode.GONE, message: 'Listing removed' });
     }
     if (
       !PUBLIC_VIEW_STATUSES.includes(listing.status) &&
       !this.canViewNonActive(listing.ownerId, viewer)
     ) {
+      // Правка опубликованного объявления на модерации (или отклонена):
+      // посетитель видит последнюю одобренную версию (SEO AUD-9).
+      const published = await this.publishedVersion(listing);
+      if (published) {
+        return this.toPublicDetail(published, langParam, acceptLanguage);
+      }
+      // Опубликованное объявление, ушедшее на повторную модерацию после правки
+      // (NEW + published_at): отдельный код с датами, чтобы сайт отвечал
+      // поисковикам 503 + Retry-After, а не 404, и страница не выпадала из
+      // индекса на время проверки (SEO контракт B).
+      if (listing.status === ListingStatus.NEW && listing.publishedAt) {
+        throw new NotFoundException({
+          code: ApiErrorCode.UNDER_REVIEW,
+          message: 'Listing is being updated',
+          meta: {
+            published_at: listing.publishedAt.toISOString(),
+            review_started_at: (await this.reviewStartedAt(listing.id))?.toISOString() ?? null,
+          },
+        });
+      }
       throw notFound;
     }
 
+    return this.toPublicDetail(listing, langParam, acceptLanguage);
+  }
+
+  /** Одобренная версия объявления на модерации поверх живой строки, если есть. */
+  private async publishedVersion(listing: ListingDetailRow): Promise<ListingDetailRow | null> {
+    if (!PUBLISHED_VERSION_STATUSES.includes(listing.status)) return null;
+    const version = await this.prisma.listingPublishedVersion.findUnique({
+      where: { listingId: listing.id },
+      select: { data: true },
+    });
+    if (!version) return null;
+    return applyPublishedVersion(listing, version.data as unknown as PublishedVersionData);
+  }
+
+  private async toPublicDetail(
+    listing: ListingDetailRow,
+    langParam?: string,
+    acceptLanguage?: string,
+  ): Promise<ListingDetailResponse> {
     const language = this.translations.resolveLanguage(
       listing.translations,
       listing.originalLanguage,
@@ -1398,6 +1530,7 @@ export class ListingsService {
       is_basement: listing.isBasement,
       city_id: listing.cityId,
       district_id: listing.districtId,
+      region_id: listing.regionId,
       address: listing.address,
       promotion_type: listing.promotionType,
       promotion_expires_at: listing.promotionExpiresAt?.toISOString() ?? null,
@@ -1409,6 +1542,7 @@ export class ListingsService {
       likes_count: listing._count.favorites,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
+      updated_at: listing.contentUpdatedAt.toISOString(),
     };
   }
 
@@ -1460,6 +1594,16 @@ export class ListingsService {
           : null,
         sort_order: m.sortOrder,
         type: m.type,
+        width: m.width,
+        height: m.height,
+        variants: await Promise.all(
+          parseVariants(m.variants).map(async (v) => ({
+            url: await this.uploads.getObjectUrl(v.key),
+            width: v.width,
+            height: v.height,
+            format: v.format,
+          })),
+        ),
       })),
     );
     return {
@@ -1486,6 +1630,7 @@ export class ListingsService {
       year_built: listing.yearBuilt,
       city_id: listing.cityId,
       district_id: listing.districtId,
+      region_id: listing.regionId,
       district_name: districtName,
       // Адрес по языку (ADR-0147): для EN отдаём addressEn (если заполнен),
       // иначе — канонический RU address; для остальных языков — всегда RU.
@@ -1517,6 +1662,9 @@ export class ListingsService {
       likes_count: listing._count.favorites,
       published_at: listing.publishedAt?.toISOString() ?? null,
       created_at: listing.createdAt.toISOString(),
+      updated_at: listing.contentUpdatedAt.toISOString(),
+      original_language: listing.originalLanguage,
+      translations_available: availableTranslationLanguages(listing.translations, listing.originalLanguage),
     };
   }
 }

@@ -332,7 +332,7 @@ export class AdminUsersService {
 
     await tx.listing.updateMany({
       where: { ownerId: userId, status: ListingStatus.ACTIVE },
-      data: { status: ListingStatus.ARCHIVED },
+      data: { status: ListingStatus.ARCHIVED, contentUpdatedAt: new Date() },
     });
 
     await tx.refreshToken.updateMany({
@@ -395,7 +395,7 @@ export class AdminUsersService {
           ownerId: userId,
           status: ListingStatus.ARCHIVED,
         },
-        data: { status: ListingStatus.ACTIVE },
+        data: { status: ListingStatus.ACTIVE, contentUpdatedAt: new Date() },
       });
     }
 
@@ -435,7 +435,7 @@ export class AdminUsersService {
 
     await tx.listing.updateMany({
       where: { ownerId: userId, status: { not: ListingStatus.DELETED } },
-      data: { status: ListingStatus.DELETED },
+      data: { status: ListingStatus.DELETED, contentUpdatedAt: new Date() },
     });
 
     await tx.refreshToken.updateMany({

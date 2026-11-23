@@ -534,6 +534,9 @@ model Listing {
   addressEn          String?                                @map("address_en") @db.VarChar(500)
   cityId             String?                                @map("city_id") @db.Uuid
   districtId         String?                                @map("district_id") @db.Uuid
+  /// Регион района (SEO AUD-5): заполняет триггер listings_sync_region_trg из district_id —
+  /// приложение его не пишет. Фильтр /search?region_id= идёт по индексу.
+  regionId           String?                                @map("region_id") @db.Uuid
   latitude           Decimal?                               @db.Decimal(9, 6)
   longitude          Decimal?                               @db.Decimal(9, 6)
   // PostGIS не имеет нативного типа в Prisma — derived, см. шапку модели/ADR-0003.
@@ -552,6 +555,10 @@ model Listing {
   callsCount         Int                                    @default(0) @map("calls_count")
   createdAt          DateTime                               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime                               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Дата изменения СОДЕРЖИМОГО (цена, текст, фото, статус) — для lastmod и
+  /// dateModified (SEO AUD-6). В отличие от updated_at не двигается от
+  /// продвижения, модерационных флагов и счётчиков.
+  contentUpdatedAt   DateTime                               @default(now()) @map("content_updated_at") @db.Timestamptz(6)
 
   owner          User                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   translations   ListingTranslation[]
@@ -564,6 +571,8 @@ model Listing {
   complaints     Complaint[]
   tourRequests   TourRequest[]
   priceHistory   ListingPriceHistory[]
+  /// Одобренная версия на время повторной модерации (SEO AUD-9).
+  publishedVersion ListingPublishedVersion?
 
   @@index([status])
   @@index([propertyType])
@@ -580,6 +589,7 @@ model Listing {
   // Композитный индекс дефолтной выдачи поиска (DB_SCHEMA §6):
   // status → promotion_type → created_at desc → id desc.
   @@index([status, promotionType, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, regionId])
   @@map("listings")
 }
 
@@ -655,6 +665,9 @@ model ListingMedia {
   width        Int?
   height       Int?
   sizeBytes    Int?      @map("size_bytes")
+  /// Варианты фото (SEO AUD-8): [{ key, width, height, format }] — WebP 320/640/1280.
+  /// null — ещё не обработано (media_processing_queue).
+  variants     Json?
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
@@ -1041,6 +1054,8 @@ model Region {
   nameUz    String     @map("name_uz") @db.VarChar(120)
   nameRu    String     @map("name_ru") @db.VarChar(120)
   nameEn    String     @map("name_en") @db.VarChar(120)
+  /// Неизменяемый slug для адресов сайта (SEO AUD-15); переименование → GeoAlias.
+  slug      String     @unique @db.VarChar(80)
   sortOrder Int        @map("sort_order")
   districts District[]
   createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -1060,13 +1075,63 @@ model District {
   nameUz    String   @map("name_uz") @db.VarChar(120)
   nameRu    String   @map("name_ru") @db.VarChar(120)
   nameEn    String   @map("name_en") @db.VarChar(120)
+  /// Неизменяемый slug, уникальный в пределах региона (SEO AUD-15); переименование → GeoAlias.
+  slug      String   @db.VarChar(80)
   regionId  String?  @map("region_id") @db.Uuid
   region    Region?  @relation(fields: [regionId], references: [id])
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  boundary  DistrictBoundary?
+
+  @@unique([regionId, slug])
   @@index([regionId])
   @@map("districts")
+}
+
+/// Граница района (SEO AUD-3): район по точке через ST_Covers, геокодер — запасной путь.
+/// Загружается scripts/load-district-boundaries.ts из GeoJSON.
+/// Последняя одобренная версия объявления, пока его правка на модерации
+/// (SEO AUD-9). Есть только в статусах NEW/REJECTED — иначе её снимает триггер
+/// listings_drop_published_version_trg. Формат data — PublishedVersionData.
+model ListingPublishedVersion {
+  listingId  String   @id @map("listing_id") @db.Uuid
+  data       Json
+  capturedAt DateTime @default(now()) @map("captured_at") @db.Timestamptz(6)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@map("listing_published_versions")
+}
+
+model DistrictBoundary {
+  districtId String                                    @id @map("district_id") @db.Uuid
+  geom       Unsupported("geography(MultiPolygon, 4326)")
+  source     String                                    @db.VarChar(120)
+  updatedAt  DateTime                                  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  district District @relation(fields: [districtId], references: [id], onDelete: Cascade)
+
+  @@map("district_boundaries")
+}
+
+/// Тип гео-сущности для старых slug'ов (SEO AUD-15).
+enum GeoEntityType {
+  REGION
+  DISTRICT
+}
+
+/// Старые slug'и региона/района: сайт отвечает 301 на текущий адрес (SEO AUD-15).
+model GeoAlias {
+  id         String        @id @default(uuid()) @db.Uuid
+  entityType GeoEntityType @map("entity_type")
+  entityId   String        @map("entity_id") @db.Uuid
+  oldSlug    String        @map("old_slug") @db.VarChar(80)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([entityType, oldSlug])
+  @@index([entityId])
+  @@map("geo_aliases")
 }
 
 /// Общий журнал аудита для security-чувствительных действий (DB_SCHEMA.md §12,

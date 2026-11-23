@@ -70,6 +70,7 @@ describe('SearchService', () => {
       promotionExpiresAt: null,
       originalLanguage: Language.RU,
       createdAt: new Date('2026-06-01T12:00:00.000Z'),
+      contentUpdatedAt: new Date('2026-06-01T12:00:00.000Z'),
       viewsCount: 0,
       _count: { favorites: 0 },
       translations: [{ language: Language.RU, title: '3-комн в центре' }],
@@ -166,6 +167,8 @@ describe('SearchService', () => {
       thumbnails: ['https://cdn/l1_t.webp'],
       district_name: null,
       created_at: '2026-06-01T12:00:00.000Z',
+      updated_at: '2026-06-01T12:00:00.000Z',
+      original_language: 'RU',
       views_count: 0,
       likes_count: 0,
     });
@@ -247,15 +250,14 @@ describe('SearchService', () => {
     );
   });
 
-  it('filters by region_id using a districts sub-select', async () => {
+  it('filters by region_id on the listing column (SEO AUD-5: kept in sync by a trigger)', async () => {
     mockQuery([], 0);
 
     await service.search({ region_id: REGION_ID } as any);
 
     const pageSql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
-    expect(sqlText(pageSql)).toContain(
-      'district_id IN (SELECT id FROM districts WHERE region_id =',
-    );
+    expect(sqlText(pageSql)).toContain('region_id =');
+    expect(sqlText(pageSql)).not.toContain('SELECT id FROM districts');
     expect(pageSql.values).toEqual(expect.arrayContaining([REGION_ID]));
   });
 
@@ -305,19 +307,19 @@ describe('SearchService', () => {
   it('emits a tier-aware next_cursor and applies the keyset on the next page', async () => {
     const rows = [
       pageRow({
-        id: 'l0',
+        id: '00000000-0000-4000-8000-0000000000a0',
         created_at: new Date('2026-06-01T00:00:00.000Z'),
         tier_rank: 2,
         sort_val: new Date('2026-06-01T00:00:00.000Z'),
       }),
       pageRow({
-        id: 'l1',
+        id: '00000000-0000-4000-8000-0000000000a1',
         created_at: new Date('2026-06-02T00:00:00.000Z'),
         tier_rank: 1,
         sort_val: new Date('2026-06-02T00:00:00.000Z'),
       }),
       pageRow({
-        id: 'l2',
+        id: '00000000-0000-4000-8000-0000000000a2',
         created_at: new Date('2026-06-03T00:00:00.000Z'),
         tier_rank: 0,
         sort_val: new Date('2026-06-03T00:00:00.000Z'),
@@ -325,8 +327,8 @@ describe('SearchService', () => {
     ];
     mockQuery(rows, 9); // limit 2 → take 3, hasMore
     prisma.listing.findMany.mockResolvedValue([
-      dbRow({ id: 'l0' }),
-      dbRow({ id: 'l1' }),
+      dbRow({ id: '00000000-0000-4000-8000-0000000000a0' }),
+      dbRow({ id: '00000000-0000-4000-8000-0000000000a1' }),
     ]);
 
     const first = await service.search({ limit: 2 });
@@ -338,7 +340,7 @@ describe('SearchService', () => {
     expect(first.meta.next_cursor).toBeTruthy();
 
     // TASK-207: курсор содержит { rank, val, id }; val — ISO-дата (date_desc).
-    // Последний показанный элемент — l1 (rank=1, sort_val=2026-06-02).
+    // Последний показанный элемент — …a1 (id курсора — UUID, см. AUD-18) (rank=1, sort_val=2026-06-02).
     const decoded = JSON.parse(
       Buffer.from(first.meta.next_cursor as string, 'base64url').toString(
         'utf8',
@@ -347,7 +349,7 @@ describe('SearchService', () => {
     expect(decoded).toEqual({
       rank: 1,
       val: '2026-06-02T00:00:00.000Z',
-      id: 'l1',
+      id: '00000000-0000-4000-8000-0000000000a1',
     });
 
     mockQuery([], 9);
@@ -358,7 +360,7 @@ describe('SearchService', () => {
     const nextPageSql = prisma.$queryRaw.mock.calls[2][0] as Prisma.Sql;
     // Keyset «строго после позиции» по (tier_rank, secondary, id): rank, val, id в params.
     expect(nextPageSql.values).toEqual(
-      expect.arrayContaining([1, '2026-06-02T00:00:00.000Z', 'l1']),
+      expect.arrayContaining([1, '2026-06-02T00:00:00.000Z', '00000000-0000-4000-8000-0000000000a1']),
     );
   });
 
@@ -380,6 +382,66 @@ describe('SearchService', () => {
       service.search({ cursor: token }),
       ApiErrorCode.VALIDATION_ERROR,
     );
+  });
+
+  // AUD-13: страница N одним запросом.
+  describe('page (SEO AUD-13)', () => {
+    it('reads page N with OFFSET and reports page/pages, keeping next_cursor', async () => {
+      mockQuery([pageRow(), pageRow({ id: '00000000-0000-4000-8000-0000000000b2' })], 45);
+      const result = await service.search({ page: 3, limit: 1 });
+      const sql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql;
+      expect(sql.sql).toContain('OFFSET');
+      expect(sql.values).toEqual(expect.arrayContaining([2])); // LIMIT limit+1
+      expect(sql.values[sql.values.length - 1]).toBe(2); // OFFSET (3-1)·1
+      expect(result.meta).toMatchObject({ limit: 1, total: 45, page: 3, pages: 45 });
+      expect(result.meta.next_cursor).toBeTruthy();
+    });
+
+    it('rejects page together with cursor', async () => {
+      await expectCode(service.search({ page: 2, cursor: 'abc' }), ApiErrorCode.VALIDATION_ERROR);
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('rejects pages deeper than 5000 results', async () => {
+      await expectCode(service.search({ page: 51, limit: 100 }), ApiErrorCode.VALIDATION_ERROR);
+    });
+
+    it('without page the meta has no page fields (unchanged contract)', async () => {
+      mockQuery([pageRow()], 1);
+      const result = await service.search({});
+      expect(result.meta).not.toHaveProperty('page');
+    });
+
+    it('explicit sort: page 2 skips the pinned promo block and offsets the strict stream', async () => {
+      const pinned = pageRow({ id: '00000000-0000-4000-8000-0000000000c1', tier_rank: 2 });
+      const strict = pageRow({ id: '00000000-0000-4000-8000-0000000000c2', sort_val: new Date('2026-06-01T12:00:00.000Z') });
+      prisma.$queryRaw
+        .mockResolvedValueOnce([pinned])
+        .mockResolvedValueOnce([strict])
+        .mockResolvedValueOnce([{ count: 30 }]);
+      const result = await service.search({ sort: 'date_desc', page: 2, limit: 10 });
+      const strictSql = prisma.$queryRaw.mock.calls[1][0] as Prisma.Sql;
+      expect(strictSql.values[strictSql.values.length - 1]).toBe(10);
+      const ids = prisma.listing.findMany.mock.calls[0][0].where.id.in;
+      expect(ids).toEqual(['00000000-0000-4000-8000-0000000000c2']);
+      expect(result.meta).toMatchObject({ page: 2, pages: 3 });
+    });
+  });
+
+  // AUD-18: форма верна, но значения не годятся для SQL-кастов → 400, а не 500 из базы.
+  it.each([
+    ['val is not a timestamp (date_desc)', { rank: 0, val: 'x', id: '00000000-0000-4000-8000-0000000000a1' }, undefined],
+    ['id is not a UUID', { rank: 0, val: '2026-06-02T00:00:00.000Z', id: 'x' }, undefined],
+    ['rank out of range', { rank: 7, val: '2026-06-02T00:00:00.000Z', id: '00000000-0000-4000-8000-0000000000a1' }, undefined],
+    ['rank not an integer', { rank: 0.5, val: '2026-06-02T00:00:00.000Z', id: '00000000-0000-4000-8000-0000000000a1' }, undefined],
+    ['val is not a number (price sort)', { rank: 0, val: '2026-06-02T00:00:00.000Z', id: '00000000-0000-4000-8000-0000000000a1' }, 'price_asc'],
+  ] as const)('rejects a cursor whose %s with VALIDATION_ERROR', async (_label, payload, sort) => {
+    const token = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+    await expectCode(
+      service.search({ cursor: token, ...(sort ? { sort } : {}) }),
+      ApiErrorCode.VALIDATION_ERROR,
+    );
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
   });
 
   it('returns thumbnails[] with up to 3 signed URLs, thumbnail_url === thumbnails[0]', async () => {

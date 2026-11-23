@@ -82,6 +82,7 @@ describe('DistrictsService + district_name (integration, TASK-209)', () => {
       data: {
         id: TEST_DISTRICT_ID,
         code: 'test-tuman-209',
+        slug: 'test-tuman-209',
         nameUz: 'Test tuman',
         nameRu: 'Тест район',
         nameEn: 'Test district',

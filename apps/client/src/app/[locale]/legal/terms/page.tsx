@@ -8,6 +8,7 @@ import { getLegalDoc } from '@/content/legal';
 import { alternatesFor } from '@/lib/seo/alternates';
 import type { Locale } from '@/i18n/routing';
 import { fetchLegalDoc, toLegalDoc } from '@/lib/api/legal';
+import { SiteGraph } from '@/components/seo/SiteGraph';
 
 export async function generateMetadata({
   params,
@@ -19,7 +20,7 @@ export async function generateMetadata({
   return {
     title: t('meta.terms.title'),
     description: t('meta.terms.description'),
-    alternates: alternatesFor('/legal/terms'),
+    alternates: alternatesFor('/legal/terms', locale),
   };
 }
 
@@ -32,5 +33,10 @@ export default async function TermsPage({
   // API-версия (админ публиковал) или вшитый фолбэк (пусто/API недоступен).
   const apiDoc = await fetchLegalDoc('terms', locale);
   const doc = apiDoc ? toLegalDoc(apiDoc) : getLegalDoc('terms', locale as Locale);
-  return <LegalDocument doc={doc} locale={locale as Locale} />;
+  return (
+    <>
+      <SiteGraph page={{ path: '/legal/terms', nameKey: 'legal.meta.terms.title' }} />
+      <LegalDocument doc={doc} locale={locale as Locale} />
+    </>
+  );
 }

@@ -4,6 +4,10 @@ export { EmailQueue } from './email.queue';
 export { SavedSearchQueue } from './saved-search.queue';
 export { MediaCleanupQueue } from './media-cleanup.queue';
 export { ListingImportPhotoQueue } from './listing-import-photo.queue';
+export { ListingUrlSyncQueue } from './listing-url-sync.queue';
+export { GeoResolveQueue } from './geo-resolve.queue';
+export { ListingTranslateQueue } from './listing-translate.queue';
+export { MediaProcessingQueue } from './media-processing.queue';
 export {
   PROMOTION_QUEUE_NAME,
   EXPIRE_LISTING_PROMOTIONS_JOB,
@@ -21,4 +25,8 @@ export {
   FETCH_IMPORT_PHOTO_JOB,
   FetchImportPhotoJobData,
   LISTING_IMPORT_PHOTO_JOB_OPTIONS,
+  LISTING_URL_SYNC_QUEUE_NAME,
+  SYNC_LISTING_URLS_JOB,
+  SyncListingUrlsJobData,
+  LISTING_URL_SYNC_JOB_OPTIONS,
 } from './queue.constants';

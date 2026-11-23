@@ -97,13 +97,14 @@ describe('getAgents', () => {
 
 describe('getAgentById', () => {
   afterEach(() => vi.unstubAllGlobals());
+  const ID = 'c2d23e5d-76b2-40ce-bfb0-36f04471373a';
 
   it('200 → мапит профиль агента с контактами', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({ ok: true, status: 200, json: async () => SAMPLE_PROFILE })),
     );
-    const out = await getAgentById('u1');
+    const out = await getAgentById(ID);
     expect(out).toEqual(mapAgentProfile(SAMPLE_PROFILE));
     expect(out?.phone).toBe('+998901234567');
     expect(out?.email).toBe('agent@avino.uz');
@@ -116,7 +117,7 @@ describe('getAgentById', () => {
       'fetch',
       vi.fn(async () => ({ ok: true, status: 200, json: async () => SAMPLE })),
     );
-    const out = await getAgentById('u1');
+    const out = await getAgentById(ID);
     expect(out?.phone).toBeNull();
     expect(out?.email).toBeNull();
   });
@@ -126,7 +127,7 @@ describe('getAgentById', () => {
       'fetch',
       vi.fn(async () => ({ ok: false, status: 404 })),
     );
-    const out = await getAgentById('missing');
+    const out = await getAgentById('00000000-0000-4000-8000-000000000000');
     expect(out).toBeNull();
   });
 
@@ -135,6 +136,13 @@ describe('getAgentById', () => {
       'fetch',
       vi.fn(async () => ({ ok: false, status: 500, statusText: 'Internal' })),
     );
-    await expect(getAgentById('u1')).rejects.toThrow();
+    await expect(getAgentById(ID)).rejects.toThrow();
+  });
+
+  it('не-UUID → null без запроса (API ответил бы 400 → у нас 500)', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await getAgentById('not-a-uuid')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

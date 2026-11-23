@@ -10,6 +10,8 @@
  *  - GET /api/v1/agents/:id  — публичный профиль агента (или 404).
  */
 import { resolveApiBase } from './base';
+import { isUuid } from './ids';
+import { CACHE_TAGS, REVALIDATE_SECONDS } from './cacheTags';
 
 /** Строка каталога агента (snake_case контракт §21). */
 export interface ApiAgent {
@@ -111,7 +113,7 @@ export interface AgentsPage {
 export async function getAgents(limit: number, page = 1): Promise<AgentsPage> {
   try {
     const res = await fetch(`${resolveApiBase()}/agents?limit=${limit}&page=${page}`, {
-      next: { revalidate: 300 },
+      next: { revalidate: REVALIDATE_SECONDS, tags: [CACHE_TAGS.agents] },
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) {
@@ -131,8 +133,12 @@ export async function getAgents(limit: number, page = 1): Promise<AgentsPage> {
  * /agents/:id решает сама (notFound() на null, error boundary на исключение).
  */
 export async function getAgentById(id: string): Promise<AgentWithContacts | null> {
+  // Не-UUID API отвергает 400-м → 500 у нас; для страницы это просто 404.
+  if (!isUuid(id)) return null;
+  // Профиль публичный и одинаков для всех зрителей — кэш с тегом агента,
+  // сброс по POST /api/seo/sync.
   const res = await fetch(`${resolveApiBase()}/agents/${encodeURIComponent(id)}`, {
-    cache: 'no-store',
+    next: { revalidate: REVALIDATE_SECONDS, tags: [CACHE_TAGS.agents, CACHE_TAGS.agent(id)] },
     headers: { Accept: 'application/json' },
   });
   if (res.status === 404) return null;

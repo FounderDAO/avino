@@ -16,7 +16,12 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'listingEdit' });
-  return { title: t('meta.title'), description: t('meta.description') };
+  // Редактор своего объявления — приватная страница: не индексируем.
+  return {
+    title: t('meta.title'),
+    description: t('meta.description'),
+    robots: { index: false, follow: true },
+  };
 }
 
 export default async function ListingEditPage({ params }: PageProps) {

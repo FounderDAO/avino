@@ -10,9 +10,10 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { ChevronDown } from 'lucide-react';
 import { SectionTitle } from '@/components/ui/section-title';
+import { HOME_FAQ_KEYS } from './faqKeys';
 
-/** Ключи вопросов FAQ (контент — в словарях home.faq.items.*). */
-const ITEM_KEYS = ['price', 'contact', 'moderation', 'languages', 'map'] as const;
+/** Ключи вопросов FAQ (контент — в словарях home.faq.items.*); те же — в FAQPage. */
+const ITEM_KEYS = HOME_FAQ_KEYS;
 
 export function Faq() {
   const t = useTranslations('home');

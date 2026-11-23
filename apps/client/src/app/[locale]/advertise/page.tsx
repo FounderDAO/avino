@@ -6,6 +6,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { AdvertisePage } from '@/features/advertise/AdvertisePage';
 import { alternatesFor } from '@/lib/seo/alternates';
+import { SiteGraph } from '@/components/seo/SiteGraph';
 
 export async function generateMetadata({
   params,
@@ -17,10 +18,15 @@ export async function generateMetadata({
   return {
     title: t('meta.title'),
     description: t('meta.description'),
-    alternates: alternatesFor('/advertise'),
+    alternates: alternatesFor('/advertise', locale),
   };
 }
 
 export default function AdvertiseRoute() {
-  return <AdvertisePage />;
+  return (
+    <>
+      <SiteGraph page={{ path: '/advertise', nameKey: 'advertise.meta.title' }} />
+      <AdvertisePage />
+    </>
+  );
 }

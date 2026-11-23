@@ -6,6 +6,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { AboutPage } from '@/features/about/AboutPage';
 import { alternatesFor } from '@/lib/seo/alternates';
+import { SiteGraph } from '@/components/seo/SiteGraph';
 
 export async function generateMetadata({
   params,
@@ -17,10 +18,15 @@ export async function generateMetadata({
   return {
     title: t('meta.title'),
     description: t('meta.description'),
-    alternates: alternatesFor('/about'),
+    alternates: alternatesFor('/about', locale),
   };
 }
 
 export default function AboutRoute() {
-  return <AboutPage />;
+  return (
+    <>
+      <SiteGraph page={{ path: '/about', nameKey: 'about.meta.title', type: 'AboutPage' }} />
+      <AboutPage />
+    </>
+  );
 }

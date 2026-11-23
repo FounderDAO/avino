@@ -19,9 +19,14 @@
  *  - search применяет transaction_type/property_type/price_min/price_max/district_id
  *    + sort/q (TASK-207/208).
  */
+import { CursorChainCache, fetchPageByNumber } from './cursorPaging';
+import { isUuid } from './ids';
+import { CACHE_TAGS, REVALIDATE_SECONDS } from './cacheTags';
+import { classifyListingResponse } from '@/lib/seo/listingAvailability';
 import type {
   Amenity,
   Currency,
+  Language,
   Listing,
   ListingAgent,
   ListingFilter,
@@ -83,6 +88,8 @@ export interface ApiSearchItem {
   /** До 3 свежих presigned URL фото (индекс 0 = обложка). thumbnail_url = thumbnails[0]. */
   thumbnails?: string[];
   created_at: string;
+  /** Дата изменения содержимого (backend SEO AUD-6). Нет у старого API → без lastmod. */
+  updated_at?: string;
   /**
    * Новые поля LAST_CHANGED_API.md §1 (29.06–02.07.2026). Опциональны на
    * фронте на случай рассинхрона со старым бэкендом (см. `features?` выше).
@@ -150,6 +157,10 @@ interface ApiListingDetail {
   media: ApiMedia[];
   published_at: string | null;
   created_at: string;
+  updated_at?: string;
+  /** Язык автора и языки с настоящим переводом (backend SEO AUD-14). */
+  original_language?: Language;
+  translations_available?: Language[];
   tours_enabled: boolean;
   tour_windows: { start: string; end: string }[];
   /**
@@ -188,27 +199,15 @@ function apiHeaders(lang: string): Record<string, string> {
 }
 
 /**
- * Низкоуровневый fetch к `${API_BASE}${path}`. Динамические данные → `no-store`.
- * Бросает при не-2xx (кроме 404 — вызывающий решает сам через {@link fetchOrNull}).
+ * Низкоуровневый fetch к `${API_BASE}${path}`. Кэш — Data Cache на
+ * REVALIDATE_SECONDS с тегами; сброс по событию backend (POST /api/seo/sync).
+ * Бросает при не-2xx (detail-страница разбирает 404/410 сама — {@link getListingState}).
  */
-async function apiFetch<T>(path: string, lang: string): Promise<T> {
+async function apiFetch<T>(path: string, lang: string, tags: string[] = [CACHE_TAGS.search]): Promise<T> {
   const res = await fetch(`${resolveApiBase()}${path}`, {
-    cache: 'no-store',
+    next: { revalidate: REVALIDATE_SECONDS, tags },
     headers: apiHeaders(lang),
   });
-  if (!res.ok) {
-    throw new Error(`API ${res.status} ${res.statusText} for ${path}`);
-  }
-  return (await res.json()) as T;
-}
-
-/** Как {@link apiFetch}, но 404 → null (для detail). */
-async function fetchOrNull<T>(path: string, lang: string): Promise<T | null> {
-  const res = await fetch(`${resolveApiBase()}${path}`, {
-    cache: 'no-store',
-    headers: apiHeaders(lang),
-  });
-  if (res.status === 404) return null;
   if (!res.ok) {
     throw new Error(`API ${res.status} ${res.statusText} for ${path}`);
   }
@@ -338,6 +337,7 @@ export function mapListing(api: AnyApiListing): Listing {
 
     // Имя района на языке ответа (TASK-209, ADR-0068); null → '' (без uuid в UI).
     district: api.district_name ?? '',
+    districtId: api.district_id ?? undefined,
     regionId: api.city_id ?? undefined,
     // Точный адрес отдаётся и в выдаче поиска, и в detail (оба члена union).
     address: api.address ?? '',
@@ -350,6 +350,9 @@ export function mapListing(api: AnyApiListing): Listing {
     ownerId: detail?.owner_id,
 
     createdAt: api.created_at,
+    updatedAt: api.updated_at ?? undefined,
+    ...(detail?.original_language && { originalLanguage: detail.original_language }),
+    ...(detail?.translations_available && { translationsAvailable: detail.translations_available }),
     status: api.status,
     toursEnabled: detail?.tours_enabled,
     tourWindows: detail?.tour_windows ?? [],
@@ -380,7 +383,7 @@ export function toApiSort(sort: SortOption | undefined): string | undefined {
 /**
  * Безопасная выдача поиска: при ошибке API (5xx/4xx/сеть) секция деградирует
  * до пустого списка вместо краха всей SSR-страницы. Ошибка логируется на
- * сервере. Для одиночного листинга используется fetchOrNull (404 → null).
+ * сервере. Для одиночного листинга — getListingState (404/410 → состояние).
  */
 async function safeSearch(path: string, lang: string): Promise<Listing[]> {
   try {
@@ -509,6 +512,77 @@ export async function searchListingsPage(
   cursor?: string,
 ): Promise<SearchListingsPage> {
   return safeSearchPage(searchPagePath(filter, limit, cursor), lang);
+}
+
+const searchCursorChains = new CursorChainCache();
+
+/**
+ * Страница выдачи по номеру (`?page=N` для краулеров): первая — как
+ * {@link searchListingsPage}, дальше — проход по курсорам с кэшем цепочки.
+ * null — страницы нет (выдача короче). Ошибки API со 2-й страницы не
+ * глотаются: временный сбой не должен отвечать 404.
+ */
+export async function searchListingsPageAt(
+  filter: ListingFilter,
+  lang: string,
+  page: number,
+  limit = SEARCH_PAGE_SIZE,
+): Promise<SearchListingsPage | null> {
+  if (page === 1) return searchListingsPage(filter, lang, limit);
+  // API с ?page= (backend SEO AUD-13) — одним запросом; старый API — проход курсоров.
+  if (Date.now() >= pageParamUnsupportedUntil) {
+    const direct = await fetchPageDirect(filter, lang, page, limit);
+    if (direct !== 'unsupported') return direct;
+    pageParamUnsupportedUntil = Date.now() + 10 * 60 * 1000;
+  }
+  return fetchPageByNumber(
+    searchPagePath(filter, limit),
+    page,
+    async (cursor) => {
+      const env = await apiFetch<SearchEnvelope>(searchPagePath(filter, limit, cursor), lang);
+      return {
+        listings: env.data.map(mapListing),
+        total: env.meta.total,
+        nextCursor: env.meta.next_cursor,
+      };
+    },
+    searchCursorChains,
+  );
+}
+
+/** Старый API отвергает ?page= (400 «property page should not exist») — не спрашиваем 10 минут. */
+let pageParamUnsupportedUntil = 0;
+
+/**
+ * Страница N через `?page=` (backend SEO AUD-13). null — страница за пределами
+ * выдачи; 'unsupported' — API ещё не знает параметр. Прочие ошибки бросаются.
+ */
+async function fetchPageDirect(
+  filter: ListingFilter,
+  lang: string,
+  page: number,
+  limit: number,
+): Promise<SearchListingsPage | null | 'unsupported'> {
+  const params = buildSearchParams(filter, limit);
+  params.set('page', String(page));
+  const path = `/search?${params.toString()}`;
+  const res = await fetch(`${resolveApiBase()}${path}`, {
+    next: { revalidate: REVALIDATE_SECONDS, tags: [CACHE_TAGS.search] },
+    headers: apiHeaders(lang),
+  });
+  if (res.status === 400) {
+    const body = (await res.json().catch(() => null)) as { error?: { details?: { field?: string }[] } } | null;
+    if (body?.error?.details?.some((d) => d.field === 'page')) return 'unsupported';
+  }
+  if (!res.ok) throw new Error(`API ${res.status} ${res.statusText} for ${path}`);
+  const env = (await res.json()) as SearchEnvelope;
+  if (env.data.length === 0) return null;
+  return { listings: env.data.map(mapListing), total: env.meta.total, nextCursor: env.meta.next_cursor };
+}
+
+/** Только для тестов: сбросить запомненную «поддержку» ?page=. */
+export function __resetPageParamSupport(): void {
+  pageParamUnsupportedUntil = 0;
 }
 
 // ─── Пути гео-поиска (общие для RTK Query и серверного fetch) ───
@@ -641,16 +715,46 @@ export async function getFeaturedListings(limit = 6, lang = 'ru'): Promise<Listi
   return prioritizePhotos(listings).slice(0, limit);
 }
 
-/** Один листинг по id. GET /listings/:id (404 → null). */
+/**
+ * Состояние объявления для страницы /listing/[id] (SEO: AUD-10, контракт B):
+ * - ok — данные;
+ * - gone — удалено навсегда (API 410), middleware отдаёт 410;
+ * - under_review — опубликованное на повторной модерации не дольше 7 суток
+ *   (API 404 UNDER_REVIEW), middleware отдаёт 503 + Retry-After;
+ * - not_found — нет такого, скрыто или на проверке дольше 7 суток → 404.
+ * Прочие ошибки API бросаются (страница уйдёт в error boundary, а не в 404).
+ */
+export type ListingState =
+  | { kind: 'ok'; listing: Listing }
+  | { kind: 'gone' }
+  | { kind: 'under_review' }
+  | { kind: 'not_found' };
+
+export async function getListingState(id: string, lang = 'ru'): Promise<ListingState> {
+  // Не-UUID API отвергает 400-м → 500 у нас; для страницы это просто 404.
+  if (!isUuid(id)) return { kind: 'not_found' };
+  const path = `/listings/${encodeURIComponent(id)}`;
+  const res = await fetch(`${resolveApiBase()}${path}`, {
+    next: { revalidate: REVALIDATE_SECONDS, tags: [CACHE_TAGS.listings, CACHE_TAGS.listing(id)] },
+    headers: apiHeaders(lang),
+  });
+  if (res.ok) return { kind: 'ok', listing: mapListing((await res.json()) as ApiListingDetail) };
+  if (res.status === 404 || res.status === 410) {
+    const availability = classifyListingResponse(res.status, await res.json().catch(() => null));
+    if (availability.kind === 'gone') return { kind: 'gone' };
+    if (availability.kind === 'under_review') return { kind: 'under_review' };
+    return { kind: 'not_found' };
+  }
+  throw new Error(`API ${res.status} ${res.statusText} for ${path}`);
+}
+
+/** Один листинг по id (только доступный: удалённое и на проверке → null). */
 export async function getListingById(
   id: string,
   lang = 'ru',
 ): Promise<Listing | null> {
-  const api = await fetchOrNull<ApiListingDetail>(
-    `/listings/${encodeURIComponent(id)}`,
-    lang,
-  );
-  return api ? mapListing(api) : null;
+  const state = await getListingState(id, lang);
+  return state.kind === 'ok' ? state.listing : null;
 }
 
 /**

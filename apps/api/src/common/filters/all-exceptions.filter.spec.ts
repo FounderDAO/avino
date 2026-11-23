@@ -1,9 +1,11 @@
 import {
   ArgumentsHost,
   BadRequestException,
+  GoneException,
   HttpStatus,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
   ServiceUnavailableException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
@@ -113,6 +115,30 @@ describe('AllExceptionsFilter', () => {
     expect(res.statusCode).toBe(HttpStatus.BAD_REQUEST);
     expect(res.body?.error.code).toBe(ApiErrorCode.VALIDATION_ERROR);
     expect(res.body?.error.details?.[0]?.field).toBe('destination');
+  });
+
+  it('passes through a flat meta object and drops non-primitive values (SEO contract B)', () => {
+    const res = runFilter(
+      new NotFoundException({
+        code: ApiErrorCode.UNDER_REVIEW,
+        message: 'Listing is being updated',
+        meta: { published_at: '2026-06-01T10:00:00.000Z', review_started_at: null, nested: { x: 1 } },
+      }),
+    );
+
+    expect(res.statusCode).toBe(HttpStatus.NOT_FOUND);
+    expect(res.body?.error.code).toBe(ApiErrorCode.UNDER_REVIEW);
+    expect(res.body?.error.meta).toEqual({
+      published_at: '2026-06-01T10:00:00.000Z',
+      review_started_at: null,
+    });
+  });
+
+  it('answers 410 with the GONE code', () => {
+    const res = runFilter(new GoneException({ code: ApiErrorCode.GONE, message: 'Listing removed' }));
+    expect(res.statusCode).toBe(HttpStatus.GONE);
+    expect(res.body?.error.code).toBe(ApiErrorCode.GONE);
+    expect(res.body?.error).not.toHaveProperty('meta');
   });
 
   // ── Sentry (ADR-0129): в error tracking летят ТОЛЬКО подлинные внутренние

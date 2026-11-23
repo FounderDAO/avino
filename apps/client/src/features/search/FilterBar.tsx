@@ -36,6 +36,7 @@ import { toast } from 'sonner';
 import { SaveSearchModal } from './SaveSearchModal';
 import { SearchAutocomplete } from './SearchAutocomplete';
 import { useGeoSuggest, type Suggestion } from './useGeoSuggest';
+import { useSearchTransition } from './SearchTransition';
 import { suggestionToLocation } from './locationParams';
 import { TriggerButton } from './TriggerButton';
 import { BedroomsControl } from './controls/BedroomsControl';
@@ -129,6 +130,23 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
   // (кнопки внутри FiltersPanel — не DropdownItem, Radix сам их не закрывает).
   const [moreOpen, setMoreOpen] = React.useState(false);
 
+  /**
+   * Пишет query в URL. Любая смена фильтров сбрасывает ?page= (номер старой
+   * выдачи в новой может не существовать → 404). Навигация — в transition:
+   * SearchResults показывает скелетон, пока сервер отдаёт новую выдачу.
+   */
+  const { startTransition } = useSearchTransition();
+  const replaceQuery = React.useCallback(
+    (params: URLSearchParams) => {
+      params.delete('page');
+      const qs = params.toString();
+      startTransition(() => {
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      });
+    },
+    [router, pathname, startTransition],
+  );
+
   /** Записывает изменения в URL query (удаляет пустые значения). */
   const setParams = React.useCallback(
     (patch: Record<string, string | number | undefined>) => {
@@ -137,10 +155,9 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
         if (val == null || val === '') params.delete(key);
         else params.set(key, String(val));
       }
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      replaceQuery(params);
     },
-    [router, pathname, searchParams],
+    [replaceQuery, searchParams],
   );
 
   /**
@@ -154,10 +171,9 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
       for (const tp of next) {
         params.append('type', tp);
       }
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      replaceQuery(params);
     },
-    [router, pathname, searchParams],
+    [replaceQuery, searchParams],
   );
 
   // Локальное состояние поля поиска (коммитим в URL по Enter или выбору подсказки).
@@ -346,10 +362,9 @@ export function FilterBar({ values, districts, regions, fallbackRegionId }: Filt
       for (const pt of next.parkingTypes ?? []) params.append('parking_type', pt);
       params.delete('amenities');
       for (const a of next.amenities ?? []) params.append('amenities', a);
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      replaceQuery(params);
     },
-    [router, pathname, searchParams],
+    [replaceQuery, searchParams],
   );
 
   const handlePanelReset = React.useCallback(() => {

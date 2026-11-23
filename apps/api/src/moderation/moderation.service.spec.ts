@@ -15,6 +15,8 @@ import { Workbook } from 'exceljs';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { EXPORT_MAX_ROWS } from './listing-export.builder';
 import { ModerationService } from './moderation.service';
+import { ListingUrlSyncQueue } from '../queues/listing-url-sync.queue';
+import { ListingTranslateQueue } from '../queues/listing-translate.queue';
 
 /**
  * Юнит-тесты ModerationService (TASK-053). Prisma мокается. Проверяются:
@@ -32,6 +34,8 @@ describe('ModerationService', () => {
   let prisma: any;
   let uploads: any;
   let service: ModerationService;
+  let urlSync: { enqueue: jest.Mock };
+  let translateQueue: { enqueue: jest.Mock };
 
   const dbListItem = {
     id: LISTING_ID,
@@ -100,7 +104,14 @@ describe('ModerationService', () => {
         .fn()
         .mockResolvedValue('https://signed.example/cover.jpg'),
     };
-    service = new ModerationService(prisma, uploads);
+    urlSync = { enqueue: jest.fn().mockResolvedValue(undefined) };
+    translateQueue = { enqueue: jest.fn().mockResolvedValue(undefined) };
+    service = new ModerationService(
+      prisma,
+      uploads,
+      urlSync as unknown as ListingUrlSyncQueue,
+      translateQueue as unknown as ListingTranslateQueue,
+    );
   });
 
   async function expectCode(promise: Promise<unknown>, code: ApiErrorCode) {
@@ -466,6 +477,10 @@ describe('ModerationService', () => {
       // published_at выставлен (был null) — Date.
       const updateArg = prisma.listing.update.mock.calls[0][0];
       expect(updateArg.data.publishedAt).toBeInstanceOf(Date);
+      // SEO AUD-11: опубликованное объявление уходит на синхронизацию с сайтом.
+      expect(urlSync.enqueue).toHaveBeenCalledWith([LISTING_ID]);
+      // SEO AUD-14: одобрение ставит перевод в фон (выключается TRANSLATE_ON_APPROVE).
+      expect(translateQueue.enqueue).toHaveBeenCalledWith([LISTING_ID]);
 
       expect(prisma.moderationLog.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -578,6 +593,7 @@ describe('ModerationService', () => {
       expect(prisma.listing.update).toHaveBeenCalledWith({
         where: { id: LISTING_ID },
         data: {
+          contentUpdatedAt: expect.any(Date),
           status: ListingStatus.ARCHIVED,
           publishedAt: firstPublished,
           editedSinceHidden: false,

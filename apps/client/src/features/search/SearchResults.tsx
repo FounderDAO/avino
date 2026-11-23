@@ -21,6 +21,7 @@ import { List as ListIcon, Map as MapIcon, Pencil, Trash2, X } from 'lucide-reac
 import { PropertyCard } from '@/features/search/PropertyCard';
 import { PropertyCardSkeleton } from '@/features/search/PropertyCardSkeleton';
 import { SortControl } from '@/features/search/SortControl';
+import { useSearchTransition } from '@/features/search/SearchTransition';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
@@ -86,6 +87,10 @@ export interface SearchResultsProps {
    * (viewport-режим активен, без autoFit, bounds-запросы без региона).
    */
   regionIsDefault?: boolean;
+  /** Вводный абзац лендинга (answer-first) под заголовком; только на индексируемых. */
+  intro?: string;
+  /** Номерная пагинация ссылками (SSR, для краулеров) — под выдачей. */
+  pagination?: React.ReactNode;
 }
 
 export function SearchResults({
@@ -98,6 +103,8 @@ export function SearchResults({
   loading,
   initialBounds = null,
   initialPolygon = null,
+  pagination,
+  intro,
   regionIsDefault = false,
 }: SearchResultsProps) {
   const t = useTranslations('search');
@@ -288,7 +295,9 @@ export function SearchResults({
     : vp.active
       ? visibleCount < sortedForDisplay.length
       : cursor != null;
-  const busy = Boolean(loading) || isFetching;
+  // isPending — смена фильтров в FilterBar (бывший loading.tsx).
+  const { isPending } = useSearchTransition();
+  const busy = Boolean(loading) || isFetching || isPending;
   const onShowMore = vp.active
     ? () => setVisibleCount((c) => c + SEARCH_PAGE_SIZE)
     : loadMore;
@@ -430,6 +439,9 @@ export function SearchResults({
                     ? tCommon('loading')
                     : t('results.count', { count: totalCount })}
             </p>
+            {intro && (
+              <p className="mt-2 max-w-[72ch] text-[13.5px] leading-relaxed text-muted-foreground">{intro}</p>
+            )}
           </div>
           {/* Сортировка рядом со счётчиком (Zillow-стиль); применяется и под территорией */}
           <SortControl />
@@ -500,6 +512,10 @@ export function SearchResults({
             </p>
           </div>
         )}
+
+        {/* Номерные ссылки ?page=N: пока выдача — ровно SSR-страница (без
+            «Показать ещё», территории и viewport-режима). */}
+        {!busy && !points && !vp.active && extra.length === 0 && pagination}
 
         {/* Компактный футер внизу скроллящейся колонки (Zillow, спека 2026-07-17);
             mt-auto прижимает его к низу при короткой/пустой выдаче. */}

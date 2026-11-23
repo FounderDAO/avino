@@ -18,7 +18,8 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'mortgage' });
-  return { title: t('title') };
+  // Калькулятор — служебная страница объявления, не отдельная посадочная.
+  return { title: t('title'), robots: { index: false, follow: true } };
 }
 
 export default async function MortgageResultPage({ params }: PageProps) {

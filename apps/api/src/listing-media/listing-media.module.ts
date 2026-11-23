@@ -3,6 +3,8 @@ import { RolesModule } from '../roles';
 import { UploadsModule } from '../uploads';
 import { ListingMediaController } from './listing-media.controller';
 import { ListingMediaService } from './listing-media.service';
+import { MediaVariantsProcessor } from './media-variants.processor';
+import { MediaVariantsWorker } from './media-variants.worker';
 
 /**
  * ListingMediaModule — медиа объявления (TASK-061, M6).
@@ -14,7 +16,8 @@ import { ListingMediaService } from './listing-media.service';
 @Module({
   imports: [RolesModule, UploadsModule],
   controllers: [ListingMediaController],
-  providers: [ListingMediaService],
+  // MediaVariants*: WebP-варианты загруженных фото в фоне (SEO AUD-8).
+  providers: [ListingMediaService, MediaVariantsProcessor, MediaVariantsWorker],
   exports: [ListingMediaService],
 })
 export class ListingMediaModule {}

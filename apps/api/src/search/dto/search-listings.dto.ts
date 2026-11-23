@@ -311,6 +311,18 @@ export class SearchListingsQueryDto {
   @IsString()
   cursor?: string;
 
+  /**
+   * Номер страницы (с 1) — переход сразу на страницу N одним запросом (SEO
+   * AUD-13: пагинация ссылками на сайте). Взаимоисключающ с `cursor`;
+   * `page × limit ≤ 5000`. `next_cursor` в ответе позволяет продолжить лентой.
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(5000)
+  page?: number;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

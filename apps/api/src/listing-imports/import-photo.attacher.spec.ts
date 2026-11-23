@@ -27,12 +27,16 @@ describe('ImportPhotoAttacher', () => {
     media = {
       uploadToStorage: jest.fn().mockResolvedValue({ key: 'k', url: 'u' }),
       createMediaRecord: jest.fn().mockResolvedValue({ id: 'm1' }),
+      scheduleVariants: jest.fn().mockResolvedValue(undefined),
     };
     attacher = new ImportPhotoAttacher(prisma, media);
   });
 
   it('грузит в хранилище вне транзакции, запись и DONE — в транзакции, sort_order = position', async () => {
+    tx.listingImportPhoto.findUniqueOrThrow.mockResolvedValueOnce({ id: 'p1', status: 'DONE', mediaId: 'm1' });
     const result = await attacher.attach(photo, Buffer.from('x'), 'image/jpeg');
+    // SEO AUD-8: WebP-варианты — после коммита записи.
+    expect(media.scheduleVariants).toHaveBeenCalledWith(['m1']);
     expect(media.uploadToStorage).toHaveBeenCalledWith('l1', Buffer.from('x'), 'image/jpeg');
     expect(media.createMediaRecord).toHaveBeenCalledWith(tx, 'l1', { key: 'k', url: 'u', mimeType: 'image/jpeg', sizeBytes: 1, sortOrder: 3 });
     expect(tx.listingImportPhoto.updateMany).toHaveBeenCalledWith({

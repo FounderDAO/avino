@@ -12,6 +12,7 @@ import { searchListings } from '@/lib/api/listings';
 import type { ListingFilter, TransactionType } from '@/lib/mock/types';
 import { MapSearch } from '@/features/map/MapSearch';
 import { alternatesFor } from '@/lib/seo/alternates';
+import { SiteGraph } from '@/components/seo/SiteGraph';
 
 export async function generateMetadata({
   params,
@@ -23,7 +24,7 @@ export async function generateMetadata({
   return {
     title: t('map.metaTitle'),
     description: t('map.metaDescription'),
-    alternates: alternatesFor('/map'),
+    alternates: alternatesFor('/map', locale),
   };
 }
 
@@ -51,6 +52,7 @@ export default async function MapPage({
 
   return (
     <div className="fade-up">
+      <SiteGraph page={{ path: '/map', nameKey: 'search.map.metaTitle' }} />
       <MapSearch initialListings={initialListings} locale={locale} tx={tx} />
     </div>
   );

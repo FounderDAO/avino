@@ -344,4 +344,16 @@ describe('FilterBar (Zillow-раскладка)', () => {
     expect(url).toContain('region_id=r2');
     expect(url).not.toContain('district_id');
   });
+
+  it('смена фильтра сбрасывает ?page= (номер старой выдачи может не существовать)', async () => {
+    mockSearchParamsStr = 'tx=SALE&region_id=r1&page=3';
+    const user = userEvent.setup();
+    render(<FilterBar values={{ ...baseValues, regionId: 'r1' }} districts={districtsWithRegions} regions={regions} />);
+    await user.click(screen.getByTestId('filter-region'));
+    await user.click(screen.getByText('Ташкентская область'));
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+    const url = mockReplace.mock.calls[0][0] as string;
+    expect(url).toContain('region_id=r2');
+    expect(url).not.toContain('page=');
+  });
 });

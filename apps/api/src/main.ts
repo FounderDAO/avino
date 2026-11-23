@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { buildCorsOptions } from './common/cors/cors.options';
+import { apiNoIndexMiddleware } from './common/seo/api-noindex.middleware';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { setupSwagger } from './common/openapi';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
@@ -26,6 +27,10 @@ async function bootstrap() {
   // cookie avino_rt — ADR-0153). Ставится до пайпов/гвардов, чтобы контроллеры
   // видели разобранные cookie. Подпись не используем (значение — сам JWT).
   app.use(cookieParser());
+  // API-хост вне поискового индекса: /robots.txt (Disallow: /) и X-Robots-Tag
+  // на каждом ответе (SEO AUD-16). Ставится до роутинга, чтобы /robots.txt
+  // отвечал вне глобального префикса /api.
+  app.use(apiNoIndexMiddleware);
   // request_id для каждого запроса + заголовок X-Request-Id (TASK-023).
   app.useGlobalInterceptors(new RequestIdInterceptor());
   // Глобальная валидация входных DTO: whitelist + transform (TASK-022).
