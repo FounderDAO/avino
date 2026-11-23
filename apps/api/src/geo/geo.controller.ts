@@ -1,7 +1,8 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Header, Query } from '@nestjs/common';
 import { ApiQuery } from '@nestjs/swagger';
 import { DistrictListItem, DistrictsService } from './districts.service';
 import { RegionListItem, RegionsService } from './regions.service';
+import { GEO_CACHE_CONTROL } from '../common/seo/cache-control';
 
 /**
  * GeoController — публичные гео-справочники (TASK-209, ADR-0068; ADR-0113 regions).
@@ -23,6 +24,7 @@ export class GeoController {
    * Ответ: `[{ id, code, name_uz, name_ru, name_en, region_id }]`.
    */
   @Get('districts')
+  @Header('Cache-Control', GEO_CACHE_CONTROL)
   @ApiQuery({
     name: 'region_id',
     required: false,
@@ -34,6 +36,7 @@ export class GeoController {
 
   /** `GET /api/v1/geo/regions` — полный список регионов (ADR-0113). Auth: public. */
   @Get('regions')
+  @Header('Cache-Control', GEO_CACHE_CONTROL)
   listRegions(): Promise<RegionListItem[]> {
     return this.regionsService.listAll();
   }

@@ -1,147 +1,96 @@
 /**
- * sitemap.ts — динамическая карта сайта (MetadataRoute.Sitemap, Next.js App Router).
+ * sitemap.ts — карта сайта по файлам (generateSitemaps, Next 15):
+ *   /sitemap/static.xml       — статические посадочные
+ *   /sitemap/agents.xml       — /agents/[id] агентов с активными объявлениями
+ *   /sitemap/listings-<n>.xml — объявления, ≤ 10 000 URL на файл
+ * Индекс /sitemap.xml собирает route sitemap.xml/route.ts из тех же id.
  *
- * Статические роуты + все активные объявления, страницы по каждой локали.
- * Объявления тянутся постранично через /api/v1/search (limit=100, keyset-курсор).
- *
- * Потолок: MAX_PAGES страниц × 100 = 5 000 объявлений. Если объявлений больше —
- * в серверном логе появляется предупреждение с числом пропущенных; сайтмап всё
- * равно возвращает все собранные записи (не падает 500).
- *
- * При ошибке API сайтмап деградирует до статических роутов.
+ * Каждая запись — на каждую локаль с одинаковым блоком hreflang. Кэш — час
+ * (revalidate), без no-store. lastmod у объявлений — только из updated_at API
+ * (дата содержимого, backend SEO AUD-6); у статических страниц его нет: «сейчас»
+ * или createdAt — ложный сигнал.
+ * При ошибке API файл объявлений/агентов отдаётся пустым, а не 500.
  */
 import type { MetadataRoute } from 'next';
-import { BASE } from '@/lib/seo/base';
+import { hreflangLanguages, localeUrl } from '@/lib/seo/alternates';
 import { routing } from '@/i18n/routing';
-import { resolveApiBase } from '@/lib/api/base';
-import type { SearchEnvelope } from '@/lib/api/listings';
+import { listingFilePages, parseListingFileId, sitemapIds } from '@/lib/seo/sitemapIndex';
+import { fetchAgentIds, fetchLandingPaths, fetchListingIds, fetchListingTotal } from '@/lib/seo/sitemapData';
 
-const { locales, defaultLocale } = routing;
+export const revalidate = 3600;
 
-/** Максимум страниц поиска для сбора ID объявлений (100 шт/страница). */
-const MAX_PAGES = 50; // до 5 000 объявлений
-const PAGE_LIMIT = 100;
+const { locales } = routing;
 
-// ─── Вспомогательные ──────────────────────────────────────────────────────────
-
-/** Alternate-блок для локалей (url включает /locale/ префикс). */
-function localeAlternates(path: string): Record<string, string> {
-  const languages: Record<string, string> = {};
-  for (const locale of locales) {
-    languages[locale] = `${BASE}/${locale}${path}`;
-  }
-  languages['x-default'] = `${BASE}/${defaultLocale}${path}`;
-  return languages;
-}
-
-/** Сайтмап-запись для статического роута. */
-function staticEntry(
+/** Одна запись на КАЖДУЮ локаль (uz/ru/en), у всех — одинаковый блок hreflang. */
+function localizedEntries(
   path: string,
-  priority: number,
-  changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency'] = 'weekly',
-): MetadataRoute.Sitemap[number] {
-  return {
-    url: `${BASE}/${defaultLocale}${path}`,
-    lastModified: new Date(),
-    changeFrequency,
-    priority,
-    alternates: { languages: localeAlternates(path) },
-  };
+  extra: Omit<MetadataRoute.Sitemap[number], 'url' | 'alternates'>,
+): MetadataRoute.Sitemap {
+  const languages = hreflangLanguages(path);
+  return locales.map((locale) => ({
+    ...extra,
+    url: localeUrl(locale, path),
+    alternates: { languages },
+  }));
 }
 
-// ─── Статические роуты ────────────────────────────────────────────────────────
-
+/** Только канонические индексируемые адреса (200, без noindex). */
 const STATIC_ROUTES: MetadataRoute.Sitemap = [
-  staticEntry('/', 1.0, 'daily'),
-  staticEntry('/search?tx=SALE', 0.9, 'daily'),
-  staticEntry('/search?tx=RENT', 0.9, 'daily'),
-  staticEntry('/sell', 0.7, 'monthly'),
-  staticEntry('/about', 0.5, 'monthly'),
-  staticEntry('/help', 0.5, 'monthly'),
-  staticEntry('/map', 0.8, 'daily'),
+  ...localizedEntries('/', { changeFrequency: 'daily', priority: 1.0 }),
+  ...localizedEntries('/search?tx=SALE', { changeFrequency: 'daily', priority: 0.9 }),
+  ...localizedEntries('/search?tx=RENT', { changeFrequency: 'daily', priority: 0.9 }),
+  ...localizedEntries('/map', { changeFrequency: 'daily', priority: 0.8 }),
+  ...localizedEntries('/agents', { changeFrequency: 'weekly', priority: 0.6 }),
+  ...localizedEntries('/sell', { changeFrequency: 'monthly', priority: 0.7 }),
+  ...localizedEntries('/about', { changeFrequency: 'monthly', priority: 0.5 }),
+  ...localizedEntries('/help', { changeFrequency: 'monthly', priority: 0.5 }),
 ];
 
-// ─── Сбор ID объявлений ───────────────────────────────────────────────────────
-
-interface ListingIdEntry {
-  id: string;
-  updatedAt: string | null;
-  createdAt: string;
+export async function generateSitemaps() {
+  return sitemapIds(await fetchListingTotal()).map((id) => ({ id }));
 }
 
-/**
- * Тянет все объявления постранично через keyset-курсор.
- * При ошибке возвращает пустой массив — сайтмап деградирует до статики.
- */
-async function fetchAllListingEntries(): Promise<ListingIdEntry[]> {
-  const entries: ListingIdEntry[] = [];
-  let cursor: string | null = null;
-  let page = 0;
+export default async function sitemap({ id }: { id: string }): Promise<MetadataRoute.Sitemap> {
+  if (id === 'static') return STATIC_ROUTES;
 
-  try {
-    const apiBase = resolveApiBase();
-
-    do {
-      const params = new URLSearchParams({ limit: String(PAGE_LIMIT) });
-      if (cursor) params.set('cursor', cursor);
-
-      const res = await fetch(`${apiBase}/search?${params.toString()}`, {
-        cache: 'no-store',
-        headers: { Accept: 'application/json', 'Accept-Language': 'ru' },
-      });
-
-      if (!res.ok) {
-        console.error(`[sitemap] search API ${res.status} on page ${page} — using partial result`);
-        break;
-      }
-
-      const env: SearchEnvelope = await res.json();
-
-      for (const item of env.data) {
-        entries.push({
-          id: item.id,
-          // API поиска возвращает created_at; updated_at не в контракте краткой карточки
-          updatedAt: null,
-          createdAt: item.created_at,
-        });
-      }
-
-      cursor = env.meta.next_cursor;
-      page++;
-
-      if (page >= MAX_PAGES && cursor !== null) {
-        const approxRemaining = env.meta.total - entries.length;
-        console.warn(
-          `[sitemap] hit MAX_PAGES=${MAX_PAGES} limit (${MAX_PAGES * PAGE_LIMIT} listings indexed). ` +
-          `Skipping ~${approxRemaining} more listings (total API: ${env.meta.total}).`,
-        );
-        break;
-      }
-    } while (cursor !== null);
-  } catch (err) {
-    console.error('[sitemap] failed to fetch listings, returning static-only sitemap:', err);
-    return [];
+  // Непустые гео-лендинги (FE-10): канонические /search?tx=…&district_id|region_id=….
+  if (id === 'landings') {
+    try {
+      const paths = await fetchLandingPaths();
+      return paths.flatMap((path) => localizedEntries(path, { changeFrequency: 'daily', priority: 0.7 }));
+    } catch (err) {
+      console.error('[sitemap] landings failed:', err);
+      return [];
+    }
   }
 
-  return entries;
-}
+  if (id === 'agents') {
+    try {
+      const ids = await fetchAgentIds();
+      return ids.flatMap((agentId) =>
+        localizedEntries(`/agents/${agentId}`, { changeFrequency: 'weekly', priority: 0.5 }),
+      );
+    } catch (err) {
+      console.error('[sitemap] agents failed:', err);
+      return [];
+    }
+  }
 
-// ─── Экспорт ──────────────────────────────────────────────────────────────────
-
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const entries = await fetchAllListingEntries();
-
-  const listingEntries: MetadataRoute.Sitemap = entries.map(({ id, updatedAt, createdAt }) => {
-    const path = `/listing/${id}`;
-    const lastModified = new Date(updatedAt ?? createdAt);
-    return {
-      url: `${BASE}/${defaultLocale}${path}`,
-      lastModified,
-      changeFrequency: 'weekly' as const,
-      priority: 0.8,
-      alternates: { languages: localeAlternates(path) },
-    };
-  });
-
-  return [...STATIC_ROUTES, ...listingEntries];
+  const n = parseListingFileId(String(id));
+  if (n === null) return [];
+  try {
+    const { from, to } = listingFilePages(n);
+    const rows = await fetchListingIds(from, to);
+    return rows.flatMap(({ id: listingId, updatedAt }) =>
+      localizedEntries(`/listing/${listingId}`, {
+        changeFrequency: 'weekly',
+        priority: 0.8,
+        // Только реальная дата изменения содержимого (backend SEO AUD-6).
+        ...(updatedAt && { lastModified: new Date(updatedAt) }),
+      }),
+    );
+  } catch (err) {
+    console.error(`[sitemap] listings file ${n} failed:`, err);
+    return [];
+  }
 }

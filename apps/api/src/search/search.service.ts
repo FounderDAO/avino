@@ -99,6 +99,8 @@ export interface SearchListItem {
   lot_area: string | null;
   city_id: string | null;
   district_id: string | null;
+  /** Регион района (SEO AUD-5). */
+  region_id: string | null;
   /** Точный адрес объявления (VarChar 500); `null`, если не заполнен. */
   address: string | null;
   latitude: string | null;
@@ -112,6 +114,10 @@ export interface SearchListItem {
   /** До 3 свежих presigned URL фото (индекс 0 = обложка, ADR-0086). */
   thumbnails: string[];
   created_at: string;
+  /** Дата изменения содержимого (цена, текст, фото, статус) — SEO AUD-6. */
+  updated_at: string;
+  /** Язык, на котором автор написал объявление (SEO AUD-14). */
+  original_language: Language;
   /** Счётчики детали (мобилка #8): просмотры и лайки (избранное всех юзеров). */
   views_count: number;
   likes_count: number;
@@ -136,8 +142,36 @@ export interface SearchListItem {
  */
 export interface CursorPaginatedResponse<T> {
   data: T[];
-  meta: { limit: number; total: number; next_cursor: string | null };
+  meta: {
+    limit: number;
+    total: number;
+    next_cursor: string | null;
+    /** Только при `?page=` (SEO AUD-13): номер и число страниц. */
+    page?: number;
+    pages?: number;
+  };
 }
+
+/** Ответ `GET /search/facets` (SEO AUD-12). */
+export interface SearchFacets {
+  total: number;
+  by_transaction_type: { value: TransactionType; count: number }[];
+  by_property_type: { value: PropertyType; count: number }[];
+  by_region: { id: string; code: string; slug: string; name_uz: string; name_ru: string; name_en: string; count: number }[];
+  by_district: {
+    id: string;
+    code: string;
+    slug: string;
+    region_id: string | null;
+    name_uz: string;
+    name_ru: string;
+    name_en: string;
+    count: number;
+  }[];
+}
+
+/** Глубина постраничного доступа: дальше — только лентой по курсору (OFFSET дорогой). */
+const MAX_PAGED_WINDOW = 5000;
 
 /**
  * Совпадение сохранённого поиска для polling-матчера (TASK-102): id ставшего
@@ -203,7 +237,22 @@ interface SortConfig {
   encodeVal: (row: RankedRow) => string;
   /** Строку из курсора в параметр для keyset-условия (с кастом типа). */
   bindVal: (val: string) => Prisma.Sql;
+  /**
+   * Проверка `val` из курсора до SQL: иначе подделанный токен падает на
+   * `::timestamptz` / `::numeric` в базе и отдаёт 500 вместо 400 (AUD-18).
+   */
+  isValidVal: (val: string) => boolean;
 }
+
+/** ISO-8601 дата-время, которое понимает Postgres `::timestamptz`. */
+const isIsoTimestamp = (val: string): boolean =>
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(val) &&
+  !Number.isNaN(Date.parse(val));
+
+/** Десятичное число для `::numeric` (цена, площадь, -1 для NULL-площади). */
+const isDecimal = (val: string): boolean => /^-?\d{1,20}(\.\d{1,30})?$/.test(val);
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Карта конфигураций сортировки (TASK-207, API.md §9).
@@ -219,24 +268,28 @@ const SORTS: Record<SortMode, SortConfig> = {
         ? row.created_at.toISOString()
         : String(row.sort_val ?? row.created_at),
     bindVal: (val) => Prisma.sql`${val}::timestamptz`,
+    isValidVal: isIsoTimestamp,
   },
   price_asc: {
     secondary: Prisma.sql`price`,
     dir: 'ASC',
     encodeVal: (row) => String(row.sort_val ?? '0'),
     bindVal: (val) => Prisma.sql`${val}::numeric`,
+    isValidVal: isDecimal,
   },
   price_desc: {
     secondary: Prisma.sql`price`,
     dir: 'DESC',
     encodeVal: (row) => String(row.sort_val ?? '0'),
     bindVal: (val) => Prisma.sql`${val}::numeric`,
+    isValidVal: isDecimal,
   },
   area_desc: {
     secondary: Prisma.sql`COALESCE(area, -1)`,
     dir: 'DESC',
     encodeVal: (row) => String(row.sort_val ?? '-1'),
     bindVal: (val) => Prisma.sql`${val}::numeric`,
+    isValidVal: isDecimal,
   },
 };
 
@@ -256,6 +309,7 @@ const SEARCH_SELECT = {
   lotArea: true,
   cityId: true,
   districtId: true,
+  regionId: true,
   address: true,
   addressEn: true,
   latitude: true,
@@ -264,6 +318,7 @@ const SEARCH_SELECT = {
   promotionExpiresAt: true,
   originalLanguage: true,
   createdAt: true,
+  contentUpdatedAt: true,
   viewsCount: true,
   // Живой агрегат лайков (мобилка #8): COUNT по favorites, без денормализации.
   _count: { select: { favorites: true } },
@@ -333,18 +388,16 @@ export class SearchService {
     viewerId?: string,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
-    const cursor = this.decodeCursor(query.cursor);
+    const cursor = this.decodeCursor(query.cursor, SORTS[query.sort ?? 'date_desc']);
+    const page = this.resolvePage(query.page, query.cursor, limit);
+    const offset = page ? (page - 1) * limit : 0;
     const filterSql = Prisma.sql`${this.buildWhereSql(query, await this.fxRateForFilter(query), viewerId)} ${this.pointsFilterSql(query.points)}`;
 
     // Явная сортировка → гибрид (закреплённое промо + строгий ключ + FX).
     if (query.sort !== undefined) {
-      return this.searchExplicitSort(
-        query.sort,
-        filterSql,
-        cursor,
-        limit,
-        langParam,
-        acceptLanguage,
+      return this.withPageMeta(
+        await this.searchExplicitSort(query.sort, filterSql, cursor, limit, langParam, acceptLanguage, offset),
+        page,
       );
     }
 
@@ -368,20 +421,127 @@ export class SearchService {
         WHERE ${pageWhere}
         ORDER BY ${TIER_RANK_SQL} DESC, (${cfg.secondary}) ${orderDir}, id DESC
         LIMIT ${limit + 1}
+        OFFSET ${offset}
       `),
       this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
         SELECT count(*)::int AS count FROM listings WHERE ${filterSql}
       `),
     ]);
 
-    return this.buildKeysetEnvelope(
-      ranked,
-      countRows[0]?.count ?? 0,
-      limit,
-      cfg,
-      langParam,
-      acceptLanguage,
+    return this.withPageMeta(
+      await this.buildKeysetEnvelope(
+        ranked,
+        countRows[0]?.count ?? 0,
+        limit,
+        cfg,
+        langParam,
+        acceptLanguage,
+      ),
+      page,
     );
+  }
+
+  /**
+   * `GET /api/v1/search/facets` (SEO AUD-12): число объявлений под теми же
+   * фильтрами, что `/search`, — всего и в разрезе сделки, типа, района и региона.
+   * Сайт берёт отсюда непустые лендинги районов (sitemap, llms.txt) вместо
+   * прохода всей выдачи. Регион считается через район (его region_id и названия
+   * берутся из справочника одним запросом).
+   */
+  async facets(query: SearchListingsQueryDto, viewerId?: string): Promise<SearchFacets> {
+    const filterSql = Prisma.sql`${this.buildWhereSql(query, await this.fxRateForFilter(query), viewerId)} ${this.pointsFilterSql(query.points)}`;
+    const [totalRows, byTx, byType, byDistrict] = await Promise.all([
+      this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
+        SELECT count(*)::int AS count FROM listings WHERE ${filterSql}
+      `),
+      this.prisma.$queryRaw<{ value: string; count: number }[]>(Prisma.sql`
+        SELECT transaction_type::text AS value, count(*)::int AS count
+        FROM listings WHERE ${filterSql} GROUP BY 1 ORDER BY 2 DESC
+      `),
+      this.prisma.$queryRaw<{ value: string; count: number }[]>(Prisma.sql`
+        SELECT property_type::text AS value, count(*)::int AS count
+        FROM listings WHERE ${filterSql} GROUP BY 1 ORDER BY 2 DESC
+      `),
+      this.prisma.$queryRaw<{ value: string; count: number }[]>(Prisma.sql`
+        SELECT district_id::text AS value, count(*)::int AS count
+        FROM listings WHERE ${filterSql} AND district_id IS NOT NULL GROUP BY 1 ORDER BY 2 DESC
+      `),
+    ]);
+
+    const districtIds = byDistrict.map((r) => r.value);
+    const districts = districtIds.length
+      ? await this.prisma.district.findMany({
+          where: { id: { in: districtIds } },
+          select: { id: true, code: true, slug: true, nameUz: true, nameRu: true, nameEn: true, regionId: true },
+        })
+      : [];
+    const districtById = new Map(districts.map((d) => [d.id, d]));
+    const regionCounts = new Map<string, number>();
+    for (const row of byDistrict) {
+      const regionId = districtById.get(row.value)?.regionId;
+      if (regionId) regionCounts.set(regionId, (regionCounts.get(regionId) ?? 0) + row.count);
+    }
+    const regions = regionCounts.size
+      ? await this.prisma.region.findMany({
+          where: { id: { in: [...regionCounts.keys()] } },
+          select: { id: true, code: true, slug: true, nameUz: true, nameRu: true, nameEn: true },
+        })
+      : [];
+
+    return {
+      total: totalRows[0]?.count ?? 0,
+      by_transaction_type: byTx.map((r) => ({ value: r.value as TransactionType, count: r.count })),
+      by_property_type: byType.map((r) => ({ value: r.value as PropertyType, count: r.count })),
+      by_region: regions
+        .map((r) => ({
+          id: r.id,
+          code: r.code,
+          slug: r.slug,
+          name_uz: r.nameUz,
+          name_ru: r.nameRu,
+          name_en: r.nameEn,
+          count: regionCounts.get(r.id) ?? 0,
+        }))
+        .sort((a, b) => b.count - a.count),
+      by_district: byDistrict.flatMap((r) => {
+        const d = districtById.get(r.value);
+        return d
+          ? [{ id: d.id, code: d.code, slug: d.slug, region_id: d.regionId, name_uz: d.nameUz, name_ru: d.nameRu, name_en: d.nameEn, count: r.count }]
+          : [];
+      }),
+    };
+  }
+
+  /**
+   * `?page=` (SEO AUD-13): страница N одним запросом. С курсором вместе — 400
+   * (неясно, от чего считать); глубже {@link MAX_PAGED_WINDOW} — 400 (дальше
+   * лентой). Без параметра — null, работает keyset как раньше.
+   */
+  private resolvePage(page: number | undefined, cursor: string | undefined, limit: number): number | null {
+    if (page === undefined) return null;
+    if (cursor !== undefined) {
+      throw new BadRequestException({
+        code: ApiErrorCode.VALIDATION_ERROR,
+        message: 'Use either page or cursor, not both',
+      });
+    }
+    if (page * limit > MAX_PAGED_WINDOW) {
+      throw new BadRequestException({
+        code: ApiErrorCode.VALIDATION_ERROR,
+        message: `page × limit must not exceed ${MAX_PAGED_WINDOW}; continue with next_cursor`,
+      });
+    }
+    return page;
+  }
+
+  /** Дописать page/pages в meta, если запрос был постраничным. */
+  private withPageMeta(
+    envelope: CursorPaginatedResponse<SearchListItem>,
+    page: number | null,
+  ): CursorPaginatedResponse<SearchListItem> {
+    if (page === null) return envelope;
+    const pages = Math.max(1, Math.ceil(envelope.meta.total / envelope.meta.limit));
+    return { ...envelope, meta: { ...envelope.meta, page, pages } };
   }
 
   /**
@@ -407,6 +567,7 @@ export class SearchService {
     limit: number,
     langParam?: string,
     acceptLanguage?: string,
+    offset = 0,
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const rate =
       sort === 'price_asc' || sort === 'price_desc'
@@ -441,6 +602,7 @@ export class SearchService {
         WHERE ${strictWhere}
         ORDER BY (${cfg.secondary}) ${orderDir}, id DESC
         LIMIT ${limit + 1}
+        OFFSET ${offset}
       `),
       this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
         SELECT count(*)::int AS count FROM listings WHERE ${filterSql}
@@ -451,8 +613,9 @@ export class SearchService {
     const strictPage = hasMore ? strictRows.slice(0, limit) : strictRows;
     const last = strictPage[strictPage.length - 1];
 
-    // Page 1 (без курсора) — впереди закреплённый промо-блок; далее только поток.
-    const rows = cursor ? strictPage : [...pinnedRows, ...strictPage];
+    // Page 1 (без курсора и offset) — впереди закреплённый промо-блок; далее только поток.
+    // `?page=N` листает тот же поток: OFFSET (N-1)·limit, как курсор (SEO AUD-13).
+    const rows = cursor || offset > 0 ? strictPage : [...pinnedRows, ...strictPage];
 
     return {
       data: await this.hydrateCards(rows, langParam, acceptLanguage),
@@ -557,7 +720,7 @@ export class SearchService {
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const cfg = SORTS['date_desc'];
-    const cursor = this.decodeCursor(query.cursor);
+    const cursor = this.decodeCursor(query.cursor, cfg);
     const point = this.pointSql(query.lng, query.lat);
     const fxRate = await this.fxRateForFilter(query);
     // ST_DWithin по GIST-индексу; NULL-location отсекается (NULL не проходит WHERE).
@@ -613,7 +776,7 @@ export class SearchService {
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const cfg = SORTS['date_desc'];
-    const cursor = this.decodeCursor(query.cursor);
+    const cursor = this.decodeCursor(query.cursor, cfg);
     const envelope = this.envelopeSql(query);
     const fxRate = await this.fxRateForFilter(query);
     // GIST-префильтр `&&` по geography + точный ST_Within (geometry); NULL-location отсекается.
@@ -744,7 +907,7 @@ export class SearchService {
   ): Promise<CursorPaginatedResponse<SearchListItem>> {
     const limit = Math.min(query.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const cfg = SORTS['date_desc'];
-    const cursor = this.decodeCursor(query.cursor);
+    const cursor = this.decodeCursor(query.cursor, cfg);
     const vertices = parsePolygonRing(query.points);
     const polygon = this.polygonSql(vertices);
     const fxRate = await this.fxRateForFilter(query);
@@ -1257,7 +1420,8 @@ export class SearchService {
       conds.push(Prisma.sql`district_id = ${query.district_id}::uuid`);
     if (query.region_id !== undefined)
       conds.push(
-        Prisma.sql`district_id IN (SELECT id FROM districts WHERE region_id = ${query.region_id}::uuid)`,
+        // region_id объявления ведёт триггер из района (SEO AUD-5) — индекс (status, region_id).
+        Prisma.sql`region_id = ${query.region_id}::uuid`,
       );
     // Страница агента (ADR-0140): только объявления этого владельца.
     if (query.agent_id !== undefined)
@@ -1519,6 +1683,7 @@ export class SearchService {
       lot_area: listing.lotArea?.toFixed(2) ?? null,
       city_id: listing.cityId,
       district_id: listing.districtId,
+      region_id: listing.regionId,
       // Локализованный адрес (ADR-0147): EN — перевод с фолбэком на канон;
       // остальные языки (включая UZ, у которого своего перевода адреса нет) — канон RU.
       address:
@@ -1544,6 +1709,8 @@ export class SearchService {
         language,
       ),
       created_at: listing.createdAt.toISOString(),
+      updated_at: listing.contentUpdatedAt.toISOString(),
+      original_language: listing.originalLanguage,
       views_count: listing.viewsCount,
       likes_count: listing._count.favorites,
     };
@@ -1577,18 +1744,24 @@ export class SearchService {
    * Невалидный/повреждённый `cursor` → `400` (не молчаливый сброс к первой странице,
    * чтобы клиент заметил ошибку пагинации).
    */
-  private decodeCursor(raw: string | undefined): SearchCursor | null {
+  private decodeCursor(raw: string | undefined, cfg: SortConfig): SearchCursor | null {
     if (raw === undefined) {
       return null;
     }
     try {
       const json = Buffer.from(raw, 'base64url').toString('utf8');
       const parsed = JSON.parse(json) as Partial<SearchCursor>;
+      // Форма и значения: rank — тир 0..2, val — под тип вторичного ключа,
+      // id — UUID (иначе `::uuid` в keyset-условии падает в базе → 500).
       if (
         typeof parsed.rank !== 'number' ||
-        !Number.isFinite(parsed.rank) ||
+        !Number.isInteger(parsed.rank) ||
+        parsed.rank < 0 ||
+        parsed.rank > 2 ||
         typeof parsed.val !== 'string' ||
-        typeof parsed.id !== 'string'
+        !cfg.isValidVal(parsed.val) ||
+        typeof parsed.id !== 'string' ||
+        !UUID_RE.test(parsed.id)
       ) {
         throw new Error('malformed cursor');
       }

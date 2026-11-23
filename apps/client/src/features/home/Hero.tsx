@@ -131,7 +131,9 @@ export function Hero({ districts = [] }: { districts?: District[] }) {
 
       <div className="relative mx-auto max-w-[1280px] px-6 pb-[72px] pt-[84px]">
         <h1 className="display max-w-[720px] text-[clamp(40px,6vw,64px)] text-white [text-shadow:0_2px_24px_rgba(0,0,0,.3)]">
-          {t('hero.title1')}
+          {/* Пробел перед <br/>: без него текст H1 без CSS (краулеры, AI) склеивается
+              в «Узбекистанав одном месте». */}
+          {t('hero.title1')}{' '}
           <br />
           {t('hero.title2')}
         </h1>

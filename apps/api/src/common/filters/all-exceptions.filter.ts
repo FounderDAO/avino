@@ -145,12 +145,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const code = this.resolveCode(status, res);
       const message = this.resolveMessage(res, exception.message);
       const details = this.resolveDetails(res);
+      const meta = this.resolveMeta(res);
       return {
         status,
         body: {
           code,
           message,
           ...(details ? { details } : {}),
+          ...(meta ? { meta } : {}),
           request_id: requestId,
         },
       };
@@ -204,6 +206,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return res.details as ApiErrorDetail[];
     }
     return undefined;
+  }
+
+  /** Достаёт `meta` (плоский объект примитивов), если его положил доменный код. */
+  private resolveMeta(res: string | object): Record<string, string | number | boolean | null> | undefined {
+    if (!this.isRecord(res) || !this.isRecord(res.meta) || Array.isArray(res.meta)) {
+      return undefined;
+    }
+    const out: Record<string, string | number | boolean | null> = {};
+    for (const [key, value] of Object.entries(res.meta)) {
+      if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) {
+        out[key] = value as string | number | boolean | null;
+      }
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
   }
 
   private isRecord(value: unknown): value is Record<string, unknown> {

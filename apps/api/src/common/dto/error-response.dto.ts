@@ -28,6 +28,10 @@ export enum ApiErrorCode {
   ACCOUNT_LINK_REQUIRED = 'ACCOUNT_LINK_REQUIRED',
   FORBIDDEN = 'FORBIDDEN',
   NOT_FOUND = 'NOT_FOUND',
+  /** Объявление удалено навсегда (410; SEO AUD-10). */
+  GONE = 'GONE',
+  /** Опубликованное объявление на повторной модерации после правки (404 + meta; SEO контракт B). */
+  UNDER_REVIEW = 'UNDER_REVIEW',
   CONTACT_TAKEN = 'CONTACT_TAKEN',
   ROLE_ALREADY_GRANTED = 'ROLE_ALREADY_GRANTED',
   ALREADY_FAVORITED = 'ALREADY_FAVORITED',
@@ -86,6 +90,8 @@ export interface ApiErrorBody {
   code: ApiErrorCode | string;
   message: string;
   details?: ApiErrorDetail[];
+  /** Машиночитаемый контекст ошибки (например, даты для UNDER_REVIEW). */
+  meta?: Record<string, string | number | boolean | null>;
   request_id: string;
 }
 
@@ -103,4 +109,5 @@ export interface ApiExceptionPayload {
   code?: ApiErrorCode | string;
   message?: string;
   details?: ApiErrorDetail[];
+  meta?: Record<string, string | number | boolean | null>;
 }

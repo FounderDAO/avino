@@ -8,6 +8,7 @@ import { getLegalDoc } from '@/content/legal';
 import { alternatesFor } from '@/lib/seo/alternates';
 import type { Locale } from '@/i18n/routing';
 import { fetchLegalDoc, toLegalDoc } from '@/lib/api/legal';
+import { SiteGraph } from '@/components/seo/SiteGraph';
 
 export async function generateMetadata({
   params,
@@ -19,7 +20,7 @@ export async function generateMetadata({
   return {
     title: t('meta.privacy.title'),
     description: t('meta.privacy.description'),
-    alternates: alternatesFor('/legal/privacy'),
+    alternates: alternatesFor('/legal/privacy', locale),
   };
 }
 
@@ -32,5 +33,10 @@ export default async function PrivacyPage({
   // API-версия (админ публиковал) или вшитый фолбэк (пусто/API недоступен).
   const apiDoc = await fetchLegalDoc('privacy', locale);
   const doc = apiDoc ? toLegalDoc(apiDoc) : getLegalDoc('privacy', locale as Locale);
-  return <LegalDocument doc={doc} locale={locale as Locale} />;
+  return (
+    <>
+      <SiteGraph page={{ path: '/legal/privacy', nameKey: 'legal.meta.privacy.title' }} />
+      <LegalDocument doc={doc} locale={locale as Locale} />
+    </>
+  );
 }

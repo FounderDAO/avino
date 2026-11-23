@@ -5,9 +5,10 @@ describe('DistrictsService (unit)', () => {
     const prisma = {
       district: {
         findMany: jest.fn().mockResolvedValue([
-          { id: 'd1', code: 'olmazor', nameUz: 'Olmazor', nameRu: 'Алмазар', nameEn: 'Almazar', regionId: 'c11' },
+          { id: 'd1', code: 'olmazor', slug: 'olmazor', nameUz: 'Olmazor', nameRu: 'Алмазар', nameEn: 'Almazar', regionId: 'c11' },
         ]),
       },
+      geoAlias: { findMany: jest.fn().mockResolvedValue([]) },
     } as any;
     const svc = new DistrictsService(prisma);
     const rows = await svc.listAll();
@@ -19,15 +20,18 @@ describe('DistrictsService (unit)', () => {
     });
     // Поле region_id присутствует в ответе (Task A4).
     expect(rows[0].region_id).toBe('c11');
+    // SEO AUD-15: slug для адресов сайта, прежних slug'ов пока нет.
+    expect(rows[0]).toMatchObject({ slug: 'olmazor', aliases: [] });
   });
 
   it('listAll(regionId) фильтрует по региону и отдаёт region_id', async () => {
     const prisma = {
       district: {
         findMany: jest.fn().mockResolvedValue([
-          { id: 'd1', code: 'olmazor', nameUz: 'Olmazor', nameRu: 'Алмазар', nameEn: 'Almazar', regionId: 'c11' },
+          { id: 'd1', code: 'olmazor', slug: 'olmazor', nameUz: 'Olmazor', nameRu: 'Алмазар', nameEn: 'Almazar', regionId: 'c11' },
         ]),
       },
+      geoAlias: { findMany: jest.fn().mockResolvedValue([]) },
     } as any;
     const svc = new DistrictsService(prisma);
     const rows = await svc.listAll('c11');

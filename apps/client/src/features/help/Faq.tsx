@@ -11,6 +11,7 @@ import { Search, ChevronDown, Home, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fieldClass } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
+import { HELP_FAQ, type HelpCatKey } from './faqItems';
 
 /** Категории справки (ключ → иконка); заголовок/описание — help.cats.{key}. */
 const CATS = [
@@ -19,7 +20,7 @@ const CATS = [
   { key: 'account', icon: User },
 ] as const;
 
-type CatKey = (typeof CATS)[number]['key'];
+type CatKey = HelpCatKey;
 
 /**
  * Нормализация текста для поиска: нижний регистр + удаление апострофов всех
@@ -29,19 +30,8 @@ type CatKey = (typeof CATS)[number]['key'];
  */
 const normalize = (s: string) => s.toLowerCase().replace(/['’‘ʻʼ`´]/g, '');
 
-/** Список вопросов-ответов [категория, ключ help.faq.items.{key}]. */
-const FAQ: ReadonlyArray<readonly [CatKey, string]> = [
-  ['buyers', 'favorites'],
-  ['buyers', 'savedSearch'],
-  ['buyers', 'contactAuthor'],
-  ['owners', 'postListing'],
-  ['owners', 'moderation'],
-  ['owners', 'topVip'],
-  ['owners', 'rejected'],
-  ['account', 'login'],
-  ['account', 'language'],
-  ['account', 'safeDeal'],
-];
+/** Список вопросов-ответов (общий с FAQPage на /help). */
+const FAQ = HELP_FAQ;
 
 export function Faq() {
   const t = useTranslations('help');

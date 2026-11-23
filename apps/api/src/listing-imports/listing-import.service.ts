@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { ListingImportOutcome, ListingImportPhotoStatus, Prisma } from '@prisma/client';
 import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AddressResolverService } from '../geo';
@@ -41,6 +41,7 @@ import {
   validateImportRow,
 } from './import-row.validator';
 import { ListingImportLock } from './listing-import.lock';
+import { GeoResolveQueue } from '../queues/geo-resolve.queue';
 
 /** Строка, прошедшая классификацию и ожидающая записи. */
 type PendingRow =
@@ -85,6 +86,8 @@ export class ListingImportService {
     private readonly lock: ListingImportLock,
     private readonly photoQueue: ListingImportPhotoQueue,
     private readonly addressResolver: AddressResolverService,
+    // SEO AUD-2: созданным без района (геокодер сдался) — повтор в фоне.
+    @Optional() private readonly geoResolve?: GeoResolveQueue,
   ) {}
 
   async run(
@@ -378,6 +381,20 @@ export class ListingImportService {
         }
       }
     }
+
+    // Созданные с точкой, но без района — в очередь повторного определения
+    // (раньше их доставлял только ручной scripts/backfill-districts).
+    const missingDistrict = pending.flatMap((row) =>
+      row.kind === 'CREATE' &&
+      persisted.has(row.report.row) &&
+      row.report.listing_id &&
+      !row.data.districtId &&
+      row.data.latitude != null &&
+      row.data.longitude != null
+        ? [row.report.listing_id]
+        : [],
+    );
+    await this.geoResolve?.enqueue(missingDistrict);
 
     const rest = reports.filter((report) => !persisted.has(report.row));
     if (rest.length > 0) {

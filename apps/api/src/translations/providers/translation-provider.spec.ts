@@ -20,30 +20,22 @@ describe('Translation providers', () => {
     jest.restoreAllMocks();
   });
 
-  describe('graceful degradation (no API key)', () => {
-    it('returns the source text unchanged without calling fetch (Yandex)', async () => {
+  describe('no API key: fails instead of copying the source (SEO AUD-14)', () => {
+    it('throws without calling fetch (Yandex)', async () => {
       const fetchSpy = jest.fn();
       global.fetch = fetchSpy as unknown as typeof fetch;
       const provider = new YandexTranslationProvider(config({}));
 
-      const result = await provider.translate('Tихи', Language.RU, Language.EN);
-
-      expect(result).toBe('Tихи');
+      await expect(provider.translate('Tихи', Language.RU, Language.EN)).rejects.toThrow('not configured');
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    it('returns the source text unchanged without calling fetch (Google)', async () => {
+    it('throws without calling fetch (Google)', async () => {
       const fetchSpy = jest.fn();
       global.fetch = fetchSpy as unknown as typeof fetch;
       const provider = new GoogleTranslationProvider(config({}));
 
-      const result = await provider.translate(
-        'hello',
-        Language.EN,
-        Language.RU,
-      );
-
-      expect(result).toBe('hello');
+      await expect(provider.translate('hello', Language.EN, Language.RU)).rejects.toThrow('not configured');
       expect(fetchSpy).not.toHaveBeenCalled();
     });
   });

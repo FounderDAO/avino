@@ -7,6 +7,7 @@
  * Сетка объявлений реюзает PropertyCard из features/search (card-shape
  * mapListing) — как в /search (SearchResults).
  */
+import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { User } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -22,9 +23,11 @@ const initial = (name: string | null) =>
 export interface AgentProfileProps {
   agent: AgentWithContacts;
   listings: Listing[];
+  /** Номерная пагинация ссылками `?page=N` (SSR) — под сеткой объявлений. */
+  pagination?: ReactNode;
 }
 
-export function AgentProfile({ agent, listings }: AgentProfileProps) {
+export function AgentProfile({ agent, listings, pagination }: AgentProfileProps) {
   const t = useTranslations('agentProfile');
 
   return (
@@ -75,7 +78,7 @@ export function AgentProfile({ agent, listings }: AgentProfileProps) {
         )}
       </div>
 
-      {/* Сетка объявлений агента — первая страница /search?agent_id=. */}
+      {/* Сетка объявлений агента — страница ?page=N выдачи /search?agent_id=. */}
       <div className="mt-8">
         {listings.length === 0 ? (
           <EmptyState title={t('empty')} />
@@ -87,7 +90,7 @@ export function AgentProfile({ agent, listings }: AgentProfileProps) {
           </div>
         )}
       </div>
-      {/* TODO: pagination out of scope for this task — рендерим только первую SEARCH_PAGE_SIZE-страницу */}
+      {pagination && <div className="mt-6">{pagination}</div>}
     </div>
   );
 }

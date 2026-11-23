@@ -94,7 +94,7 @@ function trim(v: number): string {
  * Нормализует площадь: убирает хвостовые нули («60.00» → «60», «60.50» → «60.5»).
  * Возвращает '' для пустых/undefined значений.
  */
-function normalizeArea(area: string | number | undefined): string {
+export function normalizeArea(area: string | number | undefined): string {
   if (area == null || area === '') return '';
   const n = Number(area);
   if (Number.isNaN(n)) return String(area);

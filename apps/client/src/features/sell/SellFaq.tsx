@@ -7,9 +7,10 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown } from 'lucide-react';
+import { SELL_FAQ_KEYS } from './faqKeys';
 
-/** Пункты FAQ (вопрос/ответ — в словаре `sell.faq.items`). */
-const FAQ_KEYS = ['price', 'speed', 'agent', 'languages'] as const;
+/** Пункты FAQ (вопрос/ответ — в словаре `sell.faq.items`); те же — в FAQPage. */
+const FAQ_KEYS = SELL_FAQ_KEYS;
 
 export function SellFaq() {
   const t = useTranslations('sell');

@@ -153,6 +153,8 @@ export interface Listing {
 
   /** Район Ташкента. */
   district: string;
+  /** UUID района (для ссылки «район» в хлебных крошках). */
+  districtId?: string;
   /** UUID региона (API `city_id`); нужен аналитике, чтобы назвать город. */
   regionId?: string;
   /** Точный адрес/массив. */
@@ -172,9 +174,13 @@ export interface Listing {
 
   /** Дата публикации (ISO-строка; рендер — locale-aware relativeTime). */
   createdAt: string;
+  /** Дата изменения содержимого (ISO): lastmod и dateModified; нет у старого API. */
+  updatedAt?: string;
 
   /** Язык оригинала (на будущее, дефолт RU в моках). */
   originalLanguage?: Language;
+  /** Языки с настоящим текстом (оригинал/ручной/перевод ≠ копии); нет у старого API. */
+  translationsAvailable?: Language[];
   /** Статус (в публичной выдаче — всегда ACTIVE). */
   status?: ListingStatus;
   /** Доступны ли экскурсии для этого объявления. */

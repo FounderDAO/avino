@@ -48,11 +48,10 @@ export class YandexTranslationProvider implements TranslationProvider {
     }
 
     const apiKey = this.configService.get<string>('translate.apiKey');
+    // Без ключа — ошибка, а не копия исходника: раньше копия сохранялась как
+    // «перевод» (SEO AUD-14), и языковые версии получали чужой текст.
     if (!apiKey) {
-      this.logger.warn(
-        `Yandex Translate is not configured; returning source text as-is (${from}→${to})`,
-      );
-      return text;
+      throw new Error(`Yandex Translate is not configured (TRANSLATE_API_KEY); ${from}→${to} not translated`);
     }
 
     // Лимит Yandex — 10 000 символов на запрос: длинный текст переводим частями.

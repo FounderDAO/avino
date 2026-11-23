@@ -34,6 +34,12 @@ import { ConfigService } from '@nestjs/config';
  * EXIF-стриппинг и генерация thumbnail выполняются не здесь, а в
  * media_processing_queue (process_uploaded_image, ARCHITECTURE §14 п.3).
  */
+/**
+ * Кэш объектов хранилища: ключи — uuid, содержимое по ключу не меняется, поэтому
+ * браузер и CDN могут держать файл год без перепроверки (SEO AUD-7).
+ */
+export const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
+
 @Injectable()
 export class UploadsService {
   private readonly logger = new Logger(UploadsService.name);
@@ -60,6 +66,8 @@ export class UploadsService {
     key?: string;
     prefix?: string;
     extension?: string;
+    /** По умолчанию — год и immutable: ключи уникальны (uuid) и не переиспользуются (SEO AUD-7). */
+    cacheControl?: string;
   }): Promise<{ key: string; url: string }> {
     const { buffer, contentType } = params;
     const key = params.key ?? this.generateKey(params.prefix, params.extension);
@@ -71,6 +79,7 @@ export class UploadsService {
         Key: key,
         Body: buffer,
         ContentType: contentType,
+        CacheControl: params.cacheControl ?? IMMUTABLE_CACHE_CONTROL,
         // Публичный режим требует public-read, чтобы прямой URL работал без
         // подписи; приватный bucket остаётся закрытым (presigned-доступ).
         ACL: this.isPublic() ? 'public-read' : undefined,
@@ -78,6 +87,15 @@ export class UploadsService {
     );
 
     return { key, url: await this.getObjectUrl(key) };
+  }
+
+  /** Содержимое объекта по ключу (фоновая обработка фото, SEO AUD-8). */
+  async download(key: string): Promise<Buffer> {
+    const res = await this.getClient().send(new GetObjectCommand({ Bucket: this.bucket(), Key: key }));
+    if (!res.Body) {
+      throw new Error(`Empty body for object ${key}`);
+    }
+    return Buffer.from(await res.Body.transformToByteArray());
   }
 
   /**

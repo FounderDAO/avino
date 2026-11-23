@@ -6,6 +6,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { BecomeAgent } from '@/features/become-agent/BecomeAgent';
+import { SiteGraph } from '@/components/seo/SiteGraph';
 
 export async function generateMetadata({
   params,
@@ -22,5 +23,10 @@ export async function generateMetadata({
 }
 
 export default function BecomeAgentPage() {
-  return <BecomeAgent />;
+  return (
+    <>
+      <SiteGraph page={{ path: '/become-agent', nameKey: 'becomeAgent.meta.title' }} />
+      <BecomeAgent />
+    </>
+  );
 }

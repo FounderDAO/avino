@@ -7,6 +7,16 @@ import {
   ListingMediaService,
   UploadedImageFile,
 } from './listing-media.service';
+import { ListingUrlSyncQueue } from '../queues/listing-url-sync.queue';
+import { MediaProcessingQueue } from '../queues/media-processing.queue';
+import { capturePublishedVersion } from '../listings/published-version';
+
+// Копия одобренной версии (SEO AUD-9) проверяется отдельно и в integration;
+// здесь — только что её снимают перед правкой галереи владельцем.
+jest.mock('../listings/published-version', () => ({
+  capturePublishedVersion: jest.fn().mockResolvedValue(undefined),
+}));
+const capture = capturePublishedVersion as jest.MockedFunction<typeof capturePublishedVersion>;
 
 /**
  * Юнит-тесты ListingMediaService (TASK-061). Prisma и UploadsService мокаются —
@@ -27,6 +37,8 @@ describe('ListingMediaService', () => {
   let prisma: any;
   let uploads: any;
   let service: ListingMediaService;
+  let urlSync: { enqueue: jest.Mock };
+  let mediaQueue: { enqueue: jest.Mock };
 
   function makeFile(
     overrides: Partial<UploadedImageFile> = {},
@@ -49,6 +61,7 @@ describe('ListingMediaService', () => {
   }
 
   beforeEach(() => {
+    capture.mockClear();
     prisma = {
       listing: { findUnique: jest.fn(), update: jest.fn((args) => args) },
       listingMedia: {
@@ -63,6 +76,8 @@ describe('ListingMediaService', () => {
       // Правка галереи владельцем возвращает ACTIVE/REJECTED на модерацию с
       // системным логом OWNER_EDIT (ADR-0120).
       moderationLog: { create: jest.fn((args) => args) },
+      // Одобренная версия перед правкой галереи (SEO AUD-9).
+      listingPublishedVersion: { upsert: jest.fn().mockResolvedValue({}) },
       $transaction: jest.fn().mockResolvedValue([]),
     };
     uploads = {
@@ -81,7 +96,14 @@ describe('ListingMediaService', () => {
         Promise.resolve(key ?? url),
       ),
     };
-    service = new ListingMediaService(prisma, uploads);
+    urlSync = { enqueue: jest.fn().mockResolvedValue(undefined) };
+    mediaQueue = { enqueue: jest.fn().mockResolvedValue(undefined) };
+    service = new ListingMediaService(
+      prisma,
+      uploads,
+      urlSync as unknown as ListingUrlSyncQueue,
+      mediaQueue as unknown as MediaProcessingQueue,
+    );
   });
 
   async function expectCode(promise: Promise<unknown>, code: ApiErrorCode) {
@@ -265,14 +287,22 @@ describe('ListingMediaService', () => {
 
       expect(prisma.listing.update).toHaveBeenCalledWith({
         where: { id: LISTING_ID },
-        data: { status: ListingStatus.NEW },
+        data: { status: ListingStatus.NEW, contentUpdatedAt: expect.any(Date) },
       });
+      expect(urlSync.enqueue).toHaveBeenCalledWith([LISTING_ID]);
+      // SEO AUD-8: новое фото уходит на WebP-варианты.
+      expect(mediaQueue.enqueue).toHaveBeenCalledWith([M1]);
       const log = prisma.moderationLog.create.mock.calls[0][0].data;
       expect(log.action).toBe('OWNER_EDIT');
       expect(log.moderatorId).toBeNull();
       expect(log.oldStatus).toBe(ListingStatus.ACTIVE);
       expect(log.newStatus).toBe(ListingStatus.NEW);
       expect(log.reason).toContain('фото');
+      // Одобренная версия снята до появления нового фото (SEO AUD-9).
+      expect(capture).toHaveBeenCalledWith(prisma, LISTING_ID, ListingStatus.ACTIVE);
+      expect(capture.mock.invocationCallOrder[0]).toBeLessThan(
+        prisma.listingMedia.create.mock.invocationCallOrder[0],
+      );
     });
 
     it('does NOT re-moderate when the listing is already NEW', async () => {
@@ -284,7 +314,11 @@ describe('ListingMediaService', () => {
 
       await service.uploadFile(LISTING_ID, owner, makeFile());
 
-      expect(prisma.listing.update).not.toHaveBeenCalled();
+      // Без смены статуса — только дата изменения содержимого (SEO AUD-6).
+      expect(prisma.listing.update).toHaveBeenCalledWith({
+        where: { id: LISTING_ID },
+        data: { contentUpdatedAt: expect.any(Date) },
+      });
       expect(prisma.moderationLog.create).not.toHaveBeenCalled();
     });
 
@@ -297,8 +331,13 @@ describe('ListingMediaService', () => {
 
       await service.uploadFile(LISTING_ID, admin, makeFile());
 
-      expect(prisma.listing.update).not.toHaveBeenCalled();
+      // Без смены статуса — только дата изменения содержимого (SEO AUD-6).
+      expect(prisma.listing.update).toHaveBeenCalledWith({
+        where: { id: LISTING_ID },
+        data: { contentUpdatedAt: expect.any(Date) },
+      });
       expect(prisma.moderationLog.create).not.toHaveBeenCalled();
+      expect(capture).not.toHaveBeenCalled();
     });
 
     it('includes the env prefix in the S3 upload path when rootPrefix returns "dev"', async () => {
@@ -405,6 +444,18 @@ describe('ListingMediaService', () => {
       expect(uploads.delete).toHaveBeenCalledWith('listings/x/media/u.webp');
     });
 
+    it('captures the published version before the owner deletes a photo of an ACTIVE listing', async () => {
+      mockListing({ status: ListingStatus.ACTIVE });
+      prisma.listingMedia.findFirst.mockResolvedValue({ id: M1, url: 'u' });
+
+      await service.remove(LISTING_ID, owner, M1);
+
+      expect(capture).toHaveBeenCalledWith(prisma, LISTING_ID, ListingStatus.ACTIVE);
+      expect(capture.mock.invocationCallOrder[0]).toBeLessThan(
+        prisma.listingMedia.delete.mock.invocationCallOrder[0],
+      );
+    });
+
     it('sends a REJECTED listing back to moderation and logs OWNER_EDIT when the owner deletes a photo', async () => {
       mockListing({ status: ListingStatus.REJECTED });
       prisma.listingMedia.findFirst.mockResolvedValue({ id: M1, url: 'u' });
@@ -413,7 +464,7 @@ describe('ListingMediaService', () => {
 
       expect(prisma.listing.update).toHaveBeenCalledWith({
         where: { id: LISTING_ID },
-        data: { status: ListingStatus.NEW },
+        data: { status: ListingStatus.NEW, contentUpdatedAt: expect.any(Date) },
       });
       const log = prisma.moderationLog.create.mock.calls[0][0].data;
       expect(log.action).toBe('OWNER_EDIT');

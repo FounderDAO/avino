@@ -32,14 +32,20 @@ const SORTS: SortKey[] = ['active', 'name'];
 export function AgentsCatalog({
   initialAgents,
   total,
+  startPage = 1,
+  pagination,
 }: {
   initialAgents: Agent[];
   total: number;
+  /** Номер серверной страницы (?page=N), с которой открыт каталог. */
+  startPage?: number;
+  /** Номерная пагинация ссылками (SSR, для краулеров) — под списком. */
+  pagination?: React.ReactNode;
 }) {
   const t = useTranslations('agentsCatalog');
   const locale = useLocale();
   const [extra, setExtra] = React.useState<Agent[]>([]);
-  const [page, setPage] = React.useState(1);
+  const [page, setPage] = React.useState(startPage);
   const [query, setQuery] = React.useState('');
   const [sort, setSort] = React.useState<SortKey>('active');
   const [loadPage, { isFetching }] = useLazyAgentsPageQuery();
@@ -67,7 +73,7 @@ export function AgentsCatalog({
   }, [agents, query, sort, locale]);
 
   // Дотягивать имеет смысл только пока не фильтруем: поиск идёт по памяти.
-  const hasMore = agents.length < total && !query.trim();
+  const hasMore = (startPage - 1) * AGENTS_CATALOG_LIMIT + agents.length < total && !query.trim();
 
   const loadMore = async () => {
     if (isFetching || !hasMore) return;
@@ -163,6 +169,9 @@ export function AgentsCatalog({
           {isFetching ? t('loadingMore') : t('showMore')}
         </button>
       )}
+
+      {/* Номерные ссылки ?page=N, пока список — ровно серверная страница. */}
+      {extra.length === 0 && !query.trim() && pagination}
     </div>
   );
 }

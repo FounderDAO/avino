@@ -317,13 +317,12 @@
           "a": "Yes, search results include a map mode — properties are shown as pins with prices, which makes it easy to choose by location."
         }
       }
-    }
+    },
+    "intro": "Avino lists property for sale and rent in Uzbekistan: apartments, houses, land plots and commercial property. The site currently has {count, plural, one {# active listing} other {# active listings}}. Listings are posted by owners and agents; search by district, price or on the map."
   },
   "search": {
-    "metaTitle": "Property search — Avino",
+    "metaTitle": "Property search",
     "metaDescription": "Buy and rent homes in Uzbekistan: filters, list and map.",
-    "headingSale": "Homes for sale · {query}",
-    "headingRent": "Homes for rent · {query}",
     "headingAgentSale": "For sale by agent · {name}",
     "headingAgentRent": "For rent by agent · {name}",
     "defaultLocation": "Tashkent",
@@ -421,7 +420,7 @@
     "map": {
       "ariaLabel": "Map of listings",
       "heading": "Search on the map",
-      "metaTitle": "Map search — Avino",
+      "metaTitle": "Map search",
       "metaDescription": "Search real estate on the map: see listings in the visible area and draw your own territory.",
       "loading": "Loading…",
       "missingKey": "Map unavailable: Yandex Maps key is not set.",
@@ -444,6 +443,30 @@
       "chipKm": "Radius {km, number} km",
       "chipM": "Radius {m, number} m",
       "clearAria": "Clear radius"
+    },
+    "landing": {
+      "subject": {
+        "SALE": {
+          "ALL": "Homes for sale",
+          "APARTMENT": "Apartments for sale",
+          "HOUSE": "Houses for sale",
+          "LAND": "Land for sale",
+          "COMMERCIAL": "Commercial property for sale",
+          "NEW": "New construction"
+        },
+        "RENT": {
+          "ALL": "Homes for rent",
+          "APARTMENT": "Apartments for rent",
+          "HOUSE": "Houses for rent",
+          "LAND": "Land for rent",
+          "COMMERCIAL": "Commercial property for rent",
+          "NEW": "New construction for rent"
+        }
+      },
+      "heading": "{subject} · {place}",
+      "description": "{subject} in {place}: listings from owners and agents on Avino, with photos, prices, a map and handy filters.",
+      "agentDescription": "{heading}: every listing by this agent on Avino, with photos, prices and a map.",
+      "intro": "{subject} in {place}: Avino currently has {count, plural, =0 {no active listings} one {# active listing} other {# active listings}}. Listings are posted by owners and agents, each with photos, price, area and a map location. Narrow the choice with filters for price, rooms and district."
     }
   },
   "listing": {
@@ -454,8 +477,8 @@
       "seeAllCount": "See all {total} photos"
     },
     "meta": {
-      "title": "{title} — {price} | Avino",
-      "notFoundTitle": "Listing not found — Avino"
+      "title": "{title} — {price}",
+      "notFoundTitle": "Listing not found"
     },
     "notFound": {
       "title": "Listing not found",
@@ -525,11 +548,34 @@
     "stats": {
       "viewsAria": "Views: {count}",
       "likesAria": "Favorited: {count}"
+    },
+    "headline": {
+      "type": {
+        "APARTMENT": "apartment",
+        "HOUSE": "house",
+        "LAND": "land plot",
+        "COMMERCIAL": "commercial property"
+      },
+      "withRooms": "{rooms}-room {object}",
+      "SALE": "{object} for sale",
+      "RENT": "{object} for rent",
+      "withDistrict": "{headline} — {district}",
+      "summary": "{headline}. Price: {price}."
+    },
+    "unavailable": {
+      "gone": {
+        "title": "Listing removed",
+        "text": "The owner has taken this listing down. See similar offers in search."
+      },
+      "updating": {
+        "title": "Listing is being updated",
+        "text": "The owner made changes and the listing is being reviewed. Please check back soon."
+      }
     }
   },
   "agentsCatalog": {
     "meta": {
-      "title": "Real estate agents and agencies — Avino",
+      "title": "Real estate agents and agencies",
       "description": "Directory of verified real estate agents and agencies in Uzbekistan. Contacts, listings and experience."
     },
     "title": "Agents and agencies",
@@ -552,8 +598,9 @@
   },
   "agentProfile": {
     "meta": {
-      "title": "{name} — Avino agent",
-      "notFoundTitle": "Agent not found — Avino"
+      "title": "{name} — real estate agent",
+      "notFoundTitle": "Agent not found",
+      "description": "{name} is a real estate agent on Avino with {count, plural, =0 {no active listings yet} one {# active listing} other {# active listings}}: apartments, houses and land in Uzbekistan, with photos, prices and contacts."
     },
     "privateAgent": "Private agent",
     "listingsCount": "{count, plural, one {# listing} other {# listings}}",
@@ -628,7 +675,7 @@
   },
   "sell": {
     "meta": {
-      "title": "Sell or Rent Out Property — Avino",
+      "title": "Sell or Rent Out Property",
       "description": "Post your property listing for sale or rent in Uzbekistan for free. Direct contact with buyers, automatic translation into 3 languages, TOP and VIP promotion."
     },
     "hero": {
@@ -737,7 +784,7 @@
   },
   "listingNew": {
     "meta": {
-      "title": "Post a Listing — Avino",
+      "title": "Post a Listing",
       "description": "Create a listing to sell or rent out property: type, address, details, price, photos, description, and contacts."
     },
     "title": "Post a listing",
@@ -936,7 +983,7 @@
   },
   "becomeAgent": {
     "meta": {
-      "title": "Become an agent — Avino",
+      "title": "Become an agent",
       "description": "Apply to become an Avino agent: post listings without limits, get a realtor badge, and a profile in the agents directory."
     },
     "title": "Become an Avino agent",
@@ -987,7 +1034,7 @@
   },
   "help": {
     "meta": {
-      "title": "Help — Avino",
+      "title": "Help",
       "description": "Avino help center: frequently asked questions about searching, posting and promoting listings, your account and safe deals. Support: Support@avino.uz."
     },
     "hero": {
@@ -1107,7 +1154,7 @@
   },
   "listingEdit": {
     "meta": {
-      "title": "Edit listing — Avino",
+      "title": "Edit listing",
       "description": "Update your listing's details, price, photos and description."
     },
     "title": "Edit listing",
@@ -1542,11 +1589,11 @@
   "legal": {
     "meta": {
       "terms": {
-        "title": "Terms of Service — Avino",
+        "title": "Terms of Service",
         "description": "Avino terms of service: posting listings, moderation, promotion, and liability of the parties."
       },
       "privacy": {
-        "title": "Privacy Policy — Avino",
+        "title": "Privacy Policy",
         "description": "How Avino collects, uses and protects users' personal data."
       }
     },
@@ -1590,5 +1637,28 @@
     "contactChanged": "Sign-in contact details updated",
     "contactPhoneUpdated": "Contact phone updated",
     "mediaUploadFailed": "Failed to upload {count} photo(s). Your other changes were saved."
+  },
+  "pagination": {
+    "label": "Result pages",
+    "prev": "Previous",
+    "next": "Next",
+    "page": "Page {page}",
+    "titleSuffix": "{title} — page {page}"
+  },
+  "llms": {
+    "identity": "Avino (avino.uz) is a real estate listings site in Uzbekistan for buying, selling and renting apartments, houses, land plots and commercial property. Listings are posted by owners and agents. The site is available in Russian, Uzbek and English.",
+    "count": "The site currently has {count, plural, one {# active listing} other {# active listings}}.",
+    "sections": "Sections",
+    "districts": "Districts with the most listings",
+    "listings": "Latest listings",
+    "sale": "Property for sale",
+    "rent": "Property for rent",
+    "newConstruction": "New construction",
+    "agents": "Real estate agents",
+    "sell": "How to post a listing",
+    "help": "Help and FAQ",
+    "districtSale": "{district}: for sale, {count, plural, one {# listing} other {# listings}}",
+    "districtRent": "{district}: for rent, {count, plural, one {# listing} other {# listings}}",
+    "full": "Full version with the latest listings: {url}"
   }
 }

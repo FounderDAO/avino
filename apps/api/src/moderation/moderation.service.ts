@@ -3,6 +3,7 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import {
   Currency,
@@ -28,6 +29,8 @@ import {
   EXPORT_MAX_ROWS,
   ListingExportRow,
 } from './listing-export.builder';
+import { ListingUrlSyncQueue } from '../queues/listing-url-sync.queue';
+import { ListingTranslateQueue } from '../queues/listing-translate.queue';
 
 /**
  * Инлайн-карточка автора объявления в админ-очереди (API.md §16). Модератору
@@ -331,6 +334,10 @@ export class ModerationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly uploads: UploadsService,
+    // SEO AUD-11: решение модератора меняет страницу — синхронизация с сайтом.
+    @Optional() private readonly urlSync?: ListingUrlSyncQueue,
+    // SEO AUD-14: одобренное объявление переводится в фоне (TRANSLATE_ON_APPROVE).
+    @Optional() private readonly translateQueue?: ListingTranslateQueue,
   ) {}
 
   /**
@@ -563,7 +570,8 @@ export class ModerationService {
     const updated = await this.prisma.$transaction(async (tx) => {
       const listing = await tx.listing.update({
         where: { id: listingId },
-        data: { status: newStatus, publishedAt, ...archiveData },
+        // Решение модератора меняет видимое содержимое (SEO AUD-6: lastmod).
+        data: { status: newStatus, publishedAt, contentUpdatedAt: new Date(), ...archiveData },
         select: { id: true, status: true, publishedAt: true },
       });
 
@@ -614,6 +622,10 @@ export class ModerationService {
       return listing;
     });
 
+    await this.urlSync?.enqueue([updated.id]);
+    if (dto.action === ModerationAction.APPROVE) {
+      await this.translateQueue?.enqueue([updated.id]);
+    }
     return {
       id: updated.id,
       status: updated.status,

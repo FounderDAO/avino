@@ -317,13 +317,12 @@
           "a": "Ha, qidiruv natijalarida xarita rejimi bor — obyektlar narx ko‘rsatilgan pinlar bilan ko‘rsatiladi, bu joylashuv bo‘yicha tanlash uchun qulay."
         }
       }
-    }
+    },
+    "intro": "Avino — O'zbekistonda ko'chmas mulkni sotish va ijaraga berish e'lonlari: kvartiralar, uylar, yer uchastkalari va tijorat binolari. Hozir saytda {count} ta faol e'lon bor. E'lonlarni mulkdorlar va agentlar joylaydi; tuman, narx va xarita bo'yicha qidirish mumkin."
   },
   "search": {
-    "metaTitle": "Ko'chmas mulk qidiruvi — Avino",
+    "metaTitle": "Ko'chmas mulk qidiruvi",
     "metaDescription": "O'zbekistonda uy-joy sotib olish va ijaraga olish: filtrlar, ro'yxat va xarita.",
-    "headingSale": "Uy-joy xaridi · {query}",
-    "headingRent": "Uy-joy ijarasi · {query}",
     "headingAgentSale": "Agentdan sotuvda · {name}",
     "headingAgentRent": "Agentdan ijaraga · {name}",
     "defaultLocation": "Toshkent",
@@ -421,7 +420,7 @@
     "map": {
       "ariaLabel": "E'lonlar xaritasi",
       "heading": "Xaritada qidiruv",
-      "metaTitle": "Xaritada qidiruv — Avino",
+      "metaTitle": "Xaritada qidiruv",
       "metaDescription": "Ko'chmas mulkni xaritada qidiring: ko'rinadigan hududdagi e'lonlarni ko'ring va o'z hududingizni chizing.",
       "loading": "Yuklanmoqda…",
       "missingKey": "Xarita mavjud emas: Yandex Maps kaliti kiritilmagan.",
@@ -444,6 +443,30 @@
       "chipKm": "Radius {km, number} km",
       "chipM": "Radius {m, number} m",
       "clearAria": "Radiusni tozalash"
+    },
+    "landing": {
+      "subject": {
+        "SALE": {
+          "ALL": "Uy-joy xaridi",
+          "APARTMENT": "Kvartiralar sotuvi",
+          "HOUSE": "Uylar sotuvi",
+          "LAND": "Yer uchastkalari sotuvi",
+          "COMMERCIAL": "Tijorat ko'chmas mulki sotuvi",
+          "NEW": "Yangi qurilish"
+        },
+        "RENT": {
+          "ALL": "Uy-joy ijarasi",
+          "APARTMENT": "Kvartiralar ijarasi",
+          "HOUSE": "Uylar ijarasi",
+          "LAND": "Yer uchastkalari ijarasi",
+          "COMMERCIAL": "Tijorat ko'chmas mulki ijarasi",
+          "NEW": "Yangi qurilishdagi ijara"
+        }
+      },
+      "heading": "{subject} · {place}",
+      "description": "{subject} — {place}: Avino'da mulkdorlar va agentlarning e'lonlari. Suratlar, narxlar, xarita va qulay filtrlar.",
+      "agentDescription": "{heading}: agentning Avino'dagi barcha e'lonlari — suratlar, narxlar va xarita.",
+      "intro": "{subject} — {place}: hozir Avino'da {count, plural, =0 {faol e'lon yo'q} other {# ta faol e'lon bor}}. E'lonlarni mulkdorlar va agentlar joylaydi, har birida surat, narx, maydon va xaritadagi joylashuv bor. Tanlovni narx, xonalar soni va tuman bo'yicha filtrlar bilan aniqlashtiring."
     }
   },
   "listing": {
@@ -454,8 +477,8 @@
       "seeAllCount": "Barcha {total} suratni ko'rish"
     },
     "meta": {
-      "title": "{title} — {price} | Avino",
-      "notFoundTitle": "E'lon topilmadi — Avino"
+      "title": "{title} — {price}",
+      "notFoundTitle": "E'lon topilmadi"
     },
     "notFound": {
       "title": "E'lon topilmadi",
@@ -525,11 +548,34 @@
     "stats": {
       "viewsAria": "Ko'rishlar soni: {count}",
       "likesAria": "Sevimlilarga qo'shilgan: {count}"
+    },
+    "headline": {
+      "type": {
+        "APARTMENT": "kvartira",
+        "HOUSE": "uy",
+        "LAND": "yer uchastkasi",
+        "COMMERCIAL": "tijorat binosi"
+      },
+      "withRooms": "{rooms} xonali {object}",
+      "SALE": "{object} sotiladi",
+      "RENT": "{object} ijaraga beriladi",
+      "withDistrict": "{headline} — {district}",
+      "summary": "{headline}. Narxi: {price}."
+    },
+    "unavailable": {
+      "gone": {
+        "title": "E'lon o'chirilgan",
+        "text": "Egasi bu e'lonni olib tashlagan. Qidiruvda o'xshash takliflarni ko'ring."
+      },
+      "updating": {
+        "title": "E'lon yangilanmoqda",
+        "text": "Egasi o'zgartirish kiritdi va e'lon tekshiruvdan o'tmoqda. Birozdan keyin qayta kiring."
+      }
     }
   },
   "agentsCatalog": {
     "meta": {
-      "title": "Ko'chmas mulk agentlari va agentliklari — Avino",
+      "title": "Ko'chmas mulk agentlari va agentliklari",
       "description": "O'zbekistonning tasdiqlangan ko'chmas mulk agentlari va agentliklari katalogi. Kontaktlar, e'lonlar va ish tajribasi."
     },
     "title": "Agentlar va agentliklar",
@@ -552,8 +598,9 @@
   },
   "agentProfile": {
     "meta": {
-      "title": "{name} — Avino agenti",
-      "notFoundTitle": "Agent topilmadi — Avino"
+      "title": "{name} — ko'chmas mulk agenti",
+      "notFoundTitle": "Agent topilmadi",
+      "description": "{name} — Avino'dagi ko'chmas mulk agenti: {count, plural, =0 {hozircha faol e'lon yo'q} other {# ta faol e'lon}}. O'zbekistonda kvartira, uy va yer uchastkalari — suratlar, narxlar va aloqa."
     },
     "privateAgent": "Xususiy makler",
     "listingsCount": "{count, plural, other {# ta e'lon}}",
@@ -628,7 +675,7 @@
   },
   "sell": {
     "meta": {
-      "title": "Ko'chmas mulkni sotish yoki ijaraga berish — Avino",
+      "title": "Ko'chmas mulkni sotish yoki ijaraga berish",
       "description": "O'zbekistonda ko'chmas mulkni sotish yoki ijaraga berish e'lonini bepul joylashtiring. Xaridorlar bilan to'g'ridan-to'g'ri aloqa, 3 tilga avtotarjima, TOP va VIP ilgari surish."
     },
     "hero": {
@@ -737,7 +784,7 @@
   },
   "listingNew": {
     "meta": {
-      "title": "E'lon joylashtirish — Avino",
+      "title": "E'lon joylashtirish",
       "description": "Ko'chmas mulkni sotish yoki ijaraga berish e'lonini yarating: tur, manzil, parametrlar, narx, foto, tavsif va kontaktlar."
     },
     "title": "E'lon joylashtirish",
@@ -936,7 +983,7 @@
   },
   "becomeAgent": {
     "meta": {
-      "title": "Agent bo'lish — Avino",
+      "title": "Agent bo'lish",
       "description": "Avino agenti bo'lish uchun ariza bering: e'lonlarni cheklovsiz joylang, «rieltor» belgisini oling va agentlar katalogida profilga ega bo'ling."
     },
     "title": "Avino agenti bo'lish",
@@ -987,7 +1034,7 @@
   },
   "help": {
     "meta": {
-      "title": "Yordam — Avino",
+      "title": "Yordam",
       "description": "Avino ma'lumot markazi: qidiruv, e'lon joylash va ilgari surish, akkaunt va xavfsiz bitim bo'yicha ko'p beriladigan savollar. Qo'llab-quvvatlash: Support@avino.uz."
     },
     "hero": {
@@ -1107,7 +1154,7 @@
   },
   "listingEdit": {
     "meta": {
-      "title": "E'lonni tahrirlash — Avino",
+      "title": "E'lonni tahrirlash",
       "description": "E'loningiz parametrlari, narxi, rasmlari va tavsifini o'zgartiring."
     },
     "title": "E'lonni tahrirlash",
@@ -1542,11 +1589,11 @@
   "legal": {
     "meta": {
       "terms": {
-        "title": "Xizmat qoidalari — Avino",
+        "title": "Xizmat qoidalari",
         "description": "Avino xizmatidan foydalanish qoidalari: e'lonlarni joylash, moderatsiya, reklama va tomonlarning javobgarligi."
       },
       "privacy": {
-        "title": "Maxfiylik siyosati — Avino",
+        "title": "Maxfiylik siyosati",
         "description": "Avino foydalanuvchilarning shaxsiy ma'lumotlarini qanday yig'adi, ishlatadi va himoya qiladi."
       }
     },
@@ -1590,5 +1637,28 @@
     "contactChanged": "Kirish uchun kontakt ma'lumotlari yangilandi",
     "contactPhoneUpdated": "Aloqa telefoni yangilandi",
     "mediaUploadFailed": "{count} ta fotoni yuklab bo‘lmadi. Qolgan o‘zgarishlar saqlandi."
+  },
+  "pagination": {
+    "label": "Natijalar sahifalari",
+    "prev": "Oldingi",
+    "next": "Keyingi",
+    "page": "{page}-sahifa",
+    "titleSuffix": "{title} — {page}-sahifa"
+  },
+  "llms": {
+    "identity": "Avino (avino.uz) — O'zbekistondagi ko'chmas mulk e'lonlari sayti: kvartira, uy, yer uchastkasi va tijorat binolarini sotish va ijaraga berish. E'lonlarni mulkdorlar va agentlar joylaydi. Sayt o'zbek, rus va ingliz tillarida ishlaydi.",
+    "count": "Hozir saytda {count} ta faol e'lon bor.",
+    "sections": "Bo'limlar",
+    "districts": "E'lonlari eng ko'p tumanlar",
+    "listings": "So'nggi e'lonlar",
+    "sale": "Ko'chmas mulk sotuvi",
+    "rent": "Ko'chmas mulk ijarasi",
+    "newConstruction": "Yangi qurilish",
+    "agents": "Ko'chmas mulk agentlari",
+    "sell": "E'lon qanday joylanadi",
+    "help": "Yordam va ko'p beriladigan savollar",
+    "districtSale": "{district}: sotuv, {count} ta e'lon",
+    "districtRent": "{district}: ijara, {count} ta e'lon",
+    "full": "So'nggi e'lonlar ro'yxati bilan to'liq versiya: {url}"
   }
 }

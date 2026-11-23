@@ -1,5 +1,6 @@
 import {
   ForbiddenException,
+  GoneException,
   HttpException,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,6 +9,7 @@ import {
   Language,
   ListingStatus,
   MediaType,
+  ModerationAction,
   ParkingType,
   Prisma,
   PromotionType,
@@ -23,6 +25,9 @@ import { ActiveListingLimitService } from '../settings';
 import { TranslationsService } from '../translations';
 import { UploadsService } from '../uploads';
 import { ListingsService } from './listings.service';
+import { toPublishedVersionData } from './published-version';
+import { ListingUrlSyncQueue } from '../queues/listing-url-sync.queue';
+import { GeoResolveQueue } from '../queues/geo-resolve.queue';
 
 /**
  * Юнит-тесты ListingsService (TASK-050). Prisma мокается — проверяются: создание
@@ -36,6 +41,8 @@ describe('ListingsService', () => {
   let prisma: any;
   let activeLimit: { getLimit: jest.Mock };
   let addressResolver: { resolve: jest.Mock };
+  let urlSync: { enqueue: jest.Mock };
+  let geoResolve: { enqueue: jest.Mock };
   let service: ListingsService;
 
   const dbListing = {
@@ -47,6 +54,7 @@ describe('ListingsService', () => {
     price: new Prisma.Decimal('4500000.00'),
     currency: Currency.UZS,
     createdAt: new Date('2026-06-02T08:00:00.000Z'),
+    contentUpdatedAt: new Date('2026-06-02T08:00:00.000Z'),
   };
 
   const validCreate = {
@@ -91,6 +99,14 @@ describe('ListingsService', () => {
       // отредактированного ACTIVE/REJECTED-объявления в очередь (ADR-0120).
       moderationLog: {
         create: jest.fn().mockResolvedValue({}),
+        // Начало повторной модерации для UNDER_REVIEW (последний OWNER_EDIT).
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      // Одобренная версия на время повторной модерации (SEO AUD-9). Дефолт —
+      // копии нет.
+      listingPublishedVersion: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn().mockResolvedValue({}),
       },
       // Гейт полноты профиля (ADR-0125): create() читает автора с профилем.
       // Дефолт — полный профиль, чтобы остальные create-тесты не задевало.
@@ -130,6 +146,7 @@ describe('ListingsService', () => {
       resolveMediaUrl: jest.fn((key: string | null | undefined, url: string) =>
         Promise.resolve(key ?? url),
       ),
+      getObjectUrl: jest.fn((key: string) => Promise.resolve(`https://signed/${key}`)),
     } as unknown as UploadsService;
     // Лимит активных объявлений (ADR-…): дефолт 2. Базовые create-тесты держат
     // userRole.count=1 (автор трактуется как «продавец/pro») → квота пропускает
@@ -138,6 +155,8 @@ describe('ListingsService', () => {
     // AddressResolver (ADR-0147): дефолт «геокодер недоступен» (null) — базовые
     // тесты create идут строковым фолбэком; геокод-кейсы переопределяют resolve.
     addressResolver = { resolve: jest.fn().mockResolvedValue(null) };
+    urlSync = { enqueue: jest.fn().mockResolvedValue(undefined) };
+    geoResolve = { enqueue: jest.fn().mockResolvedValue(undefined) };
     service = new ListingsService(
       prisma,
       new TranslationsService(prisma),
@@ -145,6 +164,8 @@ describe('ListingsService', () => {
       uploads,
       activeLimit as unknown as ActiveListingLimitService,
       addressResolver as unknown as AddressResolverService,
+      urlSync as unknown as ListingUrlSyncQueue,
+      geoResolve as unknown as GeoResolveQueue,
     );
   });
 
@@ -523,6 +544,53 @@ describe('ListingsService', () => {
       expect(log.reason).toContain('цена');
     });
 
+    it('captures the approved version before an edited ACTIVE listing goes back to moderation (SEO AUD-9)', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.ACTIVE,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      // Строка для копии читается внутри транзакции ДО правки — старая цена.
+      prisma.listing.findUnique.mockResolvedValueOnce({
+        price: new Prisma.Decimal('4500000.00'),
+        area: null,
+        contentUpdatedAt: new Date('2026-06-05T09:00:00.000Z'),
+        translations: [],
+        media: [{ id: 'm1' }],
+        priceHistory: [],
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, { price: '5000000.00' } as any);
+
+      const upsert = prisma.listingPublishedVersion.upsert.mock.calls[0][0];
+      expect(upsert.where).toEqual({ listingId: LISTING_ID });
+      expect(upsert.create.data).toMatchObject({ price: '4500000', mediaIds: ['m1'] });
+      expect(prisma.listingPublishedVersion.upsert.mock.invocationCallOrder[0]).toBeLessThan(
+        prisma.listing.update.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('does not capture a version when a REJECTED listing is edited (the approved one is kept)', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.REJECTED,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, { price: '5000000.00' } as any);
+
+      expect(prisma.listing.update.mock.calls[0][0].data.status).toBe(ListingStatus.NEW);
+      expect(prisma.listingPublishedVersion.upsert).not.toHaveBeenCalled();
+    });
+
     it('does NOT re-moderate an ACTIVE listing when only tour windows change', async () => {
       prisma.listing.findFirst.mockResolvedValue({
         id: LISTING_ID,
@@ -542,7 +610,28 @@ describe('ListingsService', () => {
 
       const data = prisma.listing.update.mock.calls[0][0].data;
       expect(data.status).toBeUndefined();
+      // Окна туров — расписание, не содержимое: дата для lastmod не двигается (SEO AUD-6).
+      expect(data.contentUpdatedAt).toBeUndefined();
       expect(prisma.moderationLog.create).not.toHaveBeenCalled();
+    });
+
+    it('moves contentUpdatedAt when the content changes (SEO AUD-6)', async () => {
+      prisma.listing.findFirst.mockResolvedValue({
+        id: LISTING_ID,
+        ownerId: OWNER_ID,
+        originalLanguage: Language.RU,
+        status: ListingStatus.ACTIVE,
+        price: new Prisma.Decimal('4500000.00'),
+        currency: Currency.UZS,
+      });
+      prisma.listing.update.mockResolvedValue(dbListing);
+
+      await service.update(OWNER_ID, LISTING_ID, { price: '4300000.00' } as any);
+
+      const data = prisma.listing.update.mock.calls[0][0].data;
+      expect(data.contentUpdatedAt).toBeInstanceOf(Date);
+      // SEO AUD-11: после коммита — синхронизация с сайтом.
+      expect(urlSync.enqueue).toHaveBeenCalledWith([LISTING_ID]);
     });
 
     it('sends an edited REJECTED listing back to moderation (NEW)', async () => {
@@ -846,6 +935,8 @@ describe('ListingsService', () => {
       } as any);
       const data = prisma.listing.create.mock.calls[0][0].data;
       expect(data.districtId).toBe('d-yun');
+      // Район найден сразу — фоновый повтор не нужен (SEO AUD-2).
+      expect(geoResolve.enqueue).not.toHaveBeenCalled();
     });
 
     it('create с явным district_id: район по точке его НЕ перезаписывает', async () => {
@@ -889,6 +980,8 @@ describe('ListingsService', () => {
       const data = prisma.listing.create.mock.calls[0][0].data;
       expect(data.address).toBe('Ташкент, Мирзо-Улугбек, ул. Бабура, 13');
       expect(data.addressEn).toBeNull();
+      // Точка есть, района нет (геокодер молчал) → повтор в фоне (SEO AUD-2).
+      expect(geoResolve.enqueue).toHaveBeenCalledWith([expect.any(String)]);
     });
 
     it('create без координат: только нормализация, геокодер не зовётся', async () => {
@@ -1028,6 +1121,7 @@ describe('ListingsService', () => {
       promotionExpiresAt: new Date('2026-06-20T00:00:00.000Z'),
       publishedAt: new Date('2026-06-01T10:00:00.000Z'),
       createdAt: new Date('2026-05-30T09:00:00.000Z'),
+      contentUpdatedAt: new Date('2026-06-05T09:00:00.000Z'),
       viewsCount: 12,
       _count: { favorites: 3 },
       // История цены (ADR-0121): пустая по умолчанию, порядок проверяется отдельным тестом.
@@ -1055,6 +1149,9 @@ describe('ListingsService', () => {
           thumbnailUrl: 'https://cdn.avino.uz/l1/1_thumb.webp',
           sortOrder: 0,
           type: MediaType.IMAGE,
+          width: 1600,
+          height: 1200,
+          variants: [{ key: 'l1/variants/1-640.webp', width: 640, height: 480, format: 'webp' }, { bogus: true }],
         },
       ],
     };
@@ -1109,6 +1206,10 @@ describe('ListingsService', () => {
           thumbnail_url: 'https://cdn.avino.uz/l1/1_thumb.webp',
           sort_order: 0,
           type: MediaType.IMAGE,
+          // SEO AUD-8: размеры оригинала и подписанные URL вариантов; мусор в JSON отброшен.
+          width: 1600,
+          height: 1200,
+          variants: [{ url: 'https://signed/l1/variants/1-640.webp', width: 640, height: 480, format: 'webp' }],
         },
       ]);
     });
@@ -1195,28 +1296,154 @@ describe('ListingsService', () => {
       );
     });
 
-    it('hides a DELETED listing even from the owner (404)', async () => {
+    it('answers 410 GONE for a DELETED listing, even to the owner (SEO AUD-10)', async () => {
       prisma.listing.findUnique.mockResolvedValue({
         ...detailRow,
         status: ListingStatus.DELETED,
       });
 
+      await expect(
+        service.findOne(LISTING_ID, { id: OWNER_ID, roles: [] }),
+      ).rejects.toBeInstanceOf(GoneException);
       await expectCode(
         service.findOne(LISTING_ID, { id: OWNER_ID, roles: [] }),
-        ApiErrorCode.NOT_FOUND,
+        ApiErrorCode.GONE,
       );
     });
 
-    it('hides a non-ACTIVE listing from a guest (404)', async () => {
+    it('hides a never-published non-ACTIVE listing from a guest (404 NOT_FOUND)', async () => {
       prisma.listing.findUnique.mockResolvedValue({
         ...detailRow,
         status: ListingStatus.NEW,
+        publishedAt: null,
       });
 
       await expectCode(
         service.findOne(LISTING_ID, undefined),
         ApiErrorCode.NOT_FOUND,
       );
+    });
+
+    it('marks a published listing on re-moderation as UNDER_REVIEW with dates (SEO contract B)', async () => {
+      prisma.listing.findUnique.mockResolvedValue({
+        ...detailRow,
+        status: ListingStatus.NEW,
+        publishedAt: new Date('2026-06-01T10:00:00.000Z'),
+      });
+      prisma.moderationLog.findFirst.mockResolvedValue({
+        createdAt: new Date('2026-11-20T08:00:00.000Z'),
+      });
+
+      const error = await service.findOne(LISTING_ID, undefined).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(NotFoundException);
+      expect((error as NotFoundException).getResponse()).toMatchObject({
+        code: ApiErrorCode.UNDER_REVIEW,
+        meta: {
+          published_at: '2026-06-01T10:00:00.000Z',
+          review_started_at: '2026-11-20T08:00:00.000Z',
+        },
+      });
+      expect(prisma.moderationLog.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { listingId: LISTING_ID, action: ModerationAction.OWNER_EDIT },
+        }),
+      );
+    });
+
+    describe('approved version during re-moderation (SEO AUD-9)', () => {
+      const approved = toPublishedVersionData({
+        ...detailRow,
+        price: new Prisma.Decimal('4500000.00'),
+        translations: [
+          { ...detailRow.translations[0], title: 'Одобренный заголовок' },
+          detailRow.translations[1],
+        ],
+        // m-gone удалено владельцем во время проверки — не показывается.
+        media: [{ id: 'm-gone' }, { id: 'm1' }],
+        priceHistory: [
+          {
+            price: new Prisma.Decimal('4500000.00'),
+            currency: Currency.UZS,
+            createdAt: new Date('2026-06-01T10:00:00.000Z'),
+          },
+        ],
+      } as any);
+      const edited = {
+        ...detailRow,
+        status: ListingStatus.NEW,
+        price: new Prisma.Decimal('9900000.00'),
+        translations: [
+          { ...detailRow.translations[0], title: 'Правка на проверке' },
+          detailRow.translations[1],
+        ],
+        media: [
+          detailRow.media[0],
+          { ...detailRow.media[0], id: 'm-new', sortOrder: 1 },
+        ],
+        priceHistory: [
+          {
+            price: new Prisma.Decimal('9900000.00'),
+            currency: Currency.UZS,
+            createdAt: new Date('2026-11-20T08:00:00.000Z'),
+          },
+        ],
+      };
+
+      it('shows the approved version to a guest while the edit is NEW', async () => {
+        prisma.listing.findUnique.mockResolvedValue(edited);
+        prisma.listingPublishedVersion.findUnique.mockResolvedValue({ data: approved });
+
+        const result = await service.findOne(LISTING_ID, undefined, 'ru');
+
+        expect(result.status).toBe(ListingStatus.ACTIVE);
+        expect(result.title).toBe('Одобренный заголовок');
+        expect(result.price).toBe('4500000.00');
+        // Только одобренные фото, которые ещё есть: m-gone удалено, m-new не одобрено.
+        expect(result.media.map((m) => m.id)).toEqual(['m1']);
+        expect(result.price_history).toEqual([
+          { price: '4500000.00', currency: Currency.UZS, created_at: '2026-06-01T10:00:00.000Z' },
+        ]);
+        // Живые поля, не проходящие модерацию.
+        expect(result.views_count).toBe(12);
+        expect(result.promotion_type).toBe(PromotionType.VIP);
+        expect(prisma.listingPublishedVersion.findUnique).toHaveBeenCalledWith({
+          where: { listingId: LISTING_ID },
+          select: { data: true },
+        });
+      });
+
+      it('keeps the approved version public after the edit is REJECTED', async () => {
+        prisma.listing.findUnique.mockResolvedValue({ ...edited, status: ListingStatus.REJECTED });
+        prisma.listingPublishedVersion.findUnique.mockResolvedValue({ data: approved });
+
+        const result = await service.findOne(LISTING_ID, undefined, 'ru');
+
+        expect(result.status).toBe(ListingStatus.ACTIVE);
+        expect(result.title).toBe('Одобренный заголовок');
+      });
+
+      it('shows the owner the live edit, not the approved version', async () => {
+        prisma.listing.findUnique.mockResolvedValue(edited);
+        prisma.listingPublishedVersion.findUnique.mockResolvedValue({ data: approved });
+
+        const result = await service.findOne(
+          LISTING_ID,
+          { id: OWNER_ID, roles: [UserRole.OWNER] },
+          'ru',
+        );
+
+        expect(result.status).toBe(ListingStatus.NEW);
+        expect(result.title).toBe('Правка на проверке');
+        expect(prisma.listingPublishedVersion.findUnique).not.toHaveBeenCalled();
+      });
+
+      it('ignores a version on a status where it must not exist (ARCHIVED → 404)', async () => {
+        prisma.listing.findUnique.mockResolvedValue({ ...edited, status: ListingStatus.ARCHIVED });
+        prisma.listingPublishedVersion.findUnique.mockResolvedValue({ data: approved });
+
+        await expect(service.findOne(LISTING_ID, undefined)).rejects.toBeInstanceOf(NotFoundException);
+        expect(prisma.listingPublishedVersion.findUnique).not.toHaveBeenCalled();
+      });
     });
 
     // Спека 2026-10-01: закрытые (SOLD/RENTED) публично видимы — карточка с
@@ -1259,6 +1486,7 @@ describe('ListingsService', () => {
       prisma.listing.findUnique.mockResolvedValue({
         ...detailRow,
         status: ListingStatus.NEW,
+        publishedAt: null,
       });
 
       await expectCode(
@@ -1499,7 +1727,7 @@ describe('ListingsService', () => {
         id: 'L1', status: ListingStatus.NEW, transactionType: TransactionType.SALE,
         propertyType: PropertyType.APARTMENT, originalLanguage: Language.RU,
         price: new Prisma.Decimal('100.00'), currency: Currency.UZS,
-        createdAt: new Date(),
+        createdAt: new Date(), contentUpdatedAt: new Date(),
       });
       await service.create('U1', {
         transaction_type: TransactionType.SALE, property_type: PropertyType.APARTMENT,
@@ -1543,6 +1771,7 @@ describe('ListingsService', () => {
       promotionExpiresAt: null,
       publishedAt: null,
       createdAt: new Date('2026-06-03T09:00:00.000Z'),
+      contentUpdatedAt: new Date('2026-06-03T09:00:00.000Z'),
       viewsCount: 0,
       _count: { favorites: 0 },
       translations: [
@@ -1595,6 +1824,7 @@ describe('ListingsService', () => {
         thumbnail_url: 'https://cdn.avino.uz/l1/1_thumb.webp',
         published_at: null,
         created_at: '2026-06-03T09:00:00.000Z',
+        updated_at: '2026-06-03T09:00:00.000Z',
         views_count: 0,
         likes_count: 0,
       });

@@ -273,7 +273,7 @@ describe('AdminUsersService', () => {
       // ACTIVE → ARCHIVED только для этого владельца.
       expect(prisma.listing.updateMany).toHaveBeenCalledWith({
         where: { ownerId: USER_ID, status: ListingStatus.ACTIVE },
-        data: { status: ListingStatus.ARCHIVED },
+        data: { status: ListingStatus.ARCHIVED, contentUpdatedAt: expect.any(Date) },
       });
       // Активные refresh-токены отозваны (kick out).
       expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
@@ -328,7 +328,7 @@ describe('AdminUsersService', () => {
           ownerId: USER_ID,
           status: ListingStatus.ARCHIVED,
         },
-        data: { status: ListingStatus.ACTIVE },
+        data: { status: ListingStatus.ACTIVE, contentUpdatedAt: expect.any(Date) },
       });
       expect(prisma.auditLog.create).toHaveBeenCalledWith({
         data: {
@@ -378,7 +378,7 @@ describe('AdminUsersService', () => {
 
       expect(prisma.listing.updateMany).toHaveBeenCalledWith({
         where: { ownerId: USER_ID, status: { not: ListingStatus.DELETED } },
-        data: { status: ListingStatus.DELETED },
+        data: { status: ListingStatus.DELETED, contentUpdatedAt: expect.any(Date) },
       });
       expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
         where: { userId: USER_ID, revokedAt: null },

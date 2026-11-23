@@ -14,8 +14,8 @@ import { routing } from '@/i18n/routing';
 import { StoreProvider } from '@/store/StoreProvider';
 import { Header } from '@/components/layout/Header';
 import { FooterGate } from '@/components/layout/FooterGate';
-import { JsonLd } from '@/components/seo/JsonLd';
 import { BASE } from '@/lib/seo/base';
+import { openGraphBase } from '@/lib/seo/og';
 import { GTM_ID } from '@/lib/analytics';
 import '../globals.css';
 
@@ -54,11 +54,12 @@ export async function generateMetadata({
     metadataBase: new URL(BASE),
     title: { default: t('title'), template: '%s | Avino' },
     description: t('description'),
-    openGraph: {
-      type: 'website',
-      siteName: 'Avino',
-      locale,
-    },
+    // Крупные превью картинок и полные сниппеты (в т.ч. для AI-ответов). Страницы
+    // с noindex задают свой robots — он заменяет этот целиком.
+    robots: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
+    // og:image по умолчанию (public/og-default.png) и og:locale вида ru_RU.
+    // JSON-LD организации и сайта выводит каждая страница в своём @graph (lib/seo/graph).
+    openGraph: openGraphBase(locale),
     twitter: { card: 'summary_large_image' },
   };
 }
@@ -76,34 +77,6 @@ export default async function RootLayout({ children, modal, params }: LayoutProp
   // не переиспользуется.
   preconnect(API_ORIGIN, { crossOrigin: 'use-credentials' });
 
-  const organizationLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: 'Avino',
-    url: BASE,
-    sameAs: [
-      'https://t.me/avino_uz',
-      'https://www.instagram.com/avino.uz',
-      'https://www.facebook.com/avino.uz',
-      'https://www.youtube.com/@avino_uz',
-    ],
-  };
-
-  const websiteLd = {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: 'Avino',
-    url: BASE,
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: `${BASE}/${locale}/search?query={search_term_string}`,
-      },
-      'query-input': 'required name=search_term_string',
-    },
-  };
-
   return (
     <html lang={locale} className={inter.variable}>
       {GTM_ENABLED && <GoogleTagManager gtmId={GTM_ID} />}
@@ -118,8 +91,6 @@ export default async function RootLayout({ children, modal, params }: LayoutProp
             />
           </noscript>
         )}
-        <JsonLd data={organizationLd} />
-        <JsonLd data={websiteLd} />
         <NextIntlClientProvider>
           <StoreProvider>
             <div className="flex min-h-dvh flex-col">

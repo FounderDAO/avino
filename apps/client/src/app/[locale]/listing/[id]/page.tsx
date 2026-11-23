@@ -10,12 +10,18 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { getListingById } from '@/lib/api/listings';
+import { getListingState } from '@/lib/api/listings';
 import { formatPrice } from '@/lib/format';
 import { Detail } from '@/features/detail/Detail';
+import { ListingUnavailable } from '@/features/detail/ListingUnavailable';
 import { alternatesFor } from '@/lib/seo/alternates';
 import { BASE } from '@/lib/seo/base';
 import { JsonLd } from '@/components/seo/JsonLd';
+import { metaDescription } from '@/lib/seo/text';
+import { listingHeadline, listingSummary } from '@/lib/seo/listingTitle';
+import { indexClosedListings, isClosedListing } from '@/lib/seo/listingStatus';
+import { breadcrumbNode, listingNodes, pageGraph, webPageNode, type Crumb } from '@/lib/seo/graph';
+import { openGraphBase } from '@/lib/seo/og';
 
 interface PageProps {
   // В Next 15 params — асинхронные.
@@ -24,34 +30,45 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, id } = await params;
-  const listing = await getListingById(id, locale);
+  const state = await getListingState(id, locale);
   const t = await getTranslations({ locale, namespace: 'listing' });
-  if (!listing) return { title: t('meta.notFoundTitle') };
+  // Удалено (410) / на проверке (503): понятный заголовок и noindex без canonical.
+  if (state.kind === 'gone' || state.kind === 'under_review') {
+    const reason = state.kind === 'gone' ? 'gone' : 'updating';
+    return { title: t(`unavailable.${reason}.title`), robots: { index: false, follow: true } };
+  }
+  if (state.kind === 'not_found') return { title: t('meta.notFoundTitle') };
+  const { listing } = state;
   const tUnits = await getTranslations({ locale, namespace: 'units' });
   const price = formatPrice(listing, tUnits);
-  const title = t('meta.title', { title: listing.title, price });
+  // Заголовок — из полей объекта, а не из свободного title автора (обычно это адрес).
+  const headline = listingHeadline(listing, t, tUnits);
+  const title = t('meta.title', { title: headline, price });
 
-  // Fallback для description если desc пустой: тип + район + цена
-  const descFallback = `${listing.type} · ${listing.district} · ${price}`;
-  const description = (listing.desc ?? descFallback).slice(0, 155);
+  // Без текста автора — связное предложение из полей, а не сырые enum-значения.
+  const description = metaDescription(listing.desc || listingSummary(listing, price, t, tUnits));
 
   // og:image указывает на стабильный route /api/og/listing/:id (а не на presigned
   // R2-ссылку с TTL 1ч), чтобы превью соцсетей не «протухало». Фолбэк-картинку
   // обеспечивает сам маршрут, поэтому og:image отдаём всегда.
-  const ogImages = [{ url: `/api/og/listing/${id}`, alt: listing.title }];
+  const ogImages = [{ url: `/api/og/listing/${id}`, alt: headline }];
+
+  // Закрытые (SOLD/RENTED) — по решению владельца (флаг INDEX_CLOSED_LISTINGS):
+  // при false — noindex, follow и без canonical/hreflang.
+  const noindex = isClosedListing(listing) && !indexClosedListings();
 
   return {
     title,
     description,
-    alternates: alternatesFor(`/listing/${id}`),
+    ...(noindex
+      ? { robots: { index: false, follow: true } }
+      : { alternates: alternatesFor(`/listing/${id}`, locale) }),
     openGraph: {
-      type: 'website',
-      siteName: 'Avino',
+      ...openGraphBase(locale),
       title,
       description,
       url: `${BASE}/${locale}/listing/${id}`,
       images: ogImages,
-      locale,
     },
     twitter: { card: 'summary_large_image' },
   };
@@ -59,102 +76,63 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ListingPage({ params }: PageProps) {
   const { locale, id } = await params;
-  const listing = await getListingById(id, locale);
-  if (!listing) notFound();
+  const state = await getListingState(id, locale);
+  // Статус 410/503 ставит middleware; notFound() переписал бы его на 404.
+  if (state.kind === 'gone') return <ListingUnavailable reason="gone" />;
+  if (state.kind === 'under_review') return <ListingUnavailable reason="updating" />;
+  if (state.kind === 'not_found') notFound();
+  const { listing } = state;
 
   const tCrumb = await getTranslations({ locale, namespace: 'breadcrumb' });
+  const tListing = await getTranslations({ locale, namespace: 'listing' });
+  const tUnits = await getTranslations({ locale, namespace: 'units' });
+  const headline = listingHeadline(listing, tListing, tUnits);
 
   // ─── BreadcrumbList: Главная › Купить/Аренда › Район › Текущее ─────────
   const txCrumbKey = listing.tx === 'RENT' ? 'rent' : 'sale';
   const txCrumbLabel = tCrumb(txCrumbKey);
   const txCrumbPath = `/search?tx=${listing.tx}`;
 
-  const breadcrumbJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      {
-        '@type': 'ListItem',
-        position: 1,
-        name: tCrumb('home'),
-        item: `${BASE}/${locale}`,
-      },
-      {
-        '@type': 'ListItem',
-        position: 2,
-        name: txCrumbLabel,
-        item: `${BASE}/${locale}${txCrumbPath}`,
-      },
-      ...(listing.district
-        ? [
-            {
-              '@type': 'ListItem',
-              position: 3,
-              name: listing.district,
-              item: `${BASE}/${locale}/search?tx=${listing.tx}`,
-            },
-            {
-              '@type': 'ListItem',
-              position: 4,
-              name: listing.title,
-              item: `${BASE}/${locale}/listing/${id}`,
-            },
-          ]
-        : [
-            {
-              '@type': 'ListItem',
-              position: 3,
-              name: listing.title,
-              item: `${BASE}/${locale}/listing/${id}`,
-            },
-          ]),
-    ],
-  };
-
-  // ─── RealEstateListing + Offer ─────────────────────────────────────────────
-  // tx=RENT → businessFunction LeaseOut, tx=SALE → Sell
-  const businessFunction =
-    listing.tx === 'RENT'
-      ? 'http://purl.org/goodrelations/v1#LeaseOut'
-      : 'http://purl.org/goodrelations/v1#Sell';
-
-  const listingJsonLd: Record<string, unknown> = {
-    '@context': 'https://schema.org',
-    '@type': 'RealEstateListing',
-    name: listing.title,
-    description: listing.desc ?? undefined,
-    url: `${BASE}/${locale}/listing/${id}`,
-    datePosted: listing.createdAt,
-    ...(listing.photos.length > 0 && {
-      image: listing.photos.map((p) => p.url),
+  // ─── JSON-LD: один @graph — организация, сайт, объявление, агент, крошки ───
+  const pageUrl = `${BASE}/${locale}/listing/${id}`;
+  const crumbs: Crumb[] = [
+    { name: tCrumb('home'), url: `${BASE}/${locale}` },
+    { name: txCrumbLabel, url: `${BASE}/${locale}${txCrumbPath}` },
+    ...(listing.district
+      ? [
+          {
+            name: listing.district,
+            // Ссылка на выдачу именно по этому району, а не на общий «Купить/Аренда».
+            url: listing.districtId
+              ? `${BASE}/${locale}/search?tx=${listing.tx}&district_id=${listing.districtId}`
+              : `${BASE}/${locale}/search?tx=${listing.tx}`,
+          },
+        ]
+      : []),
+    { name: headline, url: pageUrl },
+  ];
+  // Продавец-агент: owner_id объявления агента = id его публичного профиля /agents/[id].
+  // Частного владельца в разметку не выводим (имя — персональные данные).
+  const seller =
+    listing.agent.kind !== 'owner' && listing.ownerId
+      ? { id: listing.ownerId, name: listing.agent.name || listing.agent.agency || 'Avino agent' }
+      : undefined;
+  const graph = pageGraph(locale, [
+    webPageNode({
+      url: pageUrl,
+      name: headline,
+      locale,
+      type: 'ItemPage',
+      breadcrumbId: `${pageUrl}#breadcrumb`,
+      mainEntityId: `${pageUrl}#listing`,
     }),
-    offers: {
-      '@type': 'Offer',
-      price: listing.price,
-      priceCurrency: listing.currency,
-      availability: 'https://schema.org/InStock',
-      businessFunction,
-    },
-    ...(listing.lat != null && listing.lng != null && {
-      geo: {
-        '@type': 'GeoCoordinates',
-        latitude: listing.lat,
-        longitude: listing.lng,
-      },
-    }),
-    address: {
-      '@type': 'PostalAddress',
-      addressLocality: listing.district || undefined,
-      addressRegion: 'Toshkent',
-      addressCountry: 'UZ',
-      ...(listing.address && { streetAddress: listing.address }),
-    },
-  };
+    ...listingNodes({ listing, locale, headline, agent: seller }),
+    breadcrumbNode(pageUrl, crumbs),
+  ]);
 
   return (
     <>
-      <JsonLd data={listingJsonLd} />
-      <JsonLd data={breadcrumbJsonLd} />
+      <JsonLd data={graph} />
       <Detail
         listing={listing}
         breadcrumb={{

@@ -17,13 +17,16 @@ const fallback = () =>
   Response.redirect(new URL('/apple-icon.png', BASE).toString(), 302);
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   try {
     const { id } = await params;
     const listing = await getListingById(id);
-    const src = listing?.photos?.[0]?.url;
+    // ?i=<n> — n-я фотография (стабильные URL картинок для JSON-LD), по умолчанию первая.
+    const raw = new URL(req.url).searchParams.get('i');
+    const index = raw && /^\d{1,2}$/.test(raw) ? Number(raw) : 0;
+    const src = listing?.photos?.[index]?.url;
     if (!src) return fallback();
 
     const upstream = await fetch(src, { signal: AbortSignal.timeout(5000) });

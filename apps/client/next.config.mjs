@@ -68,6 +68,12 @@ const nextConfig = {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
 
+  // Файл ключа IndexNow /{INDEXNOW_KEY}.txt: корневой динамический сегмент занят
+  // [locale], поэтому — rewrite в route handler (он сверяет ключ с env).
+  async rewrites() {
+    return [{ source: '/:key([a-zA-Z0-9-]{8,128}).txt', destination: '/api/indexnow/key/:key' }];
+  },
+
   images: {
     // cdn.avino.uz — Cloudflare R2 с кастомным доменом (основное хранилище, прод).
     // *.r2.cloudflarestorage.com — presigned GET URL приватного бакета (sign-on-read,

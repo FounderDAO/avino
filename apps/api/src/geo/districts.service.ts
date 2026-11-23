@@ -7,6 +7,8 @@ import {
   type DirectoryRegion,
   type GeoComponent,
 } from './geo-match';
+import { GeoEntityType, Prisma } from '@prisma/client';
+import { groupAliases } from './geo-aliases';
 
 /** Справочник для сопоставления по точке: меняется только миграциями — кешируем. */
 const DIRECTORY_TTL_MS = 10 * 60_000;
@@ -25,6 +27,10 @@ export interface DistrictListItem {
   name_en: string;
   /** UUID родительского региона. null только если district создан без regionId (legacy). */
   region_id: string | null;
+  /** Неизменяемый slug для адресов сайта, уникальный в регионе (SEO AUD-15). */
+  slug: string;
+  /** Прежние slug'и — сайт отвечает 301 на текущий (SEO AUD-15). */
+  aliases: string[];
 }
 
 /** Trilingual запись района для разрешения имён (внутренний тип). */
@@ -59,11 +65,18 @@ export class DistrictsService {
    *   районы этого региона. Без параметра возвращает весь список (обратная совместимость).
    */
   async listAll(regionId?: string): Promise<DistrictListItem[]> {
-    const rows = await this.prisma.district.findMany({
-      where: regionId ? { regionId } : undefined,
-      orderBy: { nameRu: 'asc' },
-      select: { id: true, code: true, nameUz: true, nameRu: true, nameEn: true, regionId: true },
-    });
+    const [rows, aliases] = await Promise.all([
+      this.prisma.district.findMany({
+        where: regionId ? { regionId } : undefined,
+        orderBy: { nameRu: 'asc' },
+        select: { id: true, code: true, nameUz: true, nameRu: true, nameEn: true, regionId: true, slug: true },
+      }),
+      this.prisma.geoAlias.findMany({
+        where: { entityType: GeoEntityType.DISTRICT },
+        select: { entityId: true, oldSlug: true },
+      }),
+    ]);
+    const aliasesById = groupAliases(aliases);
     return rows.map((r) => ({
       id: r.id,
       code: r.code,
@@ -71,6 +84,8 @@ export class DistrictsService {
       name_ru: r.nameRu,
       name_en: r.nameEn,
       region_id: r.regionId,
+      slug: r.slug,
+      aliases: aliasesById.get(r.id) ?? [],
     }));
   }
 
@@ -123,6 +138,25 @@ export class DistrictsService {
    * Район справочника по компонентам адреса Yandex для точки (правило — как в
    * визарде, см. geo-match.ts). Не распознан → null.
    */
+  /**
+   * Район по точке через границы (SEO AUD-3): ST_Covers, при вложенности —
+   * меньший полигон (город внутри одноимённого района). Нет границ или точки —
+   * null, вызывающий переходит к геокодеру.
+   */
+  async districtIdByPoint(lat: string, lng: string): Promise<string | null> {
+    const la = Number(lat);
+    const lo = Number(lng);
+    if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+    const rows = await this.prisma.$queryRaw<{ district_id: string }[]>(Prisma.sql`
+      SELECT district_id::text AS district_id
+      FROM district_boundaries
+      WHERE ST_Covers(geom, ST_SetSRID(ST_MakePoint(${lo}, ${la}), 4326)::geography)
+      ORDER BY ST_Area(geom) ASC
+      LIMIT 1
+    `);
+    return rows[0]?.district_id ?? null;
+  }
+
   async matchByComponents(
     components: GeoComponent[],
   ): Promise<{ id: string; names: DistrictNames } | null> {

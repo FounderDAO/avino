@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { AddressResolverService } from './address-resolver.service';
 import { DistrictsService } from './districts.service';
 import { GeoController } from './geo.controller';
+import { GeoResolveProcessor } from './geo-resolve.processor';
+import { GeoResolveWorker } from './geo-resolve.worker';
 import { RegionsService } from './regions.service';
 
 /**
@@ -13,7 +15,8 @@ import { RegionsService } from './regions.service';
  */
 @Module({
   controllers: [GeoController],
-  providers: [AddressResolverService, DistrictsService, RegionsService],
+  // GeoResolve*: повторное определение района по точке (SEO AUD-2).
+  providers: [AddressResolverService, DistrictsService, RegionsService, GeoResolveProcessor, GeoResolveWorker],
   exports: [AddressResolverService, DistrictsService, RegionsService],
 })
 export class GeoModule {}

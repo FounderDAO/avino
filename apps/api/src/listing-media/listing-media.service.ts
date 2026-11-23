@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   PayloadTooLargeException,
   UnprocessableEntityException,
   UnsupportedMediaTypeException,
@@ -14,6 +15,9 @@ import { ApiErrorCode } from '../common/dto/error-response.dto';
 import { AuthenticatedUser } from '../common/guards';
 import { PrismaService } from '../prisma';
 import { UploadsService } from '../uploads';
+import { ListingUrlSyncQueue } from '../queues/listing-url-sync.queue';
+import { MediaProcessingQueue } from '../queues/media-processing.queue';
+import { capturePublishedVersion } from '../listings/published-version';
 
 /**
  * Загруженный proxy-файл (multipart), минимальный контракт. Тип объявлен здесь, а
@@ -109,6 +113,14 @@ const PUBLIC_VIEW_STATUSES: ListingStatus[] = [
  * координаты объявления берутся только с карты, никогда из EXIF фото. TODO(M6):
  * подключить media_processing_queue для EXIF-strip + thumbnail.
  */
+/** Ключи вариантов из JSON listing_media.variants (SEO AUD-8); мусор игнорируется. */
+export function variantKeysOf(variants: unknown): string[] {
+  if (!Array.isArray(variants)) return [];
+  return variants.flatMap((v) =>
+    v && typeof v === 'object' && typeof (v as { key?: unknown }).key === 'string' ? [(v as { key: string }).key] : [],
+  );
+}
+
 @Injectable()
 export class ListingMediaService {
   private readonly logger = new Logger(ListingMediaService.name);
@@ -116,7 +128,16 @@ export class ListingMediaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly uploads: UploadsService,
+    // SEO AUD-11: правка галереи меняет страницу — синхронизация с сайтом.
+    @Optional() private readonly urlSync?: ListingUrlSyncQueue,
+    // SEO AUD-8: WebP-варианты и размеры фото — в фоне после записи.
+    @Optional() private readonly mediaQueue?: MediaProcessingQueue,
   ) {}
+
+  /** Поставить фото на обработку (варианты, размеры) — после коммита записи. */
+  async scheduleVariants(mediaIds: string[]): Promise<void> {
+    await this.mediaQueue?.enqueue(mediaIds);
+  }
 
   /**
    * `GET /api/v1/listings/:id/media` — список медиа листинга по `sort_order`.
@@ -173,12 +194,14 @@ export class ListingMediaService {
     }
 
     const stored = await this.uploadToStorage(listingId, file.buffer, file.mimetype as ImageMimeType);
+    await this.captureBeforeOwnerChange(listingId, listing, user);
     const media = await this.createMediaRecord(this.prisma, listingId, {
       ...stored,
       mimeType: file.mimetype,
       sizeBytes: file.size,
       sortOrder: await this.nextSortOrder(listingId),
     });
+    await this.scheduleVariants([media.id]);
     // Добавление фото — изменение контента: возвращает ACTIVE/REJECTED на модерацию.
     await this.reModerateOnOwnerMediaChange(listingId, listing, user, 'добавлено фото');
     return this.toResponse(media);
@@ -253,7 +276,7 @@ export class ListingMediaService {
 
     const media = await this.prisma.listingMedia.findFirst({
       where: { id: mediaId, listingId },
-      select: { id: true, url: true, storageKey: true },
+      select: { id: true, url: true, storageKey: true, variants: true },
     });
     if (!media) {
       throw new NotFoundException({
@@ -262,6 +285,7 @@ export class ListingMediaService {
       });
     }
 
+    await this.captureBeforeOwnerChange(listingId, listing, user);
     await this.prisma.listingMedia.delete({ where: { id: media.id } });
     // Удаление фото — изменение контента: возвращает ACTIVE/REJECTED на модерацию.
     await this.reModerateOnOwnerMediaChange(listingId, listing, user, 'удалено фото');
@@ -276,6 +300,13 @@ export class ListingMediaService {
       // DB-запись — source of truth; S3-объект осиротел, его уберёт cleanup-джоба.
       this.logger.warn(
         `Failed to delete S3 object for media ${media.id}: ${String(error)}`,
+      );
+    }
+    // WebP-варианты (SEO AUD-8) лежат под /variants/ — cleanup их не сканирует,
+    // поэтому удаляем вместе с оригиналом; сбой — только в лог.
+    for (const key of variantKeysOf(media.variants)) {
+      await this.uploads.delete(key).catch((error: unknown) =>
+        this.logger.warn(`Failed to delete variant ${key} of media ${media.id}: ${String(error)}`),
       );
     }
   }
@@ -355,6 +386,20 @@ export class ListingMediaService {
   }
 
   /**
+   * Перед правкой галереи владельцем ACTIVE-объявления сохраняем одобренную
+   * версию: пока правка на модерации, посетители видят её (SEO AUD-9). Условие
+   * то же, что у {@link reModerateOnOwnerMediaChange}.
+   */
+  private async captureBeforeOwnerChange(
+    listingId: string,
+    listing: { ownerId: string; status: ListingStatus },
+    user: AuthenticatedUser,
+  ): Promise<void> {
+    if (user.id !== listing.ownerId) return;
+    await capturePublishedVersion(this.prisma, listingId, listing.status);
+  }
+
+  /**
    * Правка галереи ВЛАДЕЛЬЦЕМ (добавление/удаление фото) возвращает
    * `ACTIVE`/`REJECTED`-объявление на повторную модерацию (`NEW`) и пишет
    * системный лог `OWNER_EDIT` — зеркалит контент-правку в
@@ -372,14 +417,20 @@ export class ListingMediaService {
       user.id === listing.ownerId &&
       (listing.status === ListingStatus.ACTIVE ||
         listing.status === ListingStatus.REJECTED);
+    // Любая правка галереи — изменение содержимого (SEO AUD-6: lastmod).
     if (!shouldReModerate) {
+      await this.prisma.listing.update({
+        where: { id: listingId },
+        data: { contentUpdatedAt: new Date() },
+      });
+      await this.urlSync?.enqueue([listingId]);
       return;
     }
 
     await this.prisma.$transaction([
       this.prisma.listing.update({
         where: { id: listingId },
-        data: { status: ListingStatus.NEW },
+        data: { status: ListingStatus.NEW, contentUpdatedAt: new Date() },
       }),
       this.prisma.moderationLog.create({
         data: {
@@ -392,6 +443,7 @@ export class ListingMediaService {
         },
       }),
     ]);
+    await this.urlSync?.enqueue([listingId]);
   }
 
   /**
