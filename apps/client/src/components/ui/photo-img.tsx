@@ -3,8 +3,11 @@
  * Если фото нет (пустой src) или оно не загрузилось — рисует дом-глиф + бренд
  * на фоне photo-ph (TASK-197), без внешнего хотлинка placehold.co.
  *
- * Использует next/image для оптимизации (WebP/AVIF, lazy, LCP priority).
- * Хосты фото объявлены в next.config.mjs images.remotePatterns (cdn.avino.uz).
+ * Использует next/image (lazy, LCP priority). Фото из хранилища (абсолютный
+ * https-URL) идут БЕЗ оптимизатора /_next/image: хранилище уже отдаёт готовые
+ * варианты (`-640.webp`), а прокси через наш сервер гнал каждое фото по
+ * медленному каналу до Хельсинки, и кеш не срабатывал — presigned-ссылка
+ * меняется на каждый запрос. Локальные картинки (/hero, …) оптимизируются как раньше.
  *
  * По умолчанию fill=true (заполняет position:relative-контейнер).
  * Для лайтбокса (intrinsic sizing, object-contain) передай fill={false}.
@@ -43,6 +46,11 @@ export interface PhotoImgProps {
   sizes?: string;
   /** Пробросить onClick (лайтбокс). */
   onClick?: React.MouseEventHandler<HTMLElement>;
+}
+
+/** Фото из внешнего хранилища — грузим напрямую, без /_next/image. */
+export function isStorageUrl(src: string): boolean {
+  return /^https?:\/\//i.test(src);
 }
 
 export function PhotoImg({
@@ -86,6 +94,7 @@ export function PhotoImg({
         fill
         sizes={sizes}
         priority={priority}
+        unoptimized={isStorageUrl(src)}
         className={cn('object-cover', className)}
         onError={() => setErr(true)}
         onClick={onClick}
