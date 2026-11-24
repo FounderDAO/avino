@@ -29,4 +29,17 @@ describe('PhotoImg — плейсхолдер без фото (TASK-197)', () =>
     expect(img).not.toBeNull();
     expect(img?.getAttribute('src')).toContain('cdn.avino.uz');
   });
+
+  it('фото из хранилища → грузится напрямую, без /_next/image и srcset', () => {
+    const url = 'https://acc.r2.cloudflarestorage.com/b/listings/x-640.webp?X-Amz-Signature=abc';
+    const { container } = render(<PhotoImg src={url} alt="фото" />);
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src')).toBe(url);
+    expect(img?.getAttribute('srcset')).toBeNull();
+  });
+
+  it('локальная картинка → через оптимизатор /_next/image', () => {
+    const { container } = render(<PhotoImg src="/hero/tashkent.jpg" alt="" />);
+    expect(container.querySelector('img')?.getAttribute('src')).toContain('/_next/image');
+  });
 });
