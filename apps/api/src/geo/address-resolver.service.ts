@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { distanceMeters, extractGeoObject, type GeoObjectParts } from './address-format';
+import { distanceMeters, extractComponentLists, extractGeoObject, type GeoObjectParts } from './address-format';
 import { mergeListingAddress } from './address-merge';
 import { DistrictsService, type DistrictNames } from './districts.service';
 
@@ -82,7 +82,8 @@ export class AddressResolverService {
 
     const matched = byPoint
       ? { id: byPoint, names: (await this.districts.namesByIds([byPoint])).get(byPoint) }
-      : await this.districts.matchByComponents(ru.components);
+      : ((await this.districts.matchByComponents(ru.components)) ??
+        (await this.districtByGeocoderKind(apiKey, lat, lng)));
     let district: DistrictNames | undefined = matched?.names;
     if (!district && options.districtId) {
       district = (await this.districts.namesByIds([options.districtId])).get(options.districtId);
@@ -122,8 +123,30 @@ export class AddressResolverService {
     if (!outcome.parts) {
       return { districtId: null };
     }
-    const matched = await this.districts.matchByComponents(outcome.parts.components);
+    const matched =
+      (await this.districts.matchByComponents(outcome.parts.components)) ??
+      (await this.districtByGeocoderKind(apiKey, lat, lng));
     return { districtId: matched?.id ?? null };
+  }
+
+  /**
+   * Запасной путь: у адреса уровня дома Яндекс часто не отдаёт компоненту
+   * района (`province, locality, street, house`). Запрос с `kind=district`
+   * возвращает районы у точки; первым может прийти ЖК без района, поэтому
+   * перебираем несколько объектов. Сбой — просто «не распознан».
+   */
+  private async districtByGeocoderKind(
+    apiKey: string,
+    lat: string,
+    lng: string,
+  ): Promise<{ id: string; names: DistrictNames } | null> {
+    const json = await this.fetchGeocoder(apiKey, lat, lng, 'ru_RU', { kind: 'district', results: '5' });
+    if (!json) return null;
+    for (const components of extractComponentLists(json)) {
+      const hit = await this.districts.matchByComponents(components);
+      if (hit) return hit;
+    }
+    return null;
   }
 
   /** Район по границам; сбой БД не мешает запасному пути через геокодер. */
@@ -143,6 +166,18 @@ export class AddressResolverService {
     lng: string,
     lang: 'ru_RU' | 'en_US',
   ): Promise<GeocodeOutcome> {
+    const json = await this.fetchGeocoder(apiKey, lat, lng, lang);
+    return json === null ? { ok: false } : { ok: true, parts: extractGeoObject(json) };
+  }
+
+  /** Сырой ответ геокодера; любая осечка → null (warn в лог). */
+  private async fetchGeocoder(
+    apiKey: string,
+    lat: string,
+    lng: string,
+    lang: 'ru_RU' | 'en_US',
+    extra: Record<string, string> = {},
+  ): Promise<unknown> {
     const params = new URLSearchParams({
       apikey: apiKey,
       geocode: `${lng},${lat}`, // longlat-порядок Яндекса
@@ -150,6 +185,7 @@ export class AddressResolverService {
       format: 'json',
       results: '1',
       lang,
+      ...extra,
     });
     try {
       const res = await fetch(`${GEOCODER_URL}?${params}`, {
@@ -157,12 +193,12 @@ export class AddressResolverService {
       });
       if (!res.ok) {
         this.logger.warn(`Geocoder ${lang} responded ${res.status}`);
-        return { ok: false };
+        return null;
       }
-      return { ok: true, parts: extractGeoObject(await res.json()) };
+      return (await res.json()) as unknown;
     } catch (e) {
       this.logger.warn(`Geocoder ${lang} failed: ${(e as Error).message}`);
-      return { ok: false };
+      return null;
     }
   }
 }

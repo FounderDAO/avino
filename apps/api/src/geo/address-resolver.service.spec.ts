@@ -196,6 +196,49 @@ describe('AddressResolverService', () => {
       await expect(service.resolveDistrictId(LAT, LNG)).resolves.toEqual({ districtId: null });
     });
 
+    it('у дома нет района → второй запрос kind=district, берётся первый объект с районом', async () => {
+      const HOUSE_NO_DISTRICT = RU_COMPONENTS.filter((c) => c.kind !== 'district');
+      const COMPLEX = [{ kind: 'locality', name: 'Ташкент' }, { kind: 'district', name: 'ЖК Ассалом' }];
+      const YASHNOBOD = [{ kind: 'locality', name: 'Ташкент' }, { kind: 'district', name: 'Яшнабадский район' }];
+      fetchMock.mockImplementation((url: RequestInfo | URL) =>
+        Promise.resolve(
+          okResponse(
+            String(url).includes('kind=district')
+              ? {
+                  response: {
+                    GeoObjectCollection: {
+                      featureMember: [COMPLEX, YASHNOBOD].map((c) => ({
+                        GeoObject: { metaDataProperty: { GeocoderMetaData: { Address: { Components: c } } } },
+                      })),
+                    },
+                  },
+                }
+              : geocoderBody(HOUSE_NO_DISTRICT),
+          ),
+        ),
+      );
+      districts.matchByComponents.mockImplementation((components: Array<{ name: string }>) =>
+        Promise.resolve(
+          components.some((c) => c.name === 'Яшнабадский район') ? { id: 'd-yash', names: CHILANZAR } : null,
+        ),
+      );
+      const service = makeService('test-key');
+      await expect(service.resolveDistrictId(LAT, LNG)).resolves.toEqual({ districtId: 'd-yash' });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(String(fetchMock.mock.calls[1][0])).toContain('kind=district');
+    });
+
+    it('запасной запрос kind=district упал → { districtId: null }', async () => {
+      fetchMock.mockImplementation((url: RequestInfo | URL) =>
+        String(url).includes('kind=district')
+          ? Promise.reject(new Error('timeout'))
+          : Promise.resolve(okResponse(geocoderBody(RU_COMPONENTS))),
+      );
+      districts.matchByComponents.mockResolvedValue(null);
+      const service = makeService('test-key');
+      await expect(service.resolveDistrictId(LAT, LNG)).resolves.toEqual({ districtId: null });
+    });
+
     it('геокодер недоступен → null (отличаем от «не распознан»)', async () => {
       fetchMock.mockRejectedValue(new Error('timeout'));
       const service = makeService('test-key');
