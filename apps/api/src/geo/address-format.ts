@@ -109,6 +109,31 @@ export interface GeoObjectParts extends GeoParts {
  * (`GeoObject.metaDataProperty.GeocoderMetaData.Address.Components`), kind и
  * точка объекта. Нет компонентов → null.
  */
+/**
+ * Компоненты всех объектов ответа (а не только первого) — для запроса
+ * `kind=district`, где первым может прийти ЖК без компоненты района.
+ */
+export function extractComponentLists(json: unknown): Array<Array<{ kind: string; name: string }>> {
+  const members = (json as {
+    response?: {
+      GeoObjectCollection?: {
+        featureMember?: Array<{
+          GeoObject?: { metaDataProperty?: { GeocoderMetaData?: { Address?: { Components?: unknown } } } };
+        }>;
+      };
+    };
+  })?.response?.GeoObjectCollection?.featureMember;
+  if (!Array.isArray(members)) return [];
+  return members.flatMap((m) => {
+    const raw = m?.GeoObject?.metaDataProperty?.GeocoderMetaData?.Address?.Components;
+    if (!Array.isArray(raw)) return [];
+    const components = (raw as GeocoderComponent[])
+      .filter((c) => typeof c.kind === 'string' && typeof c.name === 'string')
+      .map((c) => ({ kind: c.kind as string, name: c.name as string }));
+    return components.length > 0 ? [components] : [];
+  });
+}
+
 export function extractGeoObject(json: unknown): GeoObjectParts | null {
   const geoObject = (json as {
     response?: {
