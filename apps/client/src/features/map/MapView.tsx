@@ -5,9 +5,12 @@
  * пропсы списка↔карты стабильны (`listings/activeId/onSelect/onHover`):
  *  - /search — радиусный поиск: оверлей-круг (`circle`) + рисование радиуса
  *    (`drawMode='radius'`, зажал-потянул-отпустил → `onDrawComplete`);
- *  - /map    — поиск по карте: freehand-лассо территории (`drawMode='polygon'`,
- *    зажал → обвёл → отпустил → `onPolygonComplete`), оверлей территории
- *    (`polygon`) и отчёт о видимой области (`onBoundsChange`, debounce).
+ *  - /map и /search — зона от руки (`drawMode='polygon'`), один в один как в
+ *    мобильном приложении: линия рисуется поверх карты в экранных пикселях
+ *    (красная, 3px, бледная заливка), после отпускания прореживается до ~32
+ *    вершин (lasso.ts) и переводится в координаты → `onPolygonComplete`.
+ *    Готовая зона — красный контур с точками на вершинах (`polygon`);
+ *    отчёт о видимой области — `onBoundsChange` (debounce).
  *
  * Маркеры — кластеризуются (ymaps.Clusterer). Если объявлений в области больше,
  * чем пришло пинов, родитель передаёт серверные кластеры (`clusters`) — тогда
@@ -28,6 +31,7 @@ import { clampRadius, type LatLng, type LatLngBounds } from '@/lib/geo';
 import type { Listing, RadiusCircle, TransactionType } from '@/lib/mock/types';
 import type { MapCluster } from '@/lib/api/listings';
 import { useYmaps, type Ymaps, type YmapsStatus } from './useYmaps';
+import { appendPoint, decimatePath, svgPath, type ScreenPoint } from './lasso';
 
 export type DrawMode = 'radius' | 'polygon' | null;
 
@@ -95,8 +99,19 @@ export interface MapViewProps {
 const TASHKENT_CENTER: LatLng = [41.311, 69.28];
 const DEFAULT_ZOOM = 12;
 const BOUNDS_DEBOUNCE_MS = 450;
-/** Freehand-лассо: не добавляем вершину ближе этого к предыдущей (м) — реже точек. */
-const LASSO_MIN_STEP_M = 12;
+/** Цвет зоны — бренд-красный, как `colors.red` в приложении. */
+const ZONE_COLOR = '#E03C42';
+
+/** Готовая зона: контур 2px + заливка 12% (PolygonMapObject в приложении). */
+const ZONE_STYLE = {
+  strokeColor: ZONE_COLOR,
+  strokeWidth: 2,
+  fillColor: ZONE_COLOR,
+  fillOpacity: 0.12,
+} as const;
+
+/** Точка на вершине зоны (handle.png в приложении). */
+const ZONE_VERTEX_HTML = '<div class="av-zone-vertex"></div>';
 
 /** Стиль оверлеев (круг радиуса и территория) — тёмный ink, как в прежнем MapView. */
 const OVERLAY_STYLE = {
@@ -146,6 +161,12 @@ function ensurePinStyles() {
       cursor: pointer; transition: transform .12s ease;
     }
     .av-ycluster:hover { transform: translate(-50%, -50%) scale(1.08); }
+    .av-zone-vertex {
+      position: absolute; transform: translate(-50%, -50%);
+      width: 14px; height: 14px; border-radius: 999px;
+      background: #fff; border: 2px solid ${ZONE_COLOR};
+      box-shadow: 0 1px 4px rgba(40,34,24,.35);
+    }
   `;
   document.head.appendChild(style);
 }
@@ -562,9 +583,22 @@ export function MapView({
         /* no-op */
       }
     } else if (polygon && polygon.length >= 3) {
-      const p = new ymaps.Polygon([[...polygon, polygon[0]]], {}, { ...OVERLAY_STYLE, interactivityModel: 'default#transparent' });
-      map.geoObjects.add(p);
-      overlayRef.current = p;
+      const zone = new ymaps.GeoObjectCollection();
+      const p = new ymaps.Polygon([[...polygon, polygon[0]]], {}, { ...ZONE_STYLE, interactivityModel: 'default#transparent' });
+      zone.add(p);
+      const vertexLayout = makeIconLayout(ymaps, ZONE_VERTEX_HTML);
+      for (const v of polygon) {
+        zone.add(
+          new ymaps.Placemark(v, {}, {
+            iconLayout: vertexLayout,
+            iconShape: { type: 'Circle', coordinates: [0, 0], radius: 7 },
+            interactivityModel: 'default#transparent',
+            zIndex: 500,
+          }),
+        );
+      }
+      map.geoObjects.add(zone);
+      overlayRef.current = zone;
       try {
         userGestureRef.current = false;
         map.setBounds(p.geometry.getBounds(), { checkZoomRange: true, zoomMargin: 48 });
@@ -619,73 +653,85 @@ export function MapView({
     };
   }, [drawMode, ymaps]);
 
-  // ── Рисование ТЕРРИТОРИИ (/map): freehand-лассо — зажал → обвёл → отпустил ──
-  // Тот же механизм событий карты, что и у радиуса; вместо круга копим путь
-  // обводки в полигон. Отпускание мыши замыкает территорию (≥3 точек).
-  const pointsRef = React.useRef<LatLng[]>([]);
+  // ── Рисование ЗОНЫ от руки (как в приложении) ──
+  // Пока рисуем, карта не двигается и не зумится; жест ловит прозрачный слой
+  // поверх карты (pointer events — мышь и палец). Линия — в экранных пикселях,
+  // в координаты переводим только после отпускания, уже прореженную.
+  const [drawPath, setDrawPath] = React.useState<ScreenPoint[]>([]);
+  const drawPathRef = React.useRef<ScreenPoint[]>([]);
+  const drawPageRef = React.useRef<ScreenPoint[]>([]);
+  const drawActiveRef = React.useRef(false);
+
   React.useEffect(() => {
     const map = mapRef.current;
     if (!map || !ymaps || drawMode !== 'polygon') return;
-
-    map.behaviors.disable('drag');
-    const el = elRef.current;
-    const prevCursor = el?.style.cursor ?? '';
-    if (el) el.style.cursor = 'crosshair';
-
-    let drawing = false;
-    let shape: any = null;
-    pointsRef.current = [];
+    const behaviors = ['drag', 'scrollZoom', 'dblClickZoom', 'multiTouch'];
+    map.behaviors.disable(behaviors);
+    drawPathRef.current = [];
+    drawPageRef.current = [];
+    setDrawPath([]);
     cb.current.onPolygonProgress?.(0);
-
-    const onDown = (e: any) => {
-      drawing = true;
-      pointsRef.current = [e.get('coords') as LatLng];
-      shape = new ymaps.Polygon([[]], {}, { ...OVERLAY_STYLE, interactivityModel: 'default#transparent' });
-      map.geoObjects.add(shape);
-      drawTmpRef.current = shape;
-      cb.current.onPolygonProgress?.(1);
-    };
-    const onMove = (e: any) => {
-      if (!drawing || !shape) return;
-      const c = e.get('coords') as LatLng;
-      const pts = pointsRef.current;
-      const last = pts[pts.length - 1];
-      // Прореживаем: пропускаем точки ближе LASSO_MIN_STEP_M к предыдущей.
-      if (last && ymaps.coordSystem.geo.getDistance(last, c) < LASSO_MIN_STEP_M) return;
-      pts.push(c);
-      shape.geometry.setCoordinates([pts]); // открытое кольцо во время обводки
-      cb.current.onPolygonProgress?.(pts.length);
-    };
-    const onUp = () => {
-      if (!drawing) return;
-      drawing = false;
-      const pts = pointsRef.current;
-      if (shape) {
-        map.geoObjects.remove(shape);
-        shape = null;
-        drawTmpRef.current = null;
-      }
-      // ≥3 точек → территория готова (оверлей-эффект отрисует её по `polygon`).
-      if (pts.length >= 3) cb.current.onPolygonComplete?.(pts);
-      else cb.current.onPolygonProgress?.(0); // слишком короткая обводка — сброс
-      pointsRef.current = [];
-    };
-
-    map.events.add('mousedown', onDown);
-    map.events.add('mousemove', onMove);
-    map.events.add('mouseup', onUp);
     return () => {
-      map.events.remove('mousedown', onDown);
-      map.events.remove('mousemove', onMove);
-      map.events.remove('mouseup', onUp);
-      if (drawTmpRef.current) {
-        map.geoObjects.remove(drawTmpRef.current);
-        drawTmpRef.current = null;
-      }
-      if (el) el.style.cursor = prevCursor;
-      map.behaviors.enable('drag');
+      drawActiveRef.current = false;
+      drawPathRef.current = [];
+      drawPageRef.current = [];
+      setDrawPath([]);
+      map.behaviors.enable(behaviors);
     };
   }, [drawMode, ymaps]);
+
+  const localPoint = (e: React.PointerEvent<HTMLDivElement>): ScreenPoint => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return [e.clientX - rect.left, e.clientY - rect.top];
+  };
+
+  const onDrawDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    drawActiveRef.current = true;
+    drawPathRef.current = [localPoint(e)];
+    drawPageRef.current = [[e.pageX, e.pageY]];
+    setDrawPath(drawPathRef.current);
+    cb.current.onPolygonProgress?.(1);
+  };
+
+  const onDrawMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drawActiveRef.current) return;
+    const next = appendPoint(drawPathRef.current, localPoint(e));
+    if (next === drawPathRef.current) return;
+    drawPathRef.current = next;
+    drawPageRef.current.push([e.pageX, e.pageY]);
+    setDrawPath(next);
+    cb.current.onPolygonProgress?.(next.length);
+  };
+
+  const onDrawUp = () => {
+    if (!drawActiveRef.current) return;
+    drawActiveRef.current = false;
+    const map = mapRef.current;
+    const sampled = decimatePath(drawPageRef.current);
+    drawPathRef.current = [];
+    drawPageRef.current = [];
+    setDrawPath([]);
+    if (!map || sampled.length < 3) {
+      cb.current.onPolygonProgress?.(0); // слишком короткая обводка — сброс
+      return;
+    }
+    const projection = map.options.get('projection');
+    const zoomNow = map.getZoom();
+    const points: LatLng[] = [];
+    for (const page of sampled) {
+      try {
+        const [lat, lng] = projection.fromGlobalPixels(map.converter.pageToGlobal(page), zoomNow);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) points.push([lat, lng]);
+      } catch {
+        /* точка вне карты — пропускаем */
+      }
+    }
+    if (points.length >= 3) cb.current.onPolygonComplete?.(points);
+    else cb.current.onPolygonProgress?.(0);
+  };
 
   // ── Деградация без ключа/при ошибке: подсказка вместо карты ──
   if (status !== 'ready') {
@@ -712,6 +758,34 @@ export function MapView({
         role="img"
         aria-label={tSearch('map.ariaLabel')}
       />
+      {drawMode === 'polygon' && (
+        <div
+          className="absolute inset-0 z-[999] cursor-crosshair"
+          style={{ touchAction: 'none' }}
+          onPointerDown={onDrawDown}
+          onPointerMove={onDrawMove}
+          onPointerUp={onDrawUp}
+          onPointerCancel={onDrawUp}
+          data-testid="zone-draw-layer"
+        >
+          {drawPath.length > 0 && (
+            <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
+              {drawPath.length >= 3 && (
+                <path d={svgPath(drawPath, true)} fill={ZONE_COLOR} fillOpacity={0.12} stroke="none" />
+              )}
+              <path
+                d={svgPath(drawPath)}
+                fill="none"
+                stroke={ZONE_COLOR}
+                strokeOpacity={0.9}
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+        </div>
+      )}
       {/* Якорь превью: absolute относительно relative-контейнера карты у родителя;
           позицию (transform) ставит эффект выше, до первого расчёта скрыт. */}
       {hasPreview && preview && (

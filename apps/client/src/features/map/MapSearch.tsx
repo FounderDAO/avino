@@ -20,9 +20,9 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
-import { Pencil, X, Trash2 } from 'lucide-react';
 import { PropertyCard } from '@/features/search/PropertyCard';
 import { MapPreviewCard } from '@/features/map/MapPreviewCard';
+import { ZoneDrawControls } from '@/features/map/ZoneDrawControls';
 import { Footer } from '@/components/layout/Footer';
 import { useViewportSearch } from '@/features/map/useViewportSearch';
 import { cn } from '@/lib/utils';
@@ -153,48 +153,14 @@ export function MapSearch({ initialListings, locale, tx }: MapSearchProps) {
           onPreviewClose={vpClosePreview}
         />
 
-        {/* ---- Управление территорией (поверх карты) ---- */}
-        <div className="absolute right-3 top-3 z-[1000] flex flex-wrap items-center justify-end gap-2">
-          {drawing ? (
-            <>
-              <span className="rounded-pill bg-ink/85 px-3.5 py-2 text-[13px] font-semibold text-white shadow-raised">
-                {t('map.drawHint')}
-              </span>
-              <button
-                type="button"
-                onClick={cancelDraw}
-                className="inline-flex items-center gap-1.5 rounded-pill border-[1.5px] border-border bg-surface px-4 py-2 text-sm font-bold text-ink shadow-raised transition-colors hover:border-ink"
-              >
-                <X size={15} strokeWidth={2.2} />
-                {t('map.cancel')}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={startDraw}
-                className="inline-flex items-center gap-1.5 rounded-pill border-[1.5px] border-border bg-surface px-4 py-2 text-sm font-bold text-ink shadow-raised transition-colors hover:border-ink"
-              >
-                <Pencil size={15} strokeWidth={2.2} />
-                {t('map.drawTerritory')}
-              </button>
-              {polygon && (
-                <span className="inline-flex items-center gap-1 rounded-pill bg-ink px-3.5 py-2 text-sm font-bold text-white shadow-raised">
-                  {t('map.areaCount', { count: total })}
-                  <button
-                    type="button"
-                    onClick={clearTerritory}
-                    aria-label={t('map.clear')}
-                    className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-white/20"
-                  >
-                    <Trash2 size={14} strokeWidth={2.2} />
-                  </button>
-                </span>
-              )}
-            </>
-          )}
-        </div>
+        {/* ---- Зона на карте: кнопки как в мобильном приложении ---- */}
+        <ZoneDrawControls
+          drawing={drawing}
+          hasZone={Boolean(polygon)}
+          onStart={startDraw}
+          onCancel={cancelDraw}
+          onReset={clearTerritory}
+        />
       </div>
 
       {/* ---- Список (справа, свой скролл) ---- */}
