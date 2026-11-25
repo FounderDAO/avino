@@ -43,7 +43,7 @@ async function backfillDistricts(): Promise<void> {
     const summary = await runDistrictBackfill(
       {
         findCandidates: (limit) => prisma.$queryRaw<BackfillCandidate[]>(candidatesSql(limit)),
-        resolveDistrictId: (lat, lng) => resolver.resolveDistrictId(lat, lng),
+        resolveDistrictId: (lat, lng, address) => resolver.resolveDistrictId(lat, lng, address),
         assignDistrict: async (id, districtId) =>
           (await prisma.$executeRaw(assignDistrictSql(id, districtId))) > 0,
         sleep: (ms) => new Promise((r) => setTimeout(r, ms)),

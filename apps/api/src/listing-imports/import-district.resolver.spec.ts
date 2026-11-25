@@ -17,7 +17,7 @@ describe('resolveImportDistricts', () => {
     expect(rows[0].districtId).toBe('d1');
     expect(rows[1].districtId).toBeUndefined();
     expect(stats).toEqual({ resolved: 1, unresolved: 1, failed: 0, aborted: false });
-    expect(resolve).toHaveBeenCalledWith('41.3', '69.2');
+    expect(resolve).toHaveBeenCalledWith('41.3', '69.2', undefined);
   });
 
   it('строки без координат и с районом не трогает', async () => {

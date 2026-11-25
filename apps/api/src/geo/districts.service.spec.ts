@@ -88,5 +88,33 @@ describe('DistrictsService (unit)', () => {
       expect(prisma.district.findMany).toHaveBeenCalledTimes(1);
       expect(prisma.region.findMany).toHaveBeenCalledTimes(1);
     });
+
+    describe('reconcileWithAddress (адрес против геокодера)', () => {
+      const TOSHKENT_TUMANI = { id: 'e162', names: { nameUz: 'Toshkent tumani', nameRu: 'Ташкентский район', nameEn: 'Toshkent tumani' } };
+      const MIRZO = { id: 'd4', names: { nameUz: "Mirzo Ulug'bek", nameRu: 'Мирзо-Улугбек', nameEn: 'Mirzo-Ulugbek' } };
+
+      it('в адресе район города, геокодер дал район области → район из адреса', async () => {
+        const svc = new DistrictsService(makePrisma());
+        await expect(
+          svc.reconcileWithAddress(TOSHKENT_TUMANI, 'Ташкент, Юнусабадский район, 16-й квартал'),
+        ).resolves.toEqual({ id: 'd12', names: { nameUz: 'Yunusobod', nameRu: 'Юнусабад', nameEn: 'Yunusabad' } });
+      });
+
+      it('геокодер ничего не дал → район из адреса', async () => {
+        const svc = new DistrictsService(makePrisma());
+        await expect(svc.reconcileWithAddress(null, 'г.Ташкент, Юнусабадский район')).resolves.toMatchObject({ id: 'd12' });
+      });
+
+      it('тот же регион → верим геокодеру (точка точнее текста)', async () => {
+        const svc = new DistrictsService(makePrisma());
+        await expect(svc.reconcileWithAddress(MIRZO, 'Ташкент, Юнусабадский район')).resolves.toBe(MIRZO);
+      });
+
+      it('в адресе нет явного района → геокодер', async () => {
+        const svc = new DistrictsService(makePrisma());
+        await expect(svc.reconcileWithAddress(TOSHKENT_TUMANI, 'ЖК Океан')).resolves.toBe(TOSHKENT_TUMANI);
+        await expect(svc.reconcileWithAddress(TOSHKENT_TUMANI, undefined)).resolves.toBe(TOSHKENT_TUMANI);
+      });
+    });
   });
 });

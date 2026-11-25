@@ -229,3 +229,26 @@ export function matchRegionDistrict(
   }
   return {};
 }
+
+/**
+ * Регион и район из ТЕКСТА адреса («Ташкент, Юнусабадский район, 16-й квартал»).
+ * Первая часть до запятой — регион («Ташкент», «г.Ташкент», «Toshkent shahri»,
+ * «Ташкентская область»), следующие две — район. Результат только когда оба
+ * распознаны явно: иначе `{}` и вызывающий доверяет геокодеру.
+ */
+export function matchAddressText(
+  text: string | null | undefined,
+  regions: DirectoryRegion[],
+  districts: DirectoryDistrict[],
+): GeoMatch {
+  const parts = (text ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return {};
+  const regionId = matchRegionByName(parts[0], regions, 1);
+  if (!regionId) return {};
+  const pool = districts.filter((d) => d.regionId === regionId);
+  const districtId = matchDistrict(parts.slice(1, 3), pool);
+  return districtId ? { regionId, districtId } : {};
+}

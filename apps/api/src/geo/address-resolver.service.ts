@@ -82,8 +82,11 @@ export class AddressResolverService {
 
     const matched = byPoint
       ? { id: byPoint, names: (await this.districts.namesByIds([byPoint])).get(byPoint) }
-      : ((await this.districts.matchByComponents(ru.components)) ??
-        (await this.districtByGeocoderKind(apiKey, lat, lng)));
+      : await this.districts.reconcileWithAddress(
+          (await this.districts.matchByComponents(ru.components)) ??
+            (await this.districtByGeocoderKind(apiKey, lat, lng)),
+          options.userAddress,
+        );
     let district: DistrictNames | undefined = matched?.names;
     if (!district && options.districtId) {
       district = (await this.districts.namesByIds([options.districtId])).get(options.districtId);
@@ -103,10 +106,16 @@ export class AddressResolverService {
 
   /**
    * Только район справочника по точке (один ru-запрос) — для импорта и backfill.
+   * `addressText` — адрес объявления: явный район другого региона в нём важнее
+   * геокодера (DistrictsService.reconcileWithAddress).
    * `null` — геокодер недоступен (нет ключа/сеть/ошибка); `{ districtId: null }` —
    * ответ есть, но район не распознан.
    */
-  async resolveDistrictId(lat: string, lng: string): Promise<{ districtId: string | null } | null> {
+  async resolveDistrictId(
+    lat: string,
+    lng: string,
+    addressText?: string | null,
+  ): Promise<{ districtId: string | null } | null> {
     // Сначала граница района (SEO AUD-3): без сети и квоты геокодера.
     const byPoint = await this.districtByPoint(lat, lng);
     if (byPoint) {
@@ -123,9 +132,11 @@ export class AddressResolverService {
     if (!outcome.parts) {
       return { districtId: null };
     }
-    const matched =
+    const matched = await this.districts.reconcileWithAddress(
       (await this.districts.matchByComponents(outcome.parts.components)) ??
-      (await this.districtByGeocoderKind(apiKey, lat, lng));
+        (await this.districtByGeocoderKind(apiKey, lat, lng)),
+      addressText,
+    );
     return { districtId: matched?.id ?? null };
   }
 

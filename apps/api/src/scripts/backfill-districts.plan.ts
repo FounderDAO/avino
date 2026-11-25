@@ -38,7 +38,7 @@ export function parseBackfillArgs(argv: string[]): BackfillArgs {
  */
 export function candidatesSql(limit?: number): Prisma.Sql {
   return Prisma.sql`
-    SELECT id::text AS id, latitude::text AS latitude, longitude::text AS longitude, status::text AS status
+    SELECT id::text AS id, latitude::text AS latitude, longitude::text AS longitude, status::text AS status, address
     FROM listings
     WHERE district_id IS NULL
       AND location IS NOT NULL
@@ -62,12 +62,13 @@ export interface BackfillCandidate {
   latitude: string;
   longitude: string;
   status: string;
+  address?: string | null;
 }
 
 export interface BackfillDeps {
   findCandidates(limit?: number): Promise<BackfillCandidate[]>;
   /** null — геокодер недоступен; `{ districtId: null }` — район по точке не распознан. */
-  resolveDistrictId(lat: string, lng: string): Promise<{ districtId: string | null } | null>;
+  resolveDistrictId(lat: string, lng: string, address: string | null): Promise<{ districtId: string | null } | null>;
   /** true — строка обновлена; false — район уже кто-то заполнил. */
   assignDistrict(listingId: string, districtId: string): Promise<boolean>;
   sleep(ms: number): Promise<void>;
@@ -119,7 +120,7 @@ export async function runDistrictBackfill(
   let consecutiveFailures = 0;
   for (const [index, c] of candidates.entries()) {
     if (index > 0 && pauseMs > 0) await deps.sleep(pauseMs);
-    const outcome = await deps.resolveDistrictId(c.latitude, c.longitude);
+    const outcome = await deps.resolveDistrictId(c.latitude, c.longitude, c.address ?? null);
     if (!outcome) {
       summary.failed += 1;
       consecutiveFailures += 1;

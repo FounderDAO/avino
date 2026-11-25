@@ -348,7 +348,7 @@ export class ListingImportService {
     // импорт не валит — районы доставит scripts/backfill-districts.
     const districtStats = await resolveImportDistricts(
       pending.flatMap((row) => (row.kind === 'CREATE' ? [row.data] : [])),
-      (lat, lng) => this.addressResolver.resolveDistrictId(lat, lng),
+      (lat, lng, address) => this.addressResolver.resolveDistrictId(lat, lng, address),
     );
     if (districtStats.failed > 0) {
       this.logger.warn(

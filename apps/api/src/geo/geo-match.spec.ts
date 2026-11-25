@@ -1,4 +1,5 @@
 import {
+  matchAddressText,
   matchRegionDistrict,
   normalizeGeoName,
   type DirectoryDistrict,
@@ -188,5 +189,30 @@ describe('matchRegionDistrict — область и коллизии', () => {
 
   it('пустые компоненты → {}', () => {
     expect(matchRegionDistrict([], REGIONS, DISTRICTS)).toEqual({});
+  });
+});
+
+describe('matchAddressText — район из текста адреса', () => {
+  const m = (text: string) => matchAddressText(text, REGIONS, DISTRICTS);
+
+  it('«Ташкент, Юнусабадский район, …» → Юнусабад города', () => {
+    expect(m('Ташкент, Юнусабадский район, 16-й квартал')).toEqual({ regionId: R_CITY, districtId: 'yunusobod' });
+    expect(m('г.Ташкент, Алмазариский  район')).toEqual({ regionId: R_CITY, districtId: 'olmazor' });
+    expect(m('Toshkent shahri, Yunusobod tumani')).toEqual({ regionId: R_CITY, districtId: 'yunusobod' });
+  });
+
+  it('область различается с городом', () => {
+    expect(m('Ташкентская область, Зангиатинский район, Назарбек')).toEqual({
+      regionId: R_OBL,
+      districtId: 'zangiota',
+    });
+  });
+
+  it('нет явного региона или района — пусто', () => {
+    expect(m('Юнусабадский район')).toEqual({});
+    expect(m('Карши, ЖК Voha')).toEqual({});
+    expect(m('г.Ташкент, Зангиатинский район')).toEqual({});
+    expect(m('')).toEqual({});
+    expect(m(null as unknown as string)).toEqual({});
   });
 });

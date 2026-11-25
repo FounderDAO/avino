@@ -15,9 +15,15 @@ export interface ImportDistrictTarget {
   latitude?: unknown;
   longitude?: unknown;
   districtId?: string | null;
+  /** Адрес строки: явный район в нём важнее геокодера для окраин Ташкента. */
+  address?: unknown;
 }
 
-export type ResolveDistrictFn = (lat: string, lng: string) => Promise<{ districtId: string | null } | null>;
+export type ResolveDistrictFn = (
+  lat: string,
+  lng: string,
+  address?: string,
+) => Promise<{ districtId: string | null } | null>;
 
 export interface ImportDistrictStats {
   resolved: number;
@@ -47,7 +53,11 @@ export async function resolveImportDistricts(
       const target = queue[next++];
       let outcome: { districtId: string | null } | null;
       try {
-        outcome = await resolveDistrictId(String(target.latitude), String(target.longitude));
+        outcome = await resolveDistrictId(
+          String(target.latitude),
+          String(target.longitude),
+          typeof target.address === 'string' ? target.address : undefined,
+        );
       } catch {
         outcome = null;
       }

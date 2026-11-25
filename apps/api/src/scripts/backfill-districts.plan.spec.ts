@@ -76,7 +76,7 @@ describe('backfill-districts', () => {
         byDistrict: { 'd-chil': 1, 'd-yun': 1 },
         unresolvedIds: ['L3'],
       });
-      expect(deps.resolveDistrictId).toHaveBeenCalledWith('41.30', '69.24');
+      expect(deps.resolveDistrictId).toHaveBeenCalledWith('41.30', '69.24', null);
     });
 
     it('--apply: пишет только распознанные районы', async () => {

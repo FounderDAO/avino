@@ -49,7 +49,12 @@ describe('AddressResolverService', () => {
   const CHILANZAR = { nameUz: 'Chilonzor', nameRu: 'Чиланзар', nameEn: 'Chilanzar' };
   const YUNUSABAD = { nameUz: 'Yunusobod', nameRu: 'Юнусабад', nameEn: 'Yunusabad' };
 
-  let districts: { namesByIds: jest.Mock; matchByComponents: jest.Mock; districtIdByPoint: jest.Mock };
+  let districts: {
+    namesByIds: jest.Mock;
+    matchByComponents: jest.Mock;
+    districtIdByPoint: jest.Mock;
+    reconcileWithAddress: jest.Mock;
+  };
   let fetchMock: jest.SpyInstance;
 
   const makeService = (apiKey: string | undefined) => {
@@ -69,6 +74,7 @@ describe('AddressResolverService', () => {
     districts = {
       namesByIds: jest.fn().mockResolvedValue(new Map()),
       matchByComponents: jest.fn().mockResolvedValue({ id: 'd-chil', names: CHILANZAR }),
+      reconcileWithAddress: jest.fn((geocoded: unknown) => Promise.resolve(geocoded)),
       // Границ районов нет — путь через геокодер, как раньше (SEO AUD-3).
       districtIdByPoint: jest.fn().mockResolvedValue(null),
     };
@@ -187,6 +193,18 @@ describe('AddressResolverService', () => {
       await expect(service.resolveDistrictId(LAT, LNG)).resolves.toEqual({ districtId: 'd-chil' });
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(String(fetchMock.mock.calls[0][0])).toContain('lang=ru_RU');
+    });
+
+    it('адрес объявления передаётся на сверку с геокодером', async () => {
+      fetchMock.mockResolvedValue(okResponse(geocoderBody(RU_COMPONENTS)));
+      districts.reconcileWithAddress.mockResolvedValue({ id: 'd-yunus', names: CHILANZAR });
+      await expect(
+        makeService('test-key').resolveDistrictId(LAT, LNG, 'Ташкент, Юнусабадский район'),
+      ).resolves.toEqual({ districtId: 'd-yunus' });
+      expect(districts.reconcileWithAddress).toHaveBeenCalledWith(
+        { id: 'd-chil', names: CHILANZAR },
+        'Ташкент, Юнусабадский район',
+      );
     });
 
     it('район не распознан → { districtId: null }', async () => {

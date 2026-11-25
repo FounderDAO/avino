@@ -34,7 +34,7 @@ describe('GeoResolveProcessor (SEO AUD-2)', () => {
   it('writes the district only if still missing, moves the content date and syncs the page', async () => {
     const { processor, prisma, resolver, urlSync } = setup(point, { districtId: 'd-yun' });
     await processor.process(ID, false);
-    expect(resolver.resolveDistrictId).toHaveBeenCalledWith('41.34', '69.285');
+    expect(resolver.resolveDistrictId).toHaveBeenCalledWith('41.34', '69.285', undefined);
     expect(prisma.listing.updateMany).toHaveBeenCalledWith({
       where: { id: ID, districtId: null },
       data: { districtId: 'd-yun', contentUpdatedAt: expect.any(Date) },

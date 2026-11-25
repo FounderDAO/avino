@@ -25,7 +25,7 @@ export class GeoResolveProcessor {
   async process(listingId: string, lastAttempt: boolean): Promise<void> {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { districtId: true, latitude: true, longitude: true, status: true },
+      select: { districtId: true, latitude: true, longitude: true, status: true, address: true },
     });
     if (
       !listing ||
@@ -37,7 +37,11 @@ export class GeoResolveProcessor {
       return;
     }
 
-    const result = await this.resolver.resolveDistrictId(listing.latitude.toString(), listing.longitude.toString());
+    const result = await this.resolver.resolveDistrictId(
+      listing.latitude.toString(),
+      listing.longitude.toString(),
+      listing.address,
+    );
     if (result === null) {
       if (lastAttempt) this.logger.warn(`district_unresolved ${listingId}: geocoder unavailable`);
       throw new Error('Geocoder unavailable');

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Language } from '@prisma/client';
 import { PrismaService } from '../prisma';
 import {
+  matchAddressText,
   matchRegionDistrict,
   type DirectoryDistrict,
   type DirectoryRegion,
@@ -164,6 +165,29 @@ export class DistrictsService {
     const { districtId } = matchRegionDistrict(components, directory.regions, directory.districts);
     const hit = districtId ? directory.districts.find((d) => d.id === districtId) : undefined;
     return hit ? { id: hit.id, names: hit.names3 } : null;
+  }
+
+  /**
+   * Сверка района геокодера с адресом объявления. Если в адресе явно написаны
+   * регион и район («Ташкент, Юнусабадский район»), а геокодер дал район ДРУГОГО
+   * региона (у окраин Ташкента — «Ташкентский район» области) или ничего, —
+   * берём район из адреса: иначе объявление выпадает из фильтра по региону.
+   * Расхождения внутри одного региона не трогаем — там точка точнее текста.
+   */
+  async reconcileWithAddress(
+    geocoded: { id: string; names: DistrictNames } | null,
+    addressText: string | null | undefined,
+  ): Promise<{ id: string; names: DistrictNames } | null> {
+    if (!addressText) return geocoded;
+    const directory = await this.directory();
+    const fromText = matchAddressText(addressText, directory.regions, directory.districts);
+    if (!fromText.districtId) return geocoded;
+    const geocodedRegion = geocoded
+      ? directory.districts.find((d) => d.id === geocoded.id)?.regionId
+      : undefined;
+    if (geocoded && geocodedRegion === fromText.regionId) return geocoded;
+    const hit = directory.districts.find((d) => d.id === fromText.districtId);
+    return hit ? { id: hit.id, names: hit.names3 } : geocoded;
   }
 
   /** Регионы + районы для сопоставления; кеш на {@link DIRECTORY_TTL_MS}, сбой чтения не кешируется. */
