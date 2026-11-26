@@ -11,4 +11,14 @@ export class PublicSettingsView {
   mapHoverRecenter!: boolean;
   legalConsentRequired!: boolean;
   legalConsentVersion!: number;
+  /**
+   * Минимальная допустимая сборка iOS-приложения (build number). Сборка ниже —
+   * экран обязательного обновления. `0` = не требовать.
+   */
+  minAppBuildIos!: number;
+  /**
+   * Минимальная допустимая сборка Android-приложения (versionCode). Сборка
+   * ниже — экран обязательного обновления. `0` = не требовать.
+   */
+  minAppBuildAndroid!: number;
 }

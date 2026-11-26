@@ -4,6 +4,7 @@ import { PromotionsFlagService } from './promotions-flag.service';
 import { ActiveListingLimitService } from './active-listing-limit.service';
 import { MapHoverRecenterFlagService } from './map-hover-recenter-flag.service';
 import { LegalConsentFlagService } from './legal-consent-flag.service';
+import { MinAppBuildService } from './min-app-build.service';
 
 /**
  * SettingsModule — публичные фиче-флаги платформы.
@@ -21,12 +22,14 @@ import { LegalConsentFlagService } from './legal-consent-flag.service';
     ActiveListingLimitService,
     MapHoverRecenterFlagService,
     LegalConsentFlagService,
+    MinAppBuildService,
   ],
   exports: [
     PromotionsFlagService,
     ActiveListingLimitService,
     MapHoverRecenterFlagService,
     LegalConsentFlagService,
+    MinAppBuildService,
   ],
 })
 export class SettingsModule {}
