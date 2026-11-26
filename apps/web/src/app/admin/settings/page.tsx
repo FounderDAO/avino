@@ -9,6 +9,7 @@ import { TelegramNotificationsToggle } from '@/components/admin/TelegramNotifica
 import { SmsSendingToggle } from '@/components/admin/SmsSendingToggle';
 import { PromotionsAvailabilityToggle } from '@/components/admin/PromotionsAvailabilityToggle';
 import { ActiveListingLimitControl } from '@/components/admin/ActiveListingLimitControl';
+import { MinAppBuildControl } from '@/components/admin/MinAppBuildControl';
 import { MapHoverRecenterToggle } from '@/components/admin/MapHoverRecenterToggle';
 import { LegalConsentRequiredToggle } from '@/components/admin/LegalConsentRequiredToggle';
 import { ExchangeRatePanel } from '@/components/admin/ExchangeRatePanel';
@@ -26,8 +27,9 @@ export default function SettingsPage() {
         <PromotionsAvailabilityToggle />
         <MapHoverRecenterToggle />
       </div>
-      {/* Контролы с вводом (лимит, версия документов, курс) — во всю ширину. */}
+      {/* Контролы с вводом (лимит, мин. сборка приложения, версия документов, курс) — во всю ширину. */}
       <ActiveListingLimitControl />
+      <MinAppBuildControl />
       <LegalConsentRequiredToggle />
       <ExchangeRatePanel />
     </div>
