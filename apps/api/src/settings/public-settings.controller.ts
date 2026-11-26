@@ -3,6 +3,7 @@ import { PromotionsFlagService } from './promotions-flag.service';
 import { ActiveListingLimitService } from './active-listing-limit.service';
 import { MapHoverRecenterFlagService } from './map-hover-recenter-flag.service';
 import { LegalConsentFlagService } from './legal-consent-flag.service';
+import { MinAppBuildService } from './min-app-build.service';
 import { PublicSettingsView } from './dto/public-settings-view.dto';
 
 /**
@@ -16,16 +17,20 @@ export class PublicSettingsController {
     private readonly activeLimit: ActiveListingLimitService,
     private readonly mapHover: MapHoverRecenterFlagService,
     private readonly legalConsent: LegalConsentFlagService,
+    private readonly minAppBuild: MinAppBuildService,
   ) {}
 
   @Get()
   async get(): Promise<PublicSettingsView> {
+    const minBuild = await this.minAppBuild.get();
     return {
       promotionsEnabled: await this.flags.isEnabled(),
       activeListingLimit: await this.activeLimit.getLimit(),
       mapHoverRecenter: await this.mapHover.isEnabled(),
       legalConsentRequired: await this.legalConsent.isRequired(),
       legalConsentVersion: await this.legalConsent.currentVersion(),
+      minAppBuildIos: minBuild.ios,
+      minAppBuildAndroid: minBuild.android,
     };
   }
 }

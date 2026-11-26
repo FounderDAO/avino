@@ -26,3 +26,12 @@ export {
   resolveLegalConsentRequired,
   resolveLegalConsentVersion,
 } from './legal-consent-flag.constants';
+export { MinAppBuildService } from './min-app-build.service';
+export type { MinAppBuild } from './min-app-build.service';
+export {
+  MIN_APP_BUILD_IOS_KEY,
+  MIN_APP_BUILD_ANDROID_KEY,
+  MIN_APP_BUILD_MAX,
+  resolveMinAppBuild,
+} from './min-app-build.constants';
+export { AdminMinAppBuildController } from './admin-min-app-build.controller';

@@ -4527,6 +4527,12 @@
           },
           "legalConsentVersion": {
             "type": "number"
+          },
+          "minAppBuildIos": {
+            "type": "number"
+          },
+          "minAppBuildAndroid": {
+            "type": "number"
           }
         },
         "required": [
@@ -4534,7 +4540,9 @@
           "activeListingLimit",
           "mapHoverRecenter",
           "legalConsentRequired",
-          "legalConsentVersion"
+          "legalConsentVersion",
+          "minAppBuildIos",
+          "minAppBuildAndroid"
         ]
       },
       "TourWindowDto": {

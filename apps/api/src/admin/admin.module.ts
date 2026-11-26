@@ -7,7 +7,7 @@ import { AdminComplaintsController, ComplaintsModule } from '../complaints';
 import { ModerationModule } from '../moderation';
 import { PromotionsModule } from '../promotions';
 import { RolesModule } from '../roles';
-import { SettingsModule, AdminPromotionsFlagController, AdminActiveListingLimitController, AdminMapHoverRecenterFlagController, AdminLegalConsentFlagController } from '../settings';
+import { SettingsModule, AdminPromotionsFlagController, AdminActiveListingLimitController, AdminMapHoverRecenterFlagController, AdminLegalConsentFlagController, AdminMinAppBuildController } from '../settings';
 import { AdminSupportRequestsController, SupportModule } from '../support';
 import { TranslationsModule } from '../translations';
 import { AdminLegalDocumentsController, LegalDocumentsModule } from '../legal-documents';
@@ -87,6 +87,7 @@ import { AdminUsersService } from './admin-users.service';
     AdminActiveListingLimitController,
     AdminMapHoverRecenterFlagController,
     AdminLegalConsentFlagController,
+    AdminMinAppBuildController,
     AdminLegalDocumentsController,
     AdminUsersController,
     AdminLogsController,

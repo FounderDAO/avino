@@ -5731,6 +5731,50 @@
         }
       }
     },
+    "/api/v1/admin/min-app-build": {
+      "get": {
+        "operationId": "AdminMinAppBuildController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "AdminMinAppBuildController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMinAppBuildDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/legal-documents": {
       "get": {
         "operationId": "AdminLegalDocumentsController_list",
@@ -7194,6 +7238,12 @@
           },
           "legalConsentVersion": {
             "type": "number"
+          },
+          "minAppBuildIos": {
+            "type": "number"
+          },
+          "minAppBuildAndroid": {
+            "type": "number"
           }
         },
         "required": [
@@ -7201,7 +7251,9 @@
           "activeListingLimit",
           "mapHoverRecenter",
           "legalConsentRequired",
-          "legalConsentVersion"
+          "legalConsentVersion",
+          "minAppBuildIos",
+          "minAppBuildAndroid"
         ]
       },
       "TourWindowDto": {
@@ -8194,6 +8246,21 @@
           "version": {
             "type": "number",
             "minimum": 1
+          }
+        }
+      },
+      "UpdateMinAppBuildDto": {
+        "type": "object",
+        "properties": {
+          "ios": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "android": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
           }
         }
       },
