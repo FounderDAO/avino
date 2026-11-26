@@ -249,6 +249,22 @@ export function matchAddressText(
   const regionId = matchRegionByName(parts[0], regions, 1);
   if (!regionId) return {};
   const pool = districts.filter((d) => d.regionId === regionId);
-  const districtId = matchDistrict(parts.slice(1, 3), pool);
-  return districtId ? { regionId, districtId } : {};
+  // Части по порядку: район обычно идёт сразу за регионом, улица — дальше.
+  // Внутри части — сама часть, потом её куски по словам: «Юнусабадский
+  // 16-квартал», «массив Чиланзар, 6-й квартал».
+  for (const part of parts.slice(1, 3)) {
+    const districtId = matchDistrict(wordWindows(part), pool);
+    if (districtId) return { regionId, districtId };
+  }
+  return {};
+}
+
+/** Часть адреса и все её непрерывные куски по словам, от длинных к коротким. */
+function wordWindows(part: string): string[] {
+  const words = part.split(/[\s,]+/).filter(Boolean);
+  const out = [part];
+  for (let len = words.length - 1; len >= 1; len--) {
+    for (let i = 0; i + len <= words.length; i++) out.push(words.slice(i, i + len).join(' '));
+  }
+  return out;
 }

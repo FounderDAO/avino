@@ -8,7 +8,11 @@ import {
   BackfillCandidate,
   candidatesSql,
   parseBackfillArgs,
+  reassignDistrictSql,
+  ReconcileCandidate,
+  reconcileCandidatesSql,
   runDistrictBackfill,
+  runDistrictReconcile,
 } from './backfill-districts.plan';
 
 /**
@@ -29,6 +33,13 @@ import {
  *     exec api node dist/scripts/backfill-districts.js            # dry-run
  *   ... exec api node dist/scripts/backfill-districts.js --apply  # запись
  *   опционально --limit=N — первые N кандидатов (по created_at).
+ *
+ * --reconcile (правка 2026-11-26): сверить УЖЕ заполненные районы с адресом.
+ * Адрес явно называет район другого региона («г.Ташкент, Юнусабадский
+ * 16-квартал», а район — «Ташкентский» области) → район из адреса. Только
+ * текст, без геокодера; dry-run печатает каждую замену.
+ *   ... exec api node dist/scripts/backfill-districts.js --reconcile            # dry-run
+ *   ... exec api node dist/scripts/backfill-districts.js --reconcile --apply
  */
 async function backfillDistricts(): Promise<void> {
   const args = parseBackfillArgs(process.argv.slice(2));
@@ -39,6 +50,11 @@ async function backfillDistricts(): Promise<void> {
     const prisma = app.get(PrismaService);
     const resolver = app.get(AddressResolverService);
     const districts = app.get(DistrictsService);
+
+    if (args.reconcile) {
+      await reconcileDistricts(prisma, districts, args.apply, args.limit);
+      return;
+    }
 
     const summary = await runDistrictBackfill(
       {
@@ -74,6 +90,36 @@ async function backfillDistricts(): Promise<void> {
   } finally {
     await app.close();
   }
+}
+
+async function reconcileDistricts(
+  prisma: PrismaService,
+  districts: DistrictsService,
+  apply: boolean,
+  limit?: number,
+): Promise<void> {
+  const summary = await runDistrictReconcile(
+    {
+      findCandidates: (n) => prisma.$queryRaw<ReconcileCandidate[]>(reconcileCandidatesSql(n)),
+      reconcile: async (districtId, address) => {
+        const names = (await districts.namesByIds([districtId])).get(districtId);
+        if (!names) return districtId;
+        return (await districts.reconcileWithAddress({ id: districtId, names }, address))?.id ?? districtId;
+      },
+      reassign: async (id, from, to) => (await prisma.$executeRaw(reassignDistrictSql(id, from, to))) > 0,
+    },
+    { apply, limit },
+  );
+  const ids = [...new Set(summary.changes.flatMap((c) => [c.from, c.to]))];
+  const names = await districts.namesByIds(ids);
+  const name = (id: string) => names.get(id)?.nameRu ?? id;
+  /* eslint-disable no-console */
+  console.log(`backfill-districts --reconcile (${apply ? 'APPLY' : 'DRY-RUN — ничего не записано'})`);
+  console.log(`candidates=${summary.candidates} changed=${summary.changed} updated=${summary.updated}`);
+  for (const c of summary.changes) {
+    console.log(`  ${c.id}: ${name(c.from)} → ${name(c.to)} | ${c.address}`);
+  }
+  /* eslint-enable no-console */
 }
 
 backfillDistricts().catch((err) => {

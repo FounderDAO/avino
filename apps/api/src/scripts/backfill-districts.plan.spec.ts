@@ -1,5 +1,9 @@
 import {
   assignDistrictSql,
+  reassignDistrictSql,
+  reconcileCandidatesSql,
+  runDistrictReconcile,
+  type ReconcileDeps,
   candidatesSql,
   parseBackfillArgs,
   runDistrictBackfill,
@@ -17,6 +21,9 @@ describe('backfill-districts', () => {
     });
     it('мусорный лимит → ошибка', () => {
       expect(() => parseBackfillArgs(['--limit=abc'])).toThrow(/limit/);
+    });
+    it('--reconcile', () => {
+      expect(parseBackfillArgs(['--reconcile', '--apply'])).toEqual({ apply: true, limit: undefined, reconcile: true });
     });
     it('неизвестный флаг → ошибка (опечатка в --apply не должна тихо стать dry-run)', () => {
       expect(() => parseBackfillArgs(['--aply'])).toThrow(/--aply/);
@@ -109,6 +116,47 @@ describe('backfill-districts', () => {
     it('лимит передаётся в выборку', async () => {
       await runDistrictBackfill(deps, { apply: false, limit: 5 });
       expect(deps.findCandidates).toHaveBeenCalledWith(5);
+    });
+  });
+
+  describe('--reconcile: сверка заполненных районов с адресом', () => {
+    it('SQL: кандидаты с районом и адресом; смена только со старого района', () => {
+      const sql = reconcileCandidatesSql().sql;
+      expect(sql).toMatch(/district_id IS NOT NULL/);
+      expect(sql).toMatch(/address IS NOT NULL/);
+      expect(sql).toMatch(/status <> 'DELETED'/);
+      const q = reassignDistrictSql('L1', 'old', 'new');
+      expect(q.text).toMatch(/AND district_id = \$3::uuid/);
+      expect(q.sql).not.toMatch(/updated_at/);
+      expect(q.values).toEqual(['new', 'L1', 'old']);
+    });
+
+    const deps = (): jest.Mocked<ReconcileDeps> => ({
+      findCandidates: jest.fn().mockResolvedValue([
+        { id: 'L1', districtId: 'tash-tumani', address: 'г.Ташкент, Юнусабадский 16-квартал' },
+        { id: 'L2', districtId: 'chilonzor', address: 'Ташкент, Чиланзар' },
+      ]),
+      reconcile: jest.fn((districtId: string, address: string) =>
+        Promise.resolve(address.includes('Юнусабад') ? 'yunusobod' : districtId),
+      ),
+      reassign: jest.fn().mockResolvedValue(true),
+    });
+
+    it('dry-run: печатает замену, ничего не пишет', async () => {
+      const d = deps();
+      const summary = await runDistrictReconcile(d, { apply: false });
+      expect(summary).toMatchObject({ candidates: 2, changed: 1, updated: 0 });
+      expect(summary.changes).toEqual([
+        { id: 'L1', address: 'г.Ташкент, Юнусабадский 16-квартал', from: 'tash-tumani', to: 'yunusobod' },
+      ]);
+      expect(d.reassign).not.toHaveBeenCalled();
+    });
+
+    it('--apply: меняет только расходящиеся', async () => {
+      const d = deps();
+      const summary = await runDistrictReconcile(d, { apply: true });
+      expect(summary.updated).toBe(1);
+      expect(d.reassign).toHaveBeenCalledWith('L1', 'tash-tumani', 'yunusobod');
     });
   });
 });

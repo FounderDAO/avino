@@ -65,28 +65,36 @@ export class AddressResolverService {
   ): Promise<ResolvedAddress | null> {
     // Район по границе (SEO AUD-3) — точнее компонент геокодера и работает без него.
     const byPoint = await this.districtByPoint(lat, lng);
-    const pointOnly = byPoint ? { address: null, addressEn: null, districtId: byPoint } : null;
+    // Граница у края города приблизительная: явный район другого региона в
+    // адресе важнее (см. DistrictsService.reconcileWithAddress).
+    const fromPoint: { id: string; names?: DistrictNames } | null = byPoint
+      ? ((await this.districts.reconcileWithAddress(await this.withNames(byPoint), options.userAddress)) ?? {
+          id: byPoint,
+        })
+      : null;
     const apiKey = this.config.get<string>('maps.yandexApiKey');
-    if (!apiKey) {
-      return pointOnly;
-    }
-    const [ruOutcome, enOutcome] = await Promise.all([
-      this.geocode(apiKey, lat, lng, 'ru_RU'),
-      this.geocode(apiKey, lat, lng, 'en_US'),
-    ]);
+    const [ruOutcome, enOutcome] = apiKey
+      ? await Promise.all([
+          this.geocode(apiKey, lat, lng, 'ru_RU'),
+          this.geocode(apiKey, lat, lng, 'en_US'),
+        ])
+      : [{ ok: false as const }, { ok: false as const }];
     const ru = ruOutcome.ok ? ruOutcome.parts : null;
     if (!ru) {
-      return pointOnly;
+      // Геокодер молчит — район по границе или из самого адреса.
+      const districtId =
+        fromPoint?.id ?? (await this.districts.reconcileWithAddress(null, options.userAddress))?.id;
+      return districtId ? { address: null, addressEn: null, districtId } : null;
     }
     const en = enOutcome.ok ? enOutcome.parts : null;
 
-    const matched = byPoint
-      ? { id: byPoint, names: (await this.districts.namesByIds([byPoint])).get(byPoint) }
-      : await this.districts.reconcileWithAddress(
-          (await this.districts.matchByComponents(ru.components)) ??
-            (await this.districtByGeocoderKind(apiKey, lat, lng)),
-          options.userAddress,
-        );
+    const matched =
+      fromPoint ??
+      (await this.districts.reconcileWithAddress(
+        (await this.districts.matchByComponents(ru.components)) ??
+          (await this.districtByGeocoderKind(apiKey as string, lat, lng)),
+        options.userAddress,
+      ));
     let district: DistrictNames | undefined = matched?.names;
     if (!district && options.districtId) {
       district = (await this.districts.namesByIds([options.districtId])).get(options.districtId);
@@ -116,21 +124,25 @@ export class AddressResolverService {
     lng: string,
     addressText?: string | null,
   ): Promise<{ districtId: string | null } | null> {
-    // Сначала граница района (SEO AUD-3): без сети и квоты геокодера.
+    // Сначала граница района (SEO AUD-3): без сети и квоты геокодера. Явный
+    // район другого региона в адресе важнее — граница у края города неточная.
     const byPoint = await this.districtByPoint(lat, lng);
     if (byPoint) {
-      return { districtId: byPoint };
+      const matched = await this.districts.reconcileWithAddress(await this.withNames(byPoint), addressText);
+      return { districtId: matched?.id ?? byPoint };
     }
+    // Явные регион и район в тексте адреса — без геокодера (квота, сбои).
+    const fromText = await this.districts.reconcileWithAddress(null, addressText);
     const apiKey = this.config.get<string>('maps.yandexApiKey');
     if (!apiKey) {
-      return null;
+      return fromText ? { districtId: fromText.id } : null;
     }
     const outcome = await this.geocode(apiKey, lat, lng, 'ru_RU');
     if (!outcome.ok) {
-      return null;
+      return fromText ? { districtId: fromText.id } : null;
     }
     if (!outcome.parts) {
-      return { districtId: null };
+      return { districtId: fromText?.id ?? null };
     }
     const matched = await this.districts.reconcileWithAddress(
       (await this.districts.matchByComponents(outcome.parts.components)) ??
@@ -158,6 +170,12 @@ export class AddressResolverService {
       if (hit) return hit;
     }
     return null;
+  }
+
+  /** Район справочника с именами (для сверки с адресом). */
+  private async withNames(districtId: string): Promise<{ id: string; names: DistrictNames } | null> {
+    const names = (await this.districts.namesByIds([districtId])).get(districtId);
+    return names ? { id: districtId, names } : null;
   }
 
   /** Район по границам; сбой БД не мешает запасному пути через геокодер. */

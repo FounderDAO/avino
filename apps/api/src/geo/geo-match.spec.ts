@@ -201,6 +201,24 @@ describe('matchAddressText — район из текста адреса', () =>
     expect(m('Toshkent shahri, Yunusobod tumani')).toEqual({ regionId: R_CITY, districtId: 'yunusobod' });
   });
 
+  it('район с хвостом в той же части: «Юнусабадский 16-квартал», «массив Чиланзар»', () => {
+    expect(m('г.Ташкент, Юнусабадский 16-квартал')).toEqual({ regionId: R_CITY, districtId: 'yunusobod' });
+    expect(m('Ташкент, массив Чиланзар, 6-й квартал, 37А')).toEqual({ regionId: R_CITY, districtId: 'chilonzor' });
+    expect(m('г.Ташкент, Мирзо-Улугбекский 5-квартал')).toEqual({ regionId: R_CITY, districtId: 'mirzo-ulugbek' });
+  });
+
+  it('район из первой части важнее улицы с названием другого района', () => {
+    expect(m('Ташкент, Юнусабадский 16-квартал, улица Чиланзар')).toEqual({
+      regionId: R_CITY,
+      districtId: 'yunusobod',
+    });
+  });
+
+  it('«г.Ташкент» + район области — не выдумываем район города', () => {
+    expect(m('г.Ташкент, Зангиатинский   район')).toEqual({});
+    expect(m('г.Ташкент, Ташкентский    район')).toEqual({});
+  });
+
   it('область различается с городом', () => {
     expect(m('Ташкентская область, Зангиатинский район, Назарбек')).toEqual({
       regionId: R_OBL,

@@ -290,6 +290,64 @@ describe('AddressResolverService', () => {
       expect(districts.matchByComponents).not.toHaveBeenCalled();
     });
 
+    // Сверка с адресом (как в DistrictsService): адрес явно называет Юнусабад
+    // города, а точка/геокодер — район области или ничего.
+    const textWins = (address: string) =>
+      districts.reconcileWithAddress.mockImplementation((geocoded: unknown, text: unknown) =>
+        Promise.resolve(text === address ? { id: 'd-yunus', names: YUNUSABAD } : geocoded),
+      );
+    const ADDR = 'г.Ташкент, Юнусабадский 16-квартал';
+
+    it('граница дала район другого региона, адрес явно называет район города → район из адреса', async () => {
+      districts.districtIdByPoint.mockResolvedValue('d-tash-tumani');
+      districts.namesByIds.mockResolvedValue(new Map([['d-tash-tumani', YUNUSABAD]]));
+      textWins(ADDR);
+      await expect(makeService(undefined).resolveDistrictId(LAT, LNG, ADDR)).resolves.toEqual({
+        districtId: 'd-yunus',
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('resolve: граница сверяется с адресом пользователя', async () => {
+      districts.districtIdByPoint.mockResolvedValue('d-tash-tumani');
+      districts.namesByIds.mockResolvedValue(new Map([['d-tash-tumani', YUNUSABAD]]));
+      textWins(ADDR);
+      respondWith(geocoderBody(RU_COMPONENTS), geocoderBody(EN_COMPONENTS));
+      const result = await makeService('test-key').resolve(LAT, LNG, { userAddress: ADDR });
+      expect(result?.districtId).toBe('d-yunus');
+    });
+
+    it('у точки нет ни границы, ни ответа геокодера → район из адреса', async () => {
+      textWins(ADDR);
+      fetchMock.mockResolvedValue(okResponse({ response: { GeoObjectCollection: { featureMember: [] } } }));
+      await expect(makeService('test-key').resolveDistrictId(LAT, LNG, ADDR)).resolves.toEqual({
+        districtId: 'd-yunus',
+      });
+    });
+
+    it('геокодер недоступен или ключа нет → район из адреса, если он явный', async () => {
+      textWins(ADDR);
+      fetchMock.mockRejectedValue(new Error('timeout'));
+      await expect(makeService('test-key').resolveDistrictId(LAT, LNG, ADDR)).resolves.toEqual({
+        districtId: 'd-yunus',
+      });
+      await expect(makeService(undefined).resolveDistrictId(LAT, LNG, ADDR)).resolves.toEqual({
+        districtId: 'd-yunus',
+      });
+      // Адрес без явного района — по-прежнему «недоступен» (повтор позже).
+      await expect(makeService('test-key').resolveDistrictId(LAT, LNG, 'Ташкент')).resolves.toBeNull();
+    });
+
+    it('resolve: геокодер недоступен, границы нет → район из адреса', async () => {
+      textWins(ADDR);
+      fetchMock.mockRejectedValue(new Error('timeout'));
+      await expect(makeService('test-key').resolve(LAT, LNG, { userAddress: ADDR })).resolves.toEqual({
+        address: null,
+        addressEn: null,
+        districtId: 'd-yunus',
+      });
+    });
+
     it('сбой запроса границ не мешает геокодеру', async () => {
       districts.districtIdByPoint.mockRejectedValue(new Error('relation does not exist'));
       fetchMock.mockResolvedValue(okResponse(geocoderBody(RU_COMPONENTS)));
